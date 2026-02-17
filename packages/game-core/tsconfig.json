@@ -4,5 +4,5 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts", "progression/ind, "loot/index.js"ex.js", "power/index.js"]
 }
