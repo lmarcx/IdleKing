@@ -28,8 +28,11 @@ export type GeneratedItem = {
 
   ilvl: number; // fixed
   rarity: Rarity;
+  
+
 
   upgradeLevel: number; // starts at 0 in MVP
+  baseStats: ItemStats;
   stats: ItemStats;
 
   itemPower: number;
@@ -220,7 +223,9 @@ export function generateItem(params: GenerateItemParams): GeneratedItem {
   const stats = allocateStats({ kind, budget, element });
 
   // ItemPower: use tier of the WORLD (content tier) to keep it consistent
-  const itemCombatStats = toCombatStats(stats);
+  const rolledStats = allocateStats({ kind, budget, element });
+
+  const itemCombatStats = toCombatStats(rolledStats);
   const itemPower = computePowerFromStats(itemCombatStats, tier).power;
 
   return {
@@ -233,7 +238,8 @@ export function generateItem(params: GenerateItemParams): GeneratedItem {
     ilvl,
     rarity,
     upgradeLevel: 0,
-    stats,
+    baseStats: rolledStats,   
+    stats: rolledStats,
     itemPower,
   };
 }

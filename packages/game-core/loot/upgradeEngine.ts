@@ -135,7 +135,7 @@ export function applyUpgrade(
   const nextLevel = item.upgradeLevel + 1;
   const mult = 1 + cfg.statPerLevelMultiplier * nextLevel;
 
-  const nextStats = scaleStats(item.stats, mult);
+  const nextStats = scaleStats(item.baseStats, mult);
 
   const tier = tierFromWorldLevel(worldLevel);
   const itemPower = computePowerFromStats(toCombatStats(nextStats), tier).power;
