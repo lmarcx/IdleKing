@@ -1,0 +1,13 @@
+{
+  "name": "idleking",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm -ws run build",
+    "typecheck": "npm -ws run typecheck",
+    "test": "npm -ws run test"
+  }
+}
