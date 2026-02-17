@@ -1,5 +1,5 @@
 import type { Element, CombatStats } from "../power/types.js";
-import { computePowerFromStats } from "../power/powerEngine.js";
+import { computeItemPowerFromStats, emptyCombatStats } from "../power/itemScore.js";
 import type { ItemSlot, ItemKind, ItemStats } from "./budget.js";
 import { SLOT_KIND, allocateStats, tierFromWorldLevel, budgetFinal } from "./budget.js";
 import type { Rarity } from "./rarity.js";
@@ -28,10 +28,9 @@ export type GeneratedItem = {
 
   ilvl: number; // fixed
   rarity: Rarity;
-  
-
 
   upgradeLevel: number; // starts at 0 in MVP
+
   baseStats: ItemStats;
   stats: ItemStats;
 
@@ -91,9 +90,7 @@ const ARMOR_SLOTS: readonly ItemSlot[] = [
 
 const JEWELRY_SLOTS: readonly ItemSlot[] = ["NECKLACE", "RING", "BAND"] as const;
 
-const STONE_SLOTS: readonly ItemSlot[] = ["STONE"] as const;
-
-const ALL_SLOTS: readonly ItemSlot[] = [...ARMOR_SLOTS, ...JEWELRY_SLOTS, ...STONE_SLOTS] as const;
+const ALL_SLOTS: readonly ItemSlot[] = [...ARMOR_SLOTS, ...JEWELRY_SLOTS, "STONE"] as const;
 
 /**
  * Slot distribution:
@@ -110,9 +107,6 @@ function rollSlot(rng: () => number): ItemSlot {
 
 /**
  * Anti-tilt bias: small chance to force a chosen slot.
- * Use case: after failed expedition, increase chance to drop a lost slot.
- *
- * By design: still roguelite/punitive; this is only a small safety net.
  */
 function rollSlotWithBias(rng: () => number, biasSlot?: ItemSlot): ItemSlot {
   if (!biasSlot) return rollSlot(rng);
@@ -138,35 +132,18 @@ function rollElement(rng: () => number, biome: Biome): Element {
 }
 
 /**
- * Convert ItemStats -> CombatStats so we can compute ItemPower.
- * Notes:
- * - Item alone doesn't define full stats, so missing values default to 0.
- * - critChance can exceed 1; critDmg defaults to base 1.5 (as per player baseline).
- * - This is a "loadout-only" stat block, used to compute the power contribution of the item.
+ * Convert ItemStats -> CombatStats for scoring.
+ * Here we use the item-score model (not the player combatScore model).
  */
 function toCombatStats(itemStats: ItemStats): CombatStats {
-  const resists = {
-    FIRE: 0,
-    ICE: 0,
-    LIGHTNING: 0,
-    VOID: 0,
-    ...(itemStats.resists ?? {}),
-  } as Record<Element, number>;
-
-  const elemental = {
-    FIRE: 0,
-    ICE: 0,
-    LIGHTNING: 0,
-    VOID: 0,
-    ...(itemStats.elemental ?? {}),
-  } as Record<Element, number>;
-
+  const base = emptyCombatStats();
   return {
+    ...base,
     hp: Math.round(itemStats.hp ?? 0),
     attack: Number((itemStats.attack ?? 0).toFixed(4)),
     armor: Number((itemStats.armor ?? 0).toFixed(4)),
-    resists,
-    elemental,
+    resists: { ...base.resists, ...(itemStats.resists ?? {}) },
+    elemental: { ...base.elemental, ...(itemStats.elemental ?? {}) },
     critChance: itemStats.critChance ?? 0,
     critDmg: 1.5 + (itemStats.critDmg ?? 0),
     speedRating: Math.round(itemStats.speedRating ?? 0),
@@ -179,7 +156,6 @@ function makeId(seed: number, ilvl: number, slot: ItemSlot, element: Element) {
 }
 
 function defaultName(slot: ItemSlot, rarity: Rarity, element: Element): string {
-  // simple placeholder naming (you’ll later swap via localization tables)
   const rarityLabel: Record<Rarity, string> = {
     COMMON: "Commun",
     RARE: "Rare",
@@ -204,9 +180,6 @@ function defaultName(slot: ItemSlot, rarity: Rarity, element: Element): string {
   return `${slotLabel[slot]} ${rarityLabel[rarity]} (${element})`;
 }
 
-/**
- * Main generator.
- */
 export function generateItem(params: GenerateItemParams): GeneratedItem {
   const ilvl = clampIlvl(params.ilvl);
   const rng = mulberry32(params.seed);
@@ -220,13 +193,9 @@ export function generateItem(params: GenerateItemParams): GeneratedItem {
   const element = rollElement(rng, params.biome);
 
   const budget = budgetFinal(ilvl, rarity, tier);
-  const stats = allocateStats({ kind, budget, element });
-
-  // ItemPower: use tier of the WORLD (content tier) to keep it consistent
   const rolledStats = allocateStats({ kind, budget, element });
 
-  const itemCombatStats = toCombatStats(rolledStats);
-  const itemPower = computePowerFromStats(itemCombatStats, tier).power;
+  const itemPower = computeItemPowerFromStats(toCombatStats(rolledStats), tier);
 
   return {
     id: makeId(params.seed, ilvl, slot, element),
@@ -238,15 +207,12 @@ export function generateItem(params: GenerateItemParams): GeneratedItem {
     ilvl,
     rarity,
     upgradeLevel: 0,
-    baseStats: rolledStats,   
+    baseStats: rolledStats,
     stats: rolledStats,
     itemPower,
   };
 }
 
-/**
- * Utility: generate multiple items with sequential seeds.
- */
 export function generateLootBatch(params: {
   seed: number;
   count: number;
