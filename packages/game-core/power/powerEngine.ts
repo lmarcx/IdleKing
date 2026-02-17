@@ -1,6 +1,6 @@
-import { computeCombatScore } from "./combatScore";
-import { TIER_MULTIPLIERS } from "./constants";
-import { CombatStats, PowerBreakdown } from "./types";
+import { computeCombatScore } from "./combatScore.js";
+import { TIER_MULTIPLIERS } from "./constants.js";
+import { CombatStats, PowerBreakdown } from "./types.js";
 
 export function computePowerFromStats(
   stats: CombatStats,

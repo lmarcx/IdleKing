@@ -1,6 +1,6 @@
 import type { GeneratedItem } from "./itemGenerator.js";
 import type { Element, CombatStats } from "../power/types.js";
-import { computePowerFromStats } from "../power/powerEngine.js";
+import { computeItemPowerFromStats, emptyCombatStats } from "../power/itemScore.js";
 import { tierFromWorldLevel } from "./budget.js";
 
 export type UpgradeCost = {
@@ -9,10 +9,10 @@ export type UpgradeCost = {
 };
 
 export type UpgradeConfig = {
-  maxUpgradeLevel: number;      // MVP ex: 10
+  maxUpgradeLevel: number;
   statPerLevelMultiplier: number; // ex: 0.06
-  costGrowth: number;           // ex: 1.35
-  baseKingamas: number;         // ex: 5
+  costGrowth: number; // ex: 1.35
+  baseKingamas: number; // ex: 5
 };
 
 export const DEFAULT_UPGRADE_CONFIG: UpgradeConfig = {
@@ -31,8 +31,7 @@ const RARITY_FACTOR: Record<GeneratedItem["rarity"], number> = {
 
 const TIER_FACTOR = [1, 2, 4, 7, 12] as const;
 
-/** Only scales numeric stats (not ilvl, rarity, element). */
-function scaleStats(base: GeneratedItem["stats"], multiplier: number) {
+function scaleStats(base: GeneratedItem["baseStats"], multiplier: number) {
   const resists = base.resists ? { ...base.resists } : undefined;
   const elemental = base.elemental ? { ...base.elemental } : undefined;
 
@@ -42,7 +41,6 @@ function scaleStats(base: GeneratedItem["stats"], multiplier: number) {
     attack: base.attack != null ? base.attack * multiplier : undefined,
     armor: base.armor != null ? base.armor * multiplier : undefined,
     critChance: base.critChance != null ? base.critChance * multiplier : undefined,
-    // critDmg isn't rolled in MVP; if it ever is, we scale it too:
     critDmg: base.critDmg != null ? base.critDmg * multiplier : undefined,
     speedRating: base.speedRating != null ? base.speedRating * multiplier : undefined,
     pierceRating: base.pierceRating != null ? base.pierceRating * multiplier : undefined,
@@ -50,7 +48,6 @@ function scaleStats(base: GeneratedItem["stats"], multiplier: number) {
     elemental,
   } as const;
 
-  // Scale resist/elemental numbers if present
   if (scaled.resists) {
     for (const k of Object.keys(scaled.resists)) {
       const key = k as Element;
@@ -58,6 +55,7 @@ function scaleStats(base: GeneratedItem["stats"], multiplier: number) {
       if (typeof v === "number") scaled.resists[key] = v * multiplier;
     }
   }
+
   if (scaled.elemental) {
     for (const k of Object.keys(scaled.elemental)) {
       const key = k as Element;
@@ -70,28 +68,14 @@ function scaleStats(base: GeneratedItem["stats"], multiplier: number) {
 }
 
 function toCombatStats(itemStats: GeneratedItem["stats"]): CombatStats {
-  const resists = {
-    FIRE: 0,
-    ICE: 0,
-    LIGHTNING: 0,
-    VOID: 0,
-    ...(itemStats.resists ?? {}),
-  } as Record<Element, number>;
-
-  const elemental = {
-    FIRE: 0,
-    ICE: 0,
-    LIGHTNING: 0,
-    VOID: 0,
-    ...(itemStats.elemental ?? {}),
-  } as Record<Element, number>;
-
+  const base = emptyCombatStats();
   return {
+    ...base,
     hp: Math.round(itemStats.hp ?? 0),
     attack: Number((itemStats.attack ?? 0).toFixed(4)),
     armor: Number((itemStats.armor ?? 0).toFixed(4)),
-    resists,
-    elemental,
+    resists: { ...base.resists, ...(itemStats.resists ?? {}) },
+    elemental: { ...base.elemental, ...(itemStats.elemental ?? {}) },
     critChance: itemStats.critChance ?? 0,
     critDmg: 1.5 + (itemStats.critDmg ?? 0),
     speedRating: Math.round(itemStats.speedRating ?? 0),
@@ -114,7 +98,6 @@ export function getUpgradeCost(
     cfg.baseKingamas * Math.pow(cfg.costGrowth, next) * tierFactor * rarityFactor
   );
 
-  // Materials placeholder (MVP): 1 material tied to element + tier
   const matId = `mat_${item.element.toLowerCase()}_t${tier}`;
   const amount = Math.max(1, Math.round(1 + next * 0.6));
 
@@ -135,10 +118,11 @@ export function applyUpgrade(
   const nextLevel = item.upgradeLevel + 1;
   const mult = 1 + cfg.statPerLevelMultiplier * nextLevel;
 
-  const nextStats = scaleStats(item.stats, mult);
+  // ✅ Always scale from baseStats (stable, monotonic)
+  const nextStats = scaleStats(item.baseStats, mult);
 
   const tier = tierFromWorldLevel(worldLevel);
-  const itemPower = computePowerFromStats(toCombatStats(nextStats), tier).power;
+  const itemPower = computeItemPowerFromStats(toCombatStats(nextStats), tier);
 
   return {
     ...item,

@@ -4,9 +4,9 @@ import {
   K_ELEMENTAL_REF,
   BASE_ATTACK_INTERVAL,
   MIN_ATTACK_INTERVAL,
-} from "./constants";
-import { CombatStats } from "./types";
-import { computeCritMultiplier } from "./crit";
+} from "./constants.js";
+import { CombatStats } from "./types.js";
+import { computeCritMultiplier } from "./crit.js";
 
 function computeAttackInterval(speedRating: number) {
   const interval =

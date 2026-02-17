@@ -1,4 +1,4 @@
-import { OVERFLOW_RATE } from "./constants";
+import { OVERFLOW_RATE } from "./constants.js";
 
 export function computeCritMultiplier(
   critChance: number,
