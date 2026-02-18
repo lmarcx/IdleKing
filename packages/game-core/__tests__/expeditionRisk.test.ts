@@ -3,9 +3,13 @@ import assert from "node:assert/strict";
 
 import { generateItem } from "../loot/itemGenerator.js";
 import { createInventory, addItem } from "../player/inventory.js";
-import { createExpeditionLoadout, startExpeditionRun, resolveExpeditionRun } from "../expedition/riskLoadout.js";
+import {
+  createExpeditionLoadout,
+  startExpeditionRun,
+  resolveExpeditionRun,
+} from "../expedition/riskLoadout.js";
 
-test("LOSE removes risked items from inventory", () => {
+test("LOSE removes risked items and clears expedition loadout", () => {
   let inv = createInventory();
 
   const a = generateItem({ seed: 1, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "NECKLACE" });
@@ -32,9 +36,11 @@ test("LOSE removes risked items from inventory", () => {
 
   assert.ok(!out.inventory.items[a.id]);
   assert.ok(!out.inventory.items[b.id]);
+
+  assert.equal(Object.keys(out.nextExpeditionLoadout).length, 0, "loadout should be cleared on LOSE");
 });
 
-test("WIN keeps risked items and grants loot items", () => {
+test("WIN keeps risked items, keeps expedition loadout, and grants loot items", () => {
   let inv = createInventory();
 
   const a = generateItem({ seed: 3, worldLevel: 20, biome: "TUNDRA", ilvl: 400, biasSlot: "NECKLACE" });
@@ -53,8 +59,13 @@ test("WIN keeps risked items and grants loot items", () => {
 
   const out = resolveExpeditionRun({ run, inventory: inv, result: "WIN", now: 2000 });
 
-  // Risked item still there
-  assert.ok(!!out.inventory.items[a.id]);
+  assert.ok(!!out.inventory.items[a.id], "risked item should remain");
+
+  assert.equal(
+    out.nextExpeditionLoadout[a.slot],
+    a.id,
+    "expedition loadout should be kept on WIN"
+  );
 
   // At least 1 loot item on WIN
   assert.ok(Object.keys(out.inventory.items).length >= 2);

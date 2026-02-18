@@ -12,11 +12,6 @@ function uniq(ids: string[]) {
   return Array.from(new Set(ids));
 }
 
-/**
- * Create an expedition loadout (selected subset of player items).
- * - only items present in inventory can be selected
- * - only one per slot
- */
 export function createExpeditionLoadout(params: {
   inventory: Inventory;
   selections: Array<{ slot: ItemSlot; itemId: string }>;
@@ -26,16 +21,13 @@ export function createExpeditionLoadout(params: {
   for (const s of params.selections) {
     const item = params.inventory.items[s.itemId];
     if (!item) continue;
-    if (item.slot !== s.slot) continue; // safety
+    if (item.slot !== s.slot) continue;
     out[s.slot] = item.id;
   }
 
   return out;
 }
 
-/**
- * Start a run (snapshot).
- */
 export function startExpeditionRun(params: {
   config: ExpeditionConfig;
   loadout: ExpeditionLoadout;
@@ -52,24 +44,17 @@ export function startExpeditionRun(params: {
 }
 
 /**
- * Resolve a run:
- * - WIN: keep risked items + grant loot (items + resources)
- * - LOSE: remove risked items from inventory, no items rewarded, resources consolation already handled in lootTables
- *
- * Returns:
- * - updated inventory (items removed on loss, items added on win)
- * - the completed run state (with loot/result)
+ * Resolve a run with your rule:
+ * - WIN: keep expedition loadout (for chaining/farming) + grant loot items
+ * - LOSE: delete risked items from inventory AND clear expedition loadout (player must re-equip)
  */
 export function resolveExpeditionRun(params: {
   run: ExpeditionRunState;
   inventory: Inventory;
   result: "WIN" | "LOSE";
   now: number;
-
-  // Anti-tilt: if player lost previously, caller can pass a slot they lost.
-  // For MVP: we pass it in explicitly.
   lostSlotBias?: ItemSlot | null;
-}): { run: ExpeditionRunState; inventory: Inventory } {
+}): { run: ExpeditionRunState; inventory: Inventory; nextExpeditionLoadout: ExpeditionLoadout } {
   const run = params.run;
 
   const loot = generateExpeditionLoot({
@@ -83,12 +68,10 @@ export function resolveExpeditionRun(params: {
   let inventory = params.inventory;
 
   if (params.result === "LOSE") {
-    // Remove risked items permanently
     for (const id of run.riskedItemIds) {
       inventory = removeItem(inventory, id);
     }
   } else {
-    // WIN: add dropped items to inventory
     for (const it of loot.items) {
       inventory = { items: { ...inventory.items, [it.id]: it } };
     }
@@ -101,5 +84,11 @@ export function resolveExpeditionRun(params: {
     loot,
   };
 
-  return { run: completed, inventory };
+  // ✅ Your rule:
+  // - WIN => keep loadout
+  // - LOSE => clear it (items are gone)
+  const nextExpeditionLoadout: ExpeditionLoadout =
+    params.result === "WIN" ? { ...run.loadout } : {};
+
+  return { run: completed, inventory, nextExpeditionLoadout };
 }
