@@ -4,15 +4,16 @@ import type { ItemSlot } from "../loot/budget.js";
 import type { ExpeditionLoadout, ExpeditionRunState, ExpeditionConfig } from "./types.js";
 import { generateExpedition } from "./generator.js";
 import { generateExpeditionLoot } from "../loot/lootTables.js";
+import { rollKingamasForExpedition } from "../economy/kingamas.js";
 
 function uniq(ids: string[]) {
   return Array.from(new Set(ids));
 }
 
 /**
- * Create an expedition loadout (selected subset of player items).
- * - only items present in inventory can be selected
- * - only one per slot
+ * Build an expedition loadout from inventory selections.
+ * - ignores unknown items
+ * - enforces slot match
  */
 export function createExpeditionLoadout(params: {
   inventory: Inventory;
@@ -33,7 +34,7 @@ export function createExpeditionLoadout(params: {
 /**
  * Start a run:
  * - snapshots risked item ids
- * - generates the 7 rooms plan deterministically from config.seed
+ * - generates the 7 rooms deterministically from config.seed
  */
 export function startExpeditionRun(params: {
   config: ExpeditionConfig;
@@ -41,7 +42,6 @@ export function startExpeditionRun(params: {
   now: number;
 }): ExpeditionRunState {
   const riskedItemIds = uniq(Object.values(params.loadout).filter(Boolean) as string[]);
-
   const gen = generateExpedition(params.config);
 
   return {
@@ -56,8 +56,10 @@ export function startExpeditionRun(params: {
 
 /**
  * Resolve a run:
- * - WIN: keep expedition loadout + grant loot items
- * - LOSE: remove risked items + clear expedition loadout
+ * - LOSE: remove risked items, clear loadout, kingamas gained = 0
+ * - WIN: keep risked items, add loot items, keep loadout, gain kingamas in fixed range per level
+ *
+ * Note: weekly claim checks are handled at app/server level (not core).
  */
 export function resolveExpeditionRun(params: {
   run: ExpeditionRunState;
@@ -65,7 +67,16 @@ export function resolveExpeditionRun(params: {
   result: "WIN" | "LOSE";
   now: number;
   lostSlotBias?: ItemSlot | null;
-}): { run: ExpeditionRunState; inventory: Inventory; nextExpeditionLoadout: ExpeditionLoadout } {
+
+  // economy: optional so older callers/tests don't break
+  kingamas?: number;
+}): {
+  run: ExpeditionRunState;
+  inventory: Inventory;
+  nextExpeditionLoadout: ExpeditionLoadout;
+  kingamas: number;
+  kingamasGained: number;
+} {
   const run = params.run;
 
   const loot = generateExpeditionLoot({
@@ -74,6 +85,12 @@ export function resolveExpeditionRun(params: {
     biome: run.config.biome,
     result: params.result,
     lostSlotBias: params.lostSlotBias ?? null,
+  });
+
+  const kingamasGained = rollKingamasForExpedition({
+    seed: run.config.seed,
+    expeditionLevel: run.config.expeditionLevel,
+    win: params.result === "WIN",
   });
 
   let inventory = params.inventory;
@@ -98,5 +115,13 @@ export function resolveExpeditionRun(params: {
   const nextExpeditionLoadout: ExpeditionLoadout =
     params.result === "WIN" ? { ...run.loadout } : {};
 
-  return { run: completed, inventory, nextExpeditionLoadout };
+  const currentKingamas = params.kingamas ?? 0;
+
+  return {
+    run: completed,
+    inventory,
+    nextExpeditionLoadout,
+    kingamas: currentKingamas + kingamasGained,
+    kingamasGained,
+  };
 }
