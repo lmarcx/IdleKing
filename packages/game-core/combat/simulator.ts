@@ -10,7 +10,6 @@ import type {
 } from "./types.js";
 import type { CombatStats, Element } from "../power/types.js";
 import { computeCritMultiplier } from "../power/crit.js";
-import { OVERFLOW_RATE } from "../power/constants.js";
 import { SKILLS } from "./skills.js";
 
 function clamp(n: number, a: number, b: number) {
@@ -27,12 +26,10 @@ function copyEntity(name: string, stats: CombatStats): CombatEntity {
 }
 
 function armorMitigation(armor: number) {
-  // same style as elsewhere: diminishing returns
   return armor / (armor + 180);
 }
 
 function resistMitigation(resist: number) {
-  // diminishing returns
   return resist / (resist + 180);
 }
 
@@ -50,6 +47,12 @@ function elementBonus(stats: CombatStats, element?: Element) {
   return stats.elemental[element] ?? 0;
 }
 
+function rollCrit(critChance: number) {
+  if (critChance <= 0) return false;
+  if (critChance >= 1) return true; // uncapped -> always crit at 100%+
+  return Math.random() < critChance;
+}
+
 function computeHitDamage(params: {
   attacker: CombatEntity;
   defender: CombatEntity;
@@ -61,15 +64,12 @@ function computeHitDamage(params: {
   const a = params.attacker.stats;
   const d = params.defender.stats;
 
-  // Crit uncapped with overflow -> critDmg via computeCritMultiplier
-  const critMult = computeCritMultiplier(a.critChance, a.critDmg, OVERFLOW_RATE);
-  const roll = Math.random(); // simulator only; later we can inject deterministic rng
-  const crit = roll < Math.min(1, a.critChance); // actual crit chance can exceed 1, but we treat >=1 as always crit.
+  const critMult = computeCritMultiplier(a.critChance, a.critDmg);
+  const crit = rollCrit(a.critChance);
   const critFactor = crit ? critMult : 1;
 
   const pierce = pierceFraction(a.pierceRating + (params.pierceBonus ?? 0));
 
-  // Apply armor + resist
   const armorMit = armorMitigation(d.armor);
   const resist = getResist(d, params.element);
   const resistMit = resistMitigation(resist);
@@ -79,7 +79,7 @@ function computeHitDamage(params: {
   const effectiveResistMit = resistMit * (1 - 0.7 * pierce);
 
   const elem = elementBonus(a, params.element);
-  const elemFactor = 1 + elem / 200; // simple scaling v1
+  const elemFactor = 1 + elem / 200;
 
   const raw = (a.attack * params.baseMultiplier + (params.flatBonus ?? 0)) * elemFactor;
   const mitigated = raw * (1 - effectiveArmorMit) * (1 - effectiveResistMit);
@@ -90,7 +90,7 @@ function computeHitDamage(params: {
 
 export type CombatSimConfig = {
   boss: BossDef;
-  durationCapSec: number; // safety cap
+  durationCapSec: number;
   playerStamina: StaminaState;
   playerAutoAttackIntervalSec: number;
 };
@@ -99,7 +99,7 @@ export function simulateCombat(params: {
   config: CombatSimConfig;
   playerStats: CombatStats;
   bossStatsOverride?: Partial<CombatStats>;
-  script: Array<CombatTickInput>; // tick inputs (dt + skill usage)
+  script: Array<CombatTickInput>;
 }): CombatResult {
   const bossStats: CombatStats = {
     ...params.config.boss.baseStats,
@@ -120,22 +120,17 @@ export function simulateCombat(params: {
 
   let playerAutoTimer = 0;
 
-  // Boss phase handling
   let phaseIdx = 0;
   let bossBasicTimer = 0;
   let bossSpecialTimer = 0;
 
   function currentPhase() {
     const phases = params.config.boss.phases;
-    // advance based on hp threshold
     const hpPct = boss.hp / boss.hpMax;
-    while (
-      phaseIdx + 1 < phases.length &&
-      hpPct <= phases[phaseIdx + 1].hpThresholdPct
-    ) {
+
+    while (phaseIdx + 1 < phases.length && hpPct <= phases[phaseIdx + 1].hpThresholdPct) {
       phaseIdx++;
       log.push({ t, type: "PHASE", phaseId: phases[phaseIdx].id });
-      // reset boss timers on phase change
       bossBasicTimer = 0;
       bossSpecialTimer = 0;
     }
@@ -152,12 +147,10 @@ export function simulateCombat(params: {
     const dt = step.dt;
     t += dt;
 
-    // regen stamina
     stamina.value = clamp(stamina.value + stamina.regenPerSec * dt, 0, stamina.max);
 
     tickCooldowns(dt);
 
-    // player action (skill)
     if (step.useSkill) {
       const def = SKILLS[step.useSkill];
       const rem = cd[def.id] ?? 0;
@@ -207,7 +200,7 @@ export function simulateCombat(params: {
     }
     if (boss.hp <= 0) break;
 
-    // boss actions based on phase pattern
+    // boss actions
     const phase = currentPhase();
     bossBasicTimer += dt;
     bossSpecialTimer += dt;
@@ -250,7 +243,8 @@ export function simulateCombat(params: {
     if (t >= params.config.durationCapSec) break;
   }
 
-  const winner = boss.hp <= 0 ? "PLAYER" : player.hp <= 0 ? "BOSS" : (player.hp > boss.hp ? "PLAYER" : "BOSS");
+  const winner =
+    boss.hp <= 0 ? "PLAYER" : player.hp <= 0 ? "BOSS" : player.hp > boss.hp ? "PLAYER" : "BOSS";
 
   return {
     winner,
