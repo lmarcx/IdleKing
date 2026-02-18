@@ -11,6 +11,7 @@ import {
   expectedIlvl,
   ageFromWorldLevel,
   ageCoeffFromWorldLevel,
+  totalWxpToMax,
 } from "../progression/index.js";
 
 test("convertXpToWxp() is 10% floored", () => {
@@ -55,11 +56,9 @@ test("applyWorldWxp() levels up correctly and caps at max", () => {
     assert.equal(res.levelsGained, 1);
   }
 
-  // big gain should cap at max: compute enough WXP to reach WORLD_MAX_LEVEL
+   // big gain should cap at max using computed total
   {
-    let required = 0;
-    for (let w = 1; w < WORLD_MAX_LEVEL; w++) required += wxpNext(w);
-
+    const required = totalWxpToMax();
     const res = applyWorldWxp(1, 0, required + 1);
 
     assert.equal(res.newWorldLevel, WORLD_MAX_LEVEL);

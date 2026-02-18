@@ -1,5 +1,6 @@
 import { ageCoeffFromWorldLevel, ageFromWorldLevel } from "./age.js";
 
+
 export const WORLD_MAX_LEVEL = 50;
 
 // WXP = floor(XP_gained * 0.10)
@@ -66,4 +67,29 @@ export function templeRateWxpPerMin(
 ): number {
   const age = ageFromWorldLevel(worldLevel);
   return 10 * templeLevel * (1 + 0.05 * (age - 1));
+}
+
+/**
+ * Total WXP required to reach a given world level from level 1.
+ * Example: totalWxpToReach(50) = sum wxpNext(1..49)
+ */
+export function totalWxpToReach(targetWorldLevel: number): number {
+  const target = Math.min(
+    WORLD_MAX_LEVEL,
+    Math.max(1, Math.floor(targetWorldLevel))
+  );
+
+  let total = 0;
+  for (let w = 1; w < target; w++) {
+    total += wxpNext(w);
+  }
+
+  return total;
+}
+
+/**
+ * Total WXP required to reach WORLD_MAX_LEVEL from level 1.
+ */
+export function totalWxpToMax(): number {
+  return totalWxpToReach(WORLD_MAX_LEVEL);
 }
