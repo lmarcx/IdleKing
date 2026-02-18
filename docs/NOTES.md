@@ -1,3 +1,7 @@
+### Inspirations : 
+- Paperclips : Farm clicker + World Building
+- Tales of Win : Contenu instancié, Progression
+
 ### Notes diverses de fonctionnalités à implémenter : 
 - [] Nouvelles raretés (ancestral, mythique, divin) obtainables en dépensant des matériaux des raretés correspondantes. Ces matériaux se lootent dans des contenus spécifiques du end-game.
 - [] Easter-eggs : Suite d'actions précises qui débloque automatiquement un obte unique (équipement ou autres) d'une rareté supérieur à légendaire. Si le stuff est perdu lors d'une Expédition il peut être racheté à un PNJ correspondant contre des Kingamas.
@@ -11,7 +15,7 @@
 - [] Pattern des débuts de parties : 
  - Histoire Principale -> Enchaînement de combats et de dialogues. Facile. Récompenses obtainable que la première fois. 
  - Donjons -> Petites enigmes à résoudre (Suite de dialogues, Questions, Enigmes Visuelles) puis Boss unique. Récompenses répétables 5 par jour donnant des équipements et des ressources. 
- - Les Expéditions -> Donjons à 7 Salles. Salles 1, 3, 5 : Combat contre un groupe d'ennemis. Salles 2, 4, 6 : Salle de choix donnant un buff, une ressource ou un malus. Salle 7 : Combat contre Boss Final. Récompense équipements, ressources, Kingamas. Il y a 10 niveaux d'expédition et chaque niveau est réalisable qu'une fois par semaine. La difficulté ainsi que les récompenses augmentent proportionnellement. 
+ - Les Expéditions -> Donjons à 7 Salles. Salles 1, 3, 5 : Combat contre un groupe d'ennemis. Salles 2, 4, 6 : Salle de choix donnant un buff, une ressource ou un malus. Salle 7 : Combat contre Boss Final. Récompense équipements, ressources, Kingamas. Il y a 10 niveaux d'expédition et chaque niveau est réalisable qu'une fois par semaine. La difficulté ainsi que les récompenses augmentent proportionnellement. Voir pour séparer le niveau spécial 10 Boss Final en mode chrono invincible et en monde normal. Ajouter éventuellement une fonction de chrono pour chaque niveau pour faire un leaderboard Speedrun. 
  - Les Cieux : voir plus haut.
  - Les Abysses : voir plus haut. 
 - [] Détail des fonctionnalités.
