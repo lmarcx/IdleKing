@@ -20,3 +20,28 @@ export function xpTotal(level: number): number {
   for (let i = 1; i < capped; i++) total += xpNext(i);
   return total;
 }
+
+/**
+ * Total XP required to reach a given level from level 1.
+ * Example: totalXpToReach(50) = sum xpNext(1..49)
+ */
+export function totalXpToReach(targetLevel: number): number {
+  const target = Math.min(
+    PLAYER_MAX_LEVEL,
+    Math.max(1, Math.floor(targetLevel))
+  );
+
+  let total = 0;
+  for (let l = 1; l < target; l++) {
+    total += xpNext(l);
+  }
+
+  return total;
+}
+
+/**
+ * Total XP required to reach PLAYER_MAX_LEVEL from level 1.
+ */
+export function totalXpToMax(): number {
+  return totalXpToReach(PLAYER_MAX_LEVEL);
+}

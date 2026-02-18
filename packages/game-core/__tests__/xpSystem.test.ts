@@ -7,6 +7,7 @@ import {
   PLAYER_MAX_LEVEL,
   applyPlayerXp,
   baseStatsMultiplier,
+  totalXpToMax,
 } from "../progression/index.js";
 
 test("xpNext() matches formula expectations at a few levels", () => {
@@ -72,4 +73,8 @@ test("baseStatsMultiplier() matches spec (level 50 => +39.2%)", () => {
   // BaseStatsMultiplier(L) = 1 + (L-1) * 0.008
   assert.equal(baseStatsMultiplier(1), 1);
   assert.equal(baseStatsMultiplier(50), 1 + 49 * 0.008); // 1.392
+});
+
+test("totalXpToMax() is consistent with xpTotal()", () => {
+  assert.equal(totalXpToMax(), xpTotal(PLAYER_MAX_LEVEL));
 });
