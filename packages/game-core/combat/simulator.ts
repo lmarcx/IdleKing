@@ -13,6 +13,8 @@ import type { CombatStats, Element } from "../power/types.js";
 import { computeCritMultiplier } from "../power/crit.js";
 import { SKILLS } from "./skills.js";
 
+const EPS = 1e-9;
+
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
@@ -89,12 +91,11 @@ function computeHitDamage(params: {
 }
 
 export type CombatSimConfig = {
-  mode?: CombatMode; // default NORMAL
+  mode?: CombatMode;
   boss: BossDef;
 
-  durationCapSec: number; // in CHRONO: hard timer (e.g. 90s)
-
-  bossInvincible?: boolean; // CHRONO: boss cannot die (hp min 1)
+  durationCapSec: number;
+  bossInvincible?: boolean;
 
   playerStamina: StaminaState;
   playerAutoAttackIntervalSec: number;
@@ -152,32 +153,31 @@ export function simulateCombat(params: {
   }
 
   function applyDamageToBoss(amount: number) {
-    if (bossInvincible) {
-      boss.hp = Math.max(1, boss.hp - amount);
-    } else {
-      boss.hp = Math.max(0, boss.hp - amount);
-    }
+    if (bossInvincible) boss.hp = Math.max(1, boss.hp - amount);
+    else boss.hp = Math.max(0, boss.hp - amount);
   }
 
-  function timeUp() {
-    log.push({ t, type: "TIME_UP" });
+  function markTimeUp() {
+    if (!log.some((e) => e.type === "TIME_UP")) {
+      log.push({ t, type: "TIME_UP" });
+    }
   }
 
   for (const step of params.script) {
-    const dt = step.dt;
-    t += dt;
+    let dt = step.dt;
 
-    // hard stop timer (chrono)
-    if (t >= params.config.durationCapSec) {
-      timeUp();
+    const remaining = params.config.durationCapSec - t;
+    if (remaining <= EPS) {
+      if (mode === "CHRONO") markTimeUp();
       break;
     }
+    if (dt > remaining) dt = remaining;
+
+    t += dt;
 
     stamina.value = clamp(stamina.value + stamina.regenPerSec * dt, 0, stamina.max);
-
     tickCooldowns(dt);
 
-    // player skill
     if (step.useSkill) {
       const def = SKILLS[step.useSkill];
       const rem = cd[def.id] ?? 0;
@@ -202,34 +202,26 @@ export function simulateCombat(params: {
 
         applyDamageToBoss(hit.damage);
         playerDamageTotal += hit.damage;
-
         log.push({ t, type: "HIT", source: "PLAYER", amount: hit.damage, crit: hit.crit, element: def.element });
 
         if (!bossInvincible && boss.hp <= 0) break;
       }
     }
 
-    // player auto
     playerAutoTimer += dt;
     while (playerAutoTimer >= params.config.playerAutoAttackIntervalSec) {
       playerAutoTimer -= params.config.playerAutoAttackIntervalSec;
 
-      const hit = computeHitDamage({
-        attacker: player,
-        defender: boss,
-        baseMultiplier: 1.0,
-      });
+      const hit = computeHitDamage({ attacker: player, defender: boss, baseMultiplier: 1.0 });
 
       applyDamageToBoss(hit.damage);
       playerDamageTotal += hit.damage;
-
       log.push({ t, type: "HIT", source: "PLAYER", amount: hit.damage, crit: hit.crit });
 
       if (!bossInvincible && boss.hp <= 0) break;
     }
     if (!bossInvincible && boss.hp <= 0) break;
 
-    // boss acts (still can kill player in chrono)
     const phase = currentPhase();
     bossBasicTimer += dt;
     bossSpecialTimer += dt;
@@ -255,11 +247,7 @@ export function simulateCombat(params: {
     while (bossBasicTimer >= phase.pattern.basicIntervalSec) {
       bossBasicTimer -= phase.pattern.basicIntervalSec;
 
-      const hit = computeHitDamage({
-        attacker: boss,
-        defender: player,
-        baseMultiplier: 1.0,
-      });
+      const hit = computeHitDamage({ attacker: boss, defender: player, baseMultiplier: 1.0 });
 
       player.hp = Math.max(0, player.hp - hit.damage);
       bossDamageTotal += hit.damage;
@@ -268,11 +256,18 @@ export function simulateCombat(params: {
       if (player.hp <= 0) break;
     }
     if (player.hp <= 0) break;
+
+    if (mode === "CHRONO" && params.config.durationCapSec - t <= EPS) {
+      markTimeUp();
+      break;
+    }
   }
 
-  // Winner logic:
-  // - if boss is invincible and time is up, winner is PLAYER if alive else BOSS
-  // - otherwise normal death logic
+  // ✅ FINAL SAFEGUARD: if script ended exactly at cap, still mark TIME_UP
+  if (mode === "CHRONO" && params.config.durationCapSec - t <= EPS) {
+    markTimeUp();
+  }
+
   const timeUpFlag = log.some((e) => e.type === "TIME_UP");
 
   const winner =
@@ -280,12 +275,12 @@ export function simulateCombat(params: {
       ? "PLAYER"
       : player.hp <= 0
         ? "BOSS"
-        : "PLAYER"; // survived / time-up
+        : "PLAYER";
 
   return {
     mode,
     winner,
-    timeUp: timeUpFlag,
+    timeUp: mode === "CHRONO" ? timeUpFlag : false,
     durationSec: t,
     playerDamageTotal,
     bossDamageTotal,
