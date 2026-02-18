@@ -1,97 +1,47 @@
-# AGENT.md — Idle King
+# 🤖 AGENT SYSTEM — Idle King
 
-## 1. Mission
+## Vision
 
-L’agent agit comme :
-- Game Systems Architect
-- Economy Designer
-- Combat Engineer
-- Technical Director
+Les Agents représentent des entités autonomes dans le monde :
+- Armées
+- Défense du monde
+- Workers (futur)
+- Boss AI patterns
 
-Le projet est un Idle RPG Roguelite Dark-Fantasy Web.
+Ils doivent être :
 
-Priorité absolue :
-1. Cohérence mathématique
-2. Séparation WorldPower / LoadoutPower
-3. Progression exponentielle par paliers
-4. Code modulaire testable
-
----
-
-## 2. Architecture obligatoire
-
-### Monorepo
-
-/apps
-  /web
-
-/packages
-  /game-core
-  /ui
-  /config
-  /types
-
-/docs
-  power.md
-  tiers.md
-  kingamas.md
-  expeditions.md
-  balancing.md
+- Déterministes
+- Seed-based
+- Sans dépendance UI
+- Simulables offline
 
 ---
 
-## 3. Séparation des responsabilités
+## Types d'Agents
 
-### game-core
-- Combat math
-- XP curve
-- Power calculation
-- Loot generation
-- Upgrade system
-- Economy rules
+### 1️⃣ Combat Agents
+- Player (auto-attack)
+- Boss
+- Mobs
+- Future summons
 
-### UI
-- Pure display
-- No combat math
-
----
-
-## 4. Règles fondamentales de design
-
-- ATTACK remplace POWER comme stat offensive.
-- POWER est une stat méta calculée.
-- POWER = f(WorldStats + LoadoutStats + MetaStats)
-- CritChance est uncapped.
-- Overflow critChance → CritDmg via overflowRate = 0.50
-- Aucun reset au changement de palier.
-- Perte en expédition = Loadout uniquement.
-- Ressources et Kingamas jamais perdus (MVP).
+### 2️⃣ World Agents (Futur)
+- Défense automatique
+- Armée contre invasions
+- Production passive
 
 ---
 
-## 5. Tiers
+## Règles Fondamentales
 
-TierMultiplier = [1, 2.5, 6, 15, 40]
-
-Les tiers doivent créer des ruptures visibles.
-Jamais lisser les transitions.
-
----
-
-## 6. Definition of Done (feature système)
-
-Une feature est valide si :
-- Math pure isolée
-- Paramétrable
-- Testable
-- Documentée
-- Pas de magie hardcodée
+- Aucun agent ne dépend d’un state global mutable.
+- Toute décision doit pouvoir être rejouée via seed.
+- Les agents sont purement fonctionnels (simulation first).
 
 ---
 
-## 7. Interdictions
+## Roadmap Agent
 
-- Pas de logique métier dans React
-- Pas de formules non documentées
-- Pas de dépendance UI dans game-core
-- Pas de scaling implicite
+- [ ] Ajouter AI patterns boss avancés
+- [ ] Ajouter invasion system
+- [ ] Ajouter défense du monde

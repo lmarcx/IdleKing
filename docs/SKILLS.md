@@ -1,87 +1,55 @@
-# SKILL.md — Idle Dark Kingdom
+# ⚔️ SKILL SYSTEM — Idle King
 
-## SKILL 1 — Combat Engine Builder
+## Design Philosophy
 
-Input:
-- Stats attacker/defender
-- Skill data
-- Config constants
+Les skills ne doivent PAS :
+- Casser l’auto combat
+- Créer du micro management
 
-Output:
-- computeDamage()
-- computeCrit()
-- CombatScore()
-- Tests unitaires
+Elles doivent :
+- Introduire de la profondeur
+- Ajouter des pics de burst
+- Créer des fenêtres stratégiques
 
 ---
 
-## SKILL 2 — Power System Generator
+## Skill Model
 
-Input:
-- WorldStats
-- LoadoutStats
-- Tier
+Chaque skill possède :
 
-Output:
-- WorldPower
-- LoadoutPower
-- TotalPower
+- Stamina cost
+- Cooldown
+- Damage multiplier
+- Optional effect
 
-Respect:
-- uncapped crit
-- overflowRate = 0.50
-- Tier multipliers
+Exemple :
 
----
+```ts
+type Skill = {
+  id: string
+  staminaCost: number
+  cooldown: number
+  damageMultiplier: number
+  effect?: SkillEffect
+}
+```
 
-## SKILL 3 — Loot Generator
+## Types de Skills (MVP)
 
-Input:
-- ilvl
-- tier
-- rarity
-- biome
+- Direct Damage
 
-Output:
-- deterministic item
-- 1 element per item
-- ItemPower computed
+- DOT
 
----
+- Buff temporaire
 
-## SKILL 4 — Upgrade Engine
+- Stamina regen
 
-Input:
-- item
-- upgradeLevel
+- Crit boost
 
-Output:
-- new stats
-- kingamaCost
-- new ItemPower
+## Long Term
 
----
+- Skill trees
 
-## SKILL 5 — Economy Balancer
+- World-synergy skills
 
-Input:
-- resource generation
-- kingama sinks
-
-Output:
-- conversion ratios
-- inflation prevention
-- scaling curves
-
----
-
-## SKILL 6 — Tier Progression Validator
-
-Input:
-- worldLevel
-- playerPower
-
-Output:
-- recommended boss HP
-- recommended ilvl
-- breakpoints
+- Legendary unique effects
