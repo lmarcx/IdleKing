@@ -1,0 +1,61 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { generateItem } from "../loot/itemGenerator.js";
+import { createInventory, addItem } from "../player/inventory.js";
+import { createExpeditionLoadout, startExpeditionRun, resolveExpeditionRun } from "../expedition/riskLoadout.js";
+
+test("LOSE removes risked items from inventory", () => {
+  let inv = createInventory();
+
+  const a = generateItem({ seed: 1, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "NECKLACE" });
+  const b = generateItem({ seed: 2, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "RING" });
+
+  inv = addItem(inv, a);
+  inv = addItem(inv, b);
+
+  const loadout = createExpeditionLoadout({
+    inventory: inv,
+    selections: [
+      { slot: a.slot, itemId: a.id },
+      { slot: b.slot, itemId: b.id },
+    ],
+  });
+
+  const run = startExpeditionRun({
+    config: { biome: "VOLCANIC", worldLevel: 20, seed: 999 },
+    loadout,
+    now: 1000,
+  });
+
+  const out = resolveExpeditionRun({ run, inventory: inv, result: "LOSE", now: 2000 });
+
+  assert.ok(!out.inventory.items[a.id]);
+  assert.ok(!out.inventory.items[b.id]);
+});
+
+test("WIN keeps risked items and grants loot items", () => {
+  let inv = createInventory();
+
+  const a = generateItem({ seed: 3, worldLevel: 20, biome: "TUNDRA", ilvl: 400, biasSlot: "NECKLACE" });
+  inv = addItem(inv, a);
+
+  const loadout = createExpeditionLoadout({
+    inventory: inv,
+    selections: [{ slot: a.slot, itemId: a.id }],
+  });
+
+  const run = startExpeditionRun({
+    config: { biome: "TUNDRA", worldLevel: 20, seed: 123 },
+    loadout,
+    now: 1000,
+  });
+
+  const out = resolveExpeditionRun({ run, inventory: inv, result: "WIN", now: 2000 });
+
+  // Risked item still there
+  assert.ok(!!out.inventory.items[a.id]);
+
+  // At least 1 loot item on WIN
+  assert.ok(Object.keys(out.inventory.items).length >= 2);
+});
