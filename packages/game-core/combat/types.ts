@@ -24,31 +24,28 @@ export type SkillDef = {
   cooldownSec: number;
   staminaCost: number;
 
-  // damage model
-  baseDamageMultiplier: number; // multiplies attacker.attack
+  baseDamageMultiplier: number;
   flatBonus?: number;
 
-  // optional: utility hooks
-  pierceBonus?: number; // additive pierceRating for this hit
+  pierceBonus?: number;
 };
 
-export type SkillCooldowns = Partial<Record<SkillId, number>>; // remaining sec
+export type SkillCooldowns = Partial<Record<SkillId, number>>;
 
 export type BossPhase = {
   id: number;
-  hpThresholdPct: number; // phase triggers when boss hp% <= threshold
+  hpThresholdPct: number;
   pattern: BossActionPattern;
 };
 
 export type BossActionPattern = {
-  // simple MVP: boss attacks every X seconds and occasionally uses a special
   basicIntervalSec: number;
   specialIntervalSec: number;
 
   special: {
     name: string;
     element?: Element;
-    multiplier: number; // multiplies boss.attack
+    multiplier: number;
   };
 };
 
@@ -61,17 +58,23 @@ export type BossDef = {
 };
 
 export type CombatTickInput = {
-  dt: number; // seconds
-  useSkill?: SkillId | null; // player action this tick (at most one)
+  dt: number;
+  useSkill?: SkillId | null;
 };
 
 export type CombatLogEvent =
   | { t: number; type: "HIT"; source: "PLAYER" | "BOSS"; amount: number; crit: boolean; element?: Element }
   | { t: number; type: "SKILL"; id: SkillId; ok: boolean; reason?: "COOLDOWN" | "STAMINA" }
-  | { t: number; type: "PHASE"; phaseId: number };
+  | { t: number; type: "PHASE"; phaseId: number }
+  | { t: number; type: "TIME_UP" };
+
+export type CombatMode = "NORMAL" | "CHRONO";
 
 export type CombatResult = {
-  winner: "PLAYER" | "BOSS";
+  mode: CombatMode;
+  winner: "PLAYER" | "BOSS"; // in CHRONO, winner is determined by hp if someone dies, otherwise "PLAYER" (survived)
+  timeUp: boolean;
+
   durationSec: number;
   playerDamageTotal: number;
   bossDamageTotal: number;

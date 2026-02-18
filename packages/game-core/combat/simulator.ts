@@ -7,6 +7,7 @@ import type {
   BossDef,
   CombatLogEvent,
   SkillId,
+  CombatMode,
 } from "./types.js";
 import type { CombatStats, Element } from "../power/types.js";
 import { computeCritMultiplier } from "../power/crit.js";
@@ -49,7 +50,7 @@ function elementBonus(stats: CombatStats, element?: Element) {
 
 function rollCrit(critChance: number) {
   if (critChance <= 0) return false;
-  if (critChance >= 1) return true; // uncapped -> always crit at 100%+
+  if (critChance >= 1) return true;
   return Math.random() < critChance;
 }
 
@@ -74,7 +75,6 @@ function computeHitDamage(params: {
   const resist = getResist(d, params.element);
   const resistMit = resistMitigation(resist);
 
-  // Pierce reduces both mitigations partially
   const effectiveArmorMit = armorMit * (1 - 0.7 * pierce);
   const effectiveResistMit = resistMit * (1 - 0.7 * pierce);
 
@@ -89,8 +89,13 @@ function computeHitDamage(params: {
 }
 
 export type CombatSimConfig = {
+  mode?: CombatMode; // default NORMAL
   boss: BossDef;
-  durationCapSec: number;
+
+  durationCapSec: number; // in CHRONO: hard timer (e.g. 90s)
+
+  bossInvincible?: boolean; // CHRONO: boss cannot die (hp min 1)
+
   playerStamina: StaminaState;
   playerAutoAttackIntervalSec: number;
 };
@@ -101,6 +106,9 @@ export function simulateCombat(params: {
   bossStatsOverride?: Partial<CombatStats>;
   script: Array<CombatTickInput>;
 }): CombatResult {
+  const mode: CombatMode = params.config.mode ?? "NORMAL";
+  const bossInvincible = !!params.config.bossInvincible;
+
   const bossStats: CombatStats = {
     ...params.config.boss.baseStats,
     ...(params.bossStatsOverride ?? {}),
@@ -143,14 +151,33 @@ export function simulateCombat(params: {
     }
   }
 
+  function applyDamageToBoss(amount: number) {
+    if (bossInvincible) {
+      boss.hp = Math.max(1, boss.hp - amount);
+    } else {
+      boss.hp = Math.max(0, boss.hp - amount);
+    }
+  }
+
+  function timeUp() {
+    log.push({ t, type: "TIME_UP" });
+  }
+
   for (const step of params.script) {
     const dt = step.dt;
     t += dt;
+
+    // hard stop timer (chrono)
+    if (t >= params.config.durationCapSec) {
+      timeUp();
+      break;
+    }
 
     stamina.value = clamp(stamina.value + stamina.regenPerSec * dt, 0, stamina.max);
 
     tickCooldowns(dt);
 
+    // player skill
     if (step.useSkill) {
       const def = SKILLS[step.useSkill];
       const rem = cd[def.id] ?? 0;
@@ -173,15 +200,16 @@ export function simulateCombat(params: {
           pierceBonus: def.pierceBonus,
         });
 
-        boss.hp = Math.max(0, boss.hp - hit.damage);
+        applyDamageToBoss(hit.damage);
         playerDamageTotal += hit.damage;
+
         log.push({ t, type: "HIT", source: "PLAYER", amount: hit.damage, crit: hit.crit, element: def.element });
 
-        if (boss.hp <= 0) break;
+        if (!bossInvincible && boss.hp <= 0) break;
       }
     }
 
-    // player auto-attack
+    // player auto
     playerAutoTimer += dt;
     while (playerAutoTimer >= params.config.playerAutoAttackIntervalSec) {
       playerAutoTimer -= params.config.playerAutoAttackIntervalSec;
@@ -192,15 +220,16 @@ export function simulateCombat(params: {
         baseMultiplier: 1.0,
       });
 
-      boss.hp = Math.max(0, boss.hp - hit.damage);
+      applyDamageToBoss(hit.damage);
       playerDamageTotal += hit.damage;
+
       log.push({ t, type: "HIT", source: "PLAYER", amount: hit.damage, crit: hit.crit });
 
-      if (boss.hp <= 0) break;
+      if (!bossInvincible && boss.hp <= 0) break;
     }
-    if (boss.hp <= 0) break;
+    if (!bossInvincible && boss.hp <= 0) break;
 
-    // boss actions
+    // boss acts (still can kill player in chrono)
     const phase = currentPhase();
     bossBasicTimer += dt;
     bossSpecialTimer += dt;
@@ -239,15 +268,24 @@ export function simulateCombat(params: {
       if (player.hp <= 0) break;
     }
     if (player.hp <= 0) break;
-
-    if (t >= params.config.durationCapSec) break;
   }
 
+  // Winner logic:
+  // - if boss is invincible and time is up, winner is PLAYER if alive else BOSS
+  // - otherwise normal death logic
+  const timeUpFlag = log.some((e) => e.type === "TIME_UP");
+
   const winner =
-    boss.hp <= 0 ? "PLAYER" : player.hp <= 0 ? "BOSS" : player.hp > boss.hp ? "PLAYER" : "BOSS";
+    (!bossInvincible && boss.hp <= 0)
+      ? "PLAYER"
+      : player.hp <= 0
+        ? "BOSS"
+        : "PLAYER"; // survived / time-up
 
   return {
+    mode,
     winner,
+    timeUp: timeUpFlag,
     durationSec: t,
     playerDamageTotal,
     bossDamageTotal,
