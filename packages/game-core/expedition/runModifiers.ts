@@ -44,8 +44,9 @@ function applyDelta(base: CombatStats, d: TempStatDelta): CombatStats {
 }
 
 export function applyRunModifiers(base: CombatStats, mods: RunModifiers): CombatStats {
-  return mods.deltas.reduce((acc, d) => applyDelta(acc, d), base);
+  return mods.deltas.reduce<CombatStats>((acc, d) => applyDelta(acc, d), base);
 }
+
 
 export function applyChoiceToRun(mods: RunModifiers, choice: ChoiceOption): RunModifiers {
   if (choice.kind === "BUFF") return { deltas: [...mods.deltas, choice.bonus] };
