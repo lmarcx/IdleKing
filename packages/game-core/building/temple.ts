@@ -40,9 +40,40 @@ export function templeUpgradeCost(level: number): Resources {
 }
 
 /**
+ * Cap villageois : dépend du level du Temple et de l'Age.
+ * - Base: 3 villagers / temple level
+ * - Age bonus: +1 per Age (so Age I -> +1, Age V -> +5)
+ * => cap = level*3 + age
+ */
+export function templeMaxVillagers(
+  templeLevel: 1 | 2 | 3 | 4 | 5,
+  worldLevel: number
+): number {
+  const age = ageFromWorldLevel(worldLevel);
+  return templeLevel * 3 + age;
+}
+
+/**
+ * Rendement décroissant exponentiel inverse (bonus saturant)
+ * bonus = maxBonus * (1 - exp(-k * v))
+ *
+ * - maxBonus: cap du bonus (ex: 0.60 => +60% max)
+ * - k: vitesse de saturation
+ */
+export function templeVillagerBonusMultiplier(
+  assignedVillagers: number,
+  maxBonus = 0.6,
+  k = 0.25
+): number {
+  const v = Math.max(0, Math.floor(assignedVillagers));
+  const bonus = maxBonus * (1 - Math.exp(-k * v));
+  return 1 + bonus;
+}
+
+/**
  * TempleRateWXP(min)
  * Base: 10 * TempleLevel * (1 + 0.05*(Age-1))
- * Village bonus: +5% per villager (MVP)
+ * Villagers: bonus saturant + cap villageois
  */
 export function templeProductionPerMin(
   templeLevel: 1 | 2 | 3 | 4 | 5,
@@ -53,14 +84,16 @@ export function templeProductionPerMin(
 
   const base = 10 * templeLevel * (1 + 0.05 * (age - 1));
 
-  const villagerMultiplier = 1 + assignedVillagers * 0.05;
+  const cap = templeMaxVillagers(templeLevel, worldLevel);
+  const vCapped = Math.min(Math.max(0, Math.floor(assignedVillagers)), cap);
 
-  return Math.floor(base * villagerMultiplier);
+  const mult = templeVillagerBonusMultiplier(vCapped);
+
+  return Math.floor(base * mult);
 }
 
-
 /**
- * Simulation de la production de WXP du temple sur une période donnée, en tenant compte des upgrades et des villageois assignés.
+ * Simulation de la production de WXP du temple sur une période donnée.
  */
 export function simulateTempleProduction(
   minutes: number,
