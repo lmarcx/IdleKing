@@ -55,13 +55,18 @@ test("applyWorldWxp() levels up correctly and caps at max", () => {
     assert.equal(res.levelsGained, 1);
   }
 
-  // big gain caps
+  // big gain should cap at max: compute enough WXP to reach WORLD_MAX_LEVEL
   {
-    const res = applyWorldWxp(1, 0, 10_000_000);
+    let required = 0;
+    for (let w = 1; w < WORLD_MAX_LEVEL; w++) required += wxpNext(w);
+
+    const res = applyWorldWxp(1, 0, required + 1);
+
     assert.equal(res.newWorldLevel, WORLD_MAX_LEVEL);
     assert.equal(res.newWorldWxp, 0);
     assert.ok(res.levelsGained > 0);
   }
+
 });
 
 test("rewardMultiplierFromWorldLevel() matches spec (world 50 => x2.47)", () => {
