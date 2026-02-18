@@ -2,16 +2,18 @@ import type { Inventory } from "../player/types.js";
 import { removeItem } from "../player/inventory.js";
 import type { ItemSlot } from "../loot/budget.js";
 import type { ExpeditionLoadout, ExpeditionRunState, ExpeditionConfig } from "./types.js";
+import { generateExpedition } from "./generator.js";
 import { generateExpeditionLoot } from "../loot/lootTables.js";
-
-function makeExpeditionId(seed: number, worldLevel: number) {
-  return `exp_${worldLevel}_${seed}`;
-}
 
 function uniq(ids: string[]) {
   return Array.from(new Set(ids));
 }
 
+/**
+ * Create an expedition loadout (selected subset of player items).
+ * - only items present in inventory can be selected
+ * - only one per slot
+ */
 export function createExpeditionLoadout(params: {
   inventory: Inventory;
   selections: Array<{ slot: ItemSlot; itemId: string }>;
@@ -28,25 +30,34 @@ export function createExpeditionLoadout(params: {
   return out;
 }
 
+/**
+ * Start a run:
+ * - snapshots risked item ids
+ * - generates the 7 rooms plan deterministically from config.seed
+ */
 export function startExpeditionRun(params: {
   config: ExpeditionConfig;
   loadout: ExpeditionLoadout;
   now: number;
 }): ExpeditionRunState {
   const riskedItemIds = uniq(Object.values(params.loadout).filter(Boolean) as string[]);
+
+  const gen = generateExpedition(params.config);
+
   return {
-    id: makeExpeditionId(params.config.seed, params.config.worldLevel),
+    id: gen.id,
     config: params.config,
     loadout: { ...params.loadout },
     riskedItemIds,
+    rooms: gen.rooms,
     startedAt: params.now,
   };
 }
 
 /**
- * Resolve a run with your rule:
- * - WIN: keep expedition loadout (for chaining/farming) + grant loot items
- * - LOSE: delete risked items from inventory AND clear expedition loadout (player must re-equip)
+ * Resolve a run:
+ * - WIN: keep expedition loadout + grant loot items
+ * - LOSE: remove risked items + clear expedition loadout
  */
 export function resolveExpeditionRun(params: {
   run: ExpeditionRunState;
@@ -84,9 +95,6 @@ export function resolveExpeditionRun(params: {
     loot,
   };
 
-  // ✅ Your rule:
-  // - WIN => keep loadout
-  // - LOSE => clear it (items are gone)
   const nextExpeditionLoadout: ExpeditionLoadout =
     params.result === "WIN" ? { ...run.loadout } : {};
 

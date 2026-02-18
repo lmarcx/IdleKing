@@ -1,4 +1,6 @@
 import type { ResourceId, ResourceReward } from "../loot/lootTables.js";
+import { mulberry32, hashSeed } from "../expedition/rng.js";
+import type { ExpeditionLevel } from "../expedition/types.js";
 
 /**
  * Kingamas are a premium progression currency:
@@ -23,6 +25,8 @@ export type KingamasConfig = {
   unlockWorldLevel: number;
   minGrant: number;
 };
+
+export type KingamasRewardRange = { min: number; max: number };
 
 export const DEFAULT_KINGAMAS_CONFIG: KingamasConfig = {
   unlockWorldLevel: 11,
@@ -136,4 +140,38 @@ export function grantKingamas(wallet: KingamasWallet, amount: number): KingamasW
   const a = Math.floor(amount);
   if (a <= 0) return wallet;
   return { balance: wallet.balance + a, lifetimeEarned: wallet.lifetimeEarned + a };
+}
+
+// Fourchette fixe (RNG dans la plage), par niveau d’expédition
+export const KINGAMAS_RANGE_BY_EXPEDITION_LEVEL: Record<ExpeditionLevel, KingamasRewardRange> = {
+  1: { min: 8, max: 14 },
+  2: { min: 12, max: 20 },
+  3: { min: 16, max: 26 },
+  4: { min: 20, max: 32 },
+  5: { min: 26, max: 40 },
+  6: { min: 32, max: 50 },
+  7: { min: 40, max: 62 },
+  8: { min: 52, max: 80 },
+  9: { min: 70, max: 110 },
+  10: { min: 120, max: 180 }, // niveau spécial / boss final
+};
+
+/**
+ * Expedition reward roll:
+ * - LOSE => 0 (punitif)
+ * - WIN  => deterministic RNG in [min,max] based on run seed + expeditionLevel
+ *
+ * Note: weekly-claim logic is handled elsewhere (server/app).
+ */
+export function rollKingamasForExpedition(params: {
+  seed: number;
+  expeditionLevel: ExpeditionLevel;
+  win: boolean;
+}): number {
+  if (!params.win) return 0;
+
+  const range = KINGAMAS_RANGE_BY_EXPEDITION_LEVEL[params.expeditionLevel];
+  const rng = mulberry32(hashSeed(params.seed, 900_001 + params.expeditionLevel));
+
+  return Math.floor(rng.next() * (range.max - range.min + 1)) + range.min;
 }

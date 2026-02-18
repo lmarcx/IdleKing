@@ -27,7 +27,7 @@ test("LOSE removes risked items and clears expedition loadout", () => {
   });
 
   const run = startExpeditionRun({
-    config: { biome: "VOLCANIC", worldLevel: 20, seed: 999 },
+    config: { biome: "VOLCANIC", worldLevel: 50, expeditionLevel: 1, seed: 999 },
     loadout,
     now: 1000,
   });
@@ -52,7 +52,7 @@ test("WIN keeps risked items, keeps expedition loadout, and grants loot items", 
   });
 
   const run = startExpeditionRun({
-    config: { biome: "TUNDRA", worldLevel: 20, seed: 123 },
+    config: { biome: "TUNDRA", worldLevel: 50, expeditionLevel: 1, seed: 123 },
     loadout,
     now: 1000,
   });
@@ -67,6 +67,5 @@ test("WIN keeps risked items, keeps expedition loadout, and grants loot items", 
     "expedition loadout should be kept on WIN"
   );
 
-  // At least 1 loot item on WIN
   assert.ok(Object.keys(out.inventory.items).length >= 2);
 });
