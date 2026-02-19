@@ -2,64 +2,76 @@
 
 ---
 
-## 🟦 PHASE 0 — System Foundation (actuelle)
+# 🟦 PHASE 0 — Core Math (DONE)
 
-Objectif :
-
-* Math
-* POWER system
-* Tiers
-* Loot
-* Upgrade
-* Kingamas
-
-Deliverables :
-
-* game-core skeleton
-* docs complètes
-* tests unitaires
+POWER  
+Loot  
+Combat  
+Boss  
+Expéditions  
+Kingamas  
 
 ---
 
-## 🟦 PHASE 1 — Prototype Combat
+# 🟦 PHASE 1 — Progression Layer (MVP)
 
-* 1 boss
-* 1 biome
-* auto attack
-* 2 skills
-* expédition simple
-* perte loadout
+XP System (Player + World)
+Donjons
+Temple
+20 Chapitres (4 par Age)
+5 Ages
+Unlock Tier II
 
-Moche mais jouable.
+Balancing XP validé
+
 
 ---
 
-## 🟦 PHASE 2 — Systems Complete
+# 🟦 PHASE 2 — Content Complete
 
-* 4 biomes
-* 10 boss
-* full loot tables
-* Kingamas
-* upgrades
-* leaderboard POWER
-
----
-
-## 🟦 PHASE 3 — Endgame Loop
-
-* ilvl 1000
-* legendary farming
-* upgrade scaling
-* boss chrono 90s
-* leaderboard damage
+4 biomes  
+10 expéditions  
+Donjons full  
+Leaderboards  
+Balancing pass  
 
 ---
 
-## 🟦 PHASE 4 — Polish & Balance
+# 🟦 PHASE 3 — Endgame Layer
 
-* balancing passes
-* feel adjustments
-* FX
-* UI clarity
+Cieux  
+Abysses  
+Raretés avancées  
+Enchantements  
+Runes  
 
+---
 
+# 🟦 PHASE 4 — MMO Layer
+
+PvP  
+Alliances  
+AvA  
+Hub social  
+
+---
+
+# 🟦 PHASE 5 — Meta Loop
+
+Renaissance  
+Rangs  
+Titres  
+Seasonal reset  
+Battle Pass  
+Events  
+Monetization  
+
+---
+
+# 🟦 PHASE 6 — Polish & Live Ops
+
+Balancing  
+FX  
+UI polish  
+Analytics  
+Content drops
