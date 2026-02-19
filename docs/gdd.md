@@ -7,7 +7,7 @@ Dark fantasy pixel 2D
 
 Inspirations :
 - Paperclips (Farm / Scaling / World building)
-- Tales of Win (Contenu instancié + progression)
+- Tales of Wind (Contenu instancié + progression)
 
 ---
 

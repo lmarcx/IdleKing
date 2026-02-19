@@ -1,5 +1,14 @@
+// progression/baseStats.ts
 import type { Element } from "../power/types.js";
 import type { CombatStats } from "../power/types.js";
+
+// Bonus Level (secondaire endgame)
+// BaseStatsMultiplier(L) = 1 + (L-1) * 0.008
+// IMPORTANT: ne s'applique que sur les stats BASE (pas items/buildings/tier)
+export function baseStatsMultiplier(level: number): number {
+  const L = Math.max(1, Math.floor(level));
+  return 1 + (L - 1) * 0.008;
+}
 
 export function baseStats(level: number): CombatStats {
   const L = Math.max(1, Math.floor(level));
