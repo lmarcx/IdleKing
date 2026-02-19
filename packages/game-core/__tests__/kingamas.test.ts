@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { createWallet, convertResourcesToKingamas } from "../economy/kingamas.js";
 import { initQuestStates, completeQuest } from "../economy/quests.js";
+import { rollKingamasForExpedition } from "../economy/kingamas.js";
 
 test("kingamas conversion locked before world level 11", () => {
   const wallet = createWallet(0);
@@ -44,4 +45,15 @@ test("unlock quest gives starter kingamas when available", () => {
 
   // Available -> gives reward
   assert.ok(wallet2.balance > 0);
+});
+
+test("kingamas reward is deterministic for same seed/level", () => {
+  const a = rollKingamasForExpedition({ seed: 123, expeditionLevel: 5, win: true });
+  const b = rollKingamasForExpedition({ seed: 123, expeditionLevel: 5, win: true });
+  assert.equal(a, b);
+});
+
+test("kingamas reward is zero on lose", () => {
+  const a = rollKingamasForExpedition({ seed: 123, expeditionLevel: 5, win: false });
+  assert.equal(a, 0);
 });
