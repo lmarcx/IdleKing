@@ -12,6 +12,7 @@ function ageFromChapter(chapterId: number): 1 | 2 | 3 | 4 | 5 {
 export const CHAPTERS: ChapterDef[] = Array.from({ length: 20 }, (_, i) => {
   const id = i + 1;
   const age = ageFromChapter(id);
+  const ch = String(id).padStart(2, "0");
 
   // unlock list (MVP) à ajuster par chapitre, ici juste à titre d'exemple
   const unlocks =
@@ -47,7 +48,7 @@ export const CHAPTERS: ChapterDef[] = Array.from({ length: 20 }, (_, i) => {
     id,
     age,
     title: `Chapitre ${id}`,
-    scriptIds: [`ch${id}.intro`], // extensible: ajoute `ch${id}.outro`, etc.
+    scriptIds: [`ch${ch}.intro`], // extensible: ajoute `ch${id}.outro`, etc.
     unlocks,
   } satisfies ChapterDef;
 });

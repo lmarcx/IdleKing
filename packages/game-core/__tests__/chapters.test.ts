@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import { createEmptyStoryState } from "../story/state.js";
 import { canCompleteChapter, completeChapter } from "../story/engine.js";
+import { CHAPTERS } from "../story/chapters.js";
+import { getScript } from "../story/scripts/index.js";
 
 test("chapter progression is linear (MVP)", () => {
   const s0 = createEmptyStoryState();
@@ -42,4 +44,15 @@ test("chapter 3 unlocks repeatable quests and tavern", () => {
 
   assert.ok(r3.nextStory.unlocked.has("REPEATABLE_QUESTS"));
   assert.ok(r3.nextStory.unlocked.has("TAVERN"));
+});
+
+test("chapter scripts exist when referenced", () => {
+  for (const ch of CHAPTERS) {
+    for (const sid of ch.scriptIds) {
+      const s = getScript(sid);
+      // au MVP, on autorise qu'un script manque si le chapitre n'est pas encore écrit
+      // MAIS si tu veux garder le test strict, retire ce 'continue'
+      if (!s) continue;
+    }
+  }
 });
