@@ -5,6 +5,7 @@ import { createEmptyStoryState } from "../story/state.js";
 import { canCompleteChapter, completeChapter } from "../story/engine.js";
 import { CHAPTERS } from "../story/chapters.js";
 import { getScript } from "../story/scripts/index.js";
+import { getChapterScripts } from "../story/scripts/registry.js";
 
 test("chapter progression is linear (MVP)", () => {
   const s0 = createEmptyStoryState();
@@ -55,4 +56,14 @@ test("chapter scripts exist when referenced", () => {
       if (!s) continue;
     }
   }
+});
+
+test("getChapterScripts returns scripts in strict mode", () => {
+  const scripts = getChapterScripts(1, "STRICT");
+  assert.ok(scripts.length > 0);
+});
+
+test("getChapterScripts permissive mode handles missing scripts", () => {
+  const scripts = getChapterScripts(999, "PERMISSIVE");
+  assert.deepEqual(scripts, []);
 });
