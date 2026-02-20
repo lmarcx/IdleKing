@@ -40,3 +40,7 @@
 - [] UI = Layout + Main. Liste des Mains : Robot -> Chat, Dialogues, (se mets en mini icône dans le layout quand le joueur n'est plus dans Robot). Personnage. Mondes -> Histoire -> Chapitres. Donjons -> 1 donjons à 3 difficultés par tranche de niveaux du joueur. (1 à 10, 11 à 20, 21 à 30, 31 à 40, 41 à 50.), Expédition -> 9 Niveaux + 1 Niveau Spécial, Loadout, Equipements. Cieux, Abysse, AvA, ... Royaume -> Corne, Ferme, Mine, Forge, Cuisine,  Forteresse, Château Royal, Laboratoire, Temple, Marché publique, Marché Noir, ... Inventaire -> Équipements, Ressources, Consommables, Unique. Compétences -> Arbre, Équiper, Améliorer, Éveil, ... Leaderboards -> Power, Expédition, Kingamas, 1v1, AvA. 
 Alliances -> Annuaire, Général, Contribution, Tournoi, Membres, Améliorations, Paramètres. 
 Paramètres. 
+
+
+### Point à améliorer 
+- Temple : Ajouter une ressource ou designer un system de repos pour rééquilibrer.
