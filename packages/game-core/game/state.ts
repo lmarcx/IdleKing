@@ -2,6 +2,7 @@ import type { StoryState } from "../story/state.js";
 import type { ProgressionSnapshot } from "../progression/applyXpGain.js";
 import type { TempleState } from "../building/temple.js";
 import type { ResourceStock, ResourceId } from "../resources/types.js";
+import type { Inventory } from "../items/inventory.js";
 
 export type Villager = {
   id: string;
@@ -16,6 +17,7 @@ export type GameState = {
   progression: ProgressionSnapshot;
   story: StoryState;
   resources: ResourceStock;
+  inventory: Inventory;
 
   buildings: {
     forum: { unlocked: boolean; built: boolean; active: boolean };
@@ -41,7 +43,7 @@ export function createInitialGameState(): GameState {
       unlocked: new Set(),
     },
     resources: {},
-
+    inventory: { items: [] },
     buildings: {
       forum: { unlocked: false, built: false, active: false },
       temple: { unlocked: false, built: false, level: 1, assignedVillagers: 0, active: false, allocation: { XP_GLOBAL: 0 } },
