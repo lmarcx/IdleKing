@@ -1,6 +1,9 @@
 ### Inspirations : 
 - Paperclips : Farm clicker + World Building
-- Tales of Win : Contenu instancié, Progression
+- Tales of Wind : Contenu instancié, Progression
+- Tap Titans : Automatic Damage / Renaissance
+- Harvest Moon : Farm + Mine
+- BnS : The Tower (endgame content off-mvp)
 
 ### Notes diverses de fonctionnalités à implémenter : 
 - [] Nouvelles raretés (ancestral, mythique, divin) obtainables en dépensant des matériaux des raretés correspondantes. Ces matériaux se lootent dans des contenus spécifiques du end-game.
