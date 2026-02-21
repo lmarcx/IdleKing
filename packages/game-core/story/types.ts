@@ -1,6 +1,7 @@
 export type ChapterId = number; // 1..20
 
 export type UnlockId =
+  | "FORUM"
   | "FARM"
   | "MINE"
   | "KITCHEN"

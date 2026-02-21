@@ -13,7 +13,7 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
     buildings: {
       ...state.buildings,
 
-      // CLONAGE IMMUTABLE SAFE
+      forum: { ...state.buildings.forum },
       temple: { ...state.buildings.temple },
       farm: { ...state.buildings.farm },
       mine: { ...state.buildings.mine },
@@ -24,8 +24,12 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
   for (const id of unlocks) {
     next.story.unlocked.add(id);
 
-    // Appliquer effets gameplay concrets
+    // Unlock effects are mirrored into concrete building states.
     switch (id) {
+      case "FORUM":
+        next.buildings.forum.unlocked = true;
+        break;
+
       case "TEMPLE":
         next.buildings.temple.unlocked = true;
         break;
@@ -43,7 +47,6 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
         break;
 
       default:
-        // autres unlocks futurs (FORGE, LABORATORY, etc.)
         break;
     }
   }
