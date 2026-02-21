@@ -2,10 +2,13 @@ import type { StoryState } from "../story/state.js";
 import type { ProgressionSnapshot } from "../progression/applyXpGain.js";
 import type { TempleState } from "../building/temple.js";
 
-export type VillagerState = {
-  total: number;
-  available: number;
-  // stamina system (option 3) viendra ici
+export type Villager = {
+  id: string;
+  stamina: number; // 0..100
+};
+
+export type VillagersState = {
+  list: Villager[];
 };
 
 export type GameState = {
@@ -17,7 +20,7 @@ export type GameState = {
     // plus tard: farm, mine, kitchen...
   };
 
-  villagers: VillagerState;
+  villagers: VillagersState;
 };
 
 export function createInitialGameState(): GameState {
@@ -40,9 +43,14 @@ export function createInitialGameState(): GameState {
         assignedVillagers: 0,
       },
     },
-    villagers: {
-      total: 5,
-      available: 5,
-    },
+      villagers: {
+    list: [
+      { id: "v1", stamina: 100 },
+      { id: "v2", stamina: 100 },
+      { id: "v3", stamina: 100 },
+      { id: "v4", stamina: 100 },
+      { id: "v5", stamina: 100 },
+    ],
+  },
   };
 }
