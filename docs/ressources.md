@@ -29,8 +29,14 @@ Ressources can be transformed through specifi Buildings :
 - Farm : Cherry / Strawberry / Razzberry
 - Mine : Orichalum 
 
-### Special Ressources (WIP)
+### Endgame Ressources (WIP)
 Those are ressources only ontainable in specific Contents :
 - Runes : Dungeons
 - Ink and Paper -> Scrolls : ?
 - Gems like Rubis, Saphir, Emerald, Amethyst, Citrine, Amber, Beryl, Jade, ... : ?
+
+### Special Ressources (WIP)
+Internal Ressources :
+- Kingamas : Global Currency for trading and merchants
+- XP : Assignable to the Player XP or the World XP
+- Honor : Currency for PVP Contents
