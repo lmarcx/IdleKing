@@ -1,4 +1,5 @@
 export type ResourceId =
+  | "XP_GLOBAL"
   // Farm base (Age I)
   | "STONE"
   | "WOOD"

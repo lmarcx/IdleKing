@@ -32,12 +32,17 @@ export function setTempleWxpAllocation(state: GameState, villagersOnTemple: numb
   };
 }
 
-function normalizeAlloc<T extends string>(alloc: Partial<Record<T, number>>): Partial<Record<T, number>> {
+function normalizeAlloc<T extends string>(
+  alloc: Partial<Record<T, number>>
+): Partial<Record<T, number>> {
   const out: Partial<Record<T, number>> = {};
-  for (const [k, v] of Object.entries(alloc)) {
-    const n = Math.max(0, Math.floor(v ?? 0));
+
+  for (const [k, raw] of Object.entries(alloc) as Array<[string, unknown]>) {
+    const vNum = typeof raw === "number" ? raw : 0;
+    const n = Math.max(0, Math.floor(vNum));
     if (n > 0) out[k as T] = n;
   }
+
   return out;
 }
 
