@@ -1,5 +1,5 @@
 import type { GameState } from "./state.js";
-import { getQty, addQty } from "../resources/types.js";
+import { getQty } from "../resources/types.js";
 import { applyPlayerXp } from "../progression/xp.js";
 import { convertXpToWxp, applyWorldWxp } from "../progression/worldXp.js";
 
@@ -9,31 +9,41 @@ export type GlobalXpAllocation = {
 };
 
 export function allocateGlobalXp(state: GameState, alloc: GlobalXpAllocation): GameState {
-  const toPlayer = Math.max(0, Math.floor(alloc.toPlayerXp));
-  const toWorld = Math.max(0, Math.floor(alloc.toWorldXp));
-  const total = toPlayer + toWorld;
+  const wantPlayer = Math.max(0, Math.floor(alloc.toPlayerXp));
+  const wantWorld = Math.max(0, Math.floor(alloc.toWorldXp));
+  const wantTotal = wantPlayer + wantWorld;
+
+  if (wantTotal <= 0) return state;
 
   const available = getQty(state.resources, "XP_GLOBAL");
-  const spend = Math.min(available, total);
-  if (spend === 0) return state;
+  const spend = Math.min(available, wantTotal);
+  if (spend <= 0) return state;
 
-  // proportionnelle si demande > disponible
-  const ratio = spend / total;
-  const p = total === 0 ? 0 : Math.floor(toPlayer * ratio);
-  const w = spend - p;
+  // Si pas assez, on fait une allocation proportionnelle
+  const ratio = spend / wantTotal;
+  const givePlayer = Math.floor(wantPlayer * ratio);
+  const giveWorld = spend - givePlayer;
 
-  // enlever XP_GLOBAL
+  // Déduire XP_GLOBAL
   const nextResources = {
     ...state.resources,
     XP_GLOBAL: available - spend,
   };
 
-  // apply player xp
-  const pres = applyPlayerXp(state.progression.playerLevel, state.progression.playerXp, p);
+  // Apply player XP
+  const pres = applyPlayerXp(
+    state.progression.playerLevel,
+    state.progression.playerXp,
+    givePlayer
+  );
 
-  // world xp -> wxp
-  const gainedWxp = convertXpToWxp(w);
-  const wres = applyWorldWxp(state.progression.worldLevel, state.progression.worldWxp, gainedWxp);
+  // Apply world WXP (via conversion)
+  const gainedWxp = convertXpToWxp(giveWorld);
+  const wres = applyWorldWxp(
+    state.progression.worldLevel,
+    state.progression.worldWxp,
+    gainedWxp
+  );
 
   return {
     ...state,
