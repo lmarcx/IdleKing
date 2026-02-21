@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createInitialGameState } from "../game/state.js";
 import { completeChapterAction } from "../game/actions.js";
 import { tickAllBuildings } from "../building/tick.js";
-import { setFarmAllocation, setTempleWxpAllocation } from "../game/buildingActions.js";
+import { setFarmAllocation, setTempleXpGlobalAllocation } from "../game/buildingActions.js";
 import { getQty } from "../resources/types.js";
 
 test("allocation produces resources and consumes stamina", () => {
@@ -26,7 +26,7 @@ test("allocation produces resources and consumes stamina", () => {
 
   // allocate 2 villagers to water, 1 to temple wxp
   s = setFarmAllocation(s, { WATER: 2 });
-  s = setTempleWxpAllocation(s, 1);
+  s = setTempleXpGlobalAllocation(s, 1);
 
   const staminaBefore = s.villagers.list.map(v => v.stamina);
   const waterBefore = getQty(s.resources, "WATER");

@@ -22,12 +22,15 @@ export function setMineAllocation(state: GameState, alloc: Partial<Record<Resour
   };
 }
 
-export function setTempleWxpAllocation(state: GameState, villagersOnTemple: number): GameState {
+export function setTempleXpGlobalAllocation(state: GameState, n: number): GameState {
   return {
     ...state,
     buildings: {
       ...state.buildings,
-      temple: { ...state.buildings.temple, allocation: { WXP: Math.max(0, Math.floor(villagersOnTemple)) } },
+      temple: {
+        ...state.buildings.temple,
+        allocation: { XP_GLOBAL: Math.max(0, Math.floor(n)) },
+      },
     },
   };
 }

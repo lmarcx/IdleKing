@@ -18,7 +18,7 @@ export type GameState = {
   resources: ResourceStock;
 
   buildings: {
-    temple: TempleState & { active: boolean; allocation: { WXP: number } }; // allocation par “ressource”
+    temple: TempleState & { active: boolean; allocation: { XP_GLOBAL: number } };
     farm: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
     mine: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
     kitchen: { unlocked: boolean; built: boolean; active: boolean };
@@ -42,7 +42,7 @@ export function createInitialGameState(): GameState {
     resources: {},
 
     buildings: {
-      temple: { unlocked: false, built: false, level: 1, assignedVillagers: 0, active: false, allocation: { WXP: 0 } },
+      temple: { unlocked: false, built: false, level: 1, assignedVillagers: 0, active: false, allocation: { XP_GLOBAL: 0 } },
       farm: { unlocked: false, built: false, active: false, allocation: {} },
       mine: { unlocked: false, built: false, active: false, allocation: {} },
       kitchen: { unlocked: false, built: false, active: false },
