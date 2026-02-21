@@ -1,9 +1,16 @@
 import type { BuildingModule } from "./types.js";
 import { applyWorldWxp } from "../progression/worldXp.js";
 import { templeProductionPerMin } from "./temple.js";
+import {
+  pickUsableVillagers,
+  consumeVillagerPerMinute,
+  regenVillagerPerMinute,
+} from "../villagers/stamina.js";
 
-// stamina helpers (simple)
-// coût "toutes les 5 secondes" => 12 ticks / minute
+const STAMINA_COST_PER_5SEC_PER_VILLAGER = 1; // tunable
+const STAMINA_REGEN_PER_MIN = 2; // tunable
+
+// "coûte des villageois toutes les 5 secondes" => 12 ticks / minute
 function staminaCostPerMinute(costPer5Sec: number): number {
   return 12 * costPer5Sec;
 }
@@ -16,39 +23,46 @@ export const TEMPLE_BUILDING: BuildingModule = {
   },
 
   isActive(state) {
-    // MVP : actif si construit + au moins 1 villageois assigné
-    // (tu pourras ajouter "enabled" plus tard)
+    // MVP : actif si construit + demande >0 villageois
     return state.buildings.temple.built === true && state.buildings.temple.assignedVillagers > 0;
   },
 
   tick(state) {
     const temple = state.buildings.temple;
+    const desired = temple.assignedVillagers;
 
-    // Production WXP/min dépend du world level + villagers (cap + diminishing returns déjà dans temple.ts)
-    const wxpPerMin = templeProductionPerMin(
-      temple.level,
-      state.progression.worldLevel,
-      temple.assignedVillagers
-    );
+    // 1) Sélectionner les villageois utilisables (stamina > 0)
+    const usableIds = pickUsableVillagers(state.villagers.list, desired);
+    const workingCount = usableIds.length;
 
-    // Applique WXP au world
+    // Si aucun villageois utilisable -> pas de prod, juste regen globale
+    const baseWxpPerMin =
+      workingCount > 0
+        ? templeProductionPerMin(
+            temple.level,
+            state.progression.worldLevel,
+            // IMPORTANT : la prod dépend des villageois réellement actifs ce tick
+            workingCount
+          )
+        : 0;
+
+    // 2) Appliquer WXP au world
     const wres = applyWorldWxp(
       state.progression.worldLevel,
       state.progression.worldWxp,
-      wxpPerMin
+      baseWxpPerMin
     );
 
-    // Stamina: MVP ultra simple (niveau global)
-    // Tu as dit "stamina baisse" : on commence par un coût global basé sur villageois assignés.
-    // Plus tard: stamina individuelle par villager.
-    const costPerVillagerPer5Sec = 1; // MVP (tunable)
-    const cost = staminaCostPerMinute(costPerVillagerPer5Sec) * temple.assignedVillagers;
+    // 3) Appliquer stamina :
+    // - workers: consume
+    // - others: regen
+    const costPerMin = staminaCostPerMinute(STAMINA_COST_PER_5SEC_PER_VILLAGER);
 
-    const available = state.villagers.available;
-    // on décrémente "available" comme proxy stamina (MVP) ? -> NON : available = quantité, pas stamina.
-    // Donc: on introduit un champ stamina global minimal sur villagers (voir étape 3),
-    // mais pour l’instant on ne casse pas: on log seulement.
-    // => On fait un placeholder “no-op” stamina ici, et on branchera la vraie stamina (option 3).
+    const nextVillagers = state.villagers.list.map((v) => {
+      if (usableIds.includes(v.id)) return consumeVillagerPerMinute(v, costPerMin);
+      return regenVillagerPerMinute(v, STAMINA_REGEN_PER_MIN);
+    });
+
     const next = {
       ...state,
       progression: {
@@ -56,13 +70,15 @@ export const TEMPLE_BUILDING: BuildingModule = {
         worldLevel: wres.newWorldLevel,
         worldWxp: wres.newWorldWxp,
       },
+      villagers: {
+        list: nextVillagers,
+      },
     };
 
-    return {
-      next,
-      log: [
-        `Temple tick: +${wxpPerMin} WXP (villagers=${temple.assignedVillagers}, staminaCost=${cost}, available=${available})`,
-      ],
-    };
+    const log = [
+      `Temple tick: +${baseWxpPerMin} WXP (workers=${workingCount}/${desired}, costPerMin=${costPerMin})`,
+    ];
+
+    return { next, log };
   },
 };
