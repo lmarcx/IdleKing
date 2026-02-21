@@ -41,7 +41,11 @@ export type ResourceId =
   | "INK"
   | "PAPER"
   | "SCROLLS"
-  | "GEMS";
+  | "GEMS"
+  // Kitchen outputs (MVP)
+  | "PLATE_STEW"
+  | "PLATE_SALAD";
+  
 
 export type ResourceStock = Partial<Record<ResourceId, number>>;
 
