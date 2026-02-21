@@ -2,22 +2,40 @@ import type { GameState } from "./state.js";
 import type { ResourceId } from "../resources/types.js";
 import { ageFromWorldLevel } from "../progression/age.js";
 
-export function setFarmAllocation(state: GameState, alloc: Partial<Record<ResourceId, number>>): GameState {
+export function setFarmAllocation(
+  state: GameState,
+  alloc: Partial<Record<ResourceId, number>>
+): GameState {
+  const allowed = new Set(farmResourcesAvailable(state.progression.worldLevel));
+  const maxWorkers = state.villagers.list.length;
+
   return {
     ...state,
     buildings: {
       ...state.buildings,
-      farm: { ...state.buildings.farm, allocation: normalizeAlloc(alloc) },
+      farm: {
+        ...state.buildings.farm,
+        allocation: normalizeAllocFiltered(alloc, allowed, maxWorkers),
+      },
     },
   };
 }
 
-export function setMineAllocation(state: GameState, alloc: Partial<Record<ResourceId, number>>): GameState {
+export function setMineAllocation(
+  state: GameState,
+  alloc: Partial<Record<ResourceId, number>>
+): GameState {
+  const allowed = new Set(mineResourcesAvailable(state.progression.worldLevel));
+  const maxWorkers = state.villagers.list.length;
+
   return {
     ...state,
     buildings: {
       ...state.buildings,
-      mine: { ...state.buildings.mine, allocation: normalizeAlloc(alloc) },
+      mine: {
+        ...state.buildings.mine,
+        allocation: normalizeAllocFiltered(alloc, allowed, maxWorkers),
+      },
     },
   };
 }
@@ -35,23 +53,38 @@ export function setTempleXpGlobalAllocation(state: GameState, n: number): GameSt
   };
 }
 
-function normalizeAlloc<T extends string>(
-  alloc: Partial<Record<T, number>>
+function normalizeAllocFiltered<T extends string>(
+  alloc: Partial<Record<T, number>>,
+  allowed: Set<T>,
+  maxWorkers: number
 ): Partial<Record<T, number>> {
   const out: Partial<Record<T, number>> = {};
 
+  let remaining = Math.max(0, Math.floor(maxWorkers));
+
+  // On conserve l'ordre d'entrée (stable en JS moderne)
   for (const [k, raw] of Object.entries(alloc) as Array<[string, unknown]>) {
+    const key = k as T;
+    if (!allowed.has(key)) continue;
+
     const vNum = typeof raw === "number" ? raw : 0;
-    const n = Math.max(0, Math.floor(vNum));
-    if (n > 0) out[k as T] = n;
+    const wanted = Math.max(0, Math.floor(vNum));
+
+    if (wanted <= 0) continue;
+    if (remaining <= 0) break;
+
+    const used = Math.min(wanted, remaining);
+    out[key] = used;
+    remaining -= used;
   }
 
   return out;
 }
 
-// (optionnel) helper: ressources dispo selon building+age (utilisable par UI et validations)
+// helpers: ressources dispo selon building+age (utilisable par UI + validation)
 export function farmResourcesAvailable(worldLevel: number): ResourceId[] {
   const age = ageFromWorldLevel(worldLevel);
+
   const base: ResourceId[] = ["STONE", "WOOD", "WATER", "MEAT"];
   const age2: ResourceId[] = ["WHEAT", "TOMATO", "CARROT", "EGG"];
   const age3: ResourceId[] = ["MILK", "BREAD", "POTATO", "SALAD"];
@@ -67,6 +100,7 @@ export function farmResourcesAvailable(worldLevel: number): ResourceId[] {
 
 export function mineResourcesAvailable(worldLevel: number): ResourceId[] {
   const age = ageFromWorldLevel(worldLevel);
+
   const base: ResourceId[] = ["COPPER", "SILVER", "GOLD"];
   const age2: ResourceId[] = ["IRON"];
   const age3: ResourceId[] = ["PLATINUM"];
