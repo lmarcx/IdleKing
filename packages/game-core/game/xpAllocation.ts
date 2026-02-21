@@ -1,14 +1,26 @@
 import type { GameState } from "./state.js";
 import { getQty } from "../resources/types.js";
 import { applyPlayerXp } from "../progression/xp.js";
-import { convertXpToWxp, applyWorldWxp } from "../progression/worldXp.js";
+import { convertXpToWxp, addWorldWxp } from "../progression/worldXp.js";
 
 export type GlobalXpAllocation = {
   toPlayerXp: number;
-  toWorldXp: number; // amount of XP_GLOBAL to send to world channel (converted to WXP)
+  toWorldXp: number; // XP_GLOBAL routed to the world channel (converted to WXP and banked)
 };
 
-export function allocateGlobalXp(state: GameState, alloc: GlobalXpAllocation): GameState {
+/**
+ * Spends XP_GLOBAL and routes it into multiple progression sinks.
+ * Current sinks:
+ * - Player XP (levels)
+ * - World WXP (banked, no auto rank-up)
+ *
+ * This keeps XP_GLOBAL as a universal currency that can later be routed to:
+ * buildings upgrades, ranks, skills, trading, etc.
+ */
+export function allocateGlobalXp(
+  state: GameState,
+  alloc: GlobalXpAllocation
+): GameState {
   const wantPlayer = Math.max(0, Math.floor(alloc.toPlayerXp));
   const wantWorld = Math.max(0, Math.floor(alloc.toWorldXp));
   const wantTotal = wantPlayer + wantWorld;
@@ -19,27 +31,27 @@ export function allocateGlobalXp(state: GameState, alloc: GlobalXpAllocation): G
   const spend = Math.min(available, wantTotal);
   if (spend <= 0) return state;
 
-  // Si pas assez, on fait une allocation proportionnelle
+  // If XP_GLOBAL is insufficient, distribute proportionally.
   const ratio = spend / wantTotal;
   const givePlayer = Math.floor(wantPlayer * ratio);
   const giveWorld = spend - givePlayer;
 
-  // Déduire XP_GLOBAL
+  // Deduct XP_GLOBAL from the stock.
   const nextResources = {
     ...state.resources,
     XP_GLOBAL: available - spend,
   };
 
-  // Apply player XP
+  // Apply Player XP progression.
   const pres = applyPlayerXp(
     state.progression.playerLevel,
     state.progression.playerXp,
     givePlayer
   );
 
-  // Apply world WXP (via conversion)
+  // Convert XP_GLOBAL -> WXP, then bank it (no auto level-up).
   const gainedWxp = convertXpToWxp(giveWorld);
-  const wres = applyWorldWxp(
+  const wres = addWorldWxp(
     state.progression.worldLevel,
     state.progression.worldWxp,
     gainedWxp
