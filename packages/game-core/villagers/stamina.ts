@@ -3,24 +3,21 @@ export type Villager = {
   stamina: number; // 0..100
 };
 
-export function clamp01_100(v: number): number {
-  return Math.max(0, Math.min(100, v));
+function clampStamina(x: number): number {
+  return Math.max(0, Math.min(100, x));
 }
 
-export function regenStamina(v: Villager, minutes: number, regenPerMin = 2): Villager {
-  const m = Math.max(0, Math.floor(minutes));
-  return {
-    ...v,
-    stamina: clamp01_100(v.stamina + m * regenPerMin),
-  };
+export function consumeVillagerPerMinute(v: Villager, costPerMin: number): Villager {
+  const cost = Math.max(0, Math.floor(costPerMin));
+  return { ...v, stamina: clampStamina(v.stamina - cost) };
 }
 
-export function consumeStamina(v: Villager, seconds: number, costPer5Sec = 1): Villager {
-  const s = Math.max(0, Math.floor(seconds));
-  const ticks = Math.floor(s / 5);
-  const cost = ticks * costPer5Sec;
-  return {
-    ...v,
-    stamina: clamp01_100(v.stamina - cost),
-  };
+export function pickUsableVillagers(villagers: Villager[], count: number): string[] {
+  const wanted = Math.max(0, Math.floor(count));
+  const ids: string[] = [];
+  for (const v of villagers) {
+    if (ids.length >= wanted) break;
+    if (v.stamina > 0) ids.push(v.id);
+  }
+  return ids;
 }

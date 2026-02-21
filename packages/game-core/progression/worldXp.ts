@@ -1,14 +1,19 @@
 import { ageCoeffFromWorldLevel, ageFromWorldLevel } from "./age.js";
 
-
 export const WORLD_MAX_LEVEL = 50;
 
-// WXP = floor(XP_gained * 0.10)
+/**
+ * Converts "generic XP" into World XP (WXP).
+ * Rule: WXP = floor(XP_gained * 0.10)
+ */
 export function convertXpToWxp(xpGained: number): number {
   return Math.floor(Math.max(0, xpGained) * 0.10);
 }
 
-// WXP_to_next(W) = round( 140 * W^2.2 * AgeCoeff(W) )
+/**
+ * Returns the WXP cost to reach the next world level.
+ * Formula: WXP_to_next(W) = round( 140 * W^2.2 * AgeCoeff(W) )
+ */
 export function wxpNext(worldLevel: number): number {
   const W = Math.max(1, Math.floor(worldLevel));
   if (W >= WORLD_MAX_LEVEL) return 0;
@@ -18,6 +23,9 @@ export function wxpNext(worldLevel: number): number {
   return Math.round(base * coeff);
 }
 
+/**
+ * Result shape used by rank-up helpers (single or looped).
+ */
 export type WorldWxpResult = {
   newWorldLevel: number;
   newWorldWxp: number;
@@ -25,23 +33,78 @@ export type WorldWxpResult = {
   levelsGained: number;
 };
 
-export function applyWorldWxp(
+/**
+ * Adds WXP to the world progression WITHOUT leveling up.
+ * This is the "bank" behavior. Rank-ups are handled elsewhere (e.g. Forum).
+ */
+export function addWorldWxp(
   currentWorldLevel: number,
   currentWorldWxp: number,
   gainedWxp: number
+): { newWorldLevel: number; newWorldWxp: number } {
+  const level = Math.max(1, Math.floor(currentWorldLevel));
+  const wxp = Math.max(0, Math.floor(currentWorldWxp));
+  const gain = Math.max(0, Math.floor(gainedWxp));
+
+  return {
+    newWorldLevel: level,
+    newWorldWxp: wxp + gain,
+  };
+}
+
+/**
+ * Returns whether the current WXP bank is sufficient to rank up once.
+ */
+export function canRankUpWorld(worldLevel: number, worldWxp: number): boolean {
+  const level = Math.max(1, Math.floor(worldLevel));
+  if (level >= WORLD_MAX_LEVEL) return false;
+
+  const need = wxpNext(level);
+  return Math.max(0, Math.floor(worldWxp)) >= need;
+}
+
+/**
+ * Ranks up the world ONCE if possible.
+ * Consumes the required WXP and increments level by 1.
+ */
+export function rankUpWorldOnce(
+  currentWorldLevel: number,
+  currentWorldWxp: number
+): { newWorldLevel: number; newWorldWxp: number; rankedUp: boolean } {
+  const level = Math.max(1, Math.floor(currentWorldLevel));
+  const wxp = Math.max(0, Math.floor(currentWorldWxp));
+
+  if (!canRankUpWorld(level, wxp)) {
+    return { newWorldLevel: level, newWorldWxp: wxp, rankedUp: false };
+  }
+
+  const need = wxpNext(level);
+  return {
+    newWorldLevel: Math.min(WORLD_MAX_LEVEL, level + 1),
+    newWorldWxp: wxp - need,
+    rankedUp: true,
+  };
+}
+
+/**
+ * Ranks up the world as many times as possible in a loop.
+ * Useful for legacy behavior or debug, but production can use Forum to apply single rank-ups.
+ */
+export function rankUpWorldMax(
+  currentWorldLevel: number,
+  currentWorldWxp: number
 ): WorldWxpResult {
   let level = Math.max(1, Math.floor(currentWorldLevel));
-  let wxp = Math.max(0, currentWorldWxp) + Math.max(0, gainedWxp);
+  let wxp = Math.max(0, Math.floor(currentWorldWxp));
   let gained = 0;
 
-  while (level < WORLD_MAX_LEVEL) {
-    const toNext = wxpNext(level);
-    if (toNext <= 0) break;
-    if (wxp < toNext) break;
-
-    wxp -= toNext;
+  while (canRankUpWorld(level, wxp)) {
+    const need = wxpNext(level);
+    wxp -= need;
     level += 1;
     gained += 1;
+
+    if (level >= WORLD_MAX_LEVEL) break;
   }
 
   if (level >= WORLD_MAX_LEVEL) wxp = 0;
@@ -54,13 +117,35 @@ export function applyWorldWxp(
   };
 }
 
-// RewardMult = 1 + 0.03 * (WorldLevel-1)
+/**
+ * Legacy helper: adds WXP and auto-levels up immediately.
+ * Kept for backward compatibility, but new design should use:
+ * - addWorldWxp(...) to accumulate
+ * - rankUpWorldOnce(...) (via Forum) to perform rank-ups
+ */
+export function applyWorldWxp(
+  currentWorldLevel: number,
+  currentWorldWxp: number,
+  gainedWxp: number
+): WorldWxpResult {
+  const added = addWorldWxp(currentWorldLevel, currentWorldWxp, gainedWxp);
+  return rankUpWorldMax(added.newWorldLevel, added.newWorldWxp);
+}
+
+/**
+ * Reward multiplier derived from world level.
+ * Formula: RewardMult = 1 + 0.03 * (WorldLevel-1)
+ */
 export function rewardMultiplierFromWorldLevel(worldLevel: number): number {
   const W = Math.max(1, Math.floor(worldLevel));
   return 1 + 0.03 * (W - 1);
 }
 
-// TempleRateWXP(min) = 10 * TempleLevel * (1 + 0.05 * (Age-1))
+/**
+ * Temple base WXP rate reference (used in earlier design).
+ * Still kept as a utility for balancing, even if Temple now produces XP_GLOBAL.
+ * Formula: 10 * TempleLevel * (1 + 0.05*(Age-1))
+ */
 export function templeRateWxpPerMin(
   templeLevel: 1 | 2 | 3 | 4 | 5,
   worldLevel: number
@@ -74,16 +159,12 @@ export function templeRateWxpPerMin(
  * Example: totalWxpToReach(50) = sum wxpNext(1..49)
  */
 export function totalWxpToReach(targetWorldLevel: number): number {
-  const target = Math.min(
-    WORLD_MAX_LEVEL,
-    Math.max(1, Math.floor(targetWorldLevel))
-  );
+  const target = Math.min(WORLD_MAX_LEVEL, Math.max(1, Math.floor(targetWorldLevel)));
 
   let total = 0;
   for (let w = 1; w < target; w++) {
     total += wxpNext(w);
   }
-
   return total;
 }
 

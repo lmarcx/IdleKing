@@ -12,16 +12,42 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
     },
     buildings: {
       ...state.buildings,
+
+      forum: { ...state.buildings.forum },
       temple: { ...state.buildings.temple },
+      farm: { ...state.buildings.farm },
+      mine: { ...state.buildings.mine },
+      kitchen: { ...state.buildings.kitchen },
     },
   };
 
   for (const id of unlocks) {
     next.story.unlocked.add(id);
 
-    // MVP: appliquer les effets "hard" quand c'est nécessaire
-    if (id === "TEMPLE") {
-      next.buildings.temple.unlocked = true;
+    // Unlock effects are mirrored into concrete building states.
+    switch (id) {
+      case "FORUM":
+        next.buildings.forum.unlocked = true;
+        break;
+
+      case "TEMPLE":
+        next.buildings.temple.unlocked = true;
+        break;
+
+      case "FARM":
+        next.buildings.farm.unlocked = true;
+        break;
+
+      case "MINE":
+        next.buildings.mine.unlocked = true;
+        break;
+
+      case "KITCHEN":
+        next.buildings.kitchen.unlocked = true;
+        break;
+
+      default:
+        break;
     }
   }
 

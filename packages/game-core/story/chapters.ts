@@ -18,6 +18,7 @@ export const CHAPTERS: ChapterDef[] = Array.from({ length: 20 }, (_, i) => {
   const unlocks =
     id === 1
       ? [
+          { id: "FORUM", kind: "BUILDING" as const },
           { id: "FARM", kind: "BUILDING" as const },
           { id: "MINE", kind: "BUILDING" as const },
           { id: "KITCHEN", kind: "BUILDING" as const },

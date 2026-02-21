@@ -298,3 +298,87 @@ Le prochain bloc majeur est la **progression (XP + World + Buildings)**.
 
 ---
 
+
+### 21/02/2026
+
+## ✅ Checklist — ce qui est déjà fait :
+
+**Fondations (engine)**
+
+* [x] Tick global **1 fois par minute**
+* [x] Registry buildings + tickAllBuildings()
+* [x] Villageois avec **stamina individuelle**
+* [x] Allocation par ressource (Farm/Mine/Temple)
+* [x] Consommation de stamina par production (12/min/villager actif)
+* [x] Pas de regen passive (prévu via bâtiments/services plus tard)
+
+**XP & progression**
+
+* [x] `XP_GLOBAL` = ressource universelle
+* [x] Allocation `XP_GLOBAL -> PlayerXP` et `XP_GLOBAL -> WorldWXP`
+* [x] Conversion `XP -> WXP = floor(XP*0.10)`
+* [x] Séparation World : **banque WXP** vs **rank up manuel**
+
+  * [x] addWorldWxp()
+  * [x] canRankUpWorld()
+  * [x] rankUpWorldOnce()
+  * [x] rankUpWorldMax() (debug/legacy)
+  * [x] applyWorldWxp() conservé en legacy
+
+**Story / unlocks**
+
+* [x] Chapitres linéaires MVP
+* [x] Unlock buildings Chap 1 : **Forum + Farm + Mine + Kitchen**
+* [x] Unlock Temple Chap 2
+* [x] applyUnlocks() synchronise `story.unlocked` + `buildings.*.unlocked`
+
+**Forum**
+
+* [x] State `buildings.forum` (unlocked/built/active)
+* [x] `forumRankUpWorld()` (rank up monde explicit)
+* [x] Tests Forum + correction tests chapitres
+
+**Farm / Mine**
+
+* [x] Resources Age-gated (la table s’enrichit par Age)
+* [x] Allocation filtrée + clamp au nb villageois
+* [x] Production 1/min/villager selon allocation
+* [x] Tests production + clamp + gating OK
+
+**Kitchen (design validé, code prêt à poser)**
+
+* [x] Décision : **pas automatique**, craft manuel
+* [x] Pattern proposé : recipes registry + `cookDish()` + stamina % drain + tests
+
+---
+
+### 🟡 Ce qu’il reste à faire (prochaines étapes)
+
+**Forge — option 1 (ce qu’on attaque maintenant)**
+
+* [ ] Ajouter `buildings.forge` dans `GameState` (unlocked/built/active)
+* [ ] Ajouter l’unlock `FORGE` au **chapitre 4** (comme ton plan)
+* [ ] Patch `applyUnlocks()` pour `FORGE`
+* [ ] Implémenter `forgeActions.ts` (craft/upgrade/recycle)
+
+  * [ ] Craft : consomme ressources mine + stamina % + crée un item
+  * [ ] Upgrade : consomme ressources mine + stamina % + augmente ilvl
+  * [ ] Recycle : détruit item → rend **uniquement des ressources mine** (MVP)
+* [ ] Ajouter inventaire minimaliste dans `GameState`
+* [ ] Tests Forge : craft / upgrade / recycle
+
+**Kitchen**
+
+* [ ] Ajouter les plats (ResourceId) + recipes
+* [ ] Implémenter `cookDish()` (action manuelle)
+* [ ] Tests Kitchen
+
+**Forum (suite plus tard via Codex)**
+
+* [ ] Migration : WorldLevelUp / AgeRankUp *uniquement* via Forum (requirements, coûts, buildings requis)
+* [ ] Gestion avancée villageois + regen + presets d’allocation
+
+**Stamina regen**
+
+* [ ] Bâtiment / service de regen (probablement intégré au Forum au MVP)
+* [ ] Empêcher soft-lock (regen minimale ou accès très tôt)

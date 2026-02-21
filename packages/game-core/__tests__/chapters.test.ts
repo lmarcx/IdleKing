@@ -17,7 +17,7 @@ test("chapter progression is linear (MVP)", () => {
   assert.equal(r1.gained.xp, 2500);
   assert.ok(r1.gained.wxp > 0);
   assert.ok(r1.nextStory.completedChapters.has(1));
-  assert.deepEqual(new Set(r1.unlocksApplied), new Set(["FARM", "MINE", "KITCHEN"]));
+  assert.deepEqual(new Set(r1.unlocksApplied), new Set(["FORUM", "FARM", "MINE", "KITCHEN"]));
 
   assert.equal(canCompleteChapter(r1.nextStory, 2), true);
 
