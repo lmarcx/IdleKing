@@ -1,9 +1,7 @@
 {
   "/page": "app/page.js",
   "/game/boto/page": "app/game/boto/page.js",
-  "/game/character/page": "app/game/character/page.js",
   "/game/inventory/page": "app/game/inventory/page.js",
   "/game/kingdom/page": "app/game/kingdom/page.js",
-  "/game/skills/page": "app/game/skills/page.js",
-  "/game/settings/page": "app/game/settings/page.js"
+  "/game/skills/page": "app/game/skills/page.js"
 }
