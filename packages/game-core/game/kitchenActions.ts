@@ -14,15 +14,16 @@ export type CookDishResult = {
     | "NOT_ENOUGH_RESOURCES";
 };
 
+function staminaCostFromPct(pct: number): number {
+  const p = Math.max(0, Math.min(1, pct));
+  return Math.ceil(100 * p);
+}
+
 /**
  * Crafts a dish in the Kitchen by consuming resources and draining villager stamina.
- * This is a manual action (no building tick involved).
+ * This is an explicit action (no per-minute building tick involved).
  */
-export function cookDish(
-  state: GameState,
-  dishId: DishId,
-  villagerId: string
-): CookDishResult {
+export function cookDish(state: GameState, dishId: DishId, villagerId: string): CookDishResult {
   // Kitchen must be unlocked and built to allow crafting.
   if (!state.buildings.kitchen.unlocked) {
     return { next: state, ok: false, reason: "KITCHEN_LOCKED" };
@@ -36,38 +37,36 @@ export function cookDish(
     return { next: state, ok: false, reason: "RECIPE_NOT_FOUND" };
   }
 
-  const villIndex = state.villagers.list.findIndex((v) => v.id === villagerId);
-  if (villIndex < 0) {
+  const idx = state.villagers.list.findIndex((v) => v.id === villagerId);
+  if (idx < 0) {
     return { next: state, ok: false, reason: "VILLAGER_NOT_FOUND" };
   }
 
-  const vill = state.villagers.list[villIndex];
-  if (vill.stamina <= 0) {
+  const v = state.villagers.list[idx];
+  if (v.stamina <= 0) {
     return { next: state, ok: false, reason: "VILLAGER_NO_STAMINA" };
   }
 
-  // Check resources
+  // Ingredients check is done before any mutation.
   if (!hasAtLeast(state.resources, recipe.cost)) {
     return { next: state, ok: false, reason: "NOT_ENOUGH_RESOURCES" };
   }
 
-  // Spend resources
+  // Spend ingredients.
   let nextResources = spend(state.resources, recipe.cost);
 
-  // Add outputs
+  // Add outputs.
   for (const [k, v] of Object.entries(recipe.output)) {
-    const rid = k as ResourceId;
-    nextResources = addQty(nextResources, rid, v ?? 0);
+    const id = k as ResourceId;
+    nextResources = addQty(nextResources, id, v ?? 0);
   }
 
-  // Drain stamina (percentage of max stamina: 100)
-  const pct = Math.max(0, Math.min(1, recipe.staminaCostPct));
-  const staminaCost = Math.ceil(100 * pct);
-
+  // Drain stamina.
+  const staminaCost = staminaCostFromPct(recipe.staminaCostPct);
   const nextVillagers = state.villagers.list.slice();
-  nextVillagers[villIndex] = {
-    ...vill,
-    stamina: Math.max(0, vill.stamina - staminaCost),
+  nextVillagers[idx] = {
+    ...v,
+    stamina: Math.max(0, v.stamina - staminaCost),
   };
 
   return {

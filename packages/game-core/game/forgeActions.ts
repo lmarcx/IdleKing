@@ -36,11 +36,12 @@ export function forgeCraft(
   recipeId: ForgeRecipeId,
   villagerId: string
 ): ForgeCraftResult {
-  if (!state.story.unlocked.has("FORGE")) {
-    return { next: state, ok: false, reason: "FORGE_LOCKED" };
-  }
-  // If you add state.buildings.forge later, replace this with that check.
-  // MVP: treat "unlock" as permission; "built" can be integrated once Forge building state exists.
+  if (!state.buildings.forge.unlocked) {
+  return { next: state, ok: false, reason: "FORGE_LOCKED" };
+}
+  if (!state.buildings.forge.built) {
+  return { next: state, ok: false, reason: "FORGE_NOT_BUILT" };
+}
 
   const recipe = getForgeRecipe(recipeId);
   if (!recipe) return { next: state, ok: false, reason: "RECIPE_NOT_FOUND" };

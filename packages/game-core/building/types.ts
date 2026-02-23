@@ -1,10 +1,12 @@
 import type { GameState } from "../game/state.js";
 
 export type BuildingId =
+  | "FORUM"
   | "TEMPLE"
   | "FARM"
   | "MINE"
   | "KITCHEN"
+  | "FORGE"
   // extensible
   | (string & {});
 
