@@ -1,33 +1,66 @@
-"use client";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+// apps/web/app/game/boto/page.tsx
+import { HoloPanel } from "@/components/ui/holo-panel";
 
 export default function BotoPage() {
-  const choose = (choice: string) => {
-    toast.info(`Choice selected: ${choice}`);
-  };
-
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Boto</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Companion Console</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
-            [ BOTO UNIT ONLINE ]
+    <div className="p-6">
+      <div className="ik-boto-console">
+        {/* Left: Portrait */}
+        <div className="ik-boto-portrait">
+          <div className="ik-boto-portrait-core">
+            <div className="ik-boto-humanoid" />
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button onClick={() => choose("Scout")}>Scout surroundings</Button>
-            <Button variant="secondary" onClick={() => choose("Gather")}>Gather local hints</Button>
-            <Button variant="outline" onClick={() => choose("Calibrate")}>Calibrate systems</Button>
-            <Button variant="outline" onClick={() => choose("Silence")}>Standby mode</Button>
+
+          <div className="absolute left-4 top-4 text-sm tracking-wide text-white/80">
+            BOTO UNIT — LINK ESTABLISHED
           </div>
-        </CardContent>
-      </Card>
+          <div className="absolute left-4 bottom-4 text-xs text-white/60">
+            Signal: Stable • Origin: Rift Layer C
+          </div>
+        </div>
+
+        {/* Right: Console */}
+        <div className="ik-boto-right">
+          <HoloPanel className="py-4">
+            <div className="text-white/90 font-semibold tracking-wide">
+              COMPANION CONSOLE
+            </div>
+            <div className="text-white/60 text-sm mt-1">
+              Cosmic interface • Guidance protocol online
+            </div>
+          </HoloPanel>
+
+          <div className="ik-dialogue">
+            <div className="ik-dialogue-line ik-dialogue-line--boto">
+              <div className="text-xs text-white/60 mb-1">BOTO</div>
+              <div className="text-white/90">
+                Mon lien avec ce monde est instable… mais suffisant pour te guider.
+              </div>
+            </div>
+
+            <div className="ik-dialogue-line ik-dialogue-line--player">
+              <div className="text-xs text-white/60 mb-1">ROI</div>
+              <div className="text-white/90">
+                Alors montre-moi quoi faire maintenant.
+              </div>
+            </div>
+
+            <div className="ik-dialogue-line ik-dialogue-line--boto">
+              <div className="text-xs text-white/60 mb-1">BOTO</div>
+              <div className="text-white/90">
+                Commence par stabiliser le Royaume. Construis la Ferme puis la Mine.
+              </div>
+            </div>
+          </div>
+
+          <div className="ik-choice-bar">
+            <button className="ik-holo-button">Ouvrir le Royaume</button>
+            <button className="ik-holo-button">Pourquoi moi ?</button>
+            <button className="ik-holo-button">Analyser les ressources</button>
+            <button className="ik-holo-button">Mode veille</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

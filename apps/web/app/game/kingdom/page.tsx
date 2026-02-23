@@ -3,100 +3,149 @@
 import Link from "next/link";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGameStore } from "@/store/game-store";
+import { RelicPanel } from "@/components/ui/relic-panel";
 import { buildBuilding } from "@idleking/game-core/game/buildingBuildActions.js";
 import { getBuildCost } from "@idleking/game-core/building/buildCosts.js";
 
 const BUILDINGS = [
-  { id: "FORUM", key: "forum", route: "/game/kingdom/forum" },
-  { id: "FARM", key: "farm", route: "/game/kingdom/farm" },
-  { id: "MINE", key: "mine", route: "/game/kingdom/mine" },
-  { id: "TEMPLE", key: "temple", route: "/game/kingdom/temple" },
-  { id: "KITCHEN", key: "kitchen", route: "/game/kingdom/kitchen" },
-  { id: "FORGE", key: "forge", route: "/game/kingdom/forge" },
+  { id: "FORUM", key: "forum", route: "/game/kingdom/forum", accent: "gold" },
+  { id: "FARM", key: "farm", route: "/game/kingdom/farm", accent: "default" },
+  { id: "MINE", key: "mine", route: "/game/kingdom/mine", accent: "default" },
+  { id: "TEMPLE", key: "temple", route: "/game/kingdom/temple", accent: "xp" },
+  { id: "KITCHEN", key: "kitchen", route: "/game/kingdom/kitchen", accent: "default" },
+  { id: "FORGE", key: "forge", route: "/game/kingdom/forge", accent: "gold" },
 ] as const;
+
+type Accent = "default" | "gold" | "xp" | "wxp";
+
+function getBuildingChip(row: { unlocked: boolean; built: boolean; active?: boolean }) {
+  const active = Boolean(row.active);
+  if (!row.unlocked) return { label: "SCELLÉ", className: "ik-chip ik-chip--locked" };
+  if (row.unlocked && !row.built) return { label: "DÉBLOQUÉ", className: "ik-chip" };
+  if (row.built && !active) return { label: "CONSTRUIT", className: "ik-chip ik-chip--gold" };
+  return { label: "ACTIF", className: "ik-chip ik-chip--gold" };
+}
+
+function formatCost(cost: unknown) {
+  // Garde simple pour MVP (tu pourras le rendre plus joli ensuite)
+  try {
+    return JSON.stringify(cost);
+  } catch {
+    return String(cost);
+  }
+}
 
 export default function KingdomPage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Kingdom</h1>
-      <p className="text-sm text-muted-foreground">Manage building unlock, build, and activity.</p>
+    <div className="p-6 space-y-4">
+      {/* Header */}
+      <RelicPanel variant="gold">
+        <div className="text-xl font-semibold text-white/90">Royaume</div>
+        <div className="text-sm text-white/60 mt-1">
+          Gère les bâtiments : déblocage, construction et activité.
+        </div>
+      </RelicPanel>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Grid */}
+      <div className="ik-building-grid">
         {BUILDINGS.map((b) => {
-          const row = state.buildings[b.key];
+          const row = state.buildings[b.key] as { unlocked: boolean; built: boolean; active?: boolean };
           const cost = getBuildCost(b.id);
+          const chip = getBuildingChip(row);
+
+          const panelVariant = b.accent === "gold" ? "gold" : b.accent === "xp" ? "xp" : "default";
+
+          const canOpenPage = row.unlocked && row.built;
+          const canToggleActive = row.unlocked && row.built;
 
           return (
-            <Card key={b.id}>
-              <CardHeader>
-                <CardTitle>{b.id}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <p>
-                  unlocked: {String(row.unlocked)} | built: {String(row.built)} | active: {String((row as { active: boolean }).active)}
-                </p>
-                <p className="text-muted-foreground">Cost: {JSON.stringify(cost)}</p>
-
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      dispatch((prev) => ({
-                        ...prev,
-                        buildings: {
-                          ...prev.buildings,
-                          [b.key]: { ...prev.buildings[b.key], unlocked: !prev.buildings[b.key].unlocked },
-                        },
-                      }));
-                    }}
-                  >
-                    Toggle Open
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      const res = buildBuilding(state, b.id);
-                      if (!res.ok) {
-                        toast.error(`Build failed: ${res.reason}`);
-                        return;
-                      }
-                      dispatch(() => res.next);
-                      toast.success(`${b.id} built`);
-                    }}
-                  >
-                    Build
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      dispatch((prev) => ({
-                        ...prev,
-                        buildings: {
-                          ...prev.buildings,
-                          [b.key]: {
-                            ...prev.buildings[b.key],
-                            active: !(prev.buildings[b.key] as { active: boolean }).active,
-                          },
-                        },
-                      }));
-                    }}
-                  >
-                    Toggle Active
-                  </Button>
-
-                  <Link href={b.route}>
-                    <Button variant="ghost">Open Page</Button>
-                  </Link>
+            <RelicPanel key={b.id} variant={panelVariant as Accent} className="ik-building-card">
+              <div className="ik-building-top">
+                <div className="flex gap-3">
+                  <div className="ik-building-icon" />
+                  <div>
+                    <div className="ik-building-name">{b.id}</div>
+                    <div className="ik-building-state">
+                      unlocked: {String(row.unlocked)} • built: {String(row.built)} • active: {String(Boolean(row.active))}
+                    </div>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                <div className={chip.className}>{chip.label}</div>
+              </div>
+
+              <div className="mt-3 text-xs text-white/55">
+                Cost: <span className="text-white/70">{formatCost(cost)}</span>
+              </div>
+
+              <div className="ik-building-actions">
+                {/* Toggle Unlock */}
+                <button
+                  className="ik-runic-button ik-runic-button--ghost"
+                  onClick={() => {
+                    dispatch((prev) => ({
+                      ...prev,
+                      buildings: {
+                        ...prev.buildings,
+                        [b.key]: { ...prev.buildings[b.key], unlocked: !prev.buildings[b.key].unlocked },
+                      },
+                    }));
+                  }}
+                >
+                  Toggle Open
+                </button>
+
+                {/* Build */}
+                <button
+                  className="ik-runic-button ik-runic-button--primary"
+                  onClick={() => {
+                    const res = buildBuilding(state, b.id);
+                    if (!res.ok) {
+                      toast.error(`Build failed: ${res.reason}`);
+                      return;
+                    }
+                    dispatch(() => res.next);
+                    toast.success(`${b.id} built`);
+                  }}
+                  disabled={!row.unlocked || row.built}
+                >
+                  Build
+                </button>
+
+                {/* Toggle Active */}
+                <button
+                  className="ik-runic-button"
+                  onClick={() => {
+                    dispatch((prev) => ({
+                      ...prev,
+                      buildings: {
+                        ...prev.buildings,
+                        [b.key]: {
+                          ...prev.buildings[b.key],
+                          active: !(prev.buildings[b.key] as { active: boolean }).active,
+                        },
+                      },
+                    }));
+                  }}
+                  disabled={!canToggleActive}
+                  aria-disabled={!canToggleActive}
+                  title={!canToggleActive ? "Build required" : undefined}
+                >
+                  Toggle Active
+                </button>
+
+                {/* Open page */}
+                <Link href={b.route} aria-disabled={!canOpenPage} title={!canOpenPage ? "Build required" : undefined}>
+                  <button className="ik-runic-button" disabled={!canOpenPage}>
+                    Open Page
+                  </button>
+                </Link>
+              </div>
+            </RelicPanel>
           );
         })}
       </div>
