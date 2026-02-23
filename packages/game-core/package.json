@@ -9,7 +9,11 @@
     ".": "./dist/index.js",
     "./power": "./dist/power/index.js",
     "./loot": "./dist/loot/index.js",
-    "./progression": "./dist/progression/index.js"
+    "./progression": "./dist/progression/index.js",
+    "./game/*": "./dist/game/*",
+    "./building/*": "./dist/building/*",
+    "./resources/*": "./dist/resources/*",
+    "./items/*": "./dist/items/*"
   },
   "files": ["dist"],
   "scripts": {
