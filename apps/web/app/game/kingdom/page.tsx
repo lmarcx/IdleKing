@@ -1,104 +1,67 @@
-"use client";
+// apps/web/app/game/kingdom/page.tsx
+import { RelicPanel } from "@/components/ui/relic-panel";
 
-import Link from "next/link";
-import { toast } from "sonner";
+function BuildingCard(props: {
+  name: string;
+  state: "LOCKED" | "UNLOCKED" | "BUILT" | "ACTIVE";
+  accent?: "default" | "gold" | "xp" | "wxp";
+}) {
+  const { name, state, accent = "default" } = props;
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useGameStore } from "@/store/game-store";
-import { buildBuilding } from "@idleking/game-core/game/buildingBuildActions.js";
-import { getBuildCost } from "@idleking/game-core/building/buildCosts.js";
+  const variant =
+    accent === "gold" ? "gold" : accent === "xp" ? "xp" : accent === "wxp" ? "wxp" : "default";
 
-const BUILDINGS = [
-  { id: "FORUM", key: "forum", route: "/game/kingdom/forum" },
-  { id: "FARM", key: "farm", route: "/game/kingdom/farm" },
-  { id: "MINE", key: "mine", route: "/game/kingdom/mine" },
-  { id: "TEMPLE", key: "temple", route: "/game/kingdom/temple" },
-  { id: "KITCHEN", key: "kitchen", route: "/game/kingdom/kitchen" },
-  { id: "FORGE", key: "forge", route: "/game/kingdom/forge" },
-] as const;
-
-export default function KingdomPage() {
-  const state = useGameStore((s) => s.state);
-  const dispatch = useGameStore((s) => s.dispatch);
+  const chip =
+    state === "LOCKED"
+      ? ["SCELLÉ", "ik-chip ik-chip--locked"]
+      : state === "UNLOCKED"
+      ? ["DÉBLOQUÉ", "ik-chip"]
+      : state === "BUILT"
+      ? ["CONSTRUIT", "ik-chip ik-chip--gold"]
+      : ["ACTIF", "ik-chip ik-chip--gold"];
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Kingdom</h1>
-      <p className="text-sm text-muted-foreground">Manage building unlock, build, and activity.</p>
+    <RelicPanel variant={variant} className="ik-building-card">
+      <div className="ik-building-top">
+        <div className="flex gap-12">
+          <div className="ik-building-icon" />
+          <div>
+            <div className="ik-building-name">{name}</div>
+            <div className="ik-building-state">Bâtiment du Royaume</div>
+          </div>
+        </div>
+        <div className={chip[1]}>{chip[0]}</div>
+      </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {BUILDINGS.map((b) => {
-          const row = state.buildings[b.key];
-          const cost = getBuildCost(b.id);
+      <div className="ik-building-actions">
+        <button className="ik-runic-button ik-runic-button--primary">
+          {state === "LOCKED" ? "Conditions" : state === "UNLOCKED" ? "Build" : "Open"}
+        </button>
+        <button className="ik-runic-button ik-runic-button--ghost" disabled={state !== "ACTIVE" && state !== "BUILT"}>
+          Toggle
+        </button>
+      </div>
+    </RelicPanel>
+  );
+}
 
-          return (
-            <Card key={b.id}>
-              <CardHeader>
-                <CardTitle>{b.id}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <p>
-                  unlocked: {String(row.unlocked)} | built: {String(row.built)} | active: {String((row as { active: boolean }).active)}
-                </p>
-                <p className="text-muted-foreground">Cost: {JSON.stringify(cost)}</p>
+export default function KingdomPage() {
+  return (
+    <div className="p-6 space-y-4">
+      <RelicPanel variant="gold">
+        <div className="text-xl font-semibold text-white/90">Royaume</div>
+        <div className="text-sm text-white/60 mt-1">
+          Stabilise tes fondations. Chaque bâtiment façonne ta progression.
+        </div>
+      </RelicPanel>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      dispatch((prev) => ({
-                        ...prev,
-                        buildings: {
-                          ...prev.buildings,
-                          [b.key]: { ...prev.buildings[b.key], unlocked: !prev.buildings[b.key].unlocked },
-                        },
-                      }));
-                    }}
-                  >
-                    Toggle Open
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      const res = buildBuilding(state, b.id);
-                      if (!res.ok) {
-                        toast.error(`Build failed: ${res.reason}`);
-                        return;
-                      }
-                      dispatch(() => res.next);
-                      toast.success(`${b.id} built`);
-                    }}
-                  >
-                    Build
-                  </Button>
-
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      dispatch((prev) => ({
-                        ...prev,
-                        buildings: {
-                          ...prev.buildings,
-                          [b.key]: {
-                            ...prev.buildings[b.key],
-                            active: !(prev.buildings[b.key] as { active: boolean }).active,
-                          },
-                        },
-                      }));
-                    }}
-                  >
-                    Toggle Active
-                  </Button>
-
-                  <Link href={b.route}>
-                    <Button variant="ghost">Open Page</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      <div className="ik-building-grid">
+        <BuildingCard name="Forum" state="BUILT" accent="gold" />
+        <BuildingCard name="Ferme" state="UNLOCKED" />
+        <BuildingCard name="Mine" state="UNLOCKED" />
+        <BuildingCard name="Temple" state="LOCKED" accent="xp" />
+        <BuildingCard name="Cuisine" state="UNLOCKED" />
+        <BuildingCard name="Forge" state="LOCKED" accent="gold" />
       </div>
     </div>
   );

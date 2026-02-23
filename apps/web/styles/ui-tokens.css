@@ -1,0 +1,380 @@
+/* =========================================
+   IDLE KING — UI TOKENS V1
+   Dark Fantasy + Cosmic Boto
+   ========================================= */
+
+/* =========================
+   ROOT VARIABLES
+   ========================= */
+
+:root {
+  /* Background */
+  --ik-bg-0: #0d1117;
+  --ik-bg-1: #141a22;
+  --ik-bg-2: #1b222c;
+
+  /* Metals */
+  --ik-metal-0: #2c323c;
+  --ik-metal-1: #3a424f;
+
+  /* Royal gold */
+  --ik-gold: #c6a85b;
+
+  /* Energies */
+  --ik-xp: #1aff7a;
+  --ik-xp-hover: #0ed760;
+  --ik-wxp: #2da8ff;
+  --ik-wxp-hover: #0f8cff;
+
+  /* Danger */
+  --ik-danger: #7b1e1e;
+  --ik-danger-2: #b83232;
+
+  /* Text */
+  --ik-text-0: rgba(255, 255, 255, 0.92);
+  --ik-text-1: rgba(255, 255, 255, 0.74);
+  --ik-text-2: rgba(255, 255, 255, 0.54);
+
+  /* Glows */
+  --ik-glow-xp: rgba(26, 255, 122, 0.40);
+  --ik-glow-wxp: rgba(45, 168, 255, 0.35);
+  --ik-glow-gold: rgba(198, 168, 91, 0.35);
+
+  /* Boto neon */
+  --ik-cyan: #00e7ff;
+  --ik-violet: #8a5cff;
+  --ik-glow-cyan: rgba(0, 231, 255, 0.35);
+
+  /* Radii */
+  --ik-r-lg: 14px;
+  --ik-r-xl: 18px;
+
+  /* Shadows */
+  --ik-shadow-panel: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --ik-shadow-press: inset 0 2px 0 rgba(255, 255, 255, 0.06);
+
+  /* Noise */
+  --ik-noise-opacity: 0.06;
+}
+
+/* =========================
+   RELIC PANEL (Fantasy)
+   ========================= */
+
+.ik-relic-panel {
+  position: relative;
+  border-radius: var(--ik-r-xl);
+  background: var(--ik-bg-1);
+  border: 1px solid rgba(58, 66, 79, 0.85);
+  box-shadow: var(--ik-shadow-panel);
+  overflow: hidden;
+}
+
+.ik-relic-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      rgba(0,0,0,0.02) 2px,
+      rgba(0,0,0,0.02) 3px
+    );
+  opacity: var(--ik-noise-opacity);
+  pointer-events: none;
+}
+
+/* Variants */
+
+.ik-relic-panel--gold {
+  border-color: rgba(198, 168, 91, 0.6);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(198, 168, 91, 0.12);
+}
+
+.ik-relic-panel--xp {
+  border-color: rgba(26, 255, 122, 0.6);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(26, 255, 122, 0.12);
+}
+
+.ik-relic-panel--wxp {
+  border-color: rgba(45, 168, 255, 0.6);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(45, 168, 255, 0.12);
+}
+
+/* =========================
+   RUNIC BUTTON
+   ========================= */
+
+.ik-runic-button {
+  border-radius: var(--ik-r-lg);
+  border: 1px solid rgba(58, 66, 79, 0.95);
+  background: rgba(44, 50, 60, 0.55);
+  color: var(--ik-text-0);
+  padding: 10px 14px;
+  transition: all 120ms ease;
+}
+
+.ik-runic-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--ik-gold);
+}
+
+.ik-runic-button--primary {
+  border-color: rgba(198, 168, 91, 0.65);
+  box-shadow: 0 0 18px rgba(198, 168, 91, 0.12);
+}
+
+.ik-runic-button--danger {
+  border-color: var(--ik-danger-2);
+}
+
+.ik-runic-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================
+   HOLO PANEL (Boto)
+   ========================= */
+
+.ik-holo-panel {
+  position: relative;
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(0, 231, 255, 0.4);
+  background: rgba(0,0,0,0.75);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.55),
+    0 0 22px rgba(0,231,255,0.10);
+  overflow: hidden;
+}
+
+.ik-holo-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* =========================
+   HOLO BUTTON
+   ========================= */
+
+.ik-holo-button {
+  border-radius: var(--ik-r-lg);
+  border: 1px solid rgba(0, 231, 255, 0.4);
+  background: rgba(0, 231, 255, 0.05);
+  padding: 10px 14px;
+  transition: all 120ms ease;
+}
+
+.ik-holo-button:hover {
+  background: rgba(0, 231, 255, 0.15);
+  box-shadow: 0 0 18px rgba(0, 231, 255, 0.15);
+}
+
+/* =========================
+   BOTO — FULL SCREEN CONSOLE
+   ========================= */
+
+.ik-boto-console {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+  height: calc(100vh - 140px); /* ajuste si besoin selon ton header */
+  min-height: 560px;
+}
+
+.ik-boto-portrait {
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(0, 231, 255, 0.42);
+  background:
+    radial-gradient(circle at 40% 20%, rgba(0,231,255,0.22), transparent 55%),
+    radial-gradient(circle at 70% 85%, rgba(138,92,255,0.18), transparent 60%),
+    rgba(0,0,0,0.78);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.55),
+    0 0 26px rgba(0,231,255,0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+/* scanlines + slight noise */
+.ik-boto-portrait::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.ik-boto-portrait-core {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.ik-boto-humanoid {
+  width: 78%;
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  border: 1px solid rgba(0,231,255,0.35);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(0,231,255,0.20), transparent 55%),
+    radial-gradient(circle at 40% 70%, rgba(138,92,255,0.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.00));
+  box-shadow: 0 0 24px rgba(0,231,255,0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+/* “eyes” */
+.ik-boto-humanoid::after {
+  content: "";
+  position: absolute;
+  top: 22%;
+  left: 18%;
+  right: 18%;
+  height: 12px;
+  background:
+    linear-gradient(90deg,
+      transparent 0%,
+      rgba(0,231,255,0.00) 15%,
+      rgba(0,231,255,0.85) 35%,
+      rgba(0,231,255,0.85) 65%,
+      rgba(0,231,255,0.00) 85%,
+      transparent 100%
+    );
+  filter: blur(0.2px);
+  opacity: 0.9;
+}
+
+.ik-boto-right {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  height: 100%;
+}
+
+.ik-dialogue {
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(0,231,255,0.28);
+  background: rgba(0,0,0,0.62);
+  box-shadow: 0 0 18px rgba(0,231,255,0.06);
+  padding: 14px;
+  overflow: auto;
+}
+
+.ik-dialogue-line {
+  padding: 10px 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.ik-dialogue-line--boto {
+  background: rgba(0,231,255,0.05);
+  border-color: rgba(0,231,255,0.16);
+}
+
+.ik-dialogue-line--player {
+  background: rgba(138,92,255,0.05);
+  border-color: rgba(138,92,255,0.16);
+}
+
+.ik-choice-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* =========================
+   KINGDOM — BUILDING GRID
+   ========================= */
+
+.ik-building-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ik-building-card {
+  padding: 16px;
+}
+
+.ik-building-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ik-building-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.06), transparent 55%),
+    rgba(0,0,0,0.25);
+}
+
+.ik-building-name {
+  font-weight: 700;
+  color: var(--ik-text-0);
+}
+
+.ik-building-state {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ik-text-1);
+}
+
+.ik-chip {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--ik-text-1);
+  background: rgba(255,255,255,0.04);
+}
+
+.ik-chip--gold {
+  border-color: rgba(198,168,91,0.30);
+  color: rgba(198,168,91,0.95);
+  background: rgba(198,168,91,0.08);
+}
+
+.ik-chip--locked {
+  border-color: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.55);
+}
+
+.ik-building-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}

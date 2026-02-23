@@ -1,7 +1,390 @@
+/*!**************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./styles/ui-tokens.css ***!
+  \**************************************************************************************************************************************************************************************************************************************************************************/
+/* =========================================
+   IDLE KING — UI TOKENS V1
+   Dark Fantasy + Cosmic Boto
+   ========================================= */
+
+/* =========================
+   ROOT VARIABLES
+   ========================= */
+
+:root {
+  /* Background */
+  --ik-bg-0: #0d1117;
+  --ik-bg-1: #141a22;
+  --ik-bg-2: #1b222c;
+
+  /* Metals */
+  --ik-metal-0: #2c323c;
+  --ik-metal-1: #3a424f;
+
+  /* Royal gold */
+  --ik-gold: #c6a85b;
+
+  /* Energies */
+  --ik-xp: #1aff7a;
+  --ik-xp-hover: #0ed760;
+  --ik-wxp: #2da8ff;
+  --ik-wxp-hover: #0f8cff;
+
+  /* Danger */
+  --ik-danger: #7b1e1e;
+  --ik-danger-2: #b83232;
+
+  /* Text */
+  --ik-text-0: rgba(255, 255, 255, 0.92);
+  --ik-text-1: rgba(255, 255, 255, 0.74);
+  --ik-text-2: rgba(255, 255, 255, 0.54);
+
+  /* Glows */
+  --ik-glow-xp: rgba(26, 255, 122, 0.40);
+  --ik-glow-wxp: rgba(45, 168, 255, 0.35);
+  --ik-glow-gold: rgba(198, 168, 91, 0.35);
+
+  /* Boto neon */
+  --ik-cyan: #00e7ff;
+  --ik-violet: #8a5cff;
+  --ik-glow-cyan: rgba(0, 231, 255, 0.35);
+
+  /* Radii */
+  --ik-r-lg: 14px;
+  --ik-r-xl: 18px;
+
+  /* Shadows */
+  --ik-shadow-panel: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --ik-shadow-press: inset 0 2px 0 rgba(255, 255, 255, 0.06);
+
+  /* Noise */
+  --ik-noise-opacity: 0.06;
+}
+
+/* =========================
+   RELIC PANEL (Fantasy)
+   ========================= */
+
+.ik-relic-panel {
+  position: relative;
+  border-radius: var(--ik-r-xl);
+  background: var(--ik-bg-1);
+  border: 1px solid rgba(58, 66, 79, 0.85);
+  box-shadow: var(--ik-shadow-panel);
+  overflow: hidden;
+}
+
+.ik-relic-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.02) 0px,
+      rgba(255,255,255,0.02) 1px,
+      rgba(0,0,0,0.02) 2px,
+      rgba(0,0,0,0.02) 3px
+    );
+  opacity: var(--ik-noise-opacity);
+  pointer-events: none;
+}
+
+/* Variants */
+
+.ik-relic-panel--gold {
+  border-color: rgba(198, 168, 91, 0.6);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(198, 168, 91, 0.12);
+}
+
+.ik-relic-panel--xp {
+  border-color: rgba(26, 255, 122, 0.6);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(26, 255, 122, 0.12);
+}
+
+.ik-relic-panel--wxp {
+  border-color: rgba(45, 168, 255, 0.6);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(45, 168, 255, 0.12);
+}
+
+/* =========================
+   RUNIC BUTTON
+   ========================= */
+
+.ik-runic-button {
+  border-radius: var(--ik-r-lg);
+  border: 1px solid rgba(58, 66, 79, 0.95);
+  background: rgba(44, 50, 60, 0.55);
+  color: var(--ik-text-0);
+  padding: 10px 14px;
+  transition: all 120ms ease;
+}
+
+.ik-runic-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--ik-gold);
+}
+
+.ik-runic-button--primary {
+  border-color: rgba(198, 168, 91, 0.65);
+  box-shadow: 0 0 18px rgba(198, 168, 91, 0.12);
+}
+
+.ik-runic-button--danger {
+  border-color: var(--ik-danger-2);
+}
+
+.ik-runic-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================
+   HOLO PANEL (Boto)
+   ========================= */
+
+.ik-holo-panel {
+  position: relative;
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(0, 231, 255, 0.4);
+  background: rgba(0,0,0,0.75);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.55),
+    0 0 22px rgba(0,231,255,0.10);
+  overflow: hidden;
+}
+
+.ik-holo-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* =========================
+   HOLO BUTTON
+   ========================= */
+
+.ik-holo-button {
+  border-radius: var(--ik-r-lg);
+  border: 1px solid rgba(0, 231, 255, 0.4);
+  background: rgba(0, 231, 255, 0.05);
+  padding: 10px 14px;
+  transition: all 120ms ease;
+}
+
+.ik-holo-button:hover {
+  background: rgba(0, 231, 255, 0.15);
+  box-shadow: 0 0 18px rgba(0, 231, 255, 0.15);
+}
+
+/* =========================
+   BOTO — FULL SCREEN CONSOLE
+   ========================= */
+
+.ik-boto-console {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+  height: calc(100vh - 140px); /* ajuste si besoin selon ton header */
+  min-height: 560px;
+}
+
+.ik-boto-portrait {
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(0, 231, 255, 0.42);
+  background:
+    radial-gradient(circle at 40% 20%, rgba(0,231,255,0.22), transparent 55%),
+    radial-gradient(circle at 70% 85%, rgba(138,92,255,0.18), transparent 60%),
+    rgba(0,0,0,0.78);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.55),
+    0 0 26px rgba(0,231,255,0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+/* scanlines + slight noise */
+.ik-boto-portrait::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 5px
+  );
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.ik-boto-portrait-core {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.ik-boto-humanoid {
+  width: 78%;
+  aspect-ratio: 3 / 4;
+  border-radius: 22px;
+  border: 1px solid rgba(0,231,255,0.35);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(0,231,255,0.20), transparent 55%),
+    radial-gradient(circle at 40% 70%, rgba(138,92,255,0.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.00));
+  box-shadow: 0 0 24px rgba(0,231,255,0.10);
+  position: relative;
+  overflow: hidden;
+}
+
+/* “eyes” */
+.ik-boto-humanoid::after {
+  content: "";
+  position: absolute;
+  top: 22%;
+  left: 18%;
+  right: 18%;
+  height: 12px;
+  background:
+    linear-gradient(90deg,
+      transparent 0%,
+      rgba(0,231,255,0.00) 15%,
+      rgba(0,231,255,0.85) 35%,
+      rgba(0,231,255,0.85) 65%,
+      rgba(0,231,255,0.00) 85%,
+      transparent 100%
+    );
+  filter: blur(0.2px);
+  opacity: 0.9;
+}
+
+.ik-boto-right {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  height: 100%;
+}
+
+.ik-dialogue {
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(0,231,255,0.28);
+  background: rgba(0,0,0,0.62);
+  box-shadow: 0 0 18px rgba(0,231,255,0.06);
+  padding: 14px;
+  overflow: auto;
+}
+
+.ik-dialogue-line {
+  padding: 10px 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.ik-dialogue-line--boto {
+  background: rgba(0,231,255,0.05);
+  border-color: rgba(0,231,255,0.16);
+}
+
+.ik-dialogue-line--player {
+  background: rgba(138,92,255,0.05);
+  border-color: rgba(138,92,255,0.16);
+}
+
+.ik-choice-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* =========================
+   KINGDOM — BUILDING GRID
+   ========================= */
+
+.ik-building-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ik-building-card {
+  padding: 16px;
+}
+
+.ik-building-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ik-building-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.06), transparent 55%),
+    rgba(0,0,0,0.25);
+}
+
+.ik-building-name {
+  font-weight: 700;
+  color: var(--ik-text-0);
+}
+
+.ik-building-state {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ik-text-1);
+}
+
+.ik-chip {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--ik-text-1);
+  background: rgba(255,255,255,0.04);
+}
+
+.ik-chip--gold {
+  border-color: rgba(198,168,91,0.30);
+  color: rgba(198,168,91,0.95);
+  background: rgba(198,168,91,0.08);
+}
+
+.ik-chip--locked {
+  border-color: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.55);
+}
+
+.ik-building-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
 /*!*********************************************************************************************************************************************************************************************************************************************************************!*\
   !*** css ../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[10].use[3]!./app/globals.css ***!
   \*********************************************************************************************************************************************************************************************************************************************************************/
-*, ::before, ::after {
+*, ::before, ::after{
   --tw-border-spacing-x: 0;
   --tw-border-spacing-y: 0;
   --tw-translate-x: 0;
@@ -54,8 +437,7 @@
   --tw-contain-paint:  ;
   --tw-contain-style:  ;
 }
-
-::backdrop {
+::backdrop{
   --tw-border-spacing-x: 0;
   --tw-border-spacing-y: 0;
   --tw-translate-x: 0;
@@ -107,13 +489,14 @@
   --tw-contain-layout:  ;
   --tw-contain-paint:  ;
   --tw-contain-style:  ;
-}/*
+}
+/*
 ! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
-*//*
+*/
+/*
 1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
 2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
 */
-
 *,
 ::before,
 ::after {
@@ -122,12 +505,10 @@
   border-style: solid; /* 2 */
   border-color: #e5e7eb; /* 2 */
 }
-
 ::before,
 ::after {
   --tw-content: '';
 }
-
 /*
 1. Use a consistent sensible line-height in all browsers.
 2. Prevent adjustments of font size after orientation changes in iOS.
@@ -137,7 +518,6 @@
 6. Use the user's configured `sans` font-variation-settings by default.
 7. Disable tap highlights on iOS
 */
-
 html,
 :host {
   line-height: 1.5; /* 1 */
@@ -150,42 +530,34 @@ html,
   font-variation-settings: normal; /* 6 */
   -webkit-tap-highlight-color: transparent; /* 7 */
 }
-
 /*
 1. Remove the margin in all browsers.
 2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
 */
-
 body {
   margin: 0; /* 1 */
   line-height: inherit; /* 2 */
 }
-
 /*
 1. Add the correct height in Firefox.
 2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
 3. Ensure horizontal rules are visible by default.
 */
-
 hr {
   height: 0; /* 1 */
   color: inherit; /* 2 */
   border-top-width: 1px; /* 3 */
 }
-
 /*
 Add the correct text decoration in Chrome, Edge, and Safari.
 */
-
 abbr:where([title]) {
   -webkit-text-decoration: underline dotted;
           text-decoration: underline dotted;
 }
-
 /*
 Remove the default font size and weight for headings.
 */
-
 h1,
 h2,
 h3,
@@ -195,32 +567,26 @@ h6 {
   font-size: inherit;
   font-weight: inherit;
 }
-
 /*
 Reset links to optimize for opt-in styling instead of opt-out.
 */
-
 a {
   color: inherit;
   text-decoration: inherit;
 }
-
 /*
 Add the correct font weight in Edge and Safari.
 */
-
 b,
 strong {
   font-weight: bolder;
 }
-
 /*
 1. Use the user's configured `mono` font-family by default.
 2. Use the user's configured `mono` font-feature-settings by default.
 3. Use the user's configured `mono` font-variation-settings by default.
 4. Correct the odd `em` font sizing in all browsers.
 */
-
 code,
 kbd,
 samp,
@@ -230,19 +596,15 @@ pre {
   font-variation-settings: normal; /* 3 */
   font-size: 1em; /* 4 */
 }
-
 /*
 Add the correct font size in all browsers.
 */
-
 small {
   font-size: 80%;
 }
-
 /*
 Prevent `sub` and `sup` elements from affecting the line height in all browsers.
 */
-
 sub,
 sup {
   font-size: 75%;
@@ -250,33 +612,27 @@ sup {
   position: relative;
   vertical-align: baseline;
 }
-
 sub {
   bottom: -0.25em;
 }
-
 sup {
   top: -0.5em;
 }
-
 /*
 1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
 2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
 3. Remove gaps between table borders by default.
 */
-
 table {
   text-indent: 0; /* 1 */
   border-color: inherit; /* 2 */
   border-collapse: collapse; /* 3 */
 }
-
 /*
 1. Change the font styles in all browsers.
 2. Remove the margin in Firefox and Safari.
 3. Remove default padding in all browsers.
 */
-
 button,
 input,
 optgroup,
@@ -293,21 +649,17 @@ textarea {
   margin: 0; /* 2 */
   padding: 0; /* 3 */
 }
-
 /*
 Remove the inheritance of text transform in Edge and Firefox.
 */
-
 button,
 select {
   text-transform: none;
 }
-
 /*
 1. Correct the inability to style clickable types in iOS and Safari.
 2. Remove default button styles.
 */
-
 button,
 input:where([type='button']),
 input:where([type='reset']),
@@ -316,80 +668,62 @@ input:where([type='submit']) {
   background-color: transparent; /* 2 */
   background-image: none; /* 2 */
 }
-
 /*
 Use the modern Firefox focus style for all focusable elements.
 */
-
 :-moz-focusring {
   outline: auto;
 }
-
 /*
 Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
 */
-
 :-moz-ui-invalid {
   box-shadow: none;
 }
-
 /*
 Add the correct vertical alignment in Chrome and Firefox.
 */
-
 progress {
   vertical-align: baseline;
 }
-
 /*
 Correct the cursor style of increment and decrement buttons in Safari.
 */
-
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
   height: auto;
 }
-
 /*
 1. Correct the odd appearance in Chrome and Safari.
 2. Correct the outline style in Safari.
 */
-
 [type='search'] {
   -webkit-appearance: textfield; /* 1 */
   outline-offset: -2px; /* 2 */
 }
-
 /*
 Remove the inner padding in Chrome and Safari on macOS.
 */
-
 ::-webkit-search-decoration {
   -webkit-appearance: none;
 }
-
 /*
 1. Correct the inability to style clickable types in iOS and Safari.
 2. Change font properties to `inherit` in Safari.
 */
-
 ::-webkit-file-upload-button {
   -webkit-appearance: button; /* 1 */
   font: inherit; /* 2 */
 }
-
 /*
 Add the correct display in Chrome and Safari.
 */
-
 summary {
   display: list-item;
 }
-
 /*
 Removes the default spacing and border for appropriate elements.
 */
-
 blockquote,
 dl,
 dd,
@@ -405,16 +739,13 @@ p,
 pre {
   margin: 0;
 }
-
 fieldset {
   margin: 0;
   padding: 0;
 }
-
 legend {
   padding: 0;
 }
-
 ol,
 ul,
 menu {
@@ -422,60 +753,49 @@ menu {
   margin: 0;
   padding: 0;
 }
-
 /*
 Reset default styling for dialogs.
 */
 dialog {
   padding: 0;
 }
-
 /*
 Prevent resizing textareas horizontally by default.
 */
-
 textarea {
   resize: vertical;
 }
-
 /*
 1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
 2. Set the default placeholder color to the user's configured gray 400 color.
 */
-
 input::-moz-placeholder, textarea::-moz-placeholder {
   opacity: 1; /* 1 */
   color: #9ca3af; /* 2 */
 }
-
 input::placeholder,
 textarea::placeholder {
   opacity: 1; /* 1 */
   color: #9ca3af; /* 2 */
 }
-
 /*
 Set the default cursor for buttons.
 */
-
 button,
 [role="button"] {
   cursor: pointer;
 }
-
 /*
 Make sure disabled buttons don't get the pointer cursor.
 */
 :disabled {
   cursor: default;
 }
-
 /*
 1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
 2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
    This can trigger a poorly considered lint error in some tools but is included by design.
 */
-
 img,
 svg,
 video,
@@ -487,330 +807,370 @@ object {
   display: block; /* 1 */
   vertical-align: middle; /* 2 */
 }
-
 /*
 Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
 */
-
 img,
 video {
   max-width: 100%;
   height: auto;
 }
-
 /* Make elements with the HTML hidden attribute stay hidden by default */
 [hidden]:where(:not([hidden="until-found"])) {
   display: none;
 }
-.fixed {
+.fixed{
   position: fixed;
 }
-.inset-0 {
+.absolute{
+  position: absolute;
+}
+.inset-0{
   inset: 0px;
 }
-.z-50 {
+.bottom-4{
+  bottom: 1rem;
+}
+.left-4{
+  left: 1rem;
+}
+.top-4{
+  top: 1rem;
+}
+.z-50{
   z-index: 50;
 }
-.mx-auto {
+.mx-auto{
   margin-left: auto;
   margin-right: auto;
 }
-.mb-1 {
+.mb-1{
   margin-bottom: 0.25rem;
 }
-.mb-2 {
+.mb-2{
   margin-bottom: 0.5rem;
 }
-.mb-3 {
+.mb-3{
   margin-bottom: 0.75rem;
 }
-.mt-2 {
+.mt-2{
   margin-top: 0.5rem;
 }
-.mt-4 {
+.mt-4{
   margin-top: 1rem;
 }
-.block {
+.mt-1{
+  margin-top: 0.25rem;
+}
+.block{
   display: block;
 }
-.flex {
+.flex{
   display: flex;
 }
-.inline-flex {
+.inline-flex{
   display: inline-flex;
 }
-.grid {
+.grid{
   display: grid;
 }
-.h-10 {
+.h-10{
   height: 2.5rem;
 }
-.h-8 {
+.h-8{
   height: 2rem;
 }
-.h-9 {
+.h-9{
   height: 2.25rem;
 }
-.max-h-\[45vh\] {
+.max-h-\[45vh\]{
   max-height: 45vh;
 }
-.min-h-screen {
+.min-h-screen{
   min-height: 100vh;
 }
-.w-9 {
+.w-9{
   width: 2.25rem;
 }
-.w-full {
+.w-full{
   width: 100%;
 }
-.max-w-5xl {
+.max-w-5xl{
   max-width: 64rem;
 }
-.max-w-\[1600px\] {
+.max-w-\[1600px\]{
   max-width: 1600px;
 }
-.max-w-lg {
+.max-w-lg{
   max-width: 32rem;
 }
-.max-w-xl {
+.max-w-xl{
   max-width: 36rem;
 }
-.max-w-xs {
+.max-w-xs{
   max-width: 20rem;
 }
-.grid-cols-1 {
+.grid-cols-1{
   grid-template-columns: repeat(1, minmax(0, 1fr));
 }
-.flex-col {
+.flex-col{
   flex-direction: column;
 }
-.flex-wrap {
+.flex-wrap{
   flex-wrap: wrap;
 }
-.items-center {
+.items-center{
   align-items: center;
 }
-.justify-end {
+.justify-end{
   justify-content: flex-end;
 }
-.justify-center {
+.justify-center{
   justify-content: center;
 }
-.justify-between {
+.justify-between{
   justify-content: space-between;
 }
-.gap-2 {
+.gap-2{
   gap: 0.5rem;
 }
-.gap-4 {
+.gap-4{
   gap: 1rem;
 }
-.space-y-1 > :not([hidden]) ~ :not([hidden]) {
+.gap-12{
+  gap: 3rem;
+}
+.space-y-1 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
   margin-top: calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(0.25rem * var(--tw-space-y-reverse));
 }
-.space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
+.space-y-1\.5 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
   margin-top: calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(0.375rem * var(--tw-space-y-reverse));
 }
-.space-y-2 > :not([hidden]) ~ :not([hidden]) {
+.space-y-2 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
   margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
 }
-.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+.space-y-3 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
   margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(0.75rem * var(--tw-space-y-reverse));
 }
-.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+.space-y-4 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
   margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
   margin-bottom: calc(1rem * var(--tw-space-y-reverse));
 }
-.overflow-auto {
+.space-y-8 > :not([hidden]) ~ :not([hidden]){
+  --tw-space-y-reverse: 0;
+  margin-top: calc(2rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(2rem * var(--tw-space-y-reverse));
+}
+.overflow-auto{
   overflow: auto;
 }
-.whitespace-nowrap {
+.whitespace-nowrap{
   white-space: nowrap;
 }
-.rounded {
+.rounded{
   border-radius: 0.25rem;
 }
-.rounded-lg {
+.rounded-lg{
   border-radius: var(--radius);
 }
-.rounded-md {
+.rounded-md{
   border-radius: calc(var(--radius) - 2px);
 }
-.rounded-xl {
+.rounded-xl{
   border-radius: 0.75rem;
 }
-.border {
+.border{
   border-width: 1px;
 }
-.border-dashed {
-  border-style: dashed;
-}
-.border-input {
+.border-input{
   border-color: hsl(var(--input));
 }
-.bg-background {
+.bg-background{
   background-color: hsl(var(--background));
 }
-.bg-black\/60 {
+.bg-black\/60{
   background-color: rgb(0 0 0 / 0.6);
 }
-.bg-card {
+.bg-card{
   background-color: hsl(var(--card));
 }
-.bg-destructive {
+.bg-destructive{
   background-color: hsl(var(--destructive));
 }
-.bg-muted {
+.bg-muted{
   background-color: hsl(var(--muted));
 }
-.bg-primary {
+.bg-primary{
   background-color: hsl(var(--primary));
 }
-.bg-secondary {
+.bg-secondary{
   background-color: hsl(var(--secondary));
 }
-.p-1 {
+.p-1{
   padding: 0.25rem;
 }
-.p-2 {
+.p-10{
+  padding: 2.5rem;
+}
+.p-2{
   padding: 0.5rem;
 }
-.p-3 {
+.p-3{
   padding: 0.75rem;
 }
-.p-4 {
+.p-4{
   padding: 1rem;
 }
-.p-6 {
+.p-5{
+  padding: 1.25rem;
+}
+.p-6{
   padding: 1.5rem;
 }
-.px-2 {
+.px-2{
   padding-left: 0.5rem;
   padding-right: 0.5rem;
 }
-.px-3 {
+.px-3{
   padding-left: 0.75rem;
   padding-right: 0.75rem;
 }
-.px-4 {
+.px-4{
   padding-left: 1rem;
   padding-right: 1rem;
 }
-.px-8 {
+.px-8{
   padding-left: 2rem;
   padding-right: 2rem;
 }
-.py-1 {
+.py-1{
   padding-top: 0.25rem;
   padding-bottom: 0.25rem;
 }
-.py-2 {
+.py-2{
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
 }
-.pt-0 {
+.py-4{
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+.pt-0{
   padding-top: 0px;
 }
-.text-center {
+.text-center{
   text-align: center;
 }
-.text-2xl {
+.text-2xl{
   font-size: 1.5rem;
   line-height: 2rem;
 }
-.text-lg {
+.text-lg{
   font-size: 1.125rem;
   line-height: 1.75rem;
 }
-.text-sm {
+.text-sm{
   font-size: 0.875rem;
   line-height: 1.25rem;
 }
-.text-xs {
+.text-xs{
   font-size: 0.75rem;
   line-height: 1rem;
 }
-.font-medium {
+.text-xl{
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+.font-medium{
   font-weight: 500;
 }
-.font-semibold {
+.font-semibold{
   font-weight: 600;
 }
-.uppercase {
+.uppercase{
   text-transform: uppercase;
 }
-.leading-none {
+.leading-none{
   line-height: 1;
 }
-.tracking-tight {
+.tracking-tight{
   letter-spacing: -0.025em;
 }
-.tracking-wide {
+.tracking-wide{
   letter-spacing: 0.025em;
 }
-.text-card-foreground {
+.text-card-foreground{
   color: hsl(var(--card-foreground));
 }
-.text-destructive-foreground {
+.text-destructive-foreground{
   color: hsl(var(--destructive-foreground));
 }
-.text-foreground {
+.text-foreground{
   color: hsl(var(--foreground));
 }
-.text-muted-foreground {
+.text-muted-foreground{
   color: hsl(var(--muted-foreground));
 }
-.text-primary {
+.text-primary{
   color: hsl(var(--primary));
 }
-.text-primary-foreground {
+.text-primary-foreground{
   color: hsl(var(--primary-foreground));
 }
-.text-secondary-foreground {
+.text-secondary-foreground{
   color: hsl(var(--secondary-foreground));
 }
-.underline {
+.text-white\/60{
+  color: rgb(255 255 255 / 0.6);
+}
+.text-white\/80{
+  color: rgb(255 255 255 / 0.8);
+}
+.text-white\/90{
+  color: rgb(255 255 255 / 0.9);
+}
+.underline{
   text-decoration-line: underline;
 }
-.underline-offset-4 {
+.underline-offset-4{
   text-underline-offset: 4px;
 }
-.shadow {
+.shadow{
   --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
-.shadow-sm {
+.shadow-sm{
   --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
-.shadow-xl {
+.shadow-xl{
   --tw-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
-.outline {
+.outline{
   outline-style: solid;
 }
-.filter {
+.filter{
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
 }
-.transition-all {
+.transition-all{
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
-.transition-colors {
+.transition-colors{
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -839,11 +1199,11 @@ video {
   --radius: 0.75rem;
 }
 
-* {
+*{
   border-color: hsl(var(--border));
 }
 
-body {
+body{
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   background-image: radial-gradient(circle at 10% 0%, rgba(255, 140, 40, 0.12), transparent 45%),
@@ -851,94 +1211,87 @@ body {
   min-height: 100vh;
 }
 
-a {
+a{
   color: inherit;
 }
 
-.hover\:bg-accent:hover {
+.hover\:bg-accent:hover{
   background-color: hsl(var(--accent));
 }
 
-.hover\:bg-destructive\/90:hover {
+.hover\:bg-destructive\/90:hover{
   background-color: hsl(var(--destructive) / 0.9);
 }
 
-.hover\:bg-primary\/90:hover {
+.hover\:bg-primary\/90:hover{
   background-color: hsl(var(--primary) / 0.9);
 }
 
-.hover\:bg-secondary\/80:hover {
+.hover\:bg-secondary\/80:hover{
   background-color: hsl(var(--secondary) / 0.8);
 }
 
-.hover\:text-accent-foreground:hover {
+.hover\:text-accent-foreground:hover{
   color: hsl(var(--accent-foreground));
 }
 
-.hover\:text-foreground:hover {
+.hover\:text-foreground:hover{
   color: hsl(var(--foreground));
 }
 
-.hover\:underline:hover {
+.hover\:underline:hover{
   text-decoration-line: underline;
 }
 
-.focus-visible\:outline-none:focus-visible {
+.focus-visible\:outline-none:focus-visible{
   outline: 2px solid transparent;
   outline-offset: 2px;
 }
 
-.focus-visible\:ring-1:focus-visible {
+.focus-visible\:ring-1:focus-visible{
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
-.focus-visible\:ring-ring:focus-visible {
+.focus-visible\:ring-ring:focus-visible{
   --tw-ring-color: hsl(var(--ring));
 }
 
-.disabled\:pointer-events-none:disabled {
+.disabled\:pointer-events-none:disabled{
   pointer-events: none;
 }
 
-.disabled\:opacity-50:disabled {
+.disabled\:opacity-50:disabled{
   opacity: 0.5;
 }
 
-@media (min-width: 640px) {
-
-  .sm\:grid-cols-2 {
+@media (min-width: 640px){
+  .sm\:grid-cols-2{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .sm\:grid-cols-3 {
+  .sm\:grid-cols-3{
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .sm\:text-left {
+  .sm\:text-left{
     text-align: left;
   }
 }
 
-@media (min-width: 768px) {
-
-  .md\:grid-cols-2 {
+@media (min-width: 768px){
+  .md\:grid-cols-2{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1024px) {
-
-  .lg\:grid-cols-2 {
+@media (min-width: 1024px){
+  .lg\:grid-cols-2{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .lg\:grid-cols-3 {
+  .lg\:grid-cols-3{
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .lg\:grid-cols-\[240px_minmax\(0\2c 1fr\)_320px\] {
+  .lg\:grid-cols-\[240px_minmax\(0\2c 1fr\)_320px\]{
     grid-template-columns: 240px minmax(0,1fr) 320px;
   }
 }
