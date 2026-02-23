@@ -18,6 +18,7 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
       farm: { ...state.buildings.farm },
       mine: { ...state.buildings.mine },
       kitchen: { ...state.buildings.kitchen },
+      forge: { ...state.buildings.forge },
     },
   };
 
@@ -44,6 +45,10 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
 
       case "KITCHEN":
         next.buildings.kitchen.unlocked = true;
+        break;
+
+      case "FORGE":
+        next.buildings.forge.unlocked = true;
         break;
 
       default:

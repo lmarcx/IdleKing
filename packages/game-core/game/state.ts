@@ -25,6 +25,7 @@ export type GameState = {
     farm: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
     mine: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
     kitchen: { unlocked: boolean; built: boolean; active: boolean };
+    forge: { unlocked: boolean; built: boolean; active: boolean };
   };
 
   villagers: VillagersState;
@@ -50,6 +51,7 @@ export function createInitialGameState(): GameState {
       farm: { unlocked: false, built: false, active: false, allocation: {} },
       mine: { unlocked: false, built: false, active: false, allocation: {} },
       kitchen: { unlocked: false, built: false, active: false },
+      forge: { unlocked: false, built: false, active: false },
     },
       villagers: {
     list: [
