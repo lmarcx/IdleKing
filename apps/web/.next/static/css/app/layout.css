@@ -862,6 +862,9 @@ video {
 .mt-1{
   margin-top: 0.25rem;
 }
+.mt-3{
+  margin-top: 0.75rem;
+}
 .block{
   display: block;
 }
@@ -939,6 +942,9 @@ video {
 }
 .gap-12{
   gap: 3rem;
+}
+.gap-3{
+  gap: 0.75rem;
 }
 .space-y-1 > :not([hidden]) ~ :not([hidden]){
   --tw-space-y-reverse: 0;
@@ -1137,6 +1143,12 @@ video {
 }
 .text-white\/90{
   color: rgb(255 255 255 / 0.9);
+}
+.text-white\/55{
+  color: rgb(255 255 255 / 0.55);
+}
+.text-white\/70{
+  color: rgb(255 255 255 / 0.7);
 }
 .underline{
   text-decoration-line: underline;
