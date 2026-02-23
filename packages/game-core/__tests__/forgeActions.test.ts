@@ -2,22 +2,33 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { completeChapterAction } from "../game/actions.js";
 import { forgeCraft, forgeUpgrade, forgeRecycle } from "../game/forgeActions.js";
 import { addQty, getQty } from "../resources/types.js";
 
-test("Forge craft creates item, spends resources, drains stamina", () => {
-  let s = createInitialGameState();
+function progressToChapter4AndBuildForge(s: ReturnType<typeof createInitialGameState>) {
+  // Chapter progression is linear in MVP: chapters must be completed in order.
+  for (const ch of [1, 2, 3, 4] as const) {
+    s = completeChapterAction(s, ch).next;
+  }
 
-  // unlock forge for test (MVP)
+  // Forge must be built to allow manual crafting actions.
   s = {
     ...s,
-    story: {
-      ...s.story,
-      unlocked: new Set([...s.story.unlocked, "FORGE"]),
+    buildings: {
+      ...s.buildings,
+      forge: { ...s.buildings.forge, built: true, active: true },
     },
   };
 
-  // give resources
+  return s;
+}
+
+test("Forge craft creates item, spends resources, drains stamina", () => {
+  let s = createInitialGameState();
+  s = progressToChapter4AndBuildForge(s);
+
+  // Give resources
   s = { ...s, resources: addQty(s.resources, "COPPER", 10) };
 
   const vId = s.villagers.list[0].id;
@@ -33,15 +44,9 @@ test("Forge craft creates item, spends resources, drains stamina", () => {
 
 test("Forge upgrade increases ilvl and spends gold", () => {
   let s = createInitialGameState();
-  s = {
-    ...s,
-    story: {
-      ...s.story,
-      unlocked: new Set([...s.story.unlocked, "FORGE"]),
-    },
-  };
+  s = progressToChapter4AndBuildForge(s);
 
-  // craft first
+  // Craft first
   s = { ...s, resources: addQty(s.resources, "COPPER", 10) };
   const vId = s.villagers.list[0].id;
 
@@ -51,8 +56,8 @@ test("Forge upgrade increases ilvl and spends gold", () => {
   const itemId = crafted.createdItemId!;
   const ilvlBefore = crafted.next.inventory.items[0].ilvl;
 
-  // give gold for upgrade
-  let s2 = { ...crafted.next, resources: addQty(crafted.next.resources, "GOLD", 10) };
+  // Give gold for upgrade
+  const s2 = { ...crafted.next, resources: addQty(crafted.next.resources, "GOLD", 10) };
 
   const u = forgeUpgrade(s2, itemId, vId);
   assert.equal(u.ok, true);
@@ -63,13 +68,7 @@ test("Forge upgrade increases ilvl and spends gold", () => {
 
 test("Forge recycle removes item and gives copper", () => {
   let s = createInitialGameState();
-  s = {
-    ...s,
-    story: {
-      ...s.story,
-      unlocked: new Set([...s.story.unlocked, "FORGE"]),
-    },
-  };
+  s = progressToChapter4AndBuildForge(s);
 
   s = { ...s, resources: addQty(s.resources, "COPPER", 10) };
   const vId = s.villagers.list[0].id;

@@ -186,11 +186,3 @@ Mais ton moteur actuel est déjà cohérent si on :
 * garde XP_GLOBAL universel
 
 ---
-
-Si tu veux, je peux maintenant :
-
-* 🔍 Te faire un **plan de production par sprint réaliste**
-* 🏗 Ou te proposer la **structure UI layout complète cohérente MVP**
-* ⚖️ Ou analyser ton système Renaissance pour éviter les erreurs futures
-
-Tu veux qu’on aille dans quelle direction ?
