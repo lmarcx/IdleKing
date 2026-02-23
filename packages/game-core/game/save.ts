@@ -1,14 +1,18 @@
 import type { GameState } from "./state.js";
-import { tickAllBuildings } from "../building/tick.js";
+import { applyOfflineProgress } from "./offlineProgress.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
-const MAX_OFFLINE_MINUTES = 60 * 12; // 12h cap
 
 type PersistedSave = {
   schemaVersion: number;
   savedAt: number;
   state: GameState;
+};
+
+export type LoadGameResult = {
+  state: GameState;
+  offlineReport: ReturnType<typeof applyOfflineProgress>["report"];
 };
 
 /**
@@ -27,10 +31,10 @@ export function saveGame(state: GameState): void {
 }
 
 /**
- * Loads the game state from localStorage.
- * Applies offline progression based on elapsed minutes.
+ * Loads the game state from localStorage and applies offline progression.
+ * Returns both the resulting state and an offline report suitable for UI display.
  */
-export function loadGame(): GameState | null {
+export function loadGameWithReport(): LoadGameResult | null {
   if (typeof localStorage === "undefined") return null;
 
   const raw = localStorage.getItem(SAVE_KEY);
@@ -39,25 +43,30 @@ export function loadGame(): GameState | null {
   try {
     const parsed = JSON.parse(raw) as PersistedSave;
 
-    if (parsed.schemaVersion !== SCHEMA_VERSION) {
-      // Future: migration logic
-      return parsed.state;
-    }
+    // Future: migrations by schemaVersion
+    const baseState = parsed.state;
 
     const now = Date.now();
     const diffMs = now - parsed.savedAt;
     const minutesAway = Math.floor(diffMs / 60000);
 
-    const cappedMinutes = Math.min(MAX_OFFLINE_MINUTES, Math.max(0, minutesAway));
+    const res = applyOfflineProgress(baseState, minutesAway);
 
-    if (cappedMinutes <= 0) return parsed.state;
-
-    const result = tickAllBuildings(parsed.state, cappedMinutes);
-
-    return result.next;
+    return {
+      state: res.next,
+      offlineReport: res.report,
+    };
   } catch {
     return null;
   }
+}
+
+/**
+ * Convenience loader: returns only the state.
+ */
+export function loadGame(): GameState | null {
+  const r = loadGameWithReport();
+  return r?.state ?? null;
 }
 
 /**
