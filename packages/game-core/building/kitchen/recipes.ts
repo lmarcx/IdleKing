@@ -1,4 +1,4 @@
-import type { ResourceStock, ResourceId } from "../../resources/types.js";
+import type { ResourceId } from "../../resources/types.js";
 
 export type DishId =
   | "STEW"
@@ -25,14 +25,14 @@ export const KITCHEN_RECIPES: DishRecipe[] = [
     label: "Stew",
     cost: { MEAT: 2, WATER: 1 },
     output: { PLATE_STEW: 1 },
-    staminaCostPct: 0.25, // 25% stamina
+    staminaCostPct: 0.25,
   },
   {
     id: "SALAD",
     label: "Salad",
     cost: { WATER: 1, CARROT: 1, TOMATO: 1 },
     output: { PLATE_SALAD: 1 },
-    staminaCostPct: 0.20,
+    staminaCostPct: 0.2,
   },
 ];
 
