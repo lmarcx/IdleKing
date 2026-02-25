@@ -7,6 +7,7 @@ export type BuildingId =
   | "MINE"
   | "KITCHEN"
   | "FORGE"
+  | "CORNUCOPIA"
   // extensible
   | (string & {});
 
