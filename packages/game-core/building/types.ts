@@ -7,6 +7,7 @@ export type BuildingId =
   | "MINE"
   | "KITCHEN"
   | "FORGE"
+  | "CORNUCOPIA"
   // extensible
   | (string & {});
 
@@ -22,10 +23,8 @@ export type BuildingTickResult = {
 export type BuildingModule = {
   id: BuildingId;
 
-  // le bâtiment existe-t-il côté state et est-il unlock ?
   isUnlocked(state: GameState): boolean;
   isActive(state: GameState): boolean;
 
-  // un tick de production
   tick(state: GameState, ctx: BuildingTickContext): BuildingTickResult;
 };

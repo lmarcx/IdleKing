@@ -45,7 +45,43 @@ export type ResourceId =
   // Kitchen outputs (MVP)
   | "PLATE_STEW"
   | "PLATE_SALAD";
-  
+
+export const ALL_RESOURCES: ResourceId[] = [
+  "XP_GLOBAL",
+  "STONE",
+  "WOOD",
+  "WATER",
+  "MEAT",
+  "COPPER",
+  "SILVER",
+  "GOLD",
+  "WHEAT",
+  "TOMATO",
+  "CARROT",
+  "EGG",
+  "IRON",
+  "MILK",
+  "BREAD",
+  "POTATO",
+  "SALAD",
+  "PLATINUM",
+  "APPLE",
+  "APRICOT",
+  "PEACH",
+  "GRAPE",
+  "MITHRIL",
+  "CHERRY",
+  "STRAWBERRY",
+  "RAZZBERRY",
+  "ORICHALUM",
+  "RUNES",
+  "INK",
+  "PAPER",
+  "SCROLLS",
+  "GEMS",
+  "PLATE_STEW",
+  "PLATE_SALAD",
+];
 
 export type ResourceStock = Partial<Record<ResourceId, number>>;
 
