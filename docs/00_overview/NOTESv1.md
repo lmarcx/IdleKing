@@ -1,6 +1,23 @@
-# 🎮 Idle King — Vision & Structure (Harmonisée MVP)
+Voici une **adaptation harmonisée** de tes 3 fichiers, en gardant ta vision mais en supprimant les contradictions (MVP offline vs “online only”, boucles, ordre de prod, unlocks, et périmètre). Je me base sur ton checkpoint actuel et ton GDD  , ainsi que l’orga de phases .
 
 ---
+
+## Ce que j’ai corrigé / aligné (sans changer ta vision)
+
+* **MVP = offline** : donc *pas de “production passive online only”* → on parle d’un **tick offline** (1/min) + **stockage local** (persistence plus tard).
+* **Séparation claire des contenus** :
+
+  * **Histoire/Chapitres** = progression & unlocks (Ages/buildings).
+  * **Donjons** = contenu leveling “répétable” (phase MVP).
+  * **Expéditions** = endgame risk + leaderboard (phase suivante / post-MVP si tu veux, ou fin de MVP si scope OK).
+* **XP_GLOBAL** au centre (comme ton checkpoint) : Temple produit XP_GLOBAL → allocation PlayerXP + WorldWXP → Forum = seul endroit pour RankUp World (déjà dans ton checkpoint). 
+* **Stamina anti soft-lock** : ajout d’une **règle MVP minimale** (regen faible + repos via Forum) sans inventer un gros système.
+
+---
+
+# ✅ NOTESv1.md — v2 (Harmonisée + cohérente avec le checkpoint)
+
+# 🎮 Idle King — Vision & Structure (MVP Harmonisé)
 
 ## Inspirations
 
@@ -8,139 +25,117 @@
 * Tap Titans → progression automatique + reset (Renaissance)
 * Harvest Moon → Farm/Mine production loop
 * Tales of Wind → contenus instanciés
-* Blade & Soul – The Tower → endgame scalable content
+* Blade & Soul (Tower) → endgame scalable content
 
 ---
 
-# 🧱 Core Architecture (MVP Offline)
+## 🧱 Core Architecture (MVP Offline)
 
-## Boucle principale
+### Boucle principale (MVP)
 
-1. Villageois → Production automatique (Farm / Mine / Temple)
-2. Temple → produit XP_GLOBAL
-3. XP_GLOBAL → allocation vers :
+1. **Villageois** → production via allocations (Farm / Mine / Temple)
+2. **Temple** → produit **XP_GLOBAL**
+3. **XP_GLOBAL** → allocation vers :
 
-   * Player XP
-   * World WXP (banque)
-4. Forum → RankUp World
-5. WorldLevel ↑ → débloque Age → débloque contenu
-6. Ressources → Kitchen / Forge → Power ↑
-7. Power ↑ → progression Story / Donjons (phase suivante)
-
----
-
-# 🏛 Royaume (Buildings)
-
-## Forum (Bâtiment Central)
-
-* Gestion villageois
-* RankUp World (manuel)
-* Passage d’Age (plus tard)
-* Gestion stamina (repos)
-* Recrutement villageois (coût progressif)
-* Gestion presets d’allocation (plus tard)
+   * **PlayerXP**
+   * **WorldWXP (banque)**
+4. **Forum** → **RankUp World** (manuel, dépense WorldWXP)
+5. **WorldLevel** ↑ → débloque **Age** → débloque **contenu & ressources & buildings**
+6. **Ressources** → Kitchen / Forge → **POWER** ↑
+7. **POWER** ↑ → progression **Story / Donjons** (MVP) → puis Expéditions (post-MVP ou fin MVP selon scope)
 
 ---
 
-## Corne d’Abondance
+## 🏛 Royaume (Buildings)
 
-* Source manuelle de ressources
-* 1 ressource par click
-* Faible rendement
-* Early game uniquement
+### Forum (Central)
 
----
+* Gestion villageois (allocation / repos / recrutement)
+* **RankUp World (manuel)** via WorldWXP
+* Repos / récupération stamina (anti soft-lock MVP)
+* Recrutement (coût progressif)
+* Cap villageois lié au WorldLevel
 
-## Ferme (Production)
+### Corne d’Abondance (optionnel MVP)
 
-* Production automatique via allocation villageois
-* 1 ressource/min/villager
+* Source **manuelle** de ressources (1 ressource / click)
+* Rendement faible, early game
+
+### Ferme (passif tick 1/min)
+
+* Production automatique selon allocation
+* 1 ressource/min/villager (base)
 * Ressources débloquées par Age
 * Consomme stamina
 
----
+### Mine (passif tick 1/min)
 
-## Mine (Production)
-
-* Identique à Ferme
-* Ressources minières uniquement
+* Identique Ferme
+* Ressources minières
 * Age gated
+* Consomme stamina
 
----
+### Temple (passif tick 1/min)
 
-## Temple (Production XP)
-
-* Produit XP_GLOBAL
+* Produit **XP_GLOBAL**
 * Allocation villageois
 * Consomme stamina
-* Scaling via Age
+* Scaling via Age / WorldLevel
 
----
+### Kitchen (manuel)
 
-## Kitchen (Manuel)
-
-* Craft manuel
+* Craft manuel (consommables)
 * Consomme ressources
 * Consomme % stamina villageois
-* Produit consommables
+* Produit consommables (buffs / récup)
 
----
-
-## Forge (Manuel)
+### Forge (manuel)
 
 * Craft équipement
 * Upgrade équipement
-* Recycle équipement → ressources mine
+* Recycle équipement → **ressources mine** (MVP)
 * ilvl basé sur WorldLevel
 
 ---
 
-# 🧙 Personnage
+## 🧙 Personnage
 
-* Equipements
-* Stats
-* POWER = combinaison stats base + equip
-* PlayerLevel bonus = stats BASE uniquement
+* Equipements + Stats
+* POWER = stats base + équipements (+ bonus building plus tard si besoin)
+* PlayerLevel bonus = **stats base** uniquement (source secondaire de puissance endgame)
 
 ---
 
-# 🌍 Mondes
+## 🌍 Progression
 
-## Histoire principale
+### Histoire principale (MVP)
 
-* 5 Ages
-* 4 chapitres par Age
+* **5 Ages**
+* **4 chapitres par Age** → 20 chapitres
 * Débloque buildings & systèmes
 
----
+### Donjons (MVP)
 
-## Donjons (phase suivante)
+* Contenu leveling répétable
+* Récompenses : XP + ressources + (loot léger si tu veux)
 
-* 5 runs/jour
-* Récompenses répétables
-* Loot + ressources
+### Expéditions (Post-MVP / Phase suivante)
 
----
-
-## Expéditions (phase suivante)
-
-* 7 salles
-* 1 run/semaine par niveau
-* Leaderboard speedrun possible
+* 7 salles (Encounter/Choice…)
+* Risk loadout
+* Leaderboard speedrun / score
 
 ---
 
-# 🔁 Renaissance & Rang (Phase 2)
+## 🔁 Renaissance & Rangs (Phase 2+)
 
 * Reset complet sauf Kingamas
 * Bonus de compte
-* Déblocage Rangs
-* Titres : Duc → Divinité
-* 4 Rangs par Titre
+* Titres : Duc → Divinité (4 rangs/titre)
 
 ---
 
-# 🏆 Leaderboards MVP Offline
+## 🏆 Leaderboards (offline structure)
 
 * WorldLevel
 * POWER
@@ -148,41 +143,16 @@
 
 ---
 
-# 🔥 Ce qu’on NE fait PAS en MVP Offline
+## ✅ Règles MVP anti soft-lock stamina
 
-* PvP
-* Alliances
-* AvA
-* Hub Social
-* Cieux
-* Abysses
-* Multi leaderboards online
+* Regen minimale (faible) **ou**
+* Action “Repos” via Forum (prioritaire)
+* Objectif : éviter qu’un joueur “bloque” la production trop tôt
 
----
 
-# 🎯 Ajustements nécessaires
 
-## Temple
 
-Ajouter système de repos pour éviter soft-lock stamina.
 
-## Villageois
 
-Recrutement via Forum uniquement
-Coût progressif
-Cap lié au WorldLevel
 
----
 
-# 🧠 Conclusion stratégique
-
-Ton jeu a une vraie profondeur MMO-lite.
-
-Mais ton moteur actuel est déjà cohérent si on :
-
-* centralise villageois dans Forum
-* garde production automatique via allocation
-* garde Kitchen/Forge manuels
-* garde XP_GLOBAL universel
-
----
