@@ -1,20 +1,18 @@
-import type { GameState } from "../game/state.js";
 import type { BuildingModule } from "./types.js";
 
-export const cornucopiaBuilding: BuildingModule = {
+export const CORNUCOPIA_BUILDING: BuildingModule = {
   id: "CORNUCOPIA",
 
-  isUnlocked(state: GameState) {
+  isUnlocked(state) {
     return state.buildings.cornucopia.unlocked;
   },
 
-  isActive(state: GameState) {
+  isActive(state) {
     return state.buildings.cornucopia.active;
   },
 
-  // La Corne d'Abondance est un bâtiment "actif manuel" :
-  // pas de production en tick (pour l’instant).
-  tick(state: GameState) {
+  // Pas de production passive en tick (claim manuel uniquement)
+  tick(state) {
     return { next: state };
   },
 };
