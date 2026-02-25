@@ -26,6 +26,15 @@ export type GameState = {
     mine: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
     kitchen: { unlocked: boolean; built: boolean; active: boolean };
     forge: { unlocked: boolean; built: boolean; active: boolean };
+
+    // NEW
+    cornucopia: {
+      unlocked: boolean;
+      built: boolean;
+      active: boolean;
+      level: number;
+      lastClaimAtMs: number | null;
+    };
   };
 
   villagers: VillagersState;
@@ -47,20 +56,30 @@ export function createInitialGameState(): GameState {
     inventory: { items: [] },
     buildings: {
       forum: { unlocked: false, built: false, active: false },
-      temple: { unlocked: false, built: false, level: 1, assignedVillagers: 0, active: false, allocation: { XP_GLOBAL: 0 } },
+      temple: {
+        unlocked: false,
+        built: false,
+        level: 1,
+        assignedVillagers: 0,
+        active: false,
+        allocation: { XP_GLOBAL: 0 },
+      },
       farm: { unlocked: false, built: false, active: false, allocation: {} },
       mine: { unlocked: false, built: false, active: false, allocation: {} },
       kitchen: { unlocked: false, built: false, active: false },
       forge: { unlocked: false, built: false, active: false },
+
+      // NEW
+      cornucopia: { unlocked: false, built: false, active: false, level: 1, lastClaimAtMs: null },
     },
-      villagers: {
-    list: [
-      { id: "v1", stamina: 100 },
-      { id: "v2", stamina: 100 },
-      { id: "v3", stamina: 100 },
-      { id: "v4", stamina: 100 },
-      { id: "v5", stamina: 100 },
-    ],
-  },
+    villagers: {
+      list: [
+        { id: "v1", stamina: 100 },
+        { id: "v2", stamina: 100 },
+        { id: "v3", stamina: 100 },
+        { id: "v4", stamina: 100 },
+        { id: "v5", stamina: 100 },
+      ],
+    },
   };
 }
