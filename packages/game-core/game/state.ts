@@ -32,7 +32,10 @@ export type GameState = {
       built: boolean;
       active: boolean;
       level: number;
-      lastClaimAtMs: number | null;
+
+      // NEW: endurance propre à la corne
+      stamina: number; // 0..max
+      staminaMax: number;
     };
   };
 
@@ -61,7 +64,15 @@ export function createInitialGameState(): GameState {
       kitchen: { unlocked: false, built: false, active: false },
       forge: { unlocked: false, built: false, active: false },
 
-      cornucopia: { unlocked: false, built: false, active: false, level: 1, lastClaimAtMs: null },
+      // NEW
+      cornucopia: {
+        unlocked: false,
+        built: false,
+        active: false,
+        level: 1,
+        stamina: 100,
+        staminaMax: 100,
+      },
     },
     villagers: {
       list: [

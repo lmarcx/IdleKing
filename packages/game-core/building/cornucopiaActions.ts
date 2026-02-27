@@ -7,17 +7,16 @@ export type ClaimCornucopiaError =
   | "NOT_UNLOCKED"
   | "NOT_BUILT"
   | "NOT_ACTIVE"
-  | "COOLDOWN";
+  | "NO_STAMINA";
 
 export type ClaimCornucopiaResult =
-  | { ok: true; next: GameState; resourceId: ResourceId; amount: number }
-  | { ok: false; next: GameState; error: ClaimCornucopiaError; remainingMs?: number };
+  | { ok: true; next: GameState; resourceId: ResourceId; amount: number; staminaSpent: number }
+  | { ok: false; next: GameState; error: ClaimCornucopiaError };
 
-// Cooldown MVP
-export const CORNUCOPIA_COOLDOWN_MS = 8 * 60 * 60 * 1000;
+// MVP: coût fixe par clic
+export const CORNUCOPIA_STAMINA_COST = 20;
 
 export function getCornucopiaClaimables(): ResourceId[] {
-  // On exclut l'XP, et les villageois ne sont pas dans ResourceId
   return ALL_RESOURCES.filter((r) => r !== "XP_GLOBAL");
 }
 
@@ -31,11 +30,8 @@ function computeCornucopiaAmount(params: { worldLevel: number; buildingLevel: nu
   return Math.max(1, Math.floor(base * levelMul * worldMul));
 }
 
-export function claimCornucopia(
-  state: GameState,
-  input: { resourceId: ResourceId; nowMs: number }
-): ClaimCornucopiaResult {
-  const { resourceId, nowMs } = input;
+export function claimCornucopia(state: GameState, input: { resourceId: ResourceId }): ClaimCornucopiaResult {
+  const { resourceId } = input;
 
   const claimables = getCornucopiaClaimables();
   if (!claimables.includes(resourceId)) {
@@ -48,10 +44,8 @@ export function claimCornucopia(
   if (!b.built) return { ok: false, next: state, error: "NOT_BUILT" };
   if (!b.active) return { ok: false, next: state, error: "NOT_ACTIVE" };
 
-  const last = b.lastClaimAtMs;
-  if (last != null) {
-    const remaining = last + CORNUCOPIA_COOLDOWN_MS - nowMs;
-    if (remaining > 0) return { ok: false, next: state, error: "COOLDOWN", remainingMs: remaining };
+  if (b.stamina < CORNUCOPIA_STAMINA_COST) {
+    return { ok: false, next: state, error: "NO_STAMINA" };
   }
 
   const amount = computeCornucopiaAmount({
@@ -66,10 +60,10 @@ export function claimCornucopia(
       ...state.buildings,
       cornucopia: {
         ...b,
-        lastClaimAtMs: nowMs,
+        stamina: b.stamina - CORNUCOPIA_STAMINA_COST,
       },
     },
   };
 
-  return { ok: true, next, resourceId, amount };
+  return { ok: true, next, resourceId, amount, staminaSpent: CORNUCOPIA_STAMINA_COST };
 }

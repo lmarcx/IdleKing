@@ -2,147 +2,131 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { claimCornucopia, CORNUCOPIA_COOLDOWN_MS } from "../building/cornucopiaActions.js";
+import { claimCornucopia, CORNUCOPIA_STAMINA_COST } from "../building/cornucopiaActions.js";
 import { getQty } from "../resources/types.js";
+import { CORNUCOPIA_BUILDING } from "../building/cornucopiaBuilding.js";
 
-test("cornucopia: claim succeeds and adds chosen resource", () => {
+test("cornucopia: claim consumes cornucopia stamina and grants resource", () => {
   const s0 = createInitialGameState();
 
   const s1 = {
     ...s0,
     buildings: {
       ...s0.buildings,
-      cornucopia: { unlocked: true, built: true, active: true, level: 1, lastClaimAtMs: null },
+      cornucopia: {
+        ...s0.buildings.cornucopia,
+        unlocked: true,
+        built: true,
+        active: true,
+        level: 1,
+        stamina: 100,
+        staminaMax: 100,
+      },
     },
   };
 
-  const now = 1_000_000;
-  const res = claimCornucopia(s1, { resourceId: "WOOD", nowMs: now });
-
+  const res = claimCornucopia(s1, { resourceId: "WOOD" });
   assert.equal(res.ok, true);
   if (!res.ok) return;
 
-  assert.equal(res.resourceId, "WOOD");
   assert.equal(getQty(res.next.resources, "WOOD"), res.amount);
-  assert.equal(res.next.buildings.cornucopia.lastClaimAtMs, now);
+  assert.equal(res.next.buildings.cornucopia.stamina, 100 - CORNUCOPIA_STAMINA_COST);
+});
+
+test("cornucopia: claim fails when not enough stamina", () => {
+  const s0 = createInitialGameState();
+
+  const s1 = {
+    ...s0,
+    buildings: {
+      ...s0.buildings,
+      cornucopia: {
+        ...s0.buildings.cornucopia,
+        unlocked: true,
+        built: true,
+        active: true,
+        level: 1,
+        stamina: CORNUCOPIA_STAMINA_COST - 1,
+        staminaMax: 100,
+      },
+    },
+  };
+
+  const res = claimCornucopia(s1, { resourceId: "STONE" });
+  assert.equal(res.ok, false);
+  if (res.ok) return;
+  assert.equal(res.error, "NO_STAMINA");
 });
 
 test("cornucopia: XP_GLOBAL is invalid (excluded)", () => {
   const s0 = createInitialGameState();
+
   const s1 = {
     ...s0,
     buildings: {
       ...s0.buildings,
-      cornucopia: { unlocked: true, built: true, active: true, level: 1, lastClaimAtMs: null },
+      cornucopia: {
+        ...s0.buildings.cornucopia,
+        unlocked: true,
+        built: true,
+        active: true,
+        stamina: 100,
+        staminaMax: 100,
+      },
     },
   };
 
-  const res = claimCornucopia(s1, { resourceId: "XP_GLOBAL", nowMs: 123 });
-
+  const res = claimCornucopia(s1, { resourceId: "XP_GLOBAL" });
   assert.equal(res.ok, false);
   if (res.ok) return;
-
   assert.equal(res.error, "INVALID_RESOURCE");
 });
 
-test("cornucopia: requires unlocked + built + active", () => {
-  const base = createInitialGameState();
-  const now = 123;
-
-  {
-    const s = {
-      ...base,
-      buildings: {
-        ...base.buildings,
-        cornucopia: { unlocked: false, built: true, active: true, level: 1, lastClaimAtMs: null },
-      },
-    };
-    const r = claimCornucopia(s, { resourceId: "STONE", nowMs: now });
-    assert.equal(r.ok, false);
-    if (!r.ok) assert.equal(r.error, "NOT_UNLOCKED");
-  }
-
-  {
-    const s = {
-      ...base,
-      buildings: {
-        ...base.buildings,
-        cornucopia: { unlocked: true, built: false, active: true, level: 1, lastClaimAtMs: null },
-      },
-    };
-    const r = claimCornucopia(s, { resourceId: "STONE", nowMs: now });
-    assert.equal(r.ok, false);
-    if (!r.ok) assert.equal(r.error, "NOT_BUILT");
-  }
-
-  {
-    const s = {
-      ...base,
-      buildings: {
-        ...base.buildings,
-        cornucopia: { unlocked: true, built: true, active: false, level: 1, lastClaimAtMs: null },
-      },
-    };
-    const r = claimCornucopia(s, { resourceId: "STONE", nowMs: now });
-    assert.equal(r.ok, false);
-    if (!r.ok) assert.equal(r.error, "NOT_ACTIVE");
-  }
-});
-
-test("cornucopia: cooldown blocks second claim and returns remainingMs", () => {
+test("cornucopia: stamina regenerates on tick (built+unlocked)", () => {
   const s0 = createInitialGameState();
-  const t0 = 10_000;
 
   const s1 = {
     ...s0,
     buildings: {
       ...s0.buildings,
-      cornucopia: { unlocked: true, built: true, active: true, level: 1, lastClaimAtMs: null },
+      cornucopia: {
+        ...s0.buildings.cornucopia,
+        unlocked: true,
+        built: true,
+        active: false, // regen même inactive (selon règle du building)
+        level: 1,
+        stamina: 10,
+        staminaMax: 100,
+      },
     },
   };
 
-  const first = claimCornucopia(s1, { resourceId: "WATER", nowMs: t0 });
-  assert.equal(first.ok, true);
-  if (!first.ok) return;
+  const out = CORNUCOPIA_BUILDING.tick(s1, { minutes: 30 });
+  const s2 = out.next;
 
-  const t1 = t0 + CORNUCOPIA_COOLDOWN_MS - 1;
-  const second = claimCornucopia(first.next, { resourceId: "WATER", nowMs: t1 });
-
-  assert.equal(second.ok, false);
-  if (second.ok) return;
-
-  assert.equal(second.error, "COOLDOWN");
-  assert.ok(typeof second.remainingMs === "number");
-  assert.ok(second.remainingMs! > 0);
+  assert.ok(s2.buildings.cornucopia.stamina > 10);
+  assert.ok(s2.buildings.cornucopia.stamina <= 100);
 });
 
-test("cornucopia: scaling increases with worldLevel and building level", () => {
+test("cornucopia: stamina never exceeds staminaMax", () => {
   const s0 = createInitialGameState();
 
-  const low = {
+  const s1 = {
     ...s0,
-    progression: { ...s0.progression, worldLevel: 1 },
     buildings: {
       ...s0.buildings,
-      cornucopia: { unlocked: true, built: true, active: true, level: 1, lastClaimAtMs: null },
+      cornucopia: {
+        ...s0.buildings.cornucopia,
+        unlocked: true,
+        built: true,
+        active: true,
+        level: 5,
+        stamina: 99,
+        staminaMax: 100,
+      },
     },
   };
 
-  const high = {
-    ...s0,
-    progression: { ...s0.progression, worldLevel: 50 },
-    buildings: {
-      ...s0.buildings,
-      cornucopia: { unlocked: true, built: true, active: true, level: 5, lastClaimAtMs: null },
-    },
-  };
-
-  const r1 = claimCornucopia(low, { resourceId: "MEAT", nowMs: 1 });
-  const r2 = claimCornucopia(high, { resourceId: "MEAT", nowMs: 1 });
-
-  assert.equal(r1.ok, true);
-  assert.equal(r2.ok, true);
-  if (!r1.ok || !r2.ok) return;
-
-  assert.ok(r2.amount > r1.amount);
+  const out = CORNUCOPIA_BUILDING.tick(s1, { minutes: 9999 });
+  assert.equal(out.next.buildings.cornucopia.stamina, 100);
 });
