@@ -6,7 +6,6 @@ import { addQty } from "../resources/types.js";
 // (déjà utilisée par tes tests farm/mine).
 import { farmResourcesAvailable } from "../game/buildingActions.js";
 import { mineResourcesAvailable } from "../game/buildingActions.js";
-import { ageFromWorldLevel } from "../progression/age.js";
 
 export type ClaimCornucopiaError = "INVALID_RESOURCE" | "LOCKED_RESOURCE" | "NO_STAMINA";
 
