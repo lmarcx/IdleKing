@@ -91,6 +91,7 @@ export function farmResourcesAvailable(worldLevel: number): ResourceId[] {
   const age4: ResourceId[] = ["APPLE", "APRICOT", "PEACH", "GRAPE"];
   const age5: ResourceId[] = ["CHERRY", "STRAWBERRY", "RAZZBERRY"];
 
+  // Game design: on débloque par Age, pas par building level
   if (age === 1) return base;
   if (age === 2) return [...base, ...age2];
   if (age === 3) return [...base, ...age2, ...age3];
