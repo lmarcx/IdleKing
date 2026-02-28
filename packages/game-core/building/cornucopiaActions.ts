@@ -1,23 +1,35 @@
 import type { GameState } from "../game/state.js";
 import type { ResourceId } from "../resources/types.js";
-import { ALL_RESOURCES, addQty } from "../resources/types.js";
+import { addQty } from "../resources/types.js";
 
-export type ClaimCornucopiaError =
-  | "INVALID_RESOURCE"
-  | "NOT_UNLOCKED"
-  | "NOT_BUILT"
-  | "NOT_ACTIVE"
-  | "NO_STAMINA";
+// On réutilise la source de vérité "progression -> Age -> ressources dispo"
+// (déjà utilisée par tes tests farm/mine).
+import { farmResourcesAvailable } from "../game/buildingActions.js";
+import { mineResourcesAvailable } from "../game/buildingActions.js";
+import { ageFromWorldLevel } from "../progression/age.js";
+
+export type ClaimCornucopiaError = "INVALID_RESOURCE" | "LOCKED_RESOURCE" | "NO_STAMINA";
 
 export type ClaimCornucopiaResult =
   | { ok: true; next: GameState; resourceId: ResourceId; amount: number; staminaSpent: number }
   | { ok: false; next: GameState; error: ClaimCornucopiaError };
 
-// MVP: coût fixe par clic
+// Coût fixe par clic (MVP)
 export const CORNUCOPIA_STAMINA_COST = 20;
 
-export function getCornucopiaClaimables(): ResourceId[] {
-  return ALL_RESOURCES.filter((r) => r !== "XP_GLOBAL");
+function unique(ids: ResourceId[]): ResourceId[] {
+  return Array.from(new Set(ids));
+}
+
+// Ressources brutes uniquement = farm + mine, filtrées par Age (donc progression)
+export function getCornucopiaClaimables(state: GameState): ResourceId[] {
+  const age = ageFromWorldLevel(state.progression.worldLevel);
+
+  const farm = farmResourcesAvailable(age);
+  const mine = mineResourcesAvailable(age);
+
+  // exclure XP_GLOBAL (et tout le reste est "raw" par design)
+  return unique([...farm, ...mine]).filter((r) => r !== "XP_GLOBAL");
 }
 
 function computeCornucopiaAmount(params: { worldLevel: number; buildingLevel: number }) {
@@ -33,16 +45,19 @@ function computeCornucopiaAmount(params: { worldLevel: number; buildingLevel: nu
 export function claimCornucopia(state: GameState, input: { resourceId: ResourceId }): ClaimCornucopiaResult {
   const { resourceId } = input;
 
-  const claimables = getCornucopiaClaimables();
-  if (!claimables.includes(resourceId)) {
+  // sécurité : XP_GLOBAL jamais claimable
+  if (resourceId === "XP_GLOBAL") {
     return { ok: false, next: state, error: "INVALID_RESOURCE" };
   }
 
-  const b = state.buildings.cornucopia;
+  // Game design B: seulement ressources brutes actuellement débloquées
+  const claimables = getCornucopiaClaimables(state);
+  if (!claimables.includes(resourceId)) {
+    return { ok: false, next: state, error: "LOCKED_RESOURCE" };
+  }
 
-  if (!b.unlocked) return { ok: false, next: state, error: "NOT_UNLOCKED" };
-  if (!b.built) return { ok: false, next: state, error: "NOT_BUILT" };
-  if (!b.active) return { ok: false, next: state, error: "NOT_ACTIVE" };
+  // Game design: toujours dispo => pas de checks unlocked/built/active
+  const b = state.buildings.cornucopia;
 
   if (b.stamina < CORNUCOPIA_STAMINA_COST) {
     return { ok: false, next: state, error: "NO_STAMINA" };
