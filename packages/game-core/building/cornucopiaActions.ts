@@ -23,10 +23,10 @@ function unique(ids: ResourceId[]): ResourceId[] {
 
 // Ressources brutes uniquement = farm + mine, filtrées par Age (donc progression)
 export function getCornucopiaClaimables(state: GameState): ResourceId[] {
-  const age = ageFromWorldLevel(state.progression.worldLevel);
+  const wl = state.progression.worldLevel;
 
-  const farm = farmResourcesAvailable(age);
-  const mine = mineResourcesAvailable(age);
+  const farm = farmResourcesAvailable(wl);
+  const mine = mineResourcesAvailable(wl);
 
   // exclure XP_GLOBAL (et tout le reste est "raw" par design)
   return unique([...farm, ...mine]).filter((r) => r !== "XP_GLOBAL");
