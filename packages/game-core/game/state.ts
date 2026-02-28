@@ -27,14 +27,15 @@ export type GameState = {
     kitchen: { unlocked: boolean; built: boolean; active: boolean };
     forge: { unlocked: boolean; built: boolean; active: boolean };
 
+    // Corne d'Abondance: toujours disponible dès le départ
     cornucopia: {
       unlocked: boolean;
       built: boolean;
       active: boolean;
       level: number;
 
-      // NEW: endurance propre à la corne
-      stamina: number; // 0..max
+      // endurance propre à la corne
+      stamina: number; // 0..staminaMax
       staminaMax: number;
     };
   };
@@ -64,11 +65,11 @@ export function createInitialGameState(): GameState {
       kitchen: { unlocked: false, built: false, active: false },
       forge: { unlocked: false, built: false, active: false },
 
-      // NEW
+      // Toujours accessible (pas de build/unlock/activate requis)
       cornucopia: {
-        unlocked: false,
-        built: false,
-        active: false,
+        unlocked: true,
+        built: true,
+        active: true,
         level: 1,
         stamina: 100,
         staminaMax: 100,
