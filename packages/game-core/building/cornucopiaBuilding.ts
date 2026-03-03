@@ -1,34 +1,37 @@
 import type { BuildingModule } from "./types.js";
 
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, n));
 
-// MVP: regen fixe (1 stamina/minute) + léger scaling par level
+function staminaMaxForLevel(level: number): number {
+  return 100 + (level - 1) * 25;
+}
+
 function cornucopiaRegenPerMin(level: number) {
-  return 1 + Math.floor((level - 1) * 0.25); // lvl1=1, lvl5=2, etc
+  return 1 + Math.floor((level - 1) * 0.25);
 }
 
 export const CORNUCOPIA_BUILDING: BuildingModule = {
   id: "CORNUCOPIA",
 
-  // Game design: toujours dispo
   isUnlocked() {
     return true;
   },
 
-  // Game design: toujours active
   isActive() {
     return true;
   },
 
-  // Regen de stamina via tick (pas de cooldown)
   tick(state, ctx) {
     const b = state.buildings.cornucopia;
 
     const minutes = Math.max(0, Math.floor(ctx.minutes));
     if (minutes <= 0) return { next: state };
 
+    const staminaMax = staminaMaxForLevel(b.level);
     const regen = cornucopiaRegenPerMin(b.level) * minutes;
-    const nextStamina = clamp(b.stamina + regen, 0, b.staminaMax);
+
+    const nextStamina = clamp(b.stamina + regen, 0, staminaMax);
 
     if (nextStamina === b.stamina) return { next: state };
 
@@ -37,7 +40,11 @@ export const CORNUCOPIA_BUILDING: BuildingModule = {
         ...state,
         buildings: {
           ...state.buildings,
-          cornucopia: { ...b, stamina: nextStamina },
+          cornucopia: {
+            ...b,
+            stamina: nextStamina,
+            staminaMax,
+          },
         },
       },
     };
