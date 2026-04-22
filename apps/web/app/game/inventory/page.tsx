@@ -3,7 +3,32 @@
 import { useMemo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
+
+const INVENTORY_COLUMNS = 20;
+const INVENTORY_ROWS = 10;
+const TOTAL_INVENTORY_SLOTS = INVENTORY_COLUMNS * INVENTORY_ROWS;
+
+const inventorySlotIndexes = Array.from({ length: TOTAL_INVENTORY_SLOTS }, (_, index) => index);
+
+type InventorySlotProps = {
+  className?: string;
+  slotNumber: number;
+};
+
+function InventorySlot({ className, slotNumber }: InventorySlotProps) {
+  return (
+    <button
+      type="button"
+      aria-label={`Inventory slot ${slotNumber}`}
+      className={cn(
+        "aspect-square rounded-lg border border-border/70 bg-muted/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors duration-150 hover:border-primary/30 hover:bg-muted/55",
+        className
+      )}
+    />
+  );
+}
 
 export default function InventoryPage() {
   const state = useGameStore((s) => s.state);
@@ -20,6 +45,7 @@ export default function InventoryPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Inventory</h1>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -63,6 +89,24 @@ export default function InventoryPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inventory</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto pb-1">
+            <div
+              className="grid min-w-[47.125rem] gap-1.5 md:min-w-[52.125rem]"
+              style={{ gridTemplateColumns: `repeat(${INVENTORY_COLUMNS}, minmax(2rem, 1fr))` }}
+            >
+              {inventorySlotIndexes.map((slotIndex) => (
+                <InventorySlot key={slotIndex} slotNumber={slotIndex + 1} />
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

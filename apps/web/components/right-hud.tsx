@@ -4,16 +4,19 @@ import { useMemo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGameStore } from "@/store/game-store";
+import { ALL_RESOURCES, getQty, type ResourceStock } from "@idleking/game-core/resources/types.js";
+
+function getOrderedResourceRows(resources: ResourceStock) {
+  return ALL_RESOURCES.map((id) => ({
+    id,
+    qty: getQty(resources, id),
+  }));
+}
 
 export function RightHud() {
   const state = useGameStore((s) => s.state);
 
-  const topResources = useMemo(() => {
-    return Object.entries(state.resources ?? {})
-      .map(([id, qty]) => ({ id, qty: Number(qty ?? 0) }))
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 10);
-  }, [state.resources]);
+  const orderedResources = useMemo(() => getOrderedResourceRows(state.resources), [state.resources]);
 
   return (
     <aside className="space-y-3">
@@ -52,18 +55,14 @@ export function RightHud() {
           <CardTitle>Resources</CardTitle>
         </CardHeader>
         <CardContent className="max-h-[45vh] overflow-auto text-sm">
-          {topResources.length === 0 ? (
-            <p className="text-muted-foreground">No resources yet.</p>
-          ) : (
-            <ul className="space-y-1">
-              {topResources.map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-2">
-                  <span className="text-muted-foreground">{r.id}</span>
-                  <span>{Math.floor(r.qty)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="space-y-1">
+            {orderedResources.map((resource) => (
+              <li key={resource.id} className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">{resource.id}</span>
+                <span>{resource.qty}</span>
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
     </aside>
