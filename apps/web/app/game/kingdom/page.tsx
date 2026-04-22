@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
 import { RelicPanel } from "@/components/ui/relic-panel";
 import { getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
 import { buildBuilding } from "@idleking/game-core/game/buildingBuildActions.js";
+import type { GameState } from "@idleking/game-core/game/state.js";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
 import { getBuildCost } from "@idleking/game-core/building/buildCosts.js";
 
@@ -39,21 +41,86 @@ function formatCost(cost: unknown) {
   }
 }
 
+function getAvailableCornucopiaResources(state: GameState): ResourceId[] {
+  return getCornucopiaClaimables(state);
+}
+
+function resolveCornucopiaResourceSelection(
+  claimables: ResourceId[],
+  selected: ResourceId | null
+): ResourceId | null {
+  if (claimables.length === 0) return null;
+  if (selected && claimables.includes(selected)) return selected;
+  return claimables[0];
+}
+
+function getCornucopiaResourceOptionClassName(selected: boolean) {
+  return cn(
+    "rounded-lg border px-2.5 py-2 text-left text-xs tracking-wide transition-colors duration-150",
+    selected
+      ? "border-primary/50 bg-primary/15 text-white shadow-[0_0_18px_rgba(255,140,40,0.08)]"
+      : "border-white/10 bg-black/10 text-white/70 hover:border-white/20 hover:bg-white/5 hover:text-white/90"
+  );
+}
+
 export default function KingdomPage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
   const [cornucopiaClicks, setCornucopiaClicks] = useState(0);
+  const [isCornucopiaSelectorOpen, setIsCornucopiaSelectorOpen] = useState(false);
+  const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
 
   const cornucopiaClaimables = useMemo(
-    () => getCornucopiaClaimables(state),
-    [state.progression.worldLevel]
+    () => getAvailableCornucopiaResources(state),
+    [state]
   );
 
-  const cornucopiaResource = cornucopiaClaimables[0] ?? "WOOD";
+  const activeCornucopiaResource = resolveCornucopiaResourceSelection(
+    cornucopiaClaimables,
+    selectedCornucopiaResource
+  );
   const cornucopiaRow = state.buildings.cornucopia;
   const cornucopiaChip = getBuildingChip(cornucopiaRow);
   const canClickCornucopia =
-    cornucopiaRow.unlocked && cornucopiaRow.built && cornucopiaRow.active && cornucopiaRow.stamina > 0;
+    cornucopiaRow.unlocked &&
+    cornucopiaRow.built &&
+    cornucopiaRow.active &&
+    cornucopiaRow.stamina > 0 &&
+    activeCornucopiaResource !== null;
+
+  useEffect(() => {
+    const nextResource = resolveCornucopiaResourceSelection(
+      cornucopiaClaimables,
+      selectedCornucopiaResource
+    );
+
+    if (nextResource !== selectedCornucopiaResource) {
+      setSelectedCornucopiaResource(nextResource);
+    }
+  }, [cornucopiaClaimables, selectedCornucopiaResource]);
+
+  function handleSelectCornucopiaResource(resourceId: ResourceId) {
+    setSelectedCornucopiaResource(resourceId);
+    setIsCornucopiaSelectorOpen(false);
+  }
+
+  function handleHarvestCornucopia() {
+    if (!canClickCornucopia || !activeCornucopiaResource) return;
+
+    dispatch((prev) => ({
+      ...prev,
+      resources: addQty(prev.resources, activeCornucopiaResource, 1),
+      buildings: {
+        ...prev.buildings,
+        cornucopia: {
+          ...prev.buildings.cornucopia,
+          stamina: Math.max(0, prev.buildings.cornucopia.stamina - 1),
+        },
+      },
+    }));
+
+    setCornucopiaClicks((current) => current + 1);
+  }
 
   return (
     <div className="p-6 space-y-4">
@@ -188,7 +255,9 @@ export default function KingdomPage() {
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <div className="rounded-xl border border-white/10 bg-black/10 p-3">
               <div className="text-[11px] uppercase tracking-wide text-white/45">Ressource</div>
-              <div className="mt-1 text-sm font-medium text-white/85">{cornucopiaResource}</div>
+              <div className="mt-1 text-sm font-medium text-white/85">
+                {activeCornucopiaResource ?? "Aucune"}
+              </div>
             </div>
 
             <div className="rounded-xl border border-white/10 bg-black/10 p-3">
@@ -202,35 +271,53 @@ export default function KingdomPage() {
             </div>
           </div>
 
+          {isCornucopiaSelectorOpen ? (
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/10 p-3">
+              <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                Choose Harvest Resource
+              </div>
+
+              {cornucopiaClaimables.length === 0 ? (
+                <p className="mt-2 text-sm text-white/55">No claimable resources available.</p>
+              ) : (
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {cornucopiaClaimables.map((resourceId) => (
+                    <button
+                      key={resourceId}
+                      type="button"
+                      className={getCornucopiaResourceOptionClassName(resourceId === activeCornucopiaResource)}
+                      onClick={() => handleSelectCornucopiaResource(resourceId)}
+                      aria-pressed={resourceId === activeCornucopiaResource}
+                    >
+                      {resourceId}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
+
           <div className="ik-building-actions">
             <button
               className="ik-runic-button ik-runic-button--primary"
-              onClick={() => {
-                if (!canClickCornucopia) return;
-
-                dispatch((prev) => ({
-                  ...prev,
-                  resources: addQty(prev.resources, cornucopiaResource as ResourceId, 1),
-                  buildings: {
-                    ...prev.buildings,
-                    cornucopia: {
-                      ...prev.buildings.cornucopia,
-                      stamina: Math.max(0, prev.buildings.cornucopia.stamina - 1),
-                    },
-                  },
-                }));
-
-                setCornucopiaClicks((current) => current + 1);
-              }}
+              onClick={handleHarvestCornucopia}
               disabled={!canClickCornucopia}
               aria-disabled={!canClickCornucopia}
-              title={!canClickCornucopia ? "Cornucopia drained or sealed" : undefined}
+              title={!canClickCornucopia ? "Cornucopia drained, sealed, or missing a resource" : undefined}
             >
-              Harvest {cornucopiaResource}
+              Harvest {activeCornucopiaResource ?? "Resource"}
             </button>
 
-            <button className="ik-runic-button" disabled title="Resource selection comes next">
-              Select Resource
+            <button
+              type="button"
+              className="ik-runic-button"
+              onClick={() => setIsCornucopiaSelectorOpen((open) => !open)}
+              disabled={cornucopiaClaimables.length === 0}
+              aria-expanded={isCornucopiaSelectorOpen}
+              aria-pressed={isCornucopiaSelectorOpen}
+              title={cornucopiaClaimables.length === 0 ? "No claimable resources available" : undefined}
+            >
+              {isCornucopiaSelectorOpen ? "Hide Resources" : "Select Resource"}
             </button>
           </div>
         </RelicPanel>
