@@ -33,7 +33,6 @@ function getBuildingChip(row: { unlocked: boolean; built: boolean; active?: bool
 }
 
 function formatCost(cost: unknown) {
-  // Garde simple pour MVP (tu pourras le rendre plus joli ensuite)
   try {
     return JSON.stringify(cost);
   } catch {
@@ -63,6 +62,10 @@ function getCornucopiaResourceOptionClassName(selected: boolean) {
   );
 }
 
+function getCornucopiaStatusLabel(unlocked: boolean) {
+  return unlocked ? "debloquee • manuelle • stamina ignoree en developpement" : "scellee";
+}
+
 export default function KingdomPage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
@@ -70,10 +73,7 @@ export default function KingdomPage() {
   const [isCornucopiaSelectorOpen, setIsCornucopiaSelectorOpen] = useState(false);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
 
-  const cornucopiaClaimables = useMemo(
-    () => getAvailableCornucopiaResources(state),
-    [state]
-  );
+  const cornucopiaClaimables = useMemo(() => getAvailableCornucopiaResources(state), [state]);
 
   const activeCornucopiaResource = resolveCornucopiaResourceSelection(
     cornucopiaClaimables,
@@ -85,7 +85,6 @@ export default function KingdomPage() {
     cornucopiaRow.unlocked &&
     cornucopiaRow.built &&
     cornucopiaRow.active &&
-    cornucopiaRow.stamina > 0 &&
     activeCornucopiaResource !== null;
 
   useEffect(() => {
@@ -110,29 +109,20 @@ export default function KingdomPage() {
     dispatch((prev) => ({
       ...prev,
       resources: addQty(prev.resources, activeCornucopiaResource, 1),
-      buildings: {
-        ...prev.buildings,
-        cornucopia: {
-          ...prev.buildings.cornucopia,
-          stamina: Math.max(0, prev.buildings.cornucopia.stamina - 1),
-        },
-      },
     }));
 
     setCornucopiaClicks((current) => current + 1);
   }
 
   return (
-    <div className="p-6 space-y-4">
-      {/* Header */}
+    <div className="space-y-4 p-6">
       <RelicPanel variant="gold">
         <div className="text-xl font-semibold text-white/90">Royaume</div>
-        <div className="text-sm text-white/60 mt-1">
+        <div className="mt-1 text-sm text-white/60">
           Gère les bâtiments : déblocage, construction et activité.
         </div>
       </RelicPanel>
 
-      {/* Grid */}
       <div className="ik-building-grid">
         {BUILDINGS.map((b) => {
           const row = state.buildings[b.key] as { unlocked: boolean; built: boolean; active?: boolean };
@@ -152,7 +142,8 @@ export default function KingdomPage() {
                   <div>
                     <div className="ik-building-name">{b.id}</div>
                     <div className="ik-building-state">
-                      unlocked: {String(row.unlocked)} • built: {String(row.built)} • active: {String(Boolean(row.active))}
+                      unlocked: {String(row.unlocked)} • built: {String(row.built)} • active:{" "}
+                      {String(Boolean(row.active))}
                     </div>
                   </div>
                 </div>
@@ -165,7 +156,6 @@ export default function KingdomPage() {
               </div>
 
               <div className="ik-building-actions">
-                {/* Toggle Unlock */}
                 <button
                   className="ik-runic-button ik-runic-button--ghost"
                   onClick={() => {
@@ -181,7 +171,6 @@ export default function KingdomPage() {
                   Toggle Open
                 </button>
 
-                {/* Build */}
                 <button
                   className="ik-runic-button ik-runic-button--primary"
                   onClick={() => {
@@ -198,7 +187,6 @@ export default function KingdomPage() {
                   Build
                 </button>
 
-                {/* Toggle Active */}
                 <button
                   className="ik-runic-button"
                   onClick={() => {
@@ -220,7 +208,6 @@ export default function KingdomPage() {
                   Toggle Active
                 </button>
 
-                {/* Open page */}
                 <Link href={b.route} aria-disabled={!canOpenPage} title={!canOpenPage ? "Build required" : undefined}>
                   <button className="ik-runic-button" disabled={!canOpenPage}>
                     Open Page
@@ -237,10 +224,7 @@ export default function KingdomPage() {
               <div className="ik-building-icon" />
               <div>
                 <div className="ik-building-name">Corne d&apos;Abondance</div>
-                <div className="ik-building-state">
-                  {cornucopiaRow.unlocked ? "debloquee" : "scellee"} • manuelle • stamina{" "}
-                  {cornucopiaRow.stamina}/{cornucopiaRow.staminaMax}
-                </div>
+                <div className="ik-building-state">{getCornucopiaStatusLabel(cornucopiaRow.unlocked)}</div>
               </div>
             </div>
 
@@ -303,7 +287,7 @@ export default function KingdomPage() {
               onClick={handleHarvestCornucopia}
               disabled={!canClickCornucopia}
               aria-disabled={!canClickCornucopia}
-              title={!canClickCornucopia ? "Cornucopia drained, sealed, or missing a resource" : undefined}
+              title={!canClickCornucopia ? "Cornucopia sealed or missing a resource" : undefined}
             >
               Harvest {activeCornucopiaResource ?? "Resource"}
             </button>
