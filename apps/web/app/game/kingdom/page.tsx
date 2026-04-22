@@ -15,15 +15,23 @@ import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js"
 import { getBuildCost } from "@idleking/game-core/building/buildCosts.js";
 
 const BUILDINGS = [
-  { id: "FORUM", key: "forum", route: "/game/kingdom/forum", accent: "gold" },
-  { id: "FARM", key: "farm", route: "/game/kingdom/farm", accent: "default" },
-  { id: "MINE", key: "mine", route: "/game/kingdom/mine", accent: "default" },
-  { id: "TEMPLE", key: "temple", route: "/game/kingdom/temple", accent: "xp" },
-  { id: "KITCHEN", key: "kitchen", route: "/game/kingdom/kitchen", accent: "default" },
-  { id: "FORGE", key: "forge", route: "/game/kingdom/forge", accent: "gold" },
+  { id: "FORUM", key: "forum", route: "/game/kingdom/forum" },
+  { id: "FARM", key: "farm", route: "/game/kingdom/farm" },
+  { id: "MINE", key: "mine", route: "/game/kingdom/mine" },
+  { id: "TEMPLE", key: "temple", route: "/game/kingdom/temple" },
+  { id: "KITCHEN", key: "kitchen", route: "/game/kingdom/kitchen" },
+  { id: "FORGE", key: "forge", route: "/game/kingdom/forge" },
 ] as const;
 
-type Accent = "default" | "gold" | "xp" | "wxp";
+type BuildingBorderVariant = "active" | "built" | "default" | "lock" | "selected";
+
+const BUILDING_BORDER_CLASS_NAMES: Record<BuildingBorderVariant, string> = {
+  active: "ik-building-card--active",
+  built: "ik-building-card--built",
+  default: "ik-building-card--default",
+  lock: "ik-building-card--lock",
+  selected: "ik-building-card--selected",
+};
 
 function getBuildingChip(row: { unlocked: boolean; built: boolean; active?: boolean }) {
   const active = Boolean(row.active);
@@ -39,6 +47,21 @@ function formatCost(cost: unknown) {
   } catch {
     return String(cost);
   }
+}
+
+function getBuildingBorderVariant(params: {
+  active?: boolean;
+  built: boolean;
+  selected?: boolean;
+  unlocked: boolean;
+}): BuildingBorderVariant {
+  const { active = false, built, selected = false, unlocked } = params;
+
+  if (selected) return "selected";
+  if (!unlocked) return "lock";
+  if (built) return "built";
+  if (active) return "active";
+  return "default";
 }
 
 function getAvailableCornucopiaResources(state: GameState): ResourceId[] {
@@ -149,14 +172,20 @@ export default function KingdomPage() {
           const row = state.buildings[b.key] as { unlocked: boolean; built: boolean; active?: boolean };
           const cost = getBuildCost(b.id);
           const chip = getBuildingChip(row);
-
-          const panelVariant = b.accent === "gold" ? "gold" : b.accent === "xp" ? "xp" : "default";
+          const borderVariant = getBuildingBorderVariant({
+            active: row.active,
+            built: row.built,
+            unlocked: row.unlocked,
+          });
 
           const canOpenPage = row.unlocked && row.built;
           const canToggleActive = row.unlocked && row.built;
 
           return (
-            <RelicPanel key={b.id} variant={panelVariant as Accent} className="ik-building-card">
+            <RelicPanel
+              key={b.id}
+              className={cn("ik-building-card", BUILDING_BORDER_CLASS_NAMES[borderVariant])}
+            >
               <div className="ik-building-top">
                 <div className="flex gap-3">
                   <div className="ik-building-icon" />
@@ -239,7 +268,19 @@ export default function KingdomPage() {
           );
         })}
 
-        <RelicPanel variant="gold" className="ik-building-card">
+        <RelicPanel
+          className={cn(
+            "ik-building-card",
+            BUILDING_BORDER_CLASS_NAMES[
+              getBuildingBorderVariant({
+                active: cornucopiaRow.active,
+                built: cornucopiaRow.built,
+                selected: isCornucopiaSelectorOpen,
+                unlocked: cornucopiaRow.unlocked,
+              })
+            ]
+          )}
+        >
           <div className="ik-building-top">
             <div className="flex gap-3">
               <div className="ik-building-icon" />

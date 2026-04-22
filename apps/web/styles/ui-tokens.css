@@ -335,6 +335,42 @@
 
 .ik-building-card {
   padding: 16px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ik-building-card--default {
+  border-color: rgba(58, 66, 79, 0.85);
+  box-shadow: var(--ik-shadow-panel);
+}
+
+.ik-building-card--lock {
+  border-color: rgba(255,255,255,0.10);
+  box-shadow:
+    var(--ik-shadow-panel),
+    inset 0 1px 0 rgba(255,255,255,0.02);
+}
+
+.ik-building-card--built {
+  border-color: rgba(198,168,91,0.42);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(198,168,91,0.10);
+}
+
+.ik-building-card--active {
+  border-color: rgba(0,231,255,0.32);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 18px rgba(0,231,255,0.08);
+}
+
+.ik-building-card--selected {
+  border-color: rgba(198,168,91,0.72);
+  box-shadow:
+    var(--ik-shadow-panel),
+    0 0 24px rgba(198,168,91,0.18);
 }
 
 .ik-building-top {
