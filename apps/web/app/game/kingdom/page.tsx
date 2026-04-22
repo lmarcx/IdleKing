@@ -1,11 +1,14 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import { useGameStore } from "@/store/game-store";
 import { RelicPanel } from "@/components/ui/relic-panel";
+import { getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
 import { buildBuilding } from "@idleking/game-core/game/buildingBuildActions.js";
+import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
 import { getBuildCost } from "@idleking/game-core/building/buildCosts.js";
 
 const BUILDINGS = [
@@ -39,6 +42,18 @@ function formatCost(cost: unknown) {
 export default function KingdomPage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
+  const [cornucopiaClicks, setCornucopiaClicks] = useState(0);
+
+  const cornucopiaClaimables = useMemo(
+    () => getCornucopiaClaimables(state),
+    [state.progression.worldLevel]
+  );
+
+  const cornucopiaResource = cornucopiaClaimables[0] ?? "WOOD";
+  const cornucopiaRow = state.buildings.cornucopia;
+  const cornucopiaChip = getBuildingChip(cornucopiaRow);
+  const canClickCornucopia =
+    cornucopiaRow.unlocked && cornucopiaRow.built && cornucopiaRow.active && cornucopiaRow.stamina > 0;
 
   return (
     <div className="p-6 space-y-4">
@@ -148,6 +163,77 @@ export default function KingdomPage() {
             </RelicPanel>
           );
         })}
+
+        <RelicPanel variant="gold" className="ik-building-card">
+          <div className="ik-building-top">
+            <div className="flex gap-3">
+              <div className="ik-building-icon" />
+              <div>
+                <div className="ik-building-name">Corne d&apos;Abondance</div>
+                <div className="ik-building-state">
+                  {cornucopiaRow.unlocked ? "debloquee" : "scellee"} • manuelle • stamina{" "}
+                  {cornucopiaRow.stamina}/{cornucopiaRow.staminaMax}
+                </div>
+              </div>
+            </div>
+
+            <div className={cornucopiaChip.className}>{cornucopiaChip.label}</div>
+          </div>
+
+          <p className="mt-3 text-sm text-white/70">
+            Source manuelle de ressources pour les premiers instants du royaume. Faible rendement,
+            clic rapide, integration simple pour le MVP.
+          </p>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-black/10 p-3">
+              <div className="text-[11px] uppercase tracking-wide text-white/45">Ressource</div>
+              <div className="mt-1 text-sm font-medium text-white/85">{cornucopiaResource}</div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/10 p-3">
+              <div className="text-[11px] uppercase tracking-wide text-white/45">Gain / clic</div>
+              <div className="mt-1 text-sm font-medium text-white/85">+1</div>
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-black/10 p-3">
+              <div className="text-[11px] uppercase tracking-wide text-white/45">Clics session</div>
+              <div className="mt-1 text-sm font-medium text-white/85">{cornucopiaClicks}</div>
+            </div>
+          </div>
+
+          <div className="ik-building-actions">
+            <button
+              className="ik-runic-button ik-runic-button--primary"
+              onClick={() => {
+                if (!canClickCornucopia) return;
+
+                dispatch((prev) => ({
+                  ...prev,
+                  resources: addQty(prev.resources, cornucopiaResource as ResourceId, 1),
+                  buildings: {
+                    ...prev.buildings,
+                    cornucopia: {
+                      ...prev.buildings.cornucopia,
+                      stamina: Math.max(0, prev.buildings.cornucopia.stamina - 1),
+                    },
+                  },
+                }));
+
+                setCornucopiaClicks((current) => current + 1);
+              }}
+              disabled={!canClickCornucopia}
+              aria-disabled={!canClickCornucopia}
+              title={!canClickCornucopia ? "Cornucopia drained or sealed" : undefined}
+            >
+              Harvest {cornucopiaResource}
+            </button>
+
+            <button className="ik-runic-button" disabled title="Resource selection comes next">
+              Select Resource
+            </button>
+          </div>
+        </RelicPanel>
       </div>
     </div>
   );
