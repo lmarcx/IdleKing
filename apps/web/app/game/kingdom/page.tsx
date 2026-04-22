@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { DEV_MODE } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
 import { RelicPanel } from "@/components/ui/relic-panel";
@@ -62,8 +63,17 @@ function getCornucopiaResourceOptionClassName(selected: boolean) {
   );
 }
 
-function getCornucopiaStatusLabel(unlocked: boolean) {
-  return unlocked ? "debloquee • manuelle • stamina ignoree en developpement" : "scellee";
+function getCornucopiaStatusLabel(params: {
+  devMode: boolean;
+  stamina: number;
+  staminaMax: number;
+  unlocked: boolean;
+}) {
+  const { devMode, stamina, staminaMax, unlocked } = params;
+
+  if (!unlocked) return "scellee";
+  if (devMode) return "debloquee • manuelle • stamina ignoree en developpement";
+  return `debloquee • manuelle • stamina ${stamina}/${staminaMax}`;
 }
 
 export default function KingdomPage() {
@@ -81,10 +91,12 @@ export default function KingdomPage() {
   );
   const cornucopiaRow = state.buildings.cornucopia;
   const cornucopiaChip = getBuildingChip(cornucopiaRow);
+  const cornucopiaStaminaBypassed = DEV_MODE;
   const canClickCornucopia =
     cornucopiaRow.unlocked &&
     cornucopiaRow.built &&
     cornucopiaRow.active &&
+    (cornucopiaStaminaBypassed || cornucopiaRow.stamina > 0) &&
     activeCornucopiaResource !== null;
 
   useEffect(() => {
@@ -109,6 +121,15 @@ export default function KingdomPage() {
     dispatch((prev) => ({
       ...prev,
       resources: addQty(prev.resources, activeCornucopiaResource, 1),
+      buildings: {
+        ...prev.buildings,
+        cornucopia: {
+          ...prev.buildings.cornucopia,
+          stamina: cornucopiaStaminaBypassed
+            ? prev.buildings.cornucopia.stamina
+            : Math.max(0, prev.buildings.cornucopia.stamina - 1),
+        },
+      },
     }));
 
     setCornucopiaClicks((current) => current + 1);
@@ -224,7 +245,14 @@ export default function KingdomPage() {
               <div className="ik-building-icon" />
               <div>
                 <div className="ik-building-name">Corne d&apos;Abondance</div>
-                <div className="ik-building-state">{getCornucopiaStatusLabel(cornucopiaRow.unlocked)}</div>
+                <div className="ik-building-state">
+                  {getCornucopiaStatusLabel({
+                    devMode: cornucopiaStaminaBypassed,
+                    stamina: cornucopiaRow.stamina,
+                    staminaMax: cornucopiaRow.staminaMax,
+                    unlocked: cornucopiaRow.unlocked,
+                  })}
+                </div>
               </div>
             </div>
 
@@ -287,7 +315,7 @@ export default function KingdomPage() {
               onClick={handleHarvestCornucopia}
               disabled={!canClickCornucopia}
               aria-disabled={!canClickCornucopia}
-              title={!canClickCornucopia ? "Cornucopia sealed or missing a resource" : undefined}
+              title={!canClickCornucopia ? "Cornucopia drained, sealed, or missing a resource" : undefined}
             >
               Harvest {activeCornucopiaResource ?? "Resource"}
             </button>
