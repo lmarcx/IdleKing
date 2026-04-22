@@ -317,8 +317,20 @@
 
 .ik-building-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+}
+
+@media (min-width: 960px) {
+  .ik-building-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .ik-building-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .ik-building-card {
@@ -374,7 +386,34 @@
 }
 
 .ik-building-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
+}
+
+.ik-building-actions > * {
+  min-width: 0;
+}
+
+.ik-building-actions > a {
+  display: block;
+  min-width: 0;
+}
+
+.ik-building-actions .ik-runic-button {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+@media (max-width: 479px) {
+  .ik-building-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
