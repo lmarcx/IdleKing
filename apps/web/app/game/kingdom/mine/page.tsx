@@ -29,7 +29,7 @@ export default function MinePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Mine Allocation</h1>
+      <h1 className="ik-title text-2xl font-semibold">Mine Allocation</h1>
 
       <Card>
         <CardHeader>

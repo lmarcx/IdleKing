@@ -20,7 +20,7 @@ export function LeftNav() {
 
   return (
     <aside className="rounded-xl border bg-card p-3">
-      <p className="mb-3 text-xs uppercase tracking-wide text-muted-foreground">Navigation</p>
+      <p className="ik-menu-label mb-3 text-xs uppercase tracking-wide text-muted-foreground">Navigation</p>
       <nav className="space-y-1">
         {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -29,7 +29,7 @@ export function LeftNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "block rounded-md px-3 py-2 text-sm",
+                "ik-menu-item block rounded-md px-3 py-2 text-sm",
                 active ? "bg-primary text-primary-foreground" : "hover:bg-accent hover:text-accent-foreground"
               )}
             >

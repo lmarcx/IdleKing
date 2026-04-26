@@ -161,8 +161,8 @@ export default function KingdomPage() {
   return (
     <div className="space-y-4 p-6">
       <RelicPanel variant="gold">
-        <div className="text-xl font-semibold text-white/90">Royaume</div>
-        <div className="mt-1 text-sm text-white/60">
+        <div className="ik-title text-xl font-semibold text-white/90">Royaume</div>
+        <div className="ik-informative mt-1 text-sm text-white/60">
           Gère les bâtiments : déblocage, construction et activité.
         </div>
       </RelicPanel>
@@ -300,7 +300,7 @@ export default function KingdomPage() {
             <div className={cornucopiaChip.className}>{cornucopiaChip.label}</div>
           </div>
 
-          <p className="mt-3 text-sm text-white/70">
+          <p className="ik-informative mt-3 text-sm text-white/70">
             Source manuelle de ressources pour les premiers instants du royaume. Faible rendement,
             clic rapide, integration simple pour le MVP.
           </p>
@@ -331,7 +331,7 @@ export default function KingdomPage() {
               </div>
 
               {cornucopiaClaimables.length === 0 ? (
-                <p className="mt-2 text-sm text-white/55">No claimable resources available.</p>
+                <p className="ik-informative mt-2 text-sm text-white/55">No claimable resources available.</p>
               ) : (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {cornucopiaClaimables.map((resourceId) => (

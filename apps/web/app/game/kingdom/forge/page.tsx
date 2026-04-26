@@ -17,7 +17,7 @@ export default function ForgePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Forge</h1>
+      <h1 className="ik-title text-2xl font-semibold">Forge</h1>
 
       <label className="text-sm">
         <span className="mb-1 block text-muted-foreground">Worker</span>
@@ -79,7 +79,7 @@ export default function ForgePage() {
             </CardHeader>
             <CardContent className="space-y-2">
               {state.inventory.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No items yet.</p>
+                <p className="ik-informative text-sm text-muted-foreground">No items yet.</p>
               ) : (
                 <ul className="space-y-2 text-sm">
                   {state.inventory.items.map((item) => (

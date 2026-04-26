@@ -34,7 +34,7 @@ export default function StartScreenPage() {
           <CardTitle className="text-2xl">IdleKing Offline MVP</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
+          <p className="ik-informative text-sm text-muted-foreground">
             Start a fresh run or load the latest local save.
           </p>
           <div className="grid gap-2 sm:grid-cols-3">

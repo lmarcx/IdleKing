@@ -11,7 +11,7 @@ export default function TemplePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Temple Allocation</h1>
+      <h1 className="ik-title text-2xl font-semibold">Temple Allocation</h1>
       <Card>
         <CardHeader>
           <CardTitle>XP Global Allocation</CardTitle>
