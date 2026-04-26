@@ -75,7 +75,7 @@ export function TabsTrigger({
     <button
       onClick={() => ctx.onValueChange(value)}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
+        "font-ik-menu inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium transition-all",
         active ? "bg-background text-foreground shadow" : "text-muted-foreground hover:text-foreground",
         className
       )}

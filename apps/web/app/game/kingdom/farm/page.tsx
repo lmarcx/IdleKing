@@ -29,8 +29,8 @@ export default function FarmPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Farm Allocation</h1>
-      <p className="text-sm text-muted-foreground">Set villagers per resource and apply normalized allocation.</p>
+      <h1 className="font-ik-title text-2xl font-semibold">Farm Allocation</h1>
+      <p className="font-ik-body text-sm text-muted-foreground">Set villagers per resource and apply normalized allocation.</p>
 
       <Card>
         <CardHeader>

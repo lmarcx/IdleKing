@@ -44,7 +44,7 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Inventory</h1>
+      <h1 className="font-ik-title text-2xl font-semibold">Inventory</h1>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -53,7 +53,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             {state.inventory.items.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No equipment crafted yet.</p>
+              <p className="font-ik-body text-sm text-muted-foreground">No equipment crafted yet.</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {state.inventory.items.map((item) => (
@@ -75,7 +75,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             {resources.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No resources in stock.</p>
+              <p className="font-ik-body text-sm text-muted-foreground">No resources in stock.</p>
             ) : (
               <ul className="space-y-1 text-sm">
                 {resources.map((r) => (

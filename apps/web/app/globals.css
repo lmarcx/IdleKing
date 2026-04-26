@@ -4,6 +4,10 @@
 @tailwind utilities;
 
 :root {
+  --ik-font-body: var(--font-ik-body), ui-sans-serif, system-ui, sans-serif;
+  --ik-font-title: var(--font-ik-title), Georgia, "Times New Roman", serif;
+  --ik-font-menu: var(--font-ik-menu), ui-sans-serif, system-ui, sans-serif;
+  --ik-font-boto: var(--font-ik-boto), ui-sans-serif, system-ui, sans-serif;
   --background: 215 28% 10%;
   --foreground: 210 40% 96%;
   --card: 218 24% 14%;
@@ -32,6 +36,8 @@
 
 body {
   @apply bg-background text-foreground;
+  font-family: var(--ik-font-body);
+  font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
   background-image: radial-gradient(circle at 10% 0%, rgba(255, 140, 40, 0.12), transparent 45%),
     radial-gradient(circle at 90% 100%, rgba(0, 200, 255, 0.08), transparent 40%);
   min-height: 100vh;
@@ -39,4 +45,29 @@ body {
 
 a {
   @apply text-inherit;
+}
+
+.font-ik-body {
+  font-family: var(--ik-font-body);
+  letter-spacing: 0.01em;
+}
+
+.font-ik-title {
+  font-family: var(--ik-font-title);
+  font-weight: 600;
+  letter-spacing: 0.035em;
+}
+
+.font-ik-menu {
+  font-family: var(--ik-font-menu);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-feature-settings: "tnum" 1;
+}
+
+.font-ik-boto {
+  font-family: var(--ik-font-boto);
+  letter-spacing: 0.04em;
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
