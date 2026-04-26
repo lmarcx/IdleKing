@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { BuildingSprite } from "@/components/kingdom/building-sprite";
 import { RelicPanel } from "@/components/ui/relic-panel";
 import { DEV_MODE } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -21,7 +22,6 @@ type BuildableBuildingId = "FORUM" | "FARM" | "MINE" | "TEMPLE" | "KITCHEN" | "F
 type BuildableBuildingKey = "forum" | "farm" | "mine" | "temple" | "kitchen" | "forge";
 type KingdomBuildingKey = BuildableBuildingKey | "cornucopia";
 type KingdomBuildingState = "active" | "built" | "locked" | "selected" | "unlocked";
-type BuildingTone = "civic" | "food" | "ore" | "arcane" | "craft" | "gold";
 
 type KingdomBuildingDefinition = {
   key: KingdomBuildingKey;
@@ -32,8 +32,6 @@ type KingdomBuildingDefinition = {
   description: string;
   functionLabel: string;
   imageAlt: string;
-  imageSrc: string;
-  tone: BuildingTone;
 };
 
 type BuildingRow = {
@@ -53,8 +51,6 @@ const KINGDOM_BUILDINGS = [
       "Le Forum centralise les villageois et les decisions de progression du monde. C'est le point d'ancrage social du royaume.",
     functionLabel: "Recrutement, repos et rank up du monde.",
     imageAlt: "Hall de forum royal en pierre sous une nuit sombre",
-    imageSrc: "/assets/kingdom/buildings/forum.png",
-    tone: "civic",
   },
   {
     key: "farm",
@@ -66,8 +62,6 @@ const KINGDOM_BUILDINGS = [
       "La Ferme transforme le travail des villageois en ressources de base pour soutenir la croissance du royaume.",
     functionLabel: "Allocation de villageois sur les ressources agricoles.",
     imageAlt: "Ferme medievale avec champs nocturnes",
-    imageSrc: "/assets/kingdom/buildings/farm.png",
-    tone: "food",
   },
   {
     key: "mine",
@@ -79,8 +73,6 @@ const KINGDOM_BUILDINGS = [
       "La Mine ouvre l'acces aux metaux et aux ressources profondes necessaires aux constructions avancees.",
     functionLabel: "Allocation de villageois sur les ressources minieres.",
     imageAlt: "Entree de mine dans la montagne avec lueur chaude",
-    imageSrc: "/assets/kingdom/buildings/mine.png",
-    tone: "ore",
   },
   {
     key: "temple",
@@ -92,8 +84,6 @@ const KINGDOM_BUILDINGS = [
       "Le Temple concentre l'energie universelle et transforme l'effort du royaume en progression globale.",
     functionLabel: "Allocation de villageois vers XP_GLOBAL.",
     imageAlt: "Temple dark fantasy avec portail d'energie violette",
-    imageSrc: "/assets/kingdom/buildings/temple.png",
-    tone: "arcane",
   },
   {
     key: "kitchen",
@@ -105,8 +95,6 @@ const KINGDOM_BUILDINGS = [
       "La Cuisine consomme des ressources pour creer des plats utiles aux villageois et aux expeditions futures.",
     functionLabel: "Cuisine de recettes et depense de stamina.",
     imageAlt: "Cuisine medievale avec foyer allume",
-    imageSrc: "/assets/kingdom/buildings/kitchen.png",
-    tone: "food",
   },
   {
     key: "forge",
@@ -118,8 +106,6 @@ const KINGDOM_BUILDINGS = [
       "La Forge convertit minerais et ressources rares en equipement, ameliorations et recyclage.",
     functionLabel: "Craft, upgrade et recycle d'equipement.",
     imageAlt: "Forge de pierre avec enclume et braises",
-    imageSrc: "/assets/kingdom/buildings/forge.png",
-    tone: "craft",
   },
   {
     key: "cornucopia",
@@ -129,8 +115,6 @@ const KINGDOM_BUILDINGS = [
       "La Corne d'Abondance reste disponible des le depart pour amorcer l'economie du royaume.",
     functionLabel: "Recolte manuelle d'une ressource disponible.",
     imageAlt: "Corne d'abondance remplie de pieces et ressources",
-    imageSrc: "/assets/kingdom/buildings/cornucopia.png",
-    tone: "gold",
   },
 ] satisfies readonly KingdomBuildingDefinition[];
 
@@ -271,37 +255,6 @@ function getCornucopiaResourceOptionClassName(selected: boolean) {
   );
 }
 
-function BuildingImage({
-  alt,
-  src,
-  title,
-  tone,
-}: {
-  alt: string;
-  src: string;
-  title: string;
-  tone: BuildingTone;
-}) {
-  const [failed, setFailed] = useState(false);
-
-  return (
-    <div className="ik-kingdom-building-image" data-tone={tone}>
-      {!failed ? (
-        <img
-          src={src}
-          alt={alt}
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <div className="ik-kingdom-building-fallback" role="img" aria-label={alt}>
-          <span>{title.slice(0, 2).toUpperCase()}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function BuildingCard({
   definition,
   onOpen,
@@ -318,11 +271,9 @@ function BuildingCard({
 
   return (
     <RelicPanel className={cn("ik-kingdom-building-card", BUILDING_STATE_CLASS_NAMES[visualState])}>
-      <BuildingImage
-        alt={definition.imageAlt}
-        src={definition.imageSrc}
-        title={definition.title}
-        tone={definition.tone}
+      <BuildingSprite
+        altLabel={definition.imageAlt}
+        buildingId={definition.key}
       />
 
       <div className="mt-4 flex items-start justify-between gap-3">
@@ -394,11 +345,9 @@ function BuildingModal({
         </div>
 
         <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <BuildingImage
-            alt={definition.imageAlt}
-            src={definition.imageSrc}
-            title={definition.title}
-            tone={definition.tone}
+          <BuildingSprite
+            altLabel={definition.imageAlt}
+            buildingId={definition.key}
           />
 
           <div className="space-y-4">
