@@ -39,9 +39,9 @@ export function OfflineSummaryModal() {
 
         <div className="space-y-3 text-sm">
           <div>
-            <p className="ik-ui-text mb-1 font-medium">Top resource gains</p>
+            <p className="font-ik-body mb-1 font-medium">Top resource gains</p>
             {topGains.length === 0 ? (
-              <p className="ik-informative text-muted-foreground">No positive resource gains.</p>
+              <p className="font-ik-body text-muted-foreground">No positive resource gains.</p>
             ) : (
               <ul className="space-y-1">
                 {topGains.map((gain) => (
@@ -54,7 +54,7 @@ export function OfflineSummaryModal() {
             )}
           </div>
 
-          <p className="ik-ui-text">Stamina spent: {offlineReport?.diff.staminaSpent ?? 0}</p>
+          <p className="font-ik-body">Stamina spent: {offlineReport?.diff.staminaSpent ?? 0}</p>
         </div>
 
         <DialogFooter>

@@ -16,7 +16,7 @@ export default function KitchenPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="ik-title text-2xl font-semibold">Kitchen</h1>
+      <h1 className="font-ik-title text-2xl font-semibold">Kitchen</h1>
 
       <label className="text-sm">
         <span className="mb-1 block text-muted-foreground">Worker</span>
