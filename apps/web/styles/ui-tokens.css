@@ -315,6 +315,161 @@
    KINGDOM — BUILDING GRID
    ========================= */
 
+.ik-kingdom-building-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+@media (min-width: 760px) {
+  .ik-kingdom-building-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .ik-kingdom-building-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.ik-kingdom-building-card {
+  padding: 14px;
+}
+
+.ik-kingdom-building-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background:
+    radial-gradient(circle at 50% 28%, rgba(198,168,91,0.15), transparent 44%),
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.18)),
+    rgba(0,0,0,0.30);
+  overflow: hidden;
+  image-rendering: pixelated;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35);
+}
+
+.ik-kingdom-building-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.18)),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,0.035) 0px,
+      rgba(255,255,255,0.035) 1px,
+      transparent 2px,
+      transparent 5px
+    );
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.ik-kingdom-building-image[data-tone="civic"] {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(138,92,255,0.16), transparent 48%),
+    linear-gradient(180deg, rgba(198,168,91,0.10), rgba(0,0,0,0.20)),
+    rgba(0,0,0,0.32);
+}
+
+.ik-kingdom-building-image[data-tone="food"] {
+  background:
+    radial-gradient(circle at 48% 32%, rgba(26,255,122,0.12), transparent 46%),
+    linear-gradient(180deg, rgba(198,168,91,0.10), rgba(0,0,0,0.20)),
+    rgba(0,0,0,0.32);
+}
+
+.ik-kingdom-building-image[data-tone="ore"],
+.ik-kingdom-building-image[data-tone="craft"] {
+  background:
+    radial-gradient(circle at 48% 58%, rgba(255,120,40,0.16), transparent 42%),
+    linear-gradient(180deg, rgba(198,168,91,0.08), rgba(0,0,0,0.24)),
+    rgba(0,0,0,0.34);
+}
+
+.ik-kingdom-building-image[data-tone="arcane"] {
+  background:
+    radial-gradient(circle at 52% 44%, rgba(138,92,255,0.24), transparent 44%),
+    radial-gradient(circle at 50% 54%, rgba(0,231,255,0.12), transparent 52%),
+    rgba(0,0,0,0.34);
+}
+
+.ik-kingdom-building-image[data-tone="gold"] {
+  background:
+    radial-gradient(circle at 48% 54%, rgba(198,168,91,0.28), transparent 46%),
+    linear-gradient(180deg, rgba(198,168,91,0.12), rgba(0,0,0,0.24)),
+    rgba(0,0,0,0.34);
+}
+
+.ik-kingdom-building-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.ik-kingdom-building-fallback::before {
+  content: "";
+  width: 42%;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(198,168,91,0.38);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.08), transparent 42%),
+    rgba(0,0,0,0.24);
+  box-shadow: 0 0 24px rgba(198,168,91,0.08);
+}
+
+.ik-kingdom-building-fallback > span {
+  position: absolute;
+  font-family: var(--ik-font-title);
+  font-size: 34px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.72);
+  letter-spacing: 0.04em;
+}
+
+.ik-kingdom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0,0,0,0.68);
+}
+
+.ik-kingdom-modal {
+  width: min(980px, 100%);
+  max-height: min(86vh, 920px);
+  overflow: auto;
+  border-radius: var(--ik-r-xl);
+  border: 1px solid rgba(198,168,91,0.38);
+  background:
+    radial-gradient(circle at 20% 0%, rgba(198,168,91,0.08), transparent 36%),
+    var(--ik-bg-1);
+  box-shadow:
+    0 18px 60px rgba(0,0,0,0.62),
+    0 0 22px rgba(198,168,91,0.10);
+  padding: 18px;
+}
+
+.ik-kingdom-modal-stat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 700px) {
+  .ik-kingdom-modal-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .ik-building-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
