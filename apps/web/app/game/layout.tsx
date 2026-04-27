@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 import { LeftNav } from "@/components/left-nav";
 import { OfflineSummaryModal } from "@/components/offline-summary-modal";
+import { ResourceGainPopupLayer } from "@/components/game/resource-gain-popup-layer";
 import { RightHud } from "@/components/right-hud";
 import { useGameStore } from "@/store/game-store";
 
@@ -21,6 +22,7 @@ export default function GameLayout({ children }: { children: React.ReactNode }) 
       <section className="rounded-xl border bg-card p-4">{children}</section>
       <RightHud />
       <OfflineSummaryModal />
+      <ResourceGainPopupLayer />
     </main>
   );
 }
