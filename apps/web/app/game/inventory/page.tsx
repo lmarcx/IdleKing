@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { getResourceAssetPath, RESOURCE_FALLBACK_ASSET } from "@/lib/resource-assets";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,40 @@ const SORT_OPTIONS: Array<{ label: string; value: InventorySort }> = [
   { label: "A-Z", value: "name-asc" },
   { label: "Z-A", value: "name-desc" },
 ];
+
+const TOOLTIP_GAP = 8;
+const TOOLTIP_VIEWPORT_MARGIN = 10;
+
+type TooltipPosition = {
+  left: number;
+  top: number;
+  visibility: "hidden" | "visible";
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getTooltipPosition(anchorRect: DOMRect, tooltipWidth: number, tooltipHeight: number) {
+  const maxLeft = window.innerWidth - tooltipWidth - TOOLTIP_VIEWPORT_MARGIN;
+  const maxTop = window.innerHeight - tooltipHeight - TOOLTIP_VIEWPORT_MARGIN;
+  const centeredLeft = anchorRect.left + anchorRect.width / 2 - tooltipWidth / 2;
+
+  let top = anchorRect.top - tooltipHeight - TOOLTIP_GAP;
+
+  if (top < TOOLTIP_VIEWPORT_MARGIN) {
+    top = anchorRect.bottom + TOOLTIP_GAP;
+  }
+
+  if (top + tooltipHeight > window.innerHeight - TOOLTIP_VIEWPORT_MARGIN) {
+    top = maxTop;
+  }
+
+  return {
+    left: clamp(centeredLeft, TOOLTIP_VIEWPORT_MARGIN, Math.max(TOOLTIP_VIEWPORT_MARGIN, maxLeft)),
+    top: clamp(top, TOOLTIP_VIEWPORT_MARGIN, Math.max(TOOLTIP_VIEWPORT_MARGIN, maxTop)),
+  };
+}
 
 function getItemIcon(item: InventoryDisplayItem) {
   if (item.category === "equipment" || item.category === "unique") return null;
@@ -97,9 +132,28 @@ function InventoryToolbar({
   );
 }
 
-function InventoryItemTooltip({ item }: { item: InventoryDisplayItem }) {
-  return (
-    <div className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] z-30 hidden w-48 -translate-x-1/2 rounded-md border border-amber-300/30 bg-[#090d10]/95 p-3 text-left shadow-[0_0_18px_rgba(56,189,248,0.12)] backdrop-blur-sm group-hover:block">
+function InventoryItemTooltip({ anchorRect, item }: { anchorRect: DOMRect | null; item: InventoryDisplayItem }) {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<TooltipPosition>({ left: 0, top: 0, visibility: "hidden" });
+
+  useLayoutEffect(() => {
+    if (!anchorRect || !tooltipRef.current) return;
+
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    setPosition({
+      ...getTooltipPosition(anchorRect, tooltipRect.width, tooltipRect.height),
+      visibility: "visible",
+    });
+  }, [anchorRect, item.id]);
+
+  if (!anchorRect || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      ref={tooltipRef}
+      className="pointer-events-none fixed z-[1000] w-48 rounded-md border border-amber-300/30 bg-[#090d10]/95 p-3 text-left shadow-[0_0_18px_rgba(56,189,248,0.12)] backdrop-blur-sm"
+      style={position}
+    >
       <div className="font-ik-title text-sm font-semibold text-foreground">{item.name}</div>
       <div className="font-ik-body mt-1 text-xs capitalize text-muted-foreground">{item.category}</div>
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 font-ik-body text-xs">
@@ -111,16 +165,45 @@ function InventoryItemTooltip({ item }: { item: InventoryDisplayItem }) {
       <div className="mt-2 truncate border-t border-border/50 pt-2 font-ik-menu text-[10px] uppercase tracking-wide text-muted-foreground/75">
         {item.id}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 function InventorySlot({ item }: { item: InventoryDisplayItem }) {
+  const slotRef = useRef<HTMLButtonElement>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const icon = getItemIcon(item);
   const initials = item.name.slice(0, 2).toUpperCase();
 
+  const updateAnchorRect = useCallback(() => {
+    if (!slotRef.current) return;
+    setAnchorRect(slotRef.current.getBoundingClientRect());
+  }, []);
+
+  useEffect(() => {
+    if (!anchorRect) return;
+
+    window.addEventListener("resize", updateAnchorRect);
+    window.addEventListener("scroll", updateAnchorRect, true);
+
+    return () => {
+      window.removeEventListener("resize", updateAnchorRect);
+      window.removeEventListener("scroll", updateAnchorRect, true);
+    };
+  }, [anchorRect, updateAnchorRect]);
+
   return (
-    <div className="group relative aspect-square min-h-14 rounded-lg border border-border/70 bg-muted/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:border-amber-300/45 hover:bg-muted/35 hover:shadow-[0_0_16px_rgba(201,166,84,0.12),inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <button
+      ref={slotRef}
+      aria-label={`${item.name}, ${item.category}, quantite ${item.quantity}`}
+      className="relative aspect-square min-h-14 appearance-none rounded-lg border border-border/70 bg-muted/25 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:border-amber-300/45 hover:bg-muted/35 hover:shadow-[0_0_16px_rgba(201,166,84,0.12),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:border-amber-300/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35"
+      onBlur={() => setAnchorRect(null)}
+      onFocus={updateAnchorRect}
+      onMouseEnter={updateAnchorRect}
+      onMouseLeave={() => setAnchorRect(null)}
+      type="button"
+    >
       <div className="absolute inset-2 grid place-items-center rounded-md border border-border/35 bg-black/20">
         {icon ? (
           <img
@@ -140,8 +223,8 @@ function InventorySlot({ item }: { item: InventoryDisplayItem }) {
         x{item.quantity}
       </span>
 
-      <InventoryItemTooltip item={item} />
-    </div>
+      <InventoryItemTooltip anchorRect={anchorRect} item={item} />
+    </button>
   );
 }
 
