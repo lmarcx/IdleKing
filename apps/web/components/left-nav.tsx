@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { GamePanel } from "@/components/ui/game-panel";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -19,7 +20,7 @@ export function LeftNav() {
   const pathname = usePathname();
 
   return (
-    <aside className="rounded-xl border bg-card p-3">
+    <GamePanel variant="ornate" className="p-3">
       <p className="font-ik-menu mb-3 text-xs uppercase tracking-wide text-muted-foreground">Navigation</p>
       <nav className="space-y-1">
         {navItems.map((item) => {
@@ -38,6 +39,6 @@ export function LeftNav() {
           );
         })}
       </nav>
-    </aside>
+    </GamePanel>
   );
 }

@@ -13,6 +13,7 @@
     "./game/*": "./dist/game/*",
     "./building/*": "./dist/building/*",
     "./resources/*": "./dist/resources/*",
+    "./items": "./dist/items/index.js",
     "./items/*": "./dist/items/*"
   },
   "files": ["dist"],

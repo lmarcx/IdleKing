@@ -1,12 +1,16 @@
 import * as React from "react";
 
+import { GamePanel } from "@/components/ui/game-panel";
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
+type CardProps = React.ComponentPropsWithoutRef<typeof GamePanel>;
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = "ornate", ...props }, ref) => (
+    <GamePanel
       ref={ref}
-      className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
+      variant={variant}
+      className={className}
       {...props}
     />
   )

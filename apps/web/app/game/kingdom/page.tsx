@@ -9,14 +9,15 @@ import { RelicPanel } from "@/components/ui/relic-panel";
 import { DEV_MODE } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
+import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { getBuildCost } from "@idleking/game-core/building/buildCosts.js";
-import { getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
+import { claimCornucopia, getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
 import { buildBuilding } from "@idleking/game-core/game/buildingBuildActions.js";
 import { farmResourcesAvailable, mineResourcesAvailable } from "@idleking/game-core/game/buildingActions.js";
 import { forumRankUpWorld } from "@idleking/game-core/game/forumActions.js";
 import { recruitVillager, recruitVillagerCost } from "@idleking/game-core/game/forumRecruitActions.js";
 import type { GameState } from "@idleking/game-core/game/state.js";
-import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
+import type { ResourceId } from "@idleking/game-core/resources/types.js";
 
 type BuildableBuildingId = "FORUM" | "FARM" | "MINE" | "TEMPLE" | "KITCHEN" | "FORGE";
 type BuildableBuildingKey = "forum" | "farm" | "mine" | "temple" | "kitchen" | "forge";
@@ -196,15 +197,13 @@ function resolveCornucopiaResourceSelection(
 }
 
 function getCornucopiaStatusLabel(params: {
-  devMode: boolean;
   stamina: number;
   staminaMax: number;
   unlocked: boolean;
 }) {
-  const { devMode, stamina, staminaMax, unlocked } = params;
+  const { stamina, staminaMax, unlocked } = params;
 
   if (!unlocked) return "Locked";
-  if (devMode) return "Manual harvest, stamina ignored in development";
   return `Manual harvest, stamina ${stamina}/${staminaMax}`;
 }
 
@@ -237,7 +236,6 @@ function getBuildingOutput(definition: KingdomBuildingDefinition, state: GameSta
     case "cornucopia":
       return [
         getCornucopiaStatusLabel({
-          devMode: DEV_MODE,
           stamina: state.buildings.cornucopia.stamina,
           staminaMax: state.buildings.cornucopia.staminaMax,
           unlocked: state.buildings.cornucopia.unlocked,
@@ -509,6 +507,7 @@ function BuildingModal({
 export default function KingdomPage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
+  const showResourceGain = useResourceFeedbackStore((s) => s.showResourceGain);
   const [selectedBuildingKey, setSelectedBuildingKey] = useState<KingdomBuildingKey | null>(null);
   const [isCornucopiaSelectorOpen, setIsCornucopiaSelectorOpen] = useState(false);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
@@ -520,12 +519,11 @@ export default function KingdomPage() {
   );
   const selectedBuilding = KINGDOM_BUILDINGS.find((building) => building.key === selectedBuildingKey) ?? null;
   const cornucopiaRow = state.buildings.cornucopia;
-  const cornucopiaStaminaBypassed = DEV_MODE;
   const canClickCornucopia =
     cornucopiaRow.unlocked &&
     cornucopiaRow.built &&
     cornucopiaRow.active &&
-    (cornucopiaStaminaBypassed || cornucopiaRow.stamina > 0) &&
+    cornucopiaRow.stamina > 0 &&
     activeCornucopiaResource !== null;
 
   useEffect(() => {
@@ -596,19 +594,19 @@ export default function KingdomPage() {
   function handleHarvestCornucopia() {
     if (!canClickCornucopia || !activeCornucopiaResource) return;
 
-    dispatch((prev) => ({
-      ...prev,
-      resources: addQty(prev.resources, activeCornucopiaResource, 1),
-      buildings: {
-        ...prev.buildings,
-        cornucopia: {
-          ...prev.buildings.cornucopia,
-          stamina: cornucopiaStaminaBypassed
-            ? prev.buildings.cornucopia.stamina
-            : Math.max(0, prev.buildings.cornucopia.stamina - 1),
-        },
-      },
-    }));
+    const currentState = useGameStore.getState().state;
+    const res = claimCornucopia(currentState, { resourceId: activeCornucopiaResource });
+
+    if (!res.ok) {
+      toast.error(`Cornucopia harvest failed: ${res.error}`);
+      return;
+    }
+
+    dispatch(() => res.next);
+    showResourceGain({
+      amount: res.amount,
+      resourceId: res.resourceId,
+    });
   }
 
   return (

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="52%">
+      <stop offset="0%" stop-color="#f0a05a" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#7a3824" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="main" x1="32" y1="20" x2="96" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0a05a"/>
+      <stop offset="1" stop-color="#7a3824"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.48"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#f0a05a" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="55" fill="url(#glow)"/>
+  <g filter="url(#soft)" stroke="#15110b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M26 63h76c-2 30-18 47-38 47S28 93 26 63z" fill="url(#main)"/><ellipse cx="64" cy="63" rx="39" ry="15" fill="#2a1710"/><path d="M46 60c8-9 23-9 36 0" stroke="#ffd08c" stroke-opacity=".45"/>
+  </g>
+</svg>
