@@ -1,20 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" role="img" aria-label="Character placeholder">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 320" role="img" aria-label="Roi dark fantasy">
   <defs>
-    <radialGradient id="a" cx="50%" cy="28%" r="72%">
-      <stop offset="0" stop-color="#38bdf8" stop-opacity=".22"/>
-      <stop offset=".45" stop-color="#c9a654" stop-opacity=".16"/>
-      <stop offset="1" stop-color="#05080c" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="b" x1="50%" x2="50%" y1="0" y2="1">
-      <stop offset="0" stop-color="#d7c27a"/>
-      <stop offset="1" stop-color="#6f5a2a"/>
+    <linearGradient id="gold" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f1d98a"/>
+      <stop offset=".48" stop-color="#a7893e"/>
+      <stop offset="1" stop-color="#6d5524"/>
     </linearGradient>
+    <linearGradient id="steel" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#273342"/>
+      <stop offset=".55" stop-color="#111923"/>
+      <stop offset="1" stop-color="#070a0f"/>
+    </linearGradient>
+    <linearGradient id="cloak" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#101b2c"/>
+      <stop offset=".5" stop-color="#16111d"/>
+      <stop offset="1" stop-color="#05070b"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="50%" cy="36%" r="58%">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity=".18"/>
+      <stop offset=".46" stop-color="#c9a654" stop-opacity=".11"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <path fill="url(#a)" d="M12 20h232v286H12z"/>
-  <path fill="#080d12" stroke="url(#b)" stroke-width="5" d="M128 29c32 0 58 27 58 61 0 22-11 42-28 53 30 12 52 44 52 82v50H46v-50c0-38 22-70 52-82-17-11-28-31-28-53 0-34 26-61 58-61Z"/>
-  <path fill="#111923" stroke="#38bdf8" stroke-opacity=".45" stroke-width="3" d="M85 92c6-26 21-40 43-40s37 14 43 40l-12 46H97L85 92Z"/>
-  <path fill="#0b1016" stroke="#c9a654" stroke-opacity=".75" stroke-width="4" d="M82 160h92l25 62-19 38H76l-19-38 25-62Z"/>
-  <path fill="none" stroke="#38bdf8" stroke-linecap="round" stroke-opacity=".65" stroke-width="4" d="M101 108h54M96 186h64M82 225h92"/>
-  <circle cx="108" cy="91" r="5" fill="#9ff7d2"/>
-  <circle cx="148" cy="91" r="5" fill="#9ff7d2"/>
+  <path fill="url(#aura)" d="M18 12h220v296H18z"/>
+  <path fill="url(#cloak)" stroke="#2f3d4d" stroke-width="4" d="M70 132c-26 22-42 72-44 154h204c-2-82-18-132-44-154-19 20-39 30-58 30s-39-10-58-30Z"/>
+  <path fill="#071017" stroke="#a7893e" stroke-opacity=".72" stroke-width="4" d="M68 286c6-55 23-92 60-92s54 37 60 92H68Z"/>
+  <path fill="url(#steel)" stroke="#bfa15b" stroke-width="4" d="M85 114h86l20 55-24 80H89l-24-80 20-55Z"/>
+  <path fill="#0b121b" stroke="#38bdf8" stroke-opacity=".45" stroke-width="3" d="M100 126h56l12 38-40 24-40-24 12-38Z"/>
+  <path fill="none" stroke="#c9a654" stroke-linecap="round" stroke-opacity=".75" stroke-width="4" d="M89 198h78M82 229h92"/>
+  <path fill="#121b25" stroke="#c9a654" stroke-width="4" d="M82 84c0-29 20-52 46-52s46 23 46 52c0 31-20 56-46 56s-46-25-46-56Z"/>
+  <path fill="#0a0f15" stroke="#38bdf8" stroke-opacity=".38" stroke-width="3" d="M94 80c6-22 17-33 34-33s28 11 34 33l-10 42h-48L94 80Z"/>
+  <path fill="url(#gold)" stroke="#382f18" stroke-width="3" d="m77 39 20 12 12-30 19 27 19-27 12 30 20-12-8 35H85l-8-35Z"/>
+  <path fill="#f0d986" d="M99 58h58v8H99z"/>
+  <circle cx="111" cy="88" r="4" fill="#a6f7d9"/>
+  <circle cx="145" cy="88" r="4" fill="#a6f7d9"/>
+  <path fill="none" stroke="#a6f7d9" stroke-linecap="round" stroke-opacity=".62" stroke-width="3" d="M116 108c8 5 16 5 24 0"/>
+  <path fill="none" stroke="#c9a654" stroke-linecap="round" stroke-width="5" d="M55 176 33 274M201 176l22 98"/>
+  <path fill="#0b1016" stroke="#8b7338" stroke-width="4" d="M43 260h35v28H43zM178 260h35v28h-35z"/>
 </svg>

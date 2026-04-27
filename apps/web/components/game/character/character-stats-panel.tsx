@@ -5,7 +5,7 @@ import type { CharacterStat } from "./types";
 
 export function CharacterStatsPanel({ stats }: { stats: CharacterStat[] }) {
   return (
-    <GamePanel variant="ornate" className="p-4">
+    <GamePanel variant="character" className="p-4">
       <h2 className="font-ik-title text-lg font-semibold tracking-wide">Character Stats</h2>
 
       <div className="mt-4 space-y-2">

@@ -4,16 +4,16 @@ import { EquipmentSlot } from "./equipment-slot";
 import { EQUIPMENT_SLOTS, type EquippedItems, type EquipmentSlotDefinition, type EquipmentSlotId } from "./types";
 
 const SLOT_LAYOUT: Record<EquipmentSlotId, string> = {
-  artifact: "col-start-2 row-start-1",
-  helmet: "col-start-3 row-start-1",
-  necklace: "col-start-4 row-start-1",
-  weapon: "col-start-1 row-start-2",
-  chest: "col-start-3 row-start-2",
-  offhand: "col-start-5 row-start-2",
-  gloves: "col-start-1 row-start-3",
-  belt: "col-start-3 row-start-3",
-  ring: "col-start-5 row-start-3",
-  boots: "col-start-3 row-start-4",
+  artifact: "left-[13%] top-[74%]",
+  helmet: "left-1/2 top-[2%] -translate-x-1/2",
+  necklace: "left-1/2 top-[20%] -translate-x-1/2",
+  weapon: "left-[3%] top-[33%]",
+  chest: "left-1/2 top-[38%] -translate-x-1/2",
+  offhand: "right-[3%] top-[33%]",
+  gloves: "left-[12%] top-[55%]",
+  belt: "left-1/2 top-[59%] -translate-x-1/2",
+  ring: "right-[13%] top-[74%]",
+  boots: "left-1/2 bottom-[2%] -translate-x-1/2",
 };
 
 function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
@@ -26,30 +26,30 @@ export function EquipmentDoll({ equippedItems }: { equippedItems: EquippedItems 
   const orderedSlotIds = Object.keys(SLOT_LAYOUT) as EquipmentSlotId[];
 
   return (
-    <GamePanel variant="ornate" className="min-h-[34rem] p-4">
+    <GamePanel variant="character" className="min-h-[34rem] p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-ik-title text-lg font-semibold tracking-wide">Equipment Doll</h2>
         <span className="font-ik-menu text-[11px] uppercase tracking-wide text-muted-foreground">Loadout preview</span>
       </div>
 
-      <div className="relative mt-6 grid min-h-[28rem] grid-cols-[4.5rem_1fr_6rem_1fr_4.5rem] grid-rows-[4.5rem_1fr_4.5rem_4.5rem] gap-3">
-        <div className="pointer-events-none absolute inset-x-[26%] bottom-20 top-16 rounded-full bg-cyan-300/5 blur-2xl" />
+      <div className="mt-4 grid min-h-[29rem] place-items-center">
+        <div className="relative h-[460px] w-[min(100%,380px)]">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[78%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/5 blur-2xl" />
 
-        <div className="col-start-2 col-end-5 row-start-2 row-end-4 grid place-items-center">
-          <div className="relative grid h-full min-h-72 w-full max-w-72 place-items-center rounded-full border border-amber-300/20 bg-black/20 shadow-[0_0_40px_rgba(56,189,248,0.08),inset_0_0_24px_rgba(201,166,84,0.06)]">
+          <div className="absolute left-1/2 top-1/2 grid h-[72%] w-[58%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-stone-500/25 bg-black/20 shadow-[0_0_28px_rgba(15,23,42,0.45),inset_0_0_24px_rgba(158,135,82,0.08)]">
             <img
-              alt="Silhouette de personnage dark fantasy"
-              className="h-[82%] w-[82%] object-contain drop-shadow-[0_0_18px_rgba(201,166,84,0.16)]"
+              alt="Roi dark fantasy"
+              className="h-[92%] w-[92%] object-contain drop-shadow-[0_0_16px_rgba(201,166,84,0.14)]"
               src="/assets/character/character-placeholder.svg"
             />
           </div>
-        </div>
 
-        {orderedSlotIds.map((slotId) => (
-          <div className={SLOT_LAYOUT[slotId]} key={slotId}>
-            <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
-          </div>
-        ))}
+          {orderedSlotIds.map((slotId) => (
+            <div className={`absolute h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem] ${SLOT_LAYOUT[slotId]}`} key={slotId}>
+              <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
+            </div>
+          ))}
+        </div>
       </div>
     </GamePanel>
   );

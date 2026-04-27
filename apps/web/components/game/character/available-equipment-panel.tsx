@@ -38,7 +38,7 @@ function EquipmentListItem({ item }: { item: Item }) {
 
 export function AvailableEquipmentPanel({ items }: { items: Item[] }) {
   return (
-    <GamePanel variant="ornate" className="p-4">
+    <GamePanel variant="character" className="p-4">
       <h2 className="font-ik-title text-lg font-semibold tracking-wide">Available Equipment</h2>
 
       {items.length === 0 ? (

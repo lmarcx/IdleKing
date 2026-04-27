@@ -11,7 +11,7 @@ export function EquipmentSlot({ item, slot }: { item?: Item; slot: EquipmentSlot
     <button
       aria-label={`${slot.label}: ${item ? item.name : "Aucun equipement"}`}
       className={cn(
-        "group relative grid aspect-square min-h-16 place-items-center rounded-lg border border-border/70 bg-black/25 p-2",
+        "group relative grid h-full w-full aspect-square min-h-16 place-items-center rounded-lg border border-border/70 bg-black/25 p-2",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
         "hover:border-amber-300/45 hover:bg-muted/30 focus-visible:border-amber-300/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35"
       )}
