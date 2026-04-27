@@ -26,7 +26,7 @@ export default function GameLayout({ children }: { children: React.ReactNode }) 
           <ProgressionPanel />
         </aside>
 
-        <GamePanel className="min-w-0 p-4">
+        <GamePanel variant="ornate" className="min-w-0 p-4">
           {children}
         </GamePanel>
 

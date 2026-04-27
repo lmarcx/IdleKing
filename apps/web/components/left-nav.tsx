@@ -20,7 +20,7 @@ export function LeftNav() {
   const pathname = usePathname();
 
   return (
-    <GamePanel className="p-3">
+    <GamePanel variant="ornate" className="p-3">
       <p className="font-ik-menu mb-3 text-xs uppercase tracking-wide text-muted-foreground">Navigation</p>
       <nav className="space-y-1">
         {navItems.map((item) => {
