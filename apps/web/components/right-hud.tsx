@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { type SyntheticEvent, useMemo } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getResourceAssetPath, RESOURCE_FALLBACK_ASSET } from "@/lib/resource-assets";
 import { useGameStore } from "@/store/game-store";
 import { ALL_RESOURCES, getQty, type ResourceStock } from "@idleking/game-core/resources/types.js";
 
@@ -11,6 +12,12 @@ function getOrderedResourceRows(resources: ResourceStock) {
     id,
     qty: getQty(resources, id),
   }));
+}
+
+function handleResourceIconError(event: SyntheticEvent<HTMLImageElement>) {
+  const image = event.currentTarget;
+  if (image.src.endsWith(RESOURCE_FALLBACK_ASSET)) return;
+  image.src = RESOURCE_FALLBACK_ASSET;
 }
 
 export function RightHud() {
@@ -58,8 +65,16 @@ export function RightHud() {
           <ul className="space-y-1">
             {orderedResources.map((resource) => (
               <li key={resource.id} className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">{resource.id}</span>
-                <span>{resource.qty}</span>
+                <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                  <img
+                    alt={`Icône ${resource.id}`}
+                    className="h-5 w-5 shrink-0 object-contain opacity-90 drop-shadow-[0_0_6px_rgba(201,166,84,0.18)]"
+                    onError={handleResourceIconError}
+                    src={getResourceAssetPath(resource.id)}
+                  />
+                  <span className="min-w-0 truncate">{resource.id}</span>
+                </span>
+                <span className="shrink-0 tabular-nums">{resource.qty}</span>
               </li>
             ))}
           </ul>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="52%">
+      <stop offset="0%" stop-color="#ff9a3d" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#b75a19" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="main" x1="32" y1="20" x2="96" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff9a3d"/>
+      <stop offset="1" stop-color="#b75a19"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.48"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#ff9a3d" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="55" fill="url(#glow)"/>
+  <g filter="url(#soft)" stroke="#15110b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M45 31c24 3 39 16 44 38-9 16-22 29-38 39-10-16-14-34-12-54z" fill="url(#main)"/><path d="M47 31c-6-9-15-13-27-12M54 30c-2-10 1-18 9-25M62 34c9-8 18-10 29-6" stroke="#72b866"/><path d="M52 60l22-6M50 78l26-7" stroke="#fff0b6" stroke-opacity=".25"/>
+  </g>
+</svg>
