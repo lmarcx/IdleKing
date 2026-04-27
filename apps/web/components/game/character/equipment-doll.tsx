@@ -3,18 +3,8 @@ import { GamePanel } from "@/components/ui/game-panel";
 import { EquipmentSlot } from "./equipment-slot";
 import { EQUIPMENT_SLOTS, type EquippedItems, type EquipmentSlotDefinition, type EquipmentSlotId } from "./types";
 
-const SLOT_LAYOUT: Record<EquipmentSlotId, string> = {
-  artifact: "left-[13%] top-[74%]",
-  helmet: "left-1/2 top-[2%] -translate-x-1/2",
-  necklace: "left-1/2 top-[20%] -translate-x-1/2",
-  weapon: "left-[3%] top-[33%]",
-  chest: "left-1/2 top-[38%] -translate-x-1/2",
-  offhand: "right-[3%] top-[33%]",
-  gloves: "left-[12%] top-[55%]",
-  belt: "left-1/2 top-[59%] -translate-x-1/2",
-  ring: "right-[13%] top-[74%]",
-  boots: "left-1/2 bottom-[2%] -translate-x-1/2",
-};
+const ARMOR_SLOT_IDS: EquipmentSlotId[] = ["helmet", "chest", "gloves", "belt", "boots"];
+const ACCESSORY_SLOT_IDS: EquipmentSlotId[] = ["weapon", "offhand", "necklace", "ring", "artifact"];
 
 function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
   const slot = EQUIPMENT_SLOTS.find((entry) => entry.id === slotId);
@@ -23,8 +13,6 @@ function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
 }
 
 export function EquipmentDoll({ equippedItems }: { equippedItems: EquippedItems }) {
-  const orderedSlotIds = Object.keys(SLOT_LAYOUT) as EquipmentSlotId[];
-
   return (
     <GamePanel variant="character" className="min-h-[34rem] p-4">
       <div className="flex items-center justify-between gap-3">
@@ -33,22 +21,30 @@ export function EquipmentDoll({ equippedItems }: { equippedItems: EquippedItems 
       </div>
 
       <div className="mt-4 grid min-h-[29rem] place-items-center">
-        <div className="relative h-[460px] w-[min(100%,380px)]">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[78%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/5 blur-2xl" />
+        <div className="grid w-full max-w-[420px] grid-cols-[3.25rem_minmax(0,1fr)_3.25rem] items-center gap-4 sm:grid-cols-[3.5rem_minmax(0,1fr)_3.5rem] sm:gap-6">
+          <div className="grid justify-items-center gap-3">
+            {ARMOR_SLOT_IDS.map((slotId) => (
+              <div className="h-12 w-12 sm:h-[52px] sm:w-[52px]" key={slotId}>
+                <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
+              </div>
+            ))}
+          </div>
 
-          <div className="absolute left-1/2 top-1/2 grid h-[72%] w-[58%] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-stone-500/25 bg-black/20 shadow-[0_0_28px_rgba(15,23,42,0.45),inset_0_0_24px_rgba(158,135,82,0.08)]">
+          <div className="grid min-h-[390px] place-items-center">
             <img
               alt="Roi dark fantasy"
-              className="h-[92%] w-[92%] object-contain drop-shadow-[0_0_16px_rgba(201,166,84,0.14)]"
+              className="h-[min(72vw,390px)] max-h-[390px] w-full max-w-[230px] object-contain drop-shadow-[0_0_14px_rgba(201,166,84,0.12)]"
               src="/assets/character/character-placeholder.svg"
             />
           </div>
 
-          {orderedSlotIds.map((slotId) => (
-            <div className={`absolute h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem] ${SLOT_LAYOUT[slotId]}`} key={slotId}>
-              <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
-            </div>
-          ))}
+          <div className="grid justify-items-center gap-3">
+            {ACCESSORY_SLOT_IDS.map((slotId) => (
+              <div className="h-12 w-12 sm:h-[52px] sm:w-[52px]" key={slotId}>
+                <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </GamePanel>

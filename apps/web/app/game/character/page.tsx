@@ -1,16 +1,17 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { AvailableEquipmentPanel } from "@/components/game/character/available-equipment-panel";
 import { CharacterStatsPanel } from "@/components/game/character/character-stats-panel";
 import { EquipmentDoll } from "@/components/game/character/equipment-doll";
-import type { CharacterStat, EquippedItems } from "@/components/game/character/types";
+import { FAKE_EQUIPMENT } from "@/components/game/character/fake-equipment";
+import type { CharacterEquipment, CharacterStat, EquippedItems } from "@/components/game/character/types";
 import { useGameStore } from "@/store/game-store";
 
 export default function CharacterPage() {
   const progression = useGameStore((s) => s.state.progression);
-  const availableEquipment = useGameStore((s) => s.state.inventory.items);
+  const [equippedItems, setEquippedItems] = useState<EquippedItems>({});
 
   const stats = useMemo<CharacterStat[]>(
     () => [
@@ -44,7 +45,12 @@ export default function CharacterPage() {
     [progression.playerLevel, progression.playerXp]
   );
 
-  const equippedItems = useMemo<EquippedItems>(() => ({}), []);
+  const handleEquip = useCallback((item: CharacterEquipment) => {
+    setEquippedItems((current) => ({
+      ...current,
+      [item.slot]: item,
+    }));
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -53,7 +59,7 @@ export default function CharacterPage() {
       <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
         <CharacterStatsPanel stats={stats} />
         <EquipmentDoll equippedItems={equippedItems} />
-        <AvailableEquipmentPanel items={availableEquipment} />
+        <AvailableEquipmentPanel items={FAKE_EQUIPMENT} onEquip={handleEquip} />
       </div>
     </div>
   );

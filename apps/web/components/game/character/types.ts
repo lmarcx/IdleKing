@@ -1,5 +1,3 @@
-import type { Item } from "@idleking/game-core/items";
-
 export type EquipmentSlotId =
   | "weapon"
   | "helmet"
@@ -19,7 +17,26 @@ export type CharacterStat = {
   value: number | string;
 };
 
-export type EquippedItems = Partial<Record<EquipmentSlotId, Item>>;
+export type CharacterEquipmentRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
+
+export type CharacterEquipmentStat = {
+  label: string;
+  value: number | string;
+};
+
+export type CharacterEquipment = {
+  description: string;
+  icon: string;
+  id: string;
+  itemLevel: number;
+  name: string;
+  rarity: CharacterEquipmentRarity;
+  slot: EquipmentSlotId;
+  stats: CharacterEquipmentStat[];
+  value: number;
+};
+
+export type EquippedItems = Partial<Record<EquipmentSlotId, CharacterEquipment>>;
 
 export type EquipmentSlotDefinition = {
   id: EquipmentSlotId;
@@ -43,26 +60,35 @@ export function getSlotIconPath(slotId: EquipmentSlotId) {
   return `/assets/equipment-slots/${slotId}.svg`;
 }
 
-export function getItemSlotId(item: Item): EquipmentSlotId {
-  switch (item.slot) {
-    case "WEAPON":
-      return "weapon";
-    case "ARMOR":
-      return "chest";
-    case "AMULET":
-      return "necklace";
-    case "RING":
-      return "ring";
+export function getEquipmentRarityClass(rarity?: CharacterEquipmentRarity) {
+  switch (rarity) {
+    case "legendary":
+      return "border-orange-300/70 shadow-[0_0_14px_rgba(251,146,60,0.16)]";
+    case "epic":
+      return "border-violet-300/65 shadow-[0_0_14px_rgba(196,181,253,0.13)]";
+    case "rare":
+      return "border-sky-300/65 shadow-[0_0_14px_rgba(125,211,252,0.12)]";
+    case "uncommon":
+      return "border-emerald-300/60 shadow-[0_0_14px_rgba(110,231,183,0.10)]";
+    case "common":
+      return "border-slate-300/45";
     default:
-      return "artifact";
+      return "border-border/70";
   }
 }
 
-export function formatItemStats(stats: Item["stats"]) {
-  if (!stats || Object.keys(stats).length === 0) return [];
-
-  return Object.entries(stats).map(([key, value]) => ({
-    label: key,
-    value,
-  }));
+export function getEquipmentRarityLabel(rarity: CharacterEquipmentRarity) {
+  switch (rarity) {
+    case "legendary":
+      return "Legendary";
+    case "epic":
+      return "Epic";
+    case "rare":
+      return "Rare";
+    case "uncommon":
+      return "Uncommon";
+    case "common":
+    default:
+      return "Common";
+  }
 }

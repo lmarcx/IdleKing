@@ -1,42 +1,103 @@
-import type { Item } from "@idleking/game-core/items";
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { GamePanel } from "@/components/ui/game-panel";
+import { cn } from "@/lib/utils";
 
-import { formatItemStats, getItemSlotId, getSlotIconPath } from "./types";
+import { EquipmentTooltip } from "./equipment-tooltip";
+import {
+  getEquipmentRarityClass,
+  getEquipmentRarityLabel,
+  type CharacterEquipment,
+} from "./types";
 
-function EquipmentListItem({ item }: { item: Item }) {
-  const stats = formatItemStats(item.stats);
-  const slotId = getItemSlotId(item);
+type ActiveEquipment = {
+  anchorRect: DOMRect;
+  item: CharacterEquipment;
+};
+
+function EquipmentGridItem({
+  item,
+  onClose,
+  onKeepOpen,
+  onOpen,
+}: {
+  item: CharacterEquipment;
+  onClose: () => void;
+  onKeepOpen: () => void;
+  onOpen: (item: CharacterEquipment, anchorRect: DOMRect) => void;
+}) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const open = useCallback(() => {
+    if (!buttonRef.current) return;
+    onOpen(item, buttonRef.current.getBoundingClientRect());
+  }, [item, onOpen]);
 
   return (
-    <li className="rounded-lg border border-border/60 bg-black/20 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:border-amber-300/35 hover:bg-muted/25">
-      <div className="flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border/60 bg-black/25">
-          <img alt="" aria-hidden="true" className="h-6 w-6 object-contain opacity-75" src={getSlotIconPath(slotId)} />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-ik-title text-sm font-semibold">{item.name}</div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-ik-body text-xs text-muted-foreground">
-            <span>{item.slot}</span>
-            <span>{item.rarity}</span>
-            <span className="tabular-nums">ilvl {item.ilvl}</span>
-          </div>
-          <div className="mt-2 font-ik-body text-xs text-muted-foreground">
-            {stats.length > 0
-              ? stats
-                  .slice(0, 3)
-                  .map((stat) => `${stat.label} ${stat.value}`)
-                  .join(" | ")
-              : "Stats a venir"}
-          </div>
-        </div>
-      </div>
-    </li>
+    <button
+      aria-label={`${item.name}, ${getEquipmentRarityLabel(item.rarity)}, ${item.slot}`}
+      className={cn(
+        "grid aspect-square place-items-center rounded-lg border bg-black/25 p-2",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
+        "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35",
+        getEquipmentRarityClass(item.rarity)
+      )}
+      onBlur={onClose}
+      onClick={open}
+      onFocus={open}
+      onMouseEnter={() => {
+        onKeepOpen();
+        open();
+      }}
+      onMouseLeave={onClose}
+      ref={buttonRef}
+      type="button"
+    >
+      <img alt="" aria-hidden="true" className="h-7 w-7 object-contain opacity-90" src={item.icon} />
+    </button>
   );
 }
 
-export function AvailableEquipmentPanel({ items }: { items: Item[] }) {
+export function AvailableEquipmentPanel({
+  items,
+  onEquip,
+}: {
+  items: CharacterEquipment[];
+  onEquip: (item: CharacterEquipment) => void;
+}) {
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeEquipment, setActiveEquipment] = useState<ActiveEquipment | null>(null);
+
+  const clearCloseTimer = useCallback(() => {
+    if (!closeTimerRef.current) return;
+    clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  }, []);
+
+  const closeTooltip = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setActiveEquipment(null);
+    }, 120);
+  }, [clearCloseTimer]);
+
+  const openTooltip = useCallback(
+    (item: CharacterEquipment, anchorRect: DOMRect) => {
+      clearCloseTimer();
+      setActiveEquipment({ anchorRect, item });
+    },
+    [clearCloseTimer]
+  );
+
+  useEffect(
+    () => () => {
+      clearCloseTimer();
+    },
+    [clearCloseTimer]
+  );
+
   return (
     <GamePanel variant="character" className="p-4">
       <h2 className="font-ik-title text-lg font-semibold tracking-wide">Available Equipment</h2>
@@ -46,12 +107,29 @@ export function AvailableEquipmentPanel({ items }: { items: Item[] }) {
           Aucun equipement disponible.
         </p>
       ) : (
-        <ul className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-2">
           {items.map((item) => (
-            <EquipmentListItem item={item} key={item.id} />
+            <EquipmentGridItem
+              item={item}
+              key={item.id}
+              onClose={closeTooltip}
+              onKeepOpen={clearCloseTimer}
+              onOpen={openTooltip}
+            />
           ))}
-        </ul>
+        </div>
       )}
+
+      <EquipmentTooltip
+        anchorRect={activeEquipment?.anchorRect ?? null}
+        equipment={activeEquipment?.item}
+        onEquip={(item) => {
+          onEquip(item);
+          setActiveEquipment(null);
+        }}
+        onMouseEnter={clearCloseTimer}
+        onMouseLeave={closeTooltip}
+      />
     </GamePanel>
   );
 }
