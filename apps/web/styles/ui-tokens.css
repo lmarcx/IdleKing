@@ -321,6 +321,73 @@
   gap: 18px;
 }
 
+.ik-game-background {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(3, 5, 8, 0.72), rgba(5, 6, 8, 0.86)),
+    url("/assets/ui/game-background.svg") center top / cover no-repeat,
+    hsl(var(--background));
+}
+
+.ik-game-background::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(52, 255, 210, 0.06), transparent 34%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.42), transparent 22%, transparent 78%, rgba(0, 0, 0, 0.42));
+  z-index: 0;
+}
+
+.ik-game-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(201, 166, 84, 0.22);
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.035) inset,
+    0 0 24px rgba(201, 166, 84, 0.045);
+}
+
+.ik-game-panel::before,
+.ik-game-panel::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ik-game-panel::before {
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(201, 166, 84, 0.34), transparent 16%, transparent 84%, rgba(76, 220, 215, 0.22)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 28%);
+  opacity: 0.38;
+  mask-image: linear-gradient(#000 0 0), linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+}
+
+.ik-game-panel::after {
+  width: 34px;
+  height: 34px;
+  top: 9px;
+  right: 9px;
+  border-top: 1px solid rgba(201, 166, 84, 0.42);
+  border-right: 1px solid rgba(76, 220, 215, 0.32);
+  box-shadow:
+    -100vw 0 0 -33px rgba(201, 166, 84, 0.38),
+    0 100vh 0 -33px rgba(201, 166, 84, 0.22),
+    -100vw 100vh 0 -33px rgba(76, 220, 215, 0.22);
+}
+
+.ik-game-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
 @media (min-width: 760px) {
   .ik-kingdom-building-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

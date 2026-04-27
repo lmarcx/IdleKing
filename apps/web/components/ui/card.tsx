@@ -1,12 +1,13 @@
 import * as React from "react";
 
+import { GamePanel } from "@/components/ui/game-panel";
 import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div
+    <GamePanel
       ref={ref}
-      className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
+      className={className}
       {...props}
     />
   )
