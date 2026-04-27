@@ -19,9 +19,11 @@ export type CharacterStat = {
 
 export type CharacterEquipmentRarity = "common" | "uncommon" | "rare" | "epic" | "legendary";
 
-export type CharacterEquipmentStat = {
-  label: string;
-  value: number | string;
+export type CharacterStats = {
+  atk: number;
+  def: number;
+  hp: number;
+  power: number;
 };
 
 export type CharacterEquipment = {
@@ -32,7 +34,7 @@ export type CharacterEquipment = {
   name: string;
   rarity: CharacterEquipmentRarity;
   slot: EquipmentSlotId;
-  stats: CharacterEquipmentStat[];
+  stats: Partial<CharacterStats>;
   value: number;
 };
 

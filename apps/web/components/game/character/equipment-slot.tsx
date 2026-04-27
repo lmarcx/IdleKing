@@ -5,10 +5,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { EquipmentTooltip } from "./equipment-tooltip";
-import { getEquipmentRarityClass, getSlotIconPath, type CharacterEquipment, type EquipmentSlotDefinition } from "./types";
+import {
+  getEquipmentRarityClass,
+  getSlotIconPath,
+  type CharacterEquipment,
+  type EquipmentSlotDefinition,
+  type EquipmentSlotId,
+} from "./types";
 
-export function EquipmentSlot({ item, slot }: { item?: CharacterEquipment; slot: EquipmentSlotDefinition }) {
+export function EquipmentSlot({
+  item,
+  onUnequip,
+  slot,
+}: {
+  item?: CharacterEquipment;
+  onUnequip: (slot: EquipmentSlotId) => void;
+  slot: EquipmentSlotDefinition;
+}) {
   const slotRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const icon = item?.icon ?? getSlotIconPath(slot.id);
 
@@ -16,6 +31,19 @@ export function EquipmentSlot({ item, slot }: { item?: CharacterEquipment; slot:
     if (!slotRef.current) return;
     setAnchorRect(slotRef.current.getBoundingClientRect());
   }, []);
+
+  const clearCloseTimer = useCallback(() => {
+    if (!closeTimerRef.current) return;
+    clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  }, []);
+
+  const closeTooltip = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = setTimeout(() => {
+      setAnchorRect(null);
+    }, 120);
+  }, [clearCloseTimer]);
 
   useEffect(() => {
     if (!anchorRect) return;
@@ -29,6 +57,13 @@ export function EquipmentSlot({ item, slot }: { item?: CharacterEquipment; slot:
     };
   }, [anchorRect, updateAnchorRect]);
 
+  useEffect(
+    () => () => {
+      clearCloseTimer();
+    },
+    [clearCloseTimer]
+  );
+
   return (
     <button
       ref={slotRef}
@@ -39,10 +74,13 @@ export function EquipmentSlot({ item, slot }: { item?: CharacterEquipment; slot:
         "hover:border-amber-300/45 hover:bg-muted/30 focus-visible:border-amber-300/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35",
         getEquipmentRarityClass(item?.rarity)
       )}
-      onBlur={() => setAnchorRect(null)}
+      onBlur={closeTooltip}
       onFocus={updateAnchorRect}
-      onMouseEnter={updateAnchorRect}
-      onMouseLeave={() => setAnchorRect(null)}
+      onMouseEnter={() => {
+        clearCloseTimer();
+        updateAnchorRect();
+      }}
+      onMouseLeave={closeTooltip}
       type="button"
     >
       <img
@@ -58,7 +96,18 @@ export function EquipmentSlot({ item, slot }: { item?: CharacterEquipment; slot:
         </span>
       ) : null}
 
-      <EquipmentTooltip anchorRect={anchorRect} equipment={item} slotLabel={slot.label} />
+      <EquipmentTooltip
+        actionLabel={item ? "Desequiper" : undefined}
+        anchorRect={anchorRect}
+        equipment={item}
+        onAction={() => {
+          onUnequip(slot.id);
+          setAnchorRect(null);
+        }}
+        onMouseEnter={clearCloseTimer}
+        onMouseLeave={closeTooltip}
+        slotLabel={slot.label}
+      />
     </button>
   );
 }

@@ -12,7 +12,13 @@ function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
   return slot;
 }
 
-export function EquipmentDoll({ equippedItems }: { equippedItems: EquippedItems }) {
+export function EquipmentDoll({
+  equippedItems,
+  onUnequip,
+}: {
+  equippedItems: EquippedItems;
+  onUnequip: (slot: EquipmentSlotId) => void;
+}) {
   return (
     <GamePanel variant="character" className="min-h-[34rem] p-4">
       <div className="flex items-center justify-between gap-3">
@@ -25,7 +31,7 @@ export function EquipmentDoll({ equippedItems }: { equippedItems: EquippedItems 
           <div className="grid justify-items-center gap-3">
             {ARMOR_SLOT_IDS.map((slotId) => (
               <div className="h-12 w-12 sm:h-[52px] sm:w-[52px]" key={slotId}>
-                <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
+                <EquipmentSlot item={equippedItems[slotId]} onUnequip={onUnequip} slot={getSlotDefinition(slotId)} />
               </div>
             ))}
           </div>
@@ -41,7 +47,7 @@ export function EquipmentDoll({ equippedItems }: { equippedItems: EquippedItems 
           <div className="grid justify-items-center gap-3">
             {ACCESSORY_SLOT_IDS.map((slotId) => (
               <div className="h-12 w-12 sm:h-[52px] sm:w-[52px]" key={slotId}>
-                <EquipmentSlot item={equippedItems[slotId]} slot={getSlotDefinition(slotId)} />
+                <EquipmentSlot item={equippedItems[slotId]} onUnequip={onUnequip} slot={getSlotDefinition(slotId)} />
               </div>
             ))}
           </div>

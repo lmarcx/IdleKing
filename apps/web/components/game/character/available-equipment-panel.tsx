@@ -10,6 +10,7 @@ import {
   getEquipmentRarityClass,
   getEquipmentRarityLabel,
   type CharacterEquipment,
+  type EquippedItems,
 } from "./types";
 
 type ActiveEquipment = {
@@ -18,11 +19,13 @@ type ActiveEquipment = {
 };
 
 function EquipmentGridItem({
+  isEquipped,
   item,
   onClose,
   onKeepOpen,
   onOpen,
 }: {
+  isEquipped: boolean;
   item: CharacterEquipment;
   onClose: () => void;
   onKeepOpen: () => void;
@@ -39,7 +42,7 @@ function EquipmentGridItem({
     <button
       aria-label={`${item.name}, ${getEquipmentRarityLabel(item.rarity)}, ${item.slot}`}
       className={cn(
-        "grid aspect-square place-items-center rounded-lg border bg-black/25 p-2",
+        "relative grid aspect-square place-items-center rounded-lg border bg-black/25 p-2",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
         "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35",
         getEquipmentRarityClass(item.rarity)
@@ -56,16 +59,25 @@ function EquipmentGridItem({
       type="button"
     >
       <img alt="" aria-hidden="true" className="h-7 w-7 object-contain opacity-90" src={item.icon} />
+      {isEquipped ? (
+        <span className="absolute right-1 top-1 rounded border border-emerald-300/35 bg-black/75 px-1 font-ik-menu text-[7px] leading-4 text-emerald-100">
+          Equipe
+        </span>
+      ) : null}
     </button>
   );
 }
 
 export function AvailableEquipmentPanel({
+  equippedItems,
   items,
   onEquip,
+  onUnequip,
 }: {
+  equippedItems: EquippedItems;
   items: CharacterEquipment[];
   onEquip: (item: CharacterEquipment) => void;
+  onUnequip: (slot: CharacterEquipment["slot"]) => void;
 }) {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeEquipment, setActiveEquipment] = useState<ActiveEquipment | null>(null);
@@ -110,6 +122,7 @@ export function AvailableEquipmentPanel({
         <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-2">
           {items.map((item) => (
             <EquipmentGridItem
+              isEquipped={equippedItems[item.slot]?.id === item.id}
               item={item}
               key={item.id}
               onClose={closeTooltip}
@@ -121,10 +134,19 @@ export function AvailableEquipmentPanel({
       )}
 
       <EquipmentTooltip
+        actionLabel={
+          activeEquipment && equippedItems[activeEquipment.item.slot]?.id === activeEquipment.item.id
+            ? "Desequiper"
+            : "Equiper"
+        }
         anchorRect={activeEquipment?.anchorRect ?? null}
         equipment={activeEquipment?.item}
-        onEquip={(item) => {
-          onEquip(item);
+        onAction={(item) => {
+          if (equippedItems[item.slot]?.id === item.id) {
+            onUnequip(item.slot);
+          } else {
+            onEquip(item);
+          }
           setActiveEquipment(null);
         }}
         onMouseEnter={clearCloseTimer}

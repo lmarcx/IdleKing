@@ -1,4 +1,4 @@
-import type { CharacterEquipment } from "./types";
+import type { CharacterEquipment, CharacterStats, EquippedItems } from "./types";
 
 export const FAKE_EQUIPMENT: CharacterEquipment[] = [
   {
@@ -9,10 +9,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Royal Guard Helm",
     rarity: "rare",
     slot: "helmet",
-    stats: [
-      { label: "HP", value: 42 },
-      { label: "DEF", value: 8 },
-    ],
+    stats: { def: 8, hp: 42 },
     value: 120,
   },
   {
@@ -23,10 +20,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Oathplate Cuirass",
     rarity: "epic",
     slot: "chest",
-    stats: [
-      { label: "HP", value: 68 },
-      { label: "DEF", value: 14 },
-    ],
+    stats: { def: 14, hp: 68 },
     value: 210,
   },
   {
@@ -37,10 +31,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Sentinel Grips",
     rarity: "uncommon",
     slot: "gloves",
-    stats: [
-      { label: "ATK", value: 5 },
-      { label: "DEF", value: 4 },
-    ],
+    stats: { atk: 5, def: 4 },
     value: 75,
   },
   {
@@ -51,10 +42,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Brassbound Belt",
     rarity: "common",
     slot: "belt",
-    stats: [
-      { label: "HP", value: 20 },
-      { label: "DEF", value: 3 },
-    ],
+    stats: { def: 3, hp: 20 },
     value: 48,
   },
   {
@@ -65,10 +53,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Nightmarch Boots",
     rarity: "rare",
     slot: "boots",
-    stats: [
-      { label: "SPD", value: 9 },
-      { label: "DEF", value: 5 },
-    ],
+    stats: { def: 5 },
     value: 110,
   },
   {
@@ -79,10 +64,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Crownblade",
     rarity: "legendary",
     slot: "weapon",
-    stats: [
-      { label: "ATK", value: 32 },
-      { label: "CRIT", value: "6%" },
-    ],
+    stats: { atk: 32 },
     value: 360,
   },
   {
@@ -93,10 +75,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Wardshield",
     rarity: "epic",
     slot: "offhand",
-    stats: [
-      { label: "DEF", value: 16 },
-      { label: "RES", value: 7 },
-    ],
+    stats: { def: 16 },
     value: 190,
   },
   {
@@ -107,10 +86,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Riftchain",
     rarity: "rare",
     slot: "necklace",
-    stats: [
-      { label: "POWER", value: 18 },
-      { label: "RES", value: 5 },
-    ],
+    stats: { power: 18 },
     value: 145,
   },
   {
@@ -121,10 +97,7 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Ashen Signet",
     rarity: "uncommon",
     slot: "ring",
-    stats: [
-      { label: "ATK", value: 7 },
-      { label: "HP", value: 18 },
-    ],
+    stats: { atk: 7, hp: 18 },
     value: 92,
   },
   {
@@ -135,10 +108,30 @@ export const FAKE_EQUIPMENT: CharacterEquipment[] = [
     name: "Star Reliquary",
     rarity: "legendary",
     slot: "artifact",
-    stats: [
-      { label: "POWER", value: 44 },
-      { label: "WXP", value: "3%" },
-    ],
+    stats: { power: 44 },
     value: 420,
   },
 ];
+
+export function calculateCharacterStats(equippedItems: EquippedItems): CharacterStats {
+  const totals = Object.values(equippedItems).reduce<CharacterStats>(
+    (acc, item) => {
+      if (!item) return acc;
+
+      return {
+        atk: acc.atk + (item.stats.atk ?? 0),
+        def: acc.def + (item.stats.def ?? 0),
+        hp: acc.hp + (item.stats.hp ?? 0),
+        power: acc.power + (item.stats.power ?? 0),
+      };
+    },
+    { atk: 0, def: 0, hp: 0, power: 0 }
+  );
+
+  if (totals.power > 0) return totals;
+
+  return {
+    ...totals,
+    power: Math.round(totals.atk * 2 + totals.def * 1.5 + totals.hp * 0.2),
+  };
+}

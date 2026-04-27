@@ -43,16 +43,18 @@ function getPosition(anchorRect: DOMRect, tooltipWidth: number, tooltipHeight: n
 }
 
 export function EquipmentTooltip({
+  actionLabel,
   anchorRect,
   equipment,
-  onEquip,
+  onAction,
   onMouseEnter,
   onMouseLeave,
   slotLabel,
 }: {
+  actionLabel?: string;
   anchorRect: DOMRect | null;
   equipment?: CharacterEquipment;
-  onEquip?: (equipment: CharacterEquipment) => void;
+  onAction?: (equipment: CharacterEquipment) => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   slotLabel?: string;
@@ -98,20 +100,21 @@ export function EquipmentTooltip({
         <>
           <p className="mt-3 font-ik-body text-xs leading-relaxed text-muted-foreground">{equipment.description}</p>
           <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-border/50 pt-2 font-ik-body text-xs">
-            {equipment.stats.map((stat) => (
-              <div className="contents" key={stat.label}>
-                <span className="text-muted-foreground">{stat.label}</span>
-                <span className="text-right tabular-nums">{stat.value}</span>
+            {Object.entries(equipment.stats).map(([label, value]) => (
+              <div className="contents" key={label}>
+                <span className="text-muted-foreground">{label.toUpperCase()}</span>
+                <span className="text-right tabular-nums">{value}</span>
               </div>
             ))}
           </div>
-          {onEquip ? (
+          {onAction && actionLabel ? (
             <button
               className="mt-3 w-full rounded-md border border-amber-300/35 bg-amber-300/10 px-3 py-2 font-ik-menu text-xs text-amber-100 transition-colors hover:border-amber-300/60 hover:bg-amber-300/16 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/50"
-              onClick={() => onEquip(equipment)}
+              onClick={() => onAction(equipment)}
+              onMouseDown={(event) => event.preventDefault()}
               type="button"
             >
-              Equiper
+              {actionLabel}
             </button>
           ) : null}
         </>
