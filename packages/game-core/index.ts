@@ -13,6 +13,6 @@ export {
   completeStoryLevel,
   getStoryLevelDef,
   getVisibleStoryChaptersWithLevels,
-} from "./story/levels";
+} from "./story/levels.js";
 export type { StoryState } from "./story/state.js";
 export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryLevelDef, UnlockId } from "./story/types.js";
