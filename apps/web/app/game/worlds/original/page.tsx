@@ -7,13 +7,13 @@ import { useGameStore } from "@/store/game-store";
 import {
   completeStoryLevel,
   getVisibleStoryChaptersWithLevels,
-} from "../../../../../../packages/game-core/story/levels";
-import type { StoryState } from "../../../../../../packages/game-core/story/state";
+} from "@idleking/game-core";
 import type {
   PublicStoryChapterWithLevels,
   PublicStoryLevel,
+  StoryState,
   UnlockId,
-} from "../../../../../../packages/game-core/story/types";
+} from "@idleking/game-core";
 
 type MaybeSerializedSet<T> = Set<T> | T[] | undefined;
 
