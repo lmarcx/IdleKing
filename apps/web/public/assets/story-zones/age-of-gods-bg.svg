@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" role="img" aria-label="Age of gods background">
+  <defs>
+    <radialGradient id="halo" cx="50%" cy="24%" r="50%">
+      <stop offset="0" stop-color="#ffe59c" stop-opacity=".5"/>
+      <stop offset=".42" stop-color="#8b6b29" stop-opacity=".26"/>
+      <stop offset="1" stop-color="#050506" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#0a0907"/>
+      <stop offset=".5" stop-color="#2a210f"/>
+      <stop offset="1" stop-color="#050504"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="520" fill="url(#sky)"/>
+  <rect width="960" height="520" fill="url(#halo)"/>
+  <path d="M482 36 522 146l116 37-116 38-40 116-40-116-116-38 116-37Z" fill="#ffe18e" opacity=".18"/>
+  <path d="M0 390 130 282l74 68 74-154 96 138 86-246 96 250 92-130 92 138 88-94 132 138v130H0Z" fill="#100d07"/>
+  <path d="M314 390h332v46H314zM350 300h260v90H350zM388 226h184v74H388zM426 162h108v64H426z" fill="#5d471c" opacity=".74"/>
+  <path d="M480 112 374 162h212Z" fill="#d0a64b" opacity=".62"/>
+  <g stroke="#ffe59b" stroke-opacity=".22" stroke-width="2">
+    <path d="M158 158h644"/>
+    <path d="M206 116h548"/>
+    <path d="M274 74h412"/>
+  </g>
+  <path d="M0 446c176-54 330-72 510-22 170 46 300 30 450-36v132H0Z" fill="#060504"/>
+</svg>

@@ -21,4 +21,7 @@
   <path d="m88 276 17-34 10 27 17-59 18 66 33-19 20 27Z" fill="#743516" opacity=".9"/>
   <path d="M135 52 116 86h38Z" fill="#e7a84e" opacity=".45"/>
   <path d="m135 46 6 18 18 6-18 6-6 18-6-18-18-6 18-6Z" fill="#ffc96b" opacity=".65"/>
+  <path d="M135 20 118 45h34Z" fill="#0b0705" stroke="#f0c26a" stroke-opacity=".7" stroke-width="2"/>
+  <path d="M36 318h198M55 334h160" stroke="#f0c26a" stroke-opacity=".32" stroke-width="2"/>
+  <path d="M31 118c24-62 70-84 104-84s80 22 104 84" fill="none" stroke="#fff0b8" stroke-opacity=".18" stroke-width="2"/>
 </svg>

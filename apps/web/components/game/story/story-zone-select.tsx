@@ -5,14 +5,20 @@ import { StoryZoneCard } from "./story-zone-card";
 
 type StoryZoneSelectProps = {
   chapters: PublicStoryChapterWithLevels[];
-  onOpenZone: (chapter: PublicStoryChapterWithLevels) => void;
+  onSelectZone: (chapterId: string) => void;
+  selectedChapterId: string | null;
 };
 
-export function StoryZoneSelect({ chapters, onOpenZone }: StoryZoneSelectProps) {
+export function StoryZoneSelect({ chapters, onSelectZone, selectedChapterId }: StoryZoneSelectProps) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-5 sm:grid-cols-2 2xl:grid-cols-4">
       {chapters.map((chapter) => (
-        <StoryZoneCard chapter={chapter} key={chapter.chapterId} onOpen={onOpenZone} />
+        <StoryZoneCard
+          chapter={chapter}
+          isSelected={chapter.chapterId === selectedChapterId}
+          key={chapter.chapterId}
+          onSelect={onSelectZone}
+        />
       ))}
     </div>
   );

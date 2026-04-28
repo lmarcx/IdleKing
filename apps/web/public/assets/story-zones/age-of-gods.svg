@@ -26,4 +26,7 @@
     <path d="M64 92h142"/>
     <path d="M80 67h110"/>
   </g>
+  <path d="M135 20 118 45h34Z" fill="#080704" stroke="#ffe79b" stroke-opacity=".72" stroke-width="2"/>
+  <path d="M36 318h198M55 334h160" stroke="#ffe79b" stroke-opacity=".3" stroke-width="2"/>
+  <path d="M31 118c24-62 70-84 104-84s80 22 104 84" fill="none" stroke="#ffe69b" stroke-opacity=".18" stroke-width="2"/>
 </svg>

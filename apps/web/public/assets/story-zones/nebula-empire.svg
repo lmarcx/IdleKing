@@ -27,4 +27,7 @@
     <circle cx="214" cy="143" r="1.4"/>
     <circle cx="52" cy="183" r="1"/>
   </g>
+  <path d="M135 20 118 45h34Z" fill="#08040f" stroke="#d5b7ff" stroke-opacity=".72" stroke-width="2"/>
+  <path d="M36 318h198M55 334h160" stroke="#d5b7ff" stroke-opacity=".3" stroke-width="2"/>
+  <path d="M31 118c24-62 70-84 104-84s80 22 104 84" fill="none" stroke="#f0dbff" stroke-opacity=".18" stroke-width="2"/>
 </svg>

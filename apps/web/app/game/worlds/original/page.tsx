@@ -2,18 +2,14 @@
 
 import { useMemo, useState } from "react";
 
-import { StoryZoneModal } from "@/components/game/story/story-zone-modal";
+import { StoryZoneDetailPanel } from "@/components/game/story/story-zone-detail-panel";
 import { StoryZoneSelect } from "@/components/game/story/story-zone-select";
 import { useGameStore } from "@/store/game-store";
 import {
   completeStoryLevel,
   getVisibleStoryChaptersWithLevels,
 } from "@idleking/game-core";
-import type {
-  PublicStoryChapterWithLevels,
-  StoryState,
-  UnlockId,
-} from "@idleking/game-core";
+import type { StoryState, UnlockId } from "@idleking/game-core";
 
 type MaybeSerializedSet<T> = Set<T> | T[] | undefined;
 
@@ -36,14 +32,14 @@ function normalizeStoryState(story: Partial<StoryState>): StoryState {
 export default function OriginalWorldPage() {
   const story = useGameStore((s) => s.state.story);
   const dispatch = useGameStore((s) => s.dispatch);
-  const [selectedChapter, setSelectedChapter] = useState<PublicStoryChapterWithLevels | null>(null);
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
 
   const normalizedStory = useMemo(() => normalizeStoryState(story), [story]);
   const chapters = useMemo(() => getVisibleStoryChaptersWithLevels(normalizedStory), [normalizedStory]);
 
-  const modalChapter = selectedChapter
-    ? chapters.find((chapter) => chapter.chapterId === selectedChapter.chapterId) ?? selectedChapter
-    : null;
+  const activeChapterId =
+    selectedChapterId ?? chapters.find((chapter) => chapter.status === "available")?.chapterId ?? chapters[0]?.chapterId ?? null;
+  const selectedChapter = activeChapterId ? chapters.find((chapter) => chapter.chapterId === activeChapterId) ?? null : null;
 
   function handleExplore(levelId: string) {
     dispatch((state) => ({
@@ -53,17 +49,18 @@ export default function OriginalWorldPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="ik-story-mode space-y-6">
       <div className="mx-auto max-w-3xl text-center">
-        <h1 className="font-ik-title text-4xl font-semibold tracking-wide text-amber-50">Story Mode</h1>
+        <h1 className="ik-story-title text-amber-50">Story Mode</h1>
         <p className="font-ik-body mt-3 text-sm leading-relaxed text-muted-foreground">
           Explorez les terres du royaume et progressez zone par zone.
         </p>
       </div>
 
-      <StoryZoneSelect chapters={chapters} onOpenZone={setSelectedChapter} />
-
-      <StoryZoneModal chapter={modalChapter} onClose={() => setSelectedChapter(null)} onExplore={handleExplore} />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)]">
+        <StoryZoneSelect chapters={chapters} onSelectZone={setSelectedChapterId} selectedChapterId={activeChapterId} />
+        <StoryZoneDetailPanel chapter={selectedChapter} onExplore={handleExplore} />
+      </div>
     </div>
   );
 }
