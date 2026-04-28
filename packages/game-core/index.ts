@@ -8,3 +8,4 @@ export * as expedition from "./expedition/index.js";
 export * as combat from "./combat/index.js";
 export * as building from "./building/index.js";
 export * as items from "./items/index.js";
+export * as story from "./story/index.js";

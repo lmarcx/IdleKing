@@ -53,6 +53,9 @@ export function createInitialGameState(): GameState {
     },
     story: {
       completedChapters: new Set(),
+      completedLevels: new Set(),
+      discoveredEvents: new Set(),
+      completedEvents: new Set(),
       unlocked: new Set(),
     },
     resources: {},
