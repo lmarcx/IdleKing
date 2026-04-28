@@ -1,14 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { StoryZoneDetailPanel } from "@/components/game/story/story-zone-detail-panel";
 import { StoryZoneSelect } from "@/components/game/story/story-zone-select";
 import { useGameStore } from "@/store/game-store";
-import {
-  completeStoryLevel,
-  getVisibleStoryChaptersWithLevels,
-} from "@idleking/game-core";
+import { getVisibleStoryChaptersWithLevels } from "@idleking/game-core";
 import type { StoryState, UnlockId } from "@idleking/game-core";
 
 type MaybeSerializedSet<T> = Set<T> | T[] | undefined;
@@ -30,8 +28,8 @@ function normalizeStoryState(story: Partial<StoryState>): StoryState {
 }
 
 export function StoryModeView() {
+  const router = useRouter();
   const story = useGameStore((s) => s.state.story);
-  const dispatch = useGameStore((s) => s.dispatch);
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
 
   const normalizedStory = useMemo(() => normalizeStoryState(story), [story]);
@@ -42,10 +40,7 @@ export function StoryModeView() {
   const selectedChapter = activeChapterId ? chapters.find((chapter) => chapter.chapterId === activeChapterId) ?? null : null;
 
   function handleExplore(levelId: string) {
-    dispatch((state) => ({
-      ...state,
-      story: completeStoryLevel(normalizeStoryState(state.story), levelId),
-    }));
+    router.push(`/game/story/levels/${levelId}`);
   }
 
   return (

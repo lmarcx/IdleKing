@@ -11,7 +11,8 @@ export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export {
   completeStoryLevel,
+  getStoryLevelDef,
   getVisibleStoryChaptersWithLevels,
-} from "./story/levels.js";
+} from "./story/levels";
 export type { StoryState } from "./story/state.js";
-export type { PublicStoryChapterWithLevels, PublicStoryLevel, UnlockId } from "./story/types.js";
+export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryLevelDef, UnlockId } from "./story/types.js";
