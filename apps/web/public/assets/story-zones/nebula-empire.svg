@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 270 360" role="img" aria-label="Nebula empire portal">
+  <defs>
+    <radialGradient id="nebula" cx="52%" cy="40%" r="72%">
+      <stop offset="0" stop-color="#7c3bd6"/>
+      <stop offset="0.42" stop-color="#21113f"/>
+      <stop offset="1" stop-color="#05050c"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" x2="1">
+      <stop offset="0" stop-color="#47315f"/>
+      <stop offset="0.5" stop-color="#d5b7ff"/>
+      <stop offset="1" stop-color="#47315f"/>
+    </linearGradient>
+  </defs>
+  <rect width="270" height="360" fill="#04040b"/>
+  <path d="M25 336V98C25 48 72 16 135 16s110 32 110 82v238Z" fill="url(#nebula)" stroke="url(#rim)" stroke-width="5"/>
+  <path d="M37 328V104c0-42 41-73 98-73s98 31 98 73v224Z" fill="none" stroke="#d8c1ff" stroke-opacity=".22" stroke-width="2"/>
+  <path d="M60 154c38-52 76-71 134-42-26-7-51 4-73 24 36-12 65-5 88 23-42-17-77-5-113 33 20-6 43-3 66 11-39-1-68 15-86 45 4-31 18-58 42-81-21 6-39 2-58-13Z" fill="#b57cff" opacity=".22"/>
+  <circle cx="142" cy="158" r="34" fill="#a35cff" opacity=".22"/>
+  <circle cx="142" cy="158" r="13" fill="#1b0d32"/>
+  <path d="M0 290h270v70H0Z" fill="#08070f"/>
+  <path d="m22 286 32-58 23 24 26-77 25 87 24-128 30 111 39-58 35 99Z" fill="#100d22"/>
+  <path d="m73 279 15-70 21 39 19-113 18 137 28-48 27 61Z" fill="#2b174b"/>
+  <g fill="#f0dbff" opacity=".65">
+    <circle cx="65" cy="84" r="1.2"/>
+    <circle cx="96" cy="57" r="1.6"/>
+    <circle cx="187" cy="76" r="1.1"/>
+    <circle cx="214" cy="143" r="1.4"/>
+    <circle cx="52" cy="183" r="1"/>
+  </g>
+</svg>

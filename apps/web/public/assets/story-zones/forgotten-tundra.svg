@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 270 360" role="img" aria-label="Forgotten tundra portal">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="28%" r="76%">
+      <stop offset="0" stop-color="#8fc7df"/>
+      <stop offset="0.4" stop-color="#25445b"/>
+      <stop offset="1" stop-color="#060910"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" x2="1">
+      <stop offset="0" stop-color="#324859"/>
+      <stop offset="0.5" stop-color="#c7e7f3"/>
+      <stop offset="1" stop-color="#324859"/>
+    </linearGradient>
+  </defs>
+  <rect width="270" height="360" fill="#050711"/>
+  <path d="M25 336V98C25 48 72 16 135 16s110 32 110 82v238Z" fill="url(#sky)" stroke="url(#rim)" stroke-width="5"/>
+  <path d="M37 328V104c0-42 41-73 98-73s98 31 98 73v224Z" fill="none" stroke="#c9f2ff" stroke-opacity=".24" stroke-width="2"/>
+  <circle cx="137" cy="76" r="37" fill="#e9fbff" opacity=".2"/>
+  <path d="M0 290h270v70H0Z" fill="#071019"/>
+  <path d="m8 286 45-68 19 32 32-73 25 68 44-108 34 96 54 53Z" fill="#0b1b28"/>
+  <path d="m46 281 31-48 20 36 39-109 27 96 23-45 38 73Z" fill="#17324a"/>
+  <path d="m93 278 19-42 18 31 20-73 22 80 31-28 25 39Z" fill="#d8f6ff" opacity=".34"/>
+  <g fill="#e7fbff" opacity=".58">
+    <circle cx="62" cy="92" r="1.5"/>
+    <circle cx="91" cy="54" r="1.2"/>
+    <circle cx="188" cy="88" r="1.4"/>
+    <circle cx="207" cy="132" r="1"/>
+    <circle cx="48" cy="153" r="1"/>
+  </g>
+</svg>
