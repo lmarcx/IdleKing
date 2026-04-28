@@ -8,6 +8,9 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
     ...state,
     story: {
       completedChapters: new Set(state.story.completedChapters),
+      completedLevels: new Set(state.story.completedLevels),
+      discoveredEvents: new Set(state.story.discoveredEvents),
+      completedEvents: new Set(state.story.completedEvents),
       unlocked: new Set(state.story.unlocked),
     },
     buildings: {
