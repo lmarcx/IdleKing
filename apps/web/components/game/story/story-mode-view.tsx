@@ -49,7 +49,7 @@ export function StoryModeView() {
   }
 
   return (
-    <div className="ik-story-mode space-y-5">
+    <div className="ik-story-mode space-y-4">
       <div className="mx-auto max-w-3xl text-center">
         <h1 className="ik-story-title text-amber-50">Story Mode</h1>
         <p className="font-ik-body mt-3 text-sm leading-relaxed text-muted-foreground">
@@ -57,7 +57,7 @@ export function StoryModeView() {
         </p>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.2fr)]">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(300px,0.74fr)_minmax(520px,1.26fr)]">
         <StoryZoneSelect chapters={chapters} onSelectZone={setSelectedChapterId} selectedChapterId={activeChapterId} />
         <StoryZoneDetailPanel chapter={selectedChapter} onExplore={handleExplore} />
       </div>

@@ -11,8 +11,8 @@ type StoryZoneSelectProps = {
 
 export function StoryZoneSelect({ chapters, onSelectZone, selectedChapterId }: StoryZoneSelectProps) {
   return (
-    <div className="flex min-h-[34rem] items-center justify-center">
-      <div className="grid w-full max-w-[34rem] grid-cols-2 gap-4">
+    <div className="flex items-start justify-center">
+      <div className="grid w-full max-w-[27rem] grid-cols-2 gap-3">
         {chapters.map((chapter) => (
           <StoryZoneCard
             chapter={chapter}
