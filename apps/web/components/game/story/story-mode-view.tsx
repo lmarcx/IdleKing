@@ -57,7 +57,7 @@ export function StoryModeView() {
         </p>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(330px,0.9fr)_minmax(400px,1.1fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(360px,0.9fr)_minmax(520px,1.2fr)]">
         <StoryZoneSelect chapters={chapters} onSelectZone={setSelectedChapterId} selectedChapterId={activeChapterId} />
         <StoryZoneDetailPanel chapter={selectedChapter} onExplore={handleExplore} />
       </div>

@@ -11,15 +11,17 @@ type StoryZoneSelectProps = {
 
 export function StoryZoneSelect({ chapters, onSelectZone, selectedChapterId }: StoryZoneSelectProps) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2 2xl:grid-cols-4">
-      {chapters.map((chapter) => (
-        <StoryZoneCard
-          chapter={chapter}
-          isSelected={chapter.chapterId === selectedChapterId}
-          key={chapter.chapterId}
-          onSelect={onSelectZone}
-        />
-      ))}
+    <div className="flex min-h-[34rem] items-center justify-center">
+      <div className="grid w-full max-w-[34rem] grid-cols-2 gap-4">
+        {chapters.map((chapter) => (
+          <StoryZoneCard
+            chapter={chapter}
+            isSelected={chapter.chapterId === selectedChapterId}
+            key={chapter.chapterId}
+            onSelect={onSelectZone}
+          />
+        ))}
+      </div>
     </div>
   );
 }
