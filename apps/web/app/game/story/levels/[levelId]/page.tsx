@@ -32,7 +32,11 @@ export default async function StoryLevelPage({ params }: StoryLevelPageProps) {
     );
   }
 
-  const { events: _events, ...publicLevel } = level;
+  const { events, ...publicLevel } = level;
+  const explorerLevel = {
+    ...publicLevel,
+    events: events.map(({ id, type }) => ({ id, type })),
+  };
 
-  return <StoryLevelExplorer level={publicLevel} />;
+  return <StoryLevelExplorer level={explorerLevel} />;
 }

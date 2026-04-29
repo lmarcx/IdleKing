@@ -7,10 +7,18 @@ type PixiExplorationStageProps = {
   mapHeight: number;
   mapWidth: number;
   onPlayerMove: (position: { x: number; y: number }) => void;
+  pointsOfInterest: ExplorationStagePoi[];
 };
 
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
+
+export type ExplorationStagePoi = {
+  color: number;
+  id: string;
+  x: number;
+  y: number;
+};
 
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   ArrowDown: { x: 0, y: 1 },
@@ -29,7 +37,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function drawWorld(container: PIXI.Container, mapWidth: number, mapHeight: number) {
+function drawWorld(container: PIXI.Container, mapWidth: number, mapHeight: number, pointsOfInterest: ExplorationStagePoi[]) {
   const background = new PIXI.Graphics();
   background.rect(0, 0, mapWidth, mapHeight).fill(0x07090d);
 
@@ -50,14 +58,7 @@ function drawWorld(container: PIXI.Container, mapWidth: number, mapHeight: numbe
 
   container.addChild(background);
 
-  const points = [
-    { x: 420, y: 360, color: 0xc9a654 },
-    { x: 1180, y: 520, color: 0x2fd8c8 },
-    { x: 1840, y: 980, color: 0x8a5cff },
-    { x: 720, y: 1260, color: 0xc9a654 },
-  ];
-
-  for (const point of points) {
+  for (const point of pointsOfInterest) {
     const marker = new PIXI.Graphics();
     marker.circle(0, 0, 34).fill({ color: point.color, alpha: 0.14 });
     marker.circle(0, 0, 10).fill({ color: point.color, alpha: 0.72 });
@@ -82,7 +83,7 @@ function drawPlayer() {
   return player;
 }
 
-export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove }: PixiExplorationStageProps) {
+export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onPlayerMoveRef = useRef(onPlayerMove);
 
@@ -91,8 +92,9 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove }: Pixi
   }, [onPlayerMove]);
 
   useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return;
+    const nullableHostElement = hostRef.current;
+    if (!nullableHostElement) return;
+    const hostElement: HTMLDivElement = nullableHostElement;
 
     let cancelled = false;
     let initialized = false;
@@ -122,7 +124,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove }: Pixi
         antialias: true,
         autoDensity: true,
         backgroundAlpha: 0,
-        resizeTo: host,
+        resizeTo: hostElement,
         resolution: Math.min(window.devicePixelRatio || 1, 2),
       });
       initialized = true;
@@ -132,9 +134,9 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove }: Pixi
         return;
       }
 
-      host.appendChild(app.canvas);
+      hostElement.appendChild(app.canvas);
       app.stage.addChild(world);
-      drawWorld(world, mapWidth, mapHeight);
+      drawWorld(world, mapWidth, mapHeight, pointsOfInterest);
       world.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
       onPlayerMoveRef.current(playerPosition);
@@ -192,7 +194,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove }: Pixi
       pressedKeys.clear();
       if (initialized) app.destroy(true);
     };
-  }, [mapHeight, mapWidth]);
+  }, [mapHeight, mapWidth, pointsOfInterest]);
 
   return <div ref={hostRef} className="h-full w-full" />;
 }
