@@ -48,6 +48,8 @@ type ActiveProjectile = {
   speed: number;
 };
 
+type ActiveMouseAction = "melee" | "ranged" | null;
+
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   ArrowDown: { x: 0, y: 1 },
   ArrowLeft: { x: -1, y: 0 },
@@ -145,6 +147,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       y: mapHeight / 2,
     };
     const mouseInput = {
+      activeMouseAction: null as ActiveMouseAction,
       isMeleeHeld: false,
       isRangedHeld: false,
       pointerWorldPosition: { ...playerPosition },
@@ -193,12 +196,32 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     }
 
     function syncHeldMouseButtons(buttons: number) {
-      mouseInput.isMeleeHeld = (buttons & 1) !== 0;
-      mouseInput.isRangedHeld = (buttons & 2) !== 0;
+      if (mouseInput.activeMouseAction === "melee") {
+        mouseInput.isMeleeHeld = (buttons & 1) !== 0;
+        mouseInput.isRangedHeld = false;
+        if (!mouseInput.isMeleeHeld) {
+          mouseInput.activeMouseAction = null;
+        }
+        return;
+      }
+
+      if (mouseInput.activeMouseAction === "ranged") {
+        mouseInput.isRangedHeld = (buttons & 2) !== 0;
+        mouseInput.isMeleeHeld = false;
+        if (!mouseInput.isRangedHeld) {
+          mouseInput.activeMouseAction = null;
+        }
+        return;
+      }
+
+      mouseInput.isMeleeHeld = false;
+      mouseInput.isRangedHeld = false;
     }
 
     function resetHeldMouseButtons() {
-      syncHeldMouseButtons(0);
+      mouseInput.activeMouseAction = null;
+      mouseInput.isMeleeHeld = false;
+      mouseInput.isRangedHeld = false;
     }
 
     function createMeleeAttack(now: number) {
@@ -260,6 +283,15 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       event.preventDefault();
       canvasElement?.setPointerCapture(event.pointerId);
       updatePointerWorldPosition(event);
+
+      if (mouseInput.activeMouseAction === null) {
+        if (event.button === 0) {
+          mouseInput.activeMouseAction = "melee";
+        } else if (event.button === 2) {
+          mouseInput.activeMouseAction = "ranged";
+        }
+      }
+
       syncHeldMouseButtons(event.buttons);
     }
 
@@ -298,18 +330,22 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     }
 
     function updateAttacks(deltaMs: number, now: number) {
-      if (hasPointerWorldPosition && (mouseInput.isMeleeHeld || mouseInput.isRangedHeld)) {
+      const hasHeldActiveAction =
+        (mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) ||
+        (mouseInput.activeMouseAction === "ranged" && mouseInput.isRangedHeld);
+
+      if (hasPointerWorldPosition && hasHeldActiveAction) {
         updatePlayerFacing({
           x: mouseInput.pointerWorldPosition.x - playerPosition.x,
           y: mouseInput.pointerWorldPosition.y - playerPosition.y,
         });
       }
 
-      if (mouseInput.isMeleeHeld) {
+      if (mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) {
         createMeleeAttack(now);
       }
 
-      if (mouseInput.isRangedHeld) {
+      if (mouseInput.activeMouseAction === "ranged" && mouseInput.isRangedHeld) {
         createRangedAttack(now);
       }
 
