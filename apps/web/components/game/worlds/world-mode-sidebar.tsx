@@ -28,7 +28,7 @@ const WORLD_MODES: WorldMode[] = [
     icon: "/assets/worlds/duel.svg",
     id: "duel",
     label: "Duel",
-    status: "Bientot disponible",
+    status: "Disponible",
   },
 ];
 
@@ -42,7 +42,7 @@ export function WorldModeSidebar({ activeMode, onChangeMode }: WorldModeSidebarP
     <nav aria-label="Modes de monde" className="grid gap-2">
       {WORLD_MODES.map((mode) => {
         const isActive = mode.id === activeMode;
-        const isUnavailable = mode.id !== "story";
+        const isUnavailable = mode.id === "expeditions";
 
         return (
           <button

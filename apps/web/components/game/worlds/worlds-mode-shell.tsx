@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { DuelModeView } from "@/components/game/duel/duel-mode-view";
 import { StoryModeView } from "@/components/game/story/story-mode-view";
 import { WorldModeSidebar, type WorldModeId } from "./world-mode-sidebar";
 
@@ -19,8 +20,13 @@ function ComingSoonPanel({ title }: { title: string }) {
   );
 }
 
-export function WorldsModeShell() {
-  const [activeMode, setActiveMode] = useState<WorldModeId>("story");
+type WorldsModeShellProps = {
+  initialMode?: WorldModeId;
+  initialOpponentId?: string | null;
+};
+
+export function WorldsModeShell({ initialMode = "story", initialOpponentId = null }: WorldsModeShellProps) {
+  const [activeMode, setActiveMode] = useState<WorldModeId>(initialMode);
 
   return (
     <div className="grid min-h-[calc(100vh-4rem)] gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
@@ -31,7 +37,7 @@ export function WorldsModeShell() {
       <div className="min-w-0">
         {activeMode === "story" ? <StoryModeView /> : null}
         {activeMode === "expeditions" ? <ComingSoonPanel title="Expeditions" /> : null}
-        {activeMode === "duel" ? <ComingSoonPanel title="Duel" /> : null}
+        {activeMode === "duel" ? <DuelModeView initialOpponentId={initialOpponentId} /> : null}
       </div>
     </div>
   );
