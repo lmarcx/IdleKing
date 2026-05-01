@@ -1,4 +1,4 @@
-import { CHAPTERS } from "./chapters";
+import { CHAPTERS } from "./chapters.js";
 import type {
   ChapterDef,
   ChapterId,
@@ -6,8 +6,8 @@ import type {
   StoryLevelDef,
   StoryLevelStatus,
   UnlockId,
-} from "./types";
-import type { StoryState } from "./state";
+} from "./types.js";
+import type { StoryState } from "./state.js";
 
 function chapterUnlockId(chapterId: string | number): UnlockId {
   return `CHAPTER_${chapterId}` as UnlockId;
@@ -231,5 +231,5 @@ export function getVisibleStoryChaptersWithLevels(state: StoryState): PublicStor
       status: getChapterStatus(state, chapter),
       title: chapter.title,
     };
-  }).filter((chapter) => chapter.status !== "locked" || chapter.levels.some((level) => level.status !== "locked"));
+  }).filter((chapter) => chapter.levels.length > 0);
 }

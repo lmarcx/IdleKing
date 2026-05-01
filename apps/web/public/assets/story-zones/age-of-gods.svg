@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 270 360" role="img" aria-label="Age of gods portal">
+  <defs>
+    <radialGradient id="light" cx="50%" cy="30%" r="74%">
+      <stop offset="0" stop-color="#f0d58f"/>
+      <stop offset="0.34" stop-color="#5d4a25"/>
+      <stop offset="1" stop-color="#060608"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" x2="1">
+      <stop offset="0" stop-color="#504527"/>
+      <stop offset="0.5" stop-color="#ffe79b"/>
+      <stop offset="1" stop-color="#504527"/>
+    </linearGradient>
+  </defs>
+  <rect width="270" height="360" fill="#050507"/>
+  <path d="M25 336V98C25 48 72 16 135 16s110 32 110 82v238Z" fill="url(#light)" stroke="url(#rim)" stroke-width="5"/>
+  <path d="M37 328V104c0-42 41-73 98-73s98 31 98 73v224Z" fill="none" stroke="#ffe8a3" stroke-opacity=".24" stroke-width="2"/>
+  <path d="M135 55 95 156h80Z" fill="#ffe39a" opacity=".16"/>
+  <path d="M135 43 146 76l34 11-34 11-11 34-11-34-34-11 34-11Z" fill="#ffe08a" opacity=".42"/>
+  <path d="M0 290h270v70H0Z" fill="#080704"/>
+  <path d="m25 286 42-65 20 38 32-112 21 93 36-137 30 132 40 51Z" fill="#171107"/>
+  <path d="m71 282 19-72 21 52 26-151 23 156 25-50 25 68Z" fill="#35280e"/>
+  <path d="M94 269h82v17H94zM105 211h60v58h-60zM117 164h36v47h-36z" fill="#8a6c2a" opacity=".58"/>
+  <path d="M135 136 108 164h54Z" fill="#e1b759" opacity=".68"/>
+  <g stroke="#ffe69b" stroke-opacity=".24" stroke-width="2">
+    <path d="M44 118h182"/>
+    <path d="M64 92h142"/>
+    <path d="M80 67h110"/>
+  </g>
+  <path d="M135 20 118 45h34Z" fill="#080704" stroke="#ffe79b" stroke-opacity=".72" stroke-width="2"/>
+  <path d="M36 318h198M55 334h160" stroke="#ffe79b" stroke-opacity=".3" stroke-width="2"/>
+  <path d="M31 118c24-62 70-84 104-84s80 22 104 84" fill="none" stroke="#ffe69b" stroke-opacity=".18" stroke-width="2"/>
+</svg>

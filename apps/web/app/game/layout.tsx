@@ -20,13 +20,13 @@ export default function GameLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="ik-game-background min-h-screen">
-      <main className="relative z-10 mx-auto grid min-h-screen w-full max-w-[1600px] grid-cols-1 items-start gap-4 p-4 lg:grid-cols-[240px_minmax(0,1fr)_320px]">
-        <aside className="space-y-3">
+      <main className="relative z-10 grid min-h-screen w-full grid-cols-1 items-start gap-3 p-2 sm:p-3 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+        <aside className="min-w-0 space-y-3">
           <LeftNav />
           <ProgressionPanel />
         </aside>
 
-        <GamePanel variant="ornate" className="min-w-0 p-4">
+        <GamePanel variant="ornate" className="min-h-[calc(100vh-1rem)] min-w-0 p-3 sm:min-h-[calc(100vh-1.5rem)]">
           {children}
         </GamePanel>
 

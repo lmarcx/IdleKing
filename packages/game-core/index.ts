@@ -10,8 +10,13 @@ export * as building from "./building/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export {
+  STORY_LEVEL_PLACEHOLDER_REWARDS,
+  completeStoryLevelAction,
+} from "./game/storyLevelActions.js";
+export {
   completeStoryLevel,
+  getStoryLevelDef,
   getVisibleStoryChaptersWithLevels,
 } from "./story/levels.js";
 export type { StoryState } from "./story/state.js";
-export type { PublicStoryChapterWithLevels, PublicStoryLevel, UnlockId } from "./story/types.js";
+export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";

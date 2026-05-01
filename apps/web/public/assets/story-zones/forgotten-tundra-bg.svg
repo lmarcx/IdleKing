@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" role="img" aria-label="Forgotten tundra background">
+  <defs>
+    <radialGradient id="moon" cx="42%" cy="28%" r="42%">
+      <stop offset="0" stop-color="#dff7ff" stop-opacity=".48"/>
+      <stop offset=".44" stop-color="#5f9fbd" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#02050b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#07101a"/>
+      <stop offset=".55" stop-color="#183044"/>
+      <stop offset="1" stop-color="#03070d"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="520" fill="url(#sky)"/>
+  <rect width="960" height="520" fill="url(#moon)"/>
+  <path d="M0 374 102 240l64 82 102-174 88 156 108-238 94 264 88-138 84 120 84-166 146 230v144H0Z" fill="#07111b"/>
+  <path d="M28 392 118 286l66 70 112-128 70 92 92-154 96 162 70-74 108 112 92-88 136 118v124H28Z" fill="#10263a"/>
+  <path d="M0 430c190-44 332-62 516-20 164 38 276 28 444-30v140H0Z" fill="#05101a"/>
+  <path d="M116 323 164 258l32 56 68-104 70 120 68-120 68 138 72-118 80 128" fill="none" stroke="#d8f7ff" stroke-opacity=".26" stroke-width="3"/>
+  <g fill="#e7fbff" opacity=".7">
+    <circle cx="96" cy="78" r="1"/>
+    <circle cx="232" cy="106" r="1.4"/>
+    <circle cx="680" cy="92" r="1.3"/>
+    <circle cx="812" cy="154" r="1"/>
+    <circle cx="504" cy="54" r="1.2"/>
+  </g>
+</svg>

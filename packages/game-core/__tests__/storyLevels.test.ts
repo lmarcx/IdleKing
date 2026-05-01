@@ -8,6 +8,8 @@ import {
   getVisibleStoryChaptersWithLevels,
   isStoryLevelAvailable,
 } from "../story/levels.js";
+import { completeStoryLevelAction } from "../game/storyLevelActions.js";
+import { createInitialGameState } from "../game/state.js";
 import type { StoryState } from "../story/state.js";
 import type { UnlockId } from "../story/types.js";
 
@@ -57,4 +59,20 @@ test("visible story chapter levels do not expose internal events", () => {
   assert.ok(chapter2);
   assert.ok(chapter2.levels.length > 0);
   assert.equal("events" in chapter2.levels[0], false);
+});
+
+test("completeStoryLevelAction marks the level complete and grants placeholder resources once", () => {
+  const state = createInitialGameState();
+
+  const first = completeStoryLevelAction(state, "ch01-lv01");
+  assert.equal(first.completed, true);
+  assert.equal(first.next.story.completedLevels.has("ch01-lv01"), true);
+  assert.equal(first.next.resources.XP_GLOBAL, 100);
+  assert.equal(first.next.resources.STONE, 20);
+  assert.equal(first.next.resources.WOOD, 20);
+  assert.equal(getStoryLevelStatus(first.next.story, "ch01-lv02"), "available");
+
+  const second = completeStoryLevelAction(first.next, "ch01-lv01");
+  assert.equal(second.completed, false);
+  assert.equal(second.next.resources.XP_GLOBAL, 100);
 });
