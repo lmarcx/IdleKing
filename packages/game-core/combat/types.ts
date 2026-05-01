@@ -14,10 +14,10 @@ export type StaminaState = {
   regenPerSec: number;
 };
 
-export type SkillId = "STRIKE" | "VOID_SPIKE" | "GUARD_BREAK";
+export type LegacyCombatSkillId = "STRIKE" | "VOID_SPIKE" | "GUARD_BREAK";
 
-export type SkillDef = {
-  id: SkillId;
+export type LegacyCombatSkillDef = {
+  id: LegacyCombatSkillId;
   name: string;
 
   element?: Element;
@@ -30,7 +30,7 @@ export type SkillDef = {
   pierceBonus?: number;
 };
 
-export type SkillCooldowns = Partial<Record<SkillId, number>>;
+export type SkillCooldowns = Partial<Record<LegacyCombatSkillId, number>>;
 
 export type BossPhase = {
   id: number;
@@ -59,12 +59,12 @@ export type BossDef = {
 
 export type CombatTickInput = {
   dt: number;
-  useSkill?: SkillId | null;
+  useSkill?: LegacyCombatSkillId | null;
 };
 
 export type CombatLogEvent =
   | { t: number; type: "HIT"; source: "PLAYER" | "BOSS"; amount: number; crit: boolean; element?: Element }
-  | { t: number; type: "SKILL"; id: SkillId; ok: boolean; reason?: "COOLDOWN" | "STAMINA" }
+  | { t: number; type: "SKILL"; id: LegacyCombatSkillId; ok: boolean; reason?: "COOLDOWN" | "STAMINA" }
   | { t: number; type: "PHASE"; phaseId: number }
   | { t: number; type: "TIME_UP" };
 

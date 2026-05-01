@@ -1,6 +1,6 @@
-import type { SkillDef } from "./types.js";
+import type { LegacyCombatSkillDef } from "./types.js";
 
-export const SKILLS: Record<string, SkillDef> = {
+export const SKILLS: Record<string, LegacyCombatSkillDef> = {
   STRIKE: {
     id: "STRIKE",
     name: "Frappe Royale",
