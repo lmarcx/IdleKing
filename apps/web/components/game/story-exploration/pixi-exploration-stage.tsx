@@ -192,6 +192,15 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       });
     }
 
+    function syncHeldMouseButtons(buttons: number) {
+      mouseInput.isMeleeHeld = (buttons & 1) !== 0;
+      mouseInput.isRangedHeld = (buttons & 2) !== 0;
+    }
+
+    function resetHeldMouseButtons() {
+      syncHeldMouseButtons(0);
+    }
+
     function createMeleeAttack(now: number) {
       if (now - lastMeleeAttackAt < MELEE_ATTACK_COOLDOWN_MS) return;
       lastMeleeAttackAt = now;
@@ -243,20 +252,15 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
 
     function handlePointerMove(event: PointerEvent) {
       updatePointerWorldPosition(event);
+      syncHeldMouseButtons(event.buttons);
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (event.button !== 0 && event.button !== 2) return;
+      if ((event.buttons & 3) === 0) return;
       event.preventDefault();
       canvasElement?.setPointerCapture(event.pointerId);
       updatePointerWorldPosition(event);
-
-      if (event.button === 0) {
-        mouseInput.isMeleeHeld = true;
-        return;
-      }
-
-      mouseInput.isRangedHeld = true;
+      syncHeldMouseButtons(event.buttons);
     }
 
     function handlePointerUp(event: PointerEvent) {
@@ -264,27 +268,28 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
         canvasElement.releasePointerCapture(event.pointerId);
       }
 
-      if (event.button === 0) {
-        mouseInput.isMeleeHeld = false;
-      }
+      syncHeldMouseButtons(event.buttons);
+    }
 
-      if (event.button === 2) {
-        mouseInput.isRangedHeld = false;
-      }
+    function handlePointerLeave(event: PointerEvent) {
+      syncHeldMouseButtons(event.buttons);
     }
 
     function handlePointerCancel() {
-      mouseInput.isMeleeHeld = false;
-      mouseInput.isRangedHeld = false;
+      resetHeldMouseButtons();
+    }
+
+    function handleWindowMouseUp(event: MouseEvent) {
+      syncHeldMouseButtons(event.buttons);
     }
 
     function handleWindowBlur() {
-      mouseInput.isMeleeHeld = false;
-      mouseInput.isRangedHeld = false;
+      resetHeldMouseButtons();
     }
 
     function handleContextMenu(event: MouseEvent) {
       event.preventDefault();
+      syncHeldMouseButtons(event.buttons);
     }
 
     function removeAttackGraphic(graphic: PIXI.Graphics) {
@@ -393,6 +398,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       canvasElement.addEventListener("pointerdown", handlePointerDown);
       canvasElement.addEventListener("pointerup", handlePointerUp);
       canvasElement.addEventListener("pointercancel", handlePointerCancel);
+      canvasElement.addEventListener("pointerleave", handlePointerLeave);
       canvasElement.addEventListener("pointermove", handlePointerMove);
       app.stage.addChild(world);
       drawWorld(world, mapWidth, mapHeight, pointsOfInterest);
@@ -404,6 +410,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
       window.addEventListener("blur", handleWindowBlur);
+      window.addEventListener("mouseup", handleWindowMouseUp);
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
 
@@ -462,14 +469,16 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
       canvasElement?.removeEventListener("contextmenu", handleContextMenu);
       canvasElement?.removeEventListener("pointerdown", handlePointerDown);
       canvasElement?.removeEventListener("pointerup", handlePointerUp);
       canvasElement?.removeEventListener("pointercancel", handlePointerCancel);
+      canvasElement?.removeEventListener("pointerleave", handlePointerLeave);
       canvasElement?.removeEventListener("pointermove", handlePointerMove);
-      handlePointerCancel();
+      resetHeldMouseButtons();
       pressedKeys.clear();
       cleanupAttacks();
       if (initialized) app.destroy(true);
