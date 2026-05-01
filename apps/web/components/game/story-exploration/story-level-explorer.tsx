@@ -180,6 +180,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
+        levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
         onPlayerMove={setPlayerPosition}

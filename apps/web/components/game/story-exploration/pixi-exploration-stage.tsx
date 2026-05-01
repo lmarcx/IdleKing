@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { useGameStore } from "@/store/game-store";
+import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
 import {
   MELEE_DAMAGE,
   PLAYER_MAX_HP,
@@ -13,12 +15,15 @@ import {
   isCircleIntersectingCircle,
   isEnemyAlive,
   isTargetInsideAttackCone,
+  rollEnemyLoot,
   updateEnemyMovement,
   type EnemyId,
+  type EnemyLoot,
   type StoryLevelEnemy,
 } from "./story-level-combat";
 
 type PixiExplorationStageProps = {
+  levelId: string;
   mapHeight: number;
   mapWidth: number;
   onPlayerMove: (position: { x: number; y: number }) => void;
@@ -36,6 +41,7 @@ const PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_DEATH_FADE_MS = 260;
+const LOOT_POPUP_DURATION_MS = 900;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -65,6 +71,13 @@ type ActiveProjectile = {
   maxRange: number;
   position: Vector2;
   speed: number;
+};
+
+type ActiveLootPopup = {
+  ageMs: number;
+  container: PIXI.Container;
+  durationMs: number;
+  position: Vector2;
 };
 
 type ActiveMouseAction = "melee" | "ranged" | null;
@@ -195,7 +208,29 @@ function renderEnemy(enemy: ActiveEnemy) {
   }
 }
 
-export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
+function getLootPopupColor(resourceId: ResourceId): number {
+  switch (resourceId) {
+    case "MEAT":
+      return 0xff7b5d;
+    case "WOOD":
+      return 0x8bd46e;
+    case "STONE":
+      return 0xb8c0cc;
+    default:
+      return 0xfff1b8;
+  }
+}
+
+function getLootPopupLabel(resourceId: ResourceId): string {
+  switch (resourceId) {
+    case "MEAT":
+      return "FOOD";
+    default:
+      return resourceId;
+  }
+}
+
+export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onPlayerMoveRef = useRef(onPlayerMove);
   const [combatHud, setCombatHud] = useState({
@@ -220,6 +255,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     const world = new PIXI.Container();
     const enemyLayer = new PIXI.Container();
     const attackLayer = new PIXI.Container();
+    const lootPopupLayer = new PIXI.Container();
     const player = drawPlayer();
     const playerPosition = {
       x: mapWidth / 2,
@@ -234,6 +270,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     const playerFacing: Vector2 = { x: 0, y: -1 };
     const meleeAttacks: ActiveMeleeAttack[] = [];
     const projectiles: ActiveProjectile[] = [];
+    const lootPopups: ActiveLootPopup[] = [];
     const enemies: ActiveEnemy[] = createInitialEnemies().map(createEnemyGraphics);
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
@@ -425,6 +462,53 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       return enemies.filter(isEnemyAlive).length;
     }
 
+    function addLootToPlayerResources(loot: EnemyLoot) {
+      useGameStore.getState().dispatch((state) => ({
+        ...state,
+        resources: addQty(state.resources, loot.resourceId, loot.amount),
+      }));
+    }
+
+    function createLootPopup(position: Vector2, loot: EnemyLoot) {
+      const container = new PIXI.Container();
+      const icon = new PIXI.Graphics();
+      const text = new PIXI.Text({
+        text: `+${loot.amount} ${getLootPopupLabel(loot.resourceId)}`,
+        style: {
+          fill: 0xfff1b8,
+          fontFamily: "Arial",
+          fontSize: 17,
+          fontWeight: "700",
+          stroke: { color: 0x150b08, width: 3 },
+        },
+      });
+
+      icon.circle(0, 0, 8).fill({ color: getLootPopupColor(loot.resourceId), alpha: 0.95 });
+      icon.circle(0, 0, 13).stroke({ color: 0xfff1b8, alpha: 0.55, width: 2 });
+      text.anchor.set(0.5, 0.5);
+      text.position.set(34, 0);
+      container.addChild(icon);
+      container.addChild(text);
+      container.position.set(position.x - 18, position.y - 42);
+
+      lootPopups.push({
+        ageMs: 0,
+        container,
+        durationMs: LOOT_POPUP_DURATION_MS,
+        position: { x: position.x - 18, y: position.y - 42 },
+      });
+      lootPopupLayer.addChild(container);
+    }
+
+    function claimEnemyLoot(enemy: ActiveEnemy) {
+      if (enemy.lootClaimed) return;
+      enemy.lootClaimed = true;
+
+      const loot = rollEnemyLoot(enemy, levelId);
+      addLootToPlayerResources(loot);
+      createLootPopup(enemy.position, loot);
+    }
+
     function syncCombatHud() {
       setCombatHud({
         enemiesRemaining: getEnemiesRemaining(),
@@ -438,6 +522,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
       if (died) {
         enemy.deathFadeMs = 0;
+        claimEnemyLoot(enemy);
       }
     }
 
@@ -585,6 +670,22 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       }
     }
 
+    function updateLootPopups(deltaMs: number) {
+      for (let index = lootPopups.length - 1; index >= 0; index -= 1) {
+        const popup = lootPopups[index];
+        popup.ageMs += deltaMs;
+
+        const progress = clamp(popup.ageMs / popup.durationMs, 0, 1);
+        popup.container.alpha = 1 - progress;
+        popup.container.position.set(popup.position.x, popup.position.y - progress * 34);
+
+        if (popup.ageMs < popup.durationMs) continue;
+        popup.container.removeFromParent();
+        popup.container.destroy({ children: true });
+        lootPopups.splice(index, 1);
+      }
+    }
+
     function cleanupAttacks() {
       for (const attack of meleeAttacks) {
         removeAttackGraphic(attack.graphic);
@@ -595,6 +696,14 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
         removeAttackGraphic(projectile.graphic);
       }
       projectiles.length = 0;
+    }
+
+    function cleanupLootPopups() {
+      for (const popup of lootPopups) {
+        popup.container.removeFromParent();
+        popup.container.destroy({ children: true });
+      }
+      lootPopups.length = 0;
     }
 
     function cleanupEnemies() {
@@ -636,6 +745,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       }
       world.addChild(enemyLayer);
       world.addChild(attackLayer);
+      world.addChild(lootPopupLayer);
       world.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
       onPlayerMoveRef.current(playerPosition);
@@ -680,6 +790,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
 
         updateEnemies(ticker.deltaMS, performance.now());
         updateAttacks(ticker.deltaMS, performance.now());
+        updateLootPopups(ticker.deltaMS);
         renderEnemies();
         renderAttacks();
         player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
@@ -723,10 +834,11 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       resetHeldMouseButtons();
       pressedKeys.clear();
       cleanupAttacks();
+      cleanupLootPopups();
       cleanupEnemies();
       if (initialized) app.destroy(true);
     };
-  }, [mapHeight, mapWidth, pointsOfInterest]);
+  }, [levelId, mapHeight, mapWidth, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">

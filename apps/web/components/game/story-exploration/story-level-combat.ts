@@ -1,3 +1,5 @@
+import type { ResourceId } from "@idleking/game-core/resources/types.js";
+
 export type EnemyId = string;
 export type EnemyKind = "grunt";
 export type EnemyState = "idle" | "chasing" | "dead";
@@ -15,11 +17,17 @@ export type StoryLevelEnemy = {
   id: EnemyId;
   kind: EnemyKind;
   lastContactDamageAt: number;
+  lootClaimed: boolean;
   maxHp: number;
   moveSpeed: number;
   position: CombatVector;
   radius: number;
   state: EnemyState;
+};
+
+export type EnemyLoot = {
+  amount: number;
+  resourceId: ResourceId;
 };
 
 export const PLAYER_MAX_HP = 100;
@@ -32,6 +40,20 @@ export const MELEE_DAMAGE = 25;
 export const RANGED_DAMAGE = 15;
 
 const GRUNT_RADIUS = 20;
+
+type EnemyLootEntry = {
+  maxAmount: number;
+  minAmount: number;
+  resourceId: ResourceId;
+  weight: number;
+};
+
+const GRUNT_LOOT_TABLE: EnemyLootEntry[] = [
+  // Food drops are represented by MEAT until the resource model exposes FOOD.
+  { resourceId: "MEAT", weight: 40, minAmount: 1, maxAmount: 2 },
+  { resourceId: "WOOD", weight: 35, minAmount: 1, maxAmount: 3 },
+  { resourceId: "STONE", weight: 25, minAmount: 1, maxAmount: 2 },
+];
 
 const ENEMY_SPAWN_POINTS: CombatVector[] = [
   { x: 560, y: 620 },
@@ -52,12 +74,46 @@ export function createInitialEnemies(): StoryLevelEnemy[] {
     id: `grunt-${index + 1}`,
     kind: "grunt",
     lastContactDamageAt: -Infinity,
+    lootClaimed: false,
     maxHp: GRUNT_HP,
     moveSpeed: GRUNT_MOVE_SPEED,
     position: { ...position },
     radius: GRUNT_RADIUS,
     state: "idle",
   }));
+}
+
+function getLootTableForEnemy(enemy: StoryLevelEnemy): EnemyLootEntry[] {
+  switch (enemy.kind) {
+    case "grunt":
+      return GRUNT_LOOT_TABLE;
+  }
+}
+
+function randomIntInclusive(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+export function rollEnemyLoot(enemy: StoryLevelEnemy, levelId: string): EnemyLoot {
+  const table = getLootTableForEnemy(enemy);
+  const totalWeight = table.reduce((total, entry) => total + entry.weight, 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const entry of table) {
+    roll -= entry.weight;
+    if (roll <= 0) {
+      return {
+        amount: randomIntInclusive(entry.minAmount, entry.maxAmount),
+        resourceId: entry.resourceId,
+      };
+    }
+  }
+
+  const fallback = table[table.length - 1];
+  return {
+    amount: randomIntInclusive(fallback.minAmount, fallback.maxAmount),
+    resourceId: fallback.resourceId,
+  };
 }
 
 export function distanceBetween(a: CombatVector, b: CombatVector): number {
