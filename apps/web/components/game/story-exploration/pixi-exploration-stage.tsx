@@ -1,7 +1,22 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
+
+import {
+  MELEE_DAMAGE,
+  PLAYER_MAX_HP,
+  RANGED_DAMAGE,
+  createInitialEnemies,
+  damageEnemy,
+  damagePlayer,
+  isCircleIntersectingCircle,
+  isEnemyAlive,
+  isTargetInsideAttackCone,
+  updateEnemyMovement,
+  type EnemyId,
+  type StoryLevelEnemy,
+} from "./story-level-combat";
 
 type PixiExplorationStageProps = {
   mapHeight: number;
@@ -18,6 +33,9 @@ const MELEE_RANGE = 86;
 const RANGED_ATTACK_COOLDOWN_MS = 450;
 const PROJECTILE_MAX_RANGE = 620;
 const PROJECTILE_SPEED = 620;
+const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
+const ENEMY_HIT_FLASH_MS = 140;
+const ENEMY_DEATH_FADE_MS = 260;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -36,6 +54,7 @@ type ActiveMeleeAttack = {
   direction: Vector2;
   durationMs: number;
   graphic: PIXI.Graphics;
+  hitEnemyIds: Set<EnemyId>;
   position: Vector2;
 };
 
@@ -49,6 +68,14 @@ type ActiveProjectile = {
 };
 
 type ActiveMouseAction = "melee" | "ranged" | null;
+
+type ActiveEnemy = StoryLevelEnemy & {
+  body: PIXI.Graphics;
+  container: PIXI.Container;
+  deathFadeMs: number;
+  hitFlashMs: number;
+  hpBar: PIXI.Graphics;
+};
 
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   ArrowDown: { x: 0, y: 1 },
@@ -122,9 +149,60 @@ function drawPlayer() {
   return player;
 }
 
+function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
+  const container = new PIXI.Container();
+  const body = new PIXI.Graphics();
+  const hpBar = new PIXI.Graphics();
+
+  container.addChild(body);
+  container.addChild(hpBar);
+  container.position.set(enemy.position.x, enemy.position.y);
+
+  return {
+    ...enemy,
+    body,
+    container,
+    deathFadeMs: 0,
+    hitFlashMs: 0,
+    hpBar,
+  };
+}
+
+function renderEnemy(enemy: ActiveEnemy) {
+  enemy.container.position.set(enemy.position.x, enemy.position.y);
+  enemy.container.alpha = enemy.state === "dead" ? clamp(1 - enemy.deathFadeMs / ENEMY_DEATH_FADE_MS, 0, 1) : 1;
+
+  const isChasing = enemy.state === "chasing";
+  const hitProgress = clamp(enemy.hitFlashMs / ENEMY_HIT_FLASH_MS, 0, 1);
+  const bodyColor = enemy.hitFlashMs > 0 ? 0xffd0d0 : isChasing ? 0xd44848 : 0x742828;
+  const outlineColor = isChasing ? 0xff8f7c : 0x9f4a45;
+  const scale = enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.18 : 1;
+
+  enemy.body.clear();
+  enemy.body.circle(0, 0, enemy.radius * scale).fill({ color: bodyColor, alpha: enemy.state === "dead" ? 0.35 : 0.88 });
+  enemy.body.circle(0, 0, enemy.radius * scale).stroke({ color: outlineColor, alpha: 0.9, width: 2 });
+  enemy.body.circle(enemy.radius * 0.34, -enemy.radius * 0.18, enemy.radius * 0.18).fill(0x1a0c0c);
+
+  const barWidth = enemy.radius * 2.3;
+  const hpRatio = enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0;
+  enemy.hpBar.clear();
+  if (enemy.state !== "dead") {
+    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth, 5, 2).fill({ color: 0x130808, alpha: 0.82 });
+    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth * hpRatio, 5, 2).fill({
+      color: hpRatio > 0.45 ? 0xff6b58 : 0xffc857,
+      alpha: 0.95,
+    });
+  }
+}
+
 export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onPlayerMoveRef = useRef(onPlayerMove);
+  const [combatHud, setCombatHud] = useState({
+    enemiesRemaining: 0,
+    isDefeated: false,
+    playerHp: PLAYER_MAX_HP,
+  });
 
   useEffect(() => {
     onPlayerMoveRef.current = onPlayerMove;
@@ -140,6 +218,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     const pressedKeys = new Set<string>();
     const app = new PIXI.Application();
     const world = new PIXI.Container();
+    const enemyLayer = new PIXI.Container();
     const attackLayer = new PIXI.Container();
     const player = drawPlayer();
     const playerPosition = {
@@ -155,13 +234,18 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     const playerFacing: Vector2 = { x: 0, y: -1 };
     const meleeAttacks: ActiveMeleeAttack[] = [];
     const projectiles: ActiveProjectile[] = [];
+    const enemies: ActiveEnemy[] = createInitialEnemies().map(createEnemyGraphics);
     let canvasElement: HTMLCanvasElement | null = null;
+    let combatHudElapsed = 0;
     let hudElapsed = 0;
     let hasPointerWorldPosition = false;
+    let isPlayerDefeated = false;
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
+    let playerHp = PLAYER_MAX_HP;
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (isPlayerDefeated) return;
       if (KEY_DIRECTIONS[event.code]) {
         pressedKeys.add(event.code);
         event.preventDefault();
@@ -234,6 +318,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
         direction: { ...playerFacing },
         durationMs: MELEE_DURATION_MS,
         graphic,
+        hitEnemyIds: new Set(),
         position: { ...playerPosition },
       };
 
@@ -279,6 +364,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     }
 
     function handlePointerDown(event: PointerEvent) {
+      if (isPlayerDefeated) return;
       if ((event.buttons & 3) === 0) return;
       event.preventDefault();
       canvasElement?.setPointerCapture(event.pointerId);
@@ -329,6 +415,104 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       graphic.destroy();
     }
 
+    function removeProjectileAt(index: number) {
+      const projectile = projectiles[index];
+      removeAttackGraphic(projectile.graphic);
+      projectiles.splice(index, 1);
+    }
+
+    function getEnemiesRemaining() {
+      return enemies.filter(isEnemyAlive).length;
+    }
+
+    function syncCombatHud() {
+      setCombatHud({
+        enemiesRemaining: getEnemiesRemaining(),
+        isDefeated: isPlayerDefeated,
+        playerHp,
+      });
+    }
+
+    function damageActiveEnemy(enemy: ActiveEnemy, amount: number) {
+      const died = damageEnemy(enemy, amount);
+      enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
+      if (died) {
+        enemy.deathFadeMs = 0;
+      }
+    }
+
+    function applyMeleeHits(attack: ActiveMeleeAttack) {
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy) || attack.hitEnemyIds.has(enemy.id)) continue;
+
+        const isHit = isTargetInsideAttackCone({
+          attackDirection: attack.direction,
+          attackPosition: attack.position,
+          halfAngleRadians: MELEE_ATTACK_HALF_ANGLE_RADIANS,
+          range: MELEE_RANGE,
+          targetPosition: enemy.position,
+          targetRadius: enemy.radius,
+        });
+
+        if (!isHit) continue;
+        attack.hitEnemyIds.add(enemy.id);
+        damageActiveEnemy(enemy, MELEE_DAMAGE);
+      }
+    }
+
+    function applyProjectileHits(projectile: ActiveProjectile): boolean {
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy)) continue;
+        if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
+
+        damageActiveEnemy(enemy, RANGED_DAMAGE);
+        return true;
+      }
+
+      return false;
+    }
+
+    function damagePlayerFromEnemy(enemy: ActiveEnemy, now: number) {
+      if (now - enemy.lastContactDamageAt < enemy.attackCooldownMs) return;
+
+      enemy.lastContactDamageAt = now;
+      playerHp = damagePlayer(playerHp, enemy.contactDamage);
+      if (playerHp <= 0) {
+        isPlayerDefeated = true;
+        pressedKeys.clear();
+        resetHeldMouseButtons();
+      }
+      syncCombatHud();
+    }
+
+    function updateEnemies(deltaMs: number, now: number) {
+      if (isPlayerDefeated) return;
+
+      const deltaSeconds = deltaMs / 1000;
+      for (const enemy of enemies) {
+        if (enemy.state === "dead") {
+          enemy.deathFadeMs += deltaMs;
+          if (enemy.deathFadeMs >= ENEMY_DEATH_FADE_MS) {
+            enemy.container.visible = false;
+          }
+          continue;
+        }
+
+        enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
+        updateEnemyMovement(enemy, playerPosition, deltaSeconds);
+
+        if (isCircleIntersectingCircle(enemy.position, enemy.radius, playerPosition, PLAYER_SIZE / 2)) {
+          damagePlayerFromEnemy(enemy, now);
+        }
+      }
+    }
+
+    function renderEnemies() {
+      for (const enemy of enemies) {
+        renderEnemy(enemy);
+      }
+    }
+
     function updateAttacks(deltaMs: number, now: number) {
       const hasHeldActiveAction =
         (mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) ||
@@ -341,17 +525,18 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
         });
       }
 
-      if (mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) {
+      if (!isPlayerDefeated && mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) {
         createMeleeAttack(now);
       }
 
-      if (mouseInput.activeMouseAction === "ranged" && mouseInput.isRangedHeld) {
+      if (!isPlayerDefeated && mouseInput.activeMouseAction === "ranged" && mouseInput.isRangedHeld) {
         createRangedAttack(now);
       }
 
       for (let index = meleeAttacks.length - 1; index >= 0; index -= 1) {
         const attack = meleeAttacks[index];
         attack.ageMs += deltaMs;
+        applyMeleeHits(attack);
         if (attack.ageMs >= attack.durationMs) {
           removeAttackGraphic(attack.graphic);
           meleeAttacks.splice(index, 1);
@@ -372,9 +557,8 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
           projectile.position.y < 0 ||
           projectile.position.y > mapHeight;
 
-        if (projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds) {
-          removeAttackGraphic(projectile.graphic);
-          projectiles.splice(index, 1);
+        if (applyProjectileHits(projectile) || projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds) {
+          removeProjectileAt(index);
         }
       }
     }
@@ -413,6 +597,14 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       projectiles.length = 0;
     }
 
+    function cleanupEnemies() {
+      for (const enemy of enemies) {
+        enemy.container.removeFromParent();
+        enemy.container.destroy({ children: true });
+      }
+      enemies.length = 0;
+    }
+
     async function setup() {
       await app.init({
         antialias: true,
@@ -438,10 +630,16 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       canvasElement.addEventListener("pointermove", handlePointerMove);
       app.stage.addChild(world);
       drawWorld(world, mapWidth, mapHeight, pointsOfInterest);
+      for (const enemy of enemies) {
+        renderEnemy(enemy);
+        enemyLayer.addChild(enemy.container);
+      }
+      world.addChild(enemyLayer);
       world.addChild(attackLayer);
       world.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
       onPlayerMoveRef.current(playerPosition);
+      syncCombatHud();
 
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
@@ -462,7 +660,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
           directionY += direction.y;
         }
 
-        if (directionX !== 0 || directionY !== 0) {
+        if (!isPlayerDefeated && (directionX !== 0 || directionY !== 0)) {
           const length = Math.hypot(directionX, directionY) || 1;
           if (!hasPointerWorldPosition) {
             updatePlayerFacing({ x: directionX / length, y: directionY / length });
@@ -480,7 +678,9 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
           player.position.set(playerPosition.x, playerPosition.y);
         }
 
+        updateEnemies(ticker.deltaMS, performance.now());
         updateAttacks(ticker.deltaMS, performance.now());
+        renderEnemies();
         renderAttacks();
         player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
 
@@ -494,6 +694,12 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
         if (hudElapsed >= 90) {
           hudElapsed = 0;
           onPlayerMoveRef.current({ ...playerPosition });
+        }
+
+        combatHudElapsed += ticker.deltaMS;
+        if (combatHudElapsed >= 120) {
+          combatHudElapsed = 0;
+          syncCombatHud();
         }
       });
     }
@@ -517,9 +723,38 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       resetHeldMouseButtons();
       pressedKeys.clear();
       cleanupAttacks();
+      cleanupEnemies();
       if (initialized) app.destroy(true);
     };
   }, [mapHeight, mapWidth, pointsOfInterest]);
 
-  return <div ref={hostRef} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={hostRef} className="h-full w-full" />
+      <div className="pointer-events-none absolute bottom-20 right-4 z-10 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
+        <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-red-200">Combat prototype</p>
+        <div className="mt-2 grid gap-1">
+          <span>
+            HP joueur {combatHud.playerHp}/{PLAYER_MAX_HP}
+          </span>
+          <span>Ennemis restants {combatHud.enemiesRemaining}</span>
+        </div>
+      </div>
+      {combatHud.isDefeated ? (
+        <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/68 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-lg border border-red-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+            <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-red-200">Defaite</p>
+            <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Vous etes tombe</h2>
+            <p className="mt-3 font-ik-body text-sm text-muted-foreground">Le prototype de combat vous a mis hors d'etat.</p>
+            <a
+              className="mt-5 inline-flex w-full items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
+              href="/game/worlds"
+            >
+              Retour a la Story
+            </a>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 }
