@@ -12,10 +12,10 @@ type PixiExplorationStageProps = {
 
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
-const MELEE_COOLDOWN_MS = 400;
+const MELEE_ATTACK_COOLDOWN_MS = 280;
 const MELEE_DURATION_MS = 120;
 const MELEE_RANGE = 86;
-const RANGED_COOLDOWN_MS = 700;
+const RANGED_ATTACK_COOLDOWN_MS = 450;
 const PROJECTILE_MAX_RANGE = 620;
 const PROJECTILE_SPEED = 620;
 
@@ -144,7 +144,11 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       x: mapWidth / 2,
       y: mapHeight / 2,
     };
-    const pointerWorldPosition: Vector2 = { ...playerPosition };
+    const mouseInput = {
+      isMeleeHeld: false,
+      isRangedHeld: false,
+      pointerWorldPosition: { ...playerPosition },
+    };
     const playerFacing: Vector2 = { x: 0, y: -1 };
     const meleeAttacks: ActiveMeleeAttack[] = [];
     const projectiles: ActiveProjectile[] = [];
@@ -179,17 +183,17 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       const rendererHeight = app.renderer.height / app.renderer.resolution;
       const scaleX = rendererWidth / canvasBounds.width;
       const scaleY = rendererHeight / canvasBounds.height;
-      pointerWorldPosition.x = (event.clientX - canvasBounds.left) * scaleX - world.position.x;
-      pointerWorldPosition.y = (event.clientY - canvasBounds.top) * scaleY - world.position.y;
+      mouseInput.pointerWorldPosition.x = (event.clientX - canvasBounds.left) * scaleX - world.position.x;
+      mouseInput.pointerWorldPosition.y = (event.clientY - canvasBounds.top) * scaleY - world.position.y;
       hasPointerWorldPosition = true;
       updatePlayerFacing({
-        x: pointerWorldPosition.x - playerPosition.x,
-        y: pointerWorldPosition.y - playerPosition.y,
+        x: mouseInput.pointerWorldPosition.x - playerPosition.x,
+        y: mouseInput.pointerWorldPosition.y - playerPosition.y,
       });
     }
 
     function createMeleeAttack(now: number) {
-      if (now - lastMeleeAttackAt < MELEE_COOLDOWN_MS) return;
+      if (now - lastMeleeAttackAt < MELEE_ATTACK_COOLDOWN_MS) return;
       lastMeleeAttackAt = now;
 
       const graphic = new PIXI.Graphics();
@@ -206,13 +210,13 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     }
 
     function createRangedAttack(now: number) {
-      if (now - lastRangedAttackAt < RANGED_COOLDOWN_MS) return;
+      if (now - lastRangedAttackAt < RANGED_ATTACK_COOLDOWN_MS) return;
       lastRangedAttackAt = now;
 
       const direction = normalizeVector(
         {
-          x: pointerWorldPosition.x - playerPosition.x,
-          y: pointerWorldPosition.y - playerPosition.y,
+          x: mouseInput.pointerWorldPosition.x - playerPosition.x,
+          y: mouseInput.pointerWorldPosition.y - playerPosition.y,
         },
         playerFacing
       );
@@ -244,15 +248,39 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
     function handlePointerDown(event: PointerEvent) {
       if (event.button !== 0 && event.button !== 2) return;
       event.preventDefault();
+      canvasElement?.setPointerCapture(event.pointerId);
       updatePointerWorldPosition(event);
 
-      const now = performance.now();
       if (event.button === 0) {
-        createMeleeAttack(now);
+        mouseInput.isMeleeHeld = true;
         return;
       }
 
-      createRangedAttack(now);
+      mouseInput.isRangedHeld = true;
+    }
+
+    function handlePointerUp(event: PointerEvent) {
+      if (canvasElement?.hasPointerCapture(event.pointerId)) {
+        canvasElement.releasePointerCapture(event.pointerId);
+      }
+
+      if (event.button === 0) {
+        mouseInput.isMeleeHeld = false;
+      }
+
+      if (event.button === 2) {
+        mouseInput.isRangedHeld = false;
+      }
+    }
+
+    function handlePointerCancel() {
+      mouseInput.isMeleeHeld = false;
+      mouseInput.isRangedHeld = false;
+    }
+
+    function handleWindowBlur() {
+      mouseInput.isMeleeHeld = false;
+      mouseInput.isRangedHeld = false;
     }
 
     function handleContextMenu(event: MouseEvent) {
@@ -264,7 +292,22 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       graphic.destroy();
     }
 
-    function updateAttacks(deltaMs: number) {
+    function updateAttacks(deltaMs: number, now: number) {
+      if (hasPointerWorldPosition && (mouseInput.isMeleeHeld || mouseInput.isRangedHeld)) {
+        updatePlayerFacing({
+          x: mouseInput.pointerWorldPosition.x - playerPosition.x,
+          y: mouseInput.pointerWorldPosition.y - playerPosition.y,
+        });
+      }
+
+      if (mouseInput.isMeleeHeld) {
+        createMeleeAttack(now);
+      }
+
+      if (mouseInput.isRangedHeld) {
+        createRangedAttack(now);
+      }
+
       for (let index = meleeAttacks.length - 1; index >= 0; index -= 1) {
         const attack = meleeAttacks[index];
         attack.ageMs += deltaMs;
@@ -348,6 +391,8 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       hostElement.appendChild(canvasElement);
       canvasElement.addEventListener("contextmenu", handleContextMenu);
       canvasElement.addEventListener("pointerdown", handlePointerDown);
+      canvasElement.addEventListener("pointerup", handlePointerUp);
+      canvasElement.addEventListener("pointercancel", handlePointerCancel);
       canvasElement.addEventListener("pointermove", handlePointerMove);
       app.stage.addChild(world);
       drawWorld(world, mapWidth, mapHeight, pointsOfInterest);
@@ -358,6 +403,9 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
 
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
+      window.addEventListener("blur", handleWindowBlur);
+      window.addEventListener("pointerup", handlePointerUp);
+      window.addEventListener("pointercancel", handlePointerCancel);
 
       app.ticker.add((ticker) => {
         const deltaSeconds = ticker.deltaMS / 1000;
@@ -389,7 +437,7 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
           player.position.set(playerPosition.x, playerPosition.y);
         }
 
-        updateAttacks(ticker.deltaMS);
+        updateAttacks(ticker.deltaMS, performance.now());
         renderAttacks();
         player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
 
@@ -413,9 +461,15 @@ export function PixiExplorationStage({ mapHeight, mapWidth, onPlayerMove, points
       cancelled = true;
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerCancel);
       canvasElement?.removeEventListener("contextmenu", handleContextMenu);
       canvasElement?.removeEventListener("pointerdown", handlePointerDown);
+      canvasElement?.removeEventListener("pointerup", handlePointerUp);
+      canvasElement?.removeEventListener("pointercancel", handlePointerCancel);
       canvasElement?.removeEventListener("pointermove", handlePointerMove);
+      handlePointerCancel();
       pressedKeys.clear();
       cleanupAttacks();
       if (initialized) app.destroy(true);
