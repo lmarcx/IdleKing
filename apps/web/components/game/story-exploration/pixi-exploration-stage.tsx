@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
 import { useGameStore } from "@/store/game-store";
+import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
+import { SkillBar } from "./skill-bar";
+import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   MELEE_DAMAGE,
   PLAYER_MAX_HP,
@@ -90,6 +93,19 @@ type ActiveEnemy = StoryLevelEnemy & {
   hpBar: PIXI.Graphics;
 };
 
+type SkillId = combat.SkillId;
+type SkillSlot = combat.SkillSlot;
+type SkillCooldownState = combat.SkillCooldownState;
+type ActiveSkillEffect = combat.ActiveSkillEffect;
+type SkillLoadout = ReturnType<typeof combat.getDefaultSkillLoadout>;
+
+type LocalSkillsState = {
+  activeEffects: ActiveSkillEffect[];
+  cooldowns: SkillCooldownState;
+  currentTimeMs: number;
+  skillLoadout: SkillLoadout;
+};
+
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   ArrowDown: { x: 0, y: 1 },
   ArrowLeft: { x: -1, y: 0 },
@@ -101,6 +117,24 @@ const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   KeyS: { x: 0, y: 1 },
   KeyW: { x: 0, y: -1 },
   KeyZ: { x: 0, y: -1 },
+};
+
+const SKILL_SLOT_BY_KEY: Record<string, SkillSlot> = {
+  "&": 1,
+  "1": 1,
+  "é": 2,
+  "2": 2,
+  "\"": 3,
+  "3": 3,
+  "'": 4,
+  "4": 4,
+};
+
+const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
+  Digit1: 1,
+  Digit2: 2,
+  Digit3: 3,
+  Digit4: 4,
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -233,6 +267,14 @@ function getLootPopupLabel(resourceId: ResourceId): string {
 export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onPlayerMoveRef = useRef(onPlayerMove);
+  const skillLoadout = useMemo(() => combat.getDefaultSkillLoadout(), []);
+  const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
+    activeEffects: [],
+    cooldowns: {},
+    currentTimeMs: 0,
+    skillLoadout,
+  }));
+  const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState({
     enemiesRemaining: 0,
     isDefeated: false,
@@ -242,6 +284,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
   useEffect(() => {
     onPlayerMoveRef.current = onPlayerMove;
   }, [onPlayerMove]);
+
+  useEffect(() => {
+    skillsStateRef.current = skillsState;
+  }, [skillsState]);
 
   useEffect(() => {
     const nullableHostElement = hostRef.current;
@@ -272,17 +318,80 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     const projectiles: ActiveProjectile[] = [];
     const lootPopups: ActiveLootPopup[] = [];
     const enemies: ActiveEnemy[] = createInitialEnemies().map(createEnemyGraphics);
+    let activeSkillEffects: ActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
+    let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
     let hudElapsed = 0;
+    let skillsHudElapsed = 0;
     let hasPointerWorldPosition = false;
     let isPlayerDefeated = false;
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
     let playerHp = PLAYER_MAX_HP;
 
+    function publishSkillsState(nowMs: number) {
+      const nextState: LocalSkillsState = {
+        activeEffects: [...activeSkillEffects],
+        cooldowns: { ...skillCooldowns },
+        currentTimeMs: nowMs,
+        skillLoadout,
+      };
+      skillsStateRef.current = nextState;
+      setSkillsState(nextState);
+    }
+
+    function removeExpiredSkillEffects(nowMs: number) {
+      activeSkillEffects = activeSkillEffects.filter((effect) => effect.endsAtMs >= nowMs);
+    }
+
+    function getSkillIdForSlot(slot: SkillSlot): SkillId | null {
+      return skillLoadout.find((entry) => entry.slot === slot)?.skillId ?? null;
+    }
+
+    function tryCastSkill(slot: SkillSlot, nowMs: number) {
+      if (isPlayerDefeated) return;
+
+      removeExpiredSkillEffects(nowMs);
+      const skillId = getSkillIdForSlot(slot);
+      if (!skillId) return;
+
+      const result = combat.castSkill({
+        cooldowns: skillCooldowns,
+        nowMs,
+        skillId,
+      });
+
+      if (!result.ok) {
+        publishSkillsState(nowMs);
+        return;
+      }
+
+      skillCooldowns = {
+        ...skillCooldowns,
+        [result.skillId]: result.nextAvailableAtMs,
+      };
+
+      if (result.activeEffect) {
+        activeSkillEffects = [...activeSkillEffects, result.activeEffect];
+      } else if (result.skillId === "royal_strike") {
+        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs);
+      }
+
+      publishSkillsState(nowMs);
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
       if (isPlayerDefeated) return;
+      const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
+      if (skillSlot) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryCastSkill(skillSlot, performance.now());
+        }
+        return;
+      }
+
       if (KEY_DIRECTIONS[event.code]) {
         pressedKeys.add(event.code);
         event.preventDefault();
@@ -759,6 +868,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       window.addEventListener("pointercancel", handlePointerCancel);
 
       app.ticker.add((ticker) => {
+        const nowMs = performance.now();
         const deltaSeconds = ticker.deltaMS / 1000;
         let directionX = 0;
         let directionY = 0;
@@ -788,12 +898,14 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
           player.position.set(playerPosition.x, playerPosition.y);
         }
 
-        updateEnemies(ticker.deltaMS, performance.now());
-        updateAttacks(ticker.deltaMS, performance.now());
+        removeExpiredSkillEffects(nowMs);
+        updateEnemies(ticker.deltaMS, nowMs);
+        updateAttacks(ticker.deltaMS, nowMs);
         updateLootPopups(ticker.deltaMS);
         renderEnemies();
         renderAttacks();
         player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
+        renderSkillEffects(app, player, activeSkillEffects);
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;
@@ -805,6 +917,12 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         if (hudElapsed >= 90) {
           hudElapsed = 0;
           onPlayerMoveRef.current({ ...playerPosition });
+        }
+
+        skillsHudElapsed += ticker.deltaMS;
+        if (skillsHudElapsed >= 90) {
+          skillsHudElapsed = 0;
+          publishSkillsState(nowMs);
         }
 
         combatHudElapsed += ticker.deltaMS;
@@ -835,6 +953,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       pressedKeys.clear();
       cleanupAttacks();
       cleanupLootPopups();
+      cleanupSkillEffects(player);
       cleanupEnemies();
       if (initialized) app.destroy(true);
     };
@@ -843,6 +962,13 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
+        <SkillBar
+          cooldowns={skillsState.cooldowns}
+          currentTimeMs={skillsState.currentTimeMs}
+          skillLoadout={skillsState.skillLoadout}
+        />
+      </div>
       <div className="pointer-events-none absolute bottom-20 right-4 z-10 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
         <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-red-200">Combat prototype</p>
         <div className="mt-2 grid gap-1">
