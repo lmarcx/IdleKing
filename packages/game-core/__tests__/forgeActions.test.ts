@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { createInitialGameState } from "../game/state.js";
 import { completeChapterAction } from "../game/actions.js";
 import { forgeCraft, forgeUpgrade, forgeRecycle } from "../game/forgeActions.js";
+import { isEquipmentItem } from "../items/types.js";
 import { addQty, getQty } from "../resources/types.js";
 
 function progressToChapter4AndBuildForge(s: ReturnType<typeof createInitialGameState>) {
@@ -54,7 +55,9 @@ test("Forge upgrade increases ilvl and spends gold", () => {
   assert.equal(crafted.ok, true);
 
   const itemId = crafted.createdItemId!;
-  const ilvlBefore = crafted.next.inventory.items[0].ilvl;
+  const craftedItem = crafted.next.inventory.items[0];
+  assert.ok(isEquipmentItem(craftedItem));
+  const ilvlBefore = craftedItem.ilvl ?? craftedItem.itemLevel ?? 0;
 
   // Give gold for upgrade
   const s2 = { ...crafted.next, resources: addQty(crafted.next.resources, "GOLD", 10) };
@@ -63,7 +66,8 @@ test("Forge upgrade increases ilvl and spends gold", () => {
   assert.equal(u.ok, true);
 
   const upgraded = u.next.inventory.items.find((it) => it.id === itemId)!;
-  assert.equal(upgraded.ilvl, ilvlBefore + 10);
+  assert.ok(isEquipmentItem(upgraded));
+  assert.equal(upgraded.ilvl ?? upgraded.itemLevel, ilvlBefore + 10);
 });
 
 test("Forge recycle removes item and gives copper", () => {

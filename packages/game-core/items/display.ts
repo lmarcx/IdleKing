@@ -65,13 +65,18 @@ function getResourceValue(id: ResourceId): number {
   return index >= 0 ? index + 1 : 0;
 }
 
+function getInventoryItemValue(item: GameState["inventory"]["items"][number]): number {
+  if ("slot" in item) return item.itemLevel ?? item.ilvl ?? 0;
+  return item.value ?? 0;
+}
+
 export function getInventoryDisplayItems(state: GameState): InventoryDisplayItem[] {
   const equipmentItems = state.inventory.items.map((item) => ({
     category: "equipment" as const,
     id: item.id,
     name: item.name,
     quantity: 1,
-    value: item.ilvl,
+    value: getInventoryItemValue(item),
   }));
 
   const resourceItems = ALL_RESOURCES.map((id) => ({

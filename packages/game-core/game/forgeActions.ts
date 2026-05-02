@@ -2,7 +2,7 @@ import type { GameState } from "./state.js";
 import { getForgeRecipe, type ForgeRecipeId } from "../building/forge/recipes.js";
 import { hasAtLeast, spend, addQty, type ResourceId } from "../resources/types.js";
 import { addItem, findItem, removeItem } from "../items/inventory.js";
-import type { Item } from "../items/types.js";
+import { isEquipmentItem, type EquipmentItem } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
 
 function staminaCostFromPct(pct: number): number {
@@ -60,13 +60,16 @@ export function forgeCraft(
   const nextResources = spend(state.resources, recipe.cost);
 
   // Create item
-  const ilvl = expectedIlvl(state.progression.worldLevel);
-  const item: Item = {
+  const itemLevel = expectedIlvl(state.progression.worldLevel);
+  const item: EquipmentItem = {
     id: uid("item"),
+    kind: "equipment",
     name: `${recipe.baseName}`,
     slot: recipe.slot,
-    ilvl,
+    itemLevel,
+    ilvl: itemLevel,
     rarity: recipe.rarity,
+    stats: {},
   };
 
   // Drain stamina
@@ -102,7 +105,7 @@ export function forgeUpgrade(
   villagerId: string
 ): ForgeUpgradeResult {
   const item = findItem(state.inventory, itemId);
-  if (!item) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
+  if (!item || !isEquipmentItem(item)) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
 
   const idx = state.villagers.list.findIndex((v) => v.id === villagerId);
   if (idx < 0) return { next: state, ok: false, reason: "VILLAGER_NOT_FOUND" };
@@ -112,7 +115,8 @@ export function forgeUpgrade(
 
   // MVP upgrade cost rule (simple, deterministic):
   // cost = 1 GOLD per 50 ilvl (min 1)
-  const goldCost = Math.max(1, Math.ceil(item.ilvl / 50));
+  const currentItemLevel = item.itemLevel ?? item.ilvl ?? 1;
+  const goldCost = Math.max(1, Math.ceil(currentItemLevel / 50));
   const costStock: Partial<Record<ResourceId, number>> = { GOLD: goldCost };
 
   if (!hasAtLeast(state.resources, costStock)) {
@@ -122,7 +126,7 @@ export function forgeUpgrade(
   const nextResources = spend(state.resources, costStock);
 
   // Upgrade rule: +10 ilvl
-  const upgraded = { ...item, ilvl: item.ilvl + 10 };
+  const upgraded = { ...item, itemLevel: currentItemLevel + 10, ilvl: currentItemLevel + 10 };
 
   // Replace in inventory
   const nextItems = state.inventory.items.map((it) => (it.id === itemId ? upgraded : it));
@@ -155,10 +159,10 @@ export type ForgeRecycleResult = {
  */
 export function forgeRecycle(state: GameState, itemId: string): ForgeRecycleResult {
   const item = findItem(state.inventory, itemId);
-  if (!item) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
+  if (!item || !isEquipmentItem(item)) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
 
   // MVP recycle returns COPPER based on ilvl (simple and deterministic)
-  const copper = Math.max(1, Math.floor(item.ilvl / 40));
+  const copper = Math.max(1, Math.floor((item.itemLevel ?? item.ilvl ?? 1) / 40));
 
   const nextInv = removeItem(state.inventory, itemId);
   const nextResources = addQty(state.resources, "COPPER", copper);

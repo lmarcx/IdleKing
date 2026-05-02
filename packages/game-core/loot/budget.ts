@@ -14,7 +14,7 @@ export type ItemSlot =
   | "ARTIFACT"
   | "STONE";
 
-// TODO: reintroduce ring slots later for skill modifiers system
+// TODO: Ring slots will be reintroduced later as skill modifier slots.
 export type LegacyItemSlot = "RING" | "BAND";
 
 export type ItemKind = "ARMOR_GEAR" | "JEWELRY" | "STONE";

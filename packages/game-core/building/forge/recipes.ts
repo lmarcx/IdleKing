@@ -1,5 +1,5 @@
 import type { ResourceId } from "../../resources/types.js";
-import type { ItemRarity, ItemSlot } from "../../items/types.js";
+import type { EquipmentSlot, ItemRarity } from "../../items/types.js";
 
 export type ForgeRecipeId = "BASIC_SWORD" | "BASIC_ARMOR" | (string & {});
 
@@ -7,7 +7,7 @@ export type ForgeRecipe = {
   id: ForgeRecipeId;
   label: string;
 
-  slot: ItemSlot;
+  slot: EquipmentSlot;
   baseName: string;
   rarity: ItemRarity;
 
@@ -20,7 +20,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "BASIC_SWORD",
     label: "Basic Sword",
-    slot: "WEAPON",
+    slot: "weapon",
     baseName: "Sword",
     rarity: "COMMON",
     cost: { COPPER: 3 },
@@ -29,7 +29,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "BASIC_ARMOR",
     label: "Basic Armor",
-    slot: "ARMOR",
+    slot: "chest",
     baseName: "Armor",
     rarity: "COMMON",
     cost: { COPPER: 2, STONE: 2 },
