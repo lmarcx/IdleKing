@@ -9,11 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGameStore } from "@/store/game-store";
 import { FORGE_RECIPES } from "@idleking/game-core/building/forge/recipes.js";
 import { forgeCraft, forgeRecycle, forgeUpgrade } from "@idleking/game-core/game/forgeActions.js";
+import { isEquipmentItem } from "@idleking/game-core/items";
 
 export default function ForgePage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
   const [villagerId, setVillagerId] = useState(state.villagers.list[0]?.id ?? "");
+  const equipmentItems = state.inventory.items.filter(isEquipmentItem);
 
   return (
     <div className="space-y-4">
@@ -78,15 +80,15 @@ export default function ForgePage() {
               <CardTitle>Crafted Items</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {state.inventory.items.length === 0 ? (
+              {equipmentItems.length === 0 ? (
                 <p className="font-ik-body text-sm text-muted-foreground">No items yet.</p>
               ) : (
                 <ul className="space-y-2 text-sm">
-                  {state.inventory.items.map((item) => (
+                  {equipmentItems.map((item) => (
                     <li key={item.id} className="rounded border p-2">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <span>
-                          {item.name} ({item.slot}) ilvl {item.ilvl}
+                          {item.name} ({item.slot}) ilvl {item.itemLevel ?? item.ilvl ?? 1}
                         </span>
                         <span className="text-muted-foreground">{item.rarity}</span>
                       </div>
