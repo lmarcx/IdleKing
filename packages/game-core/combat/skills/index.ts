@@ -42,6 +42,12 @@ export type SkillCastContext = {
   cooldowns?: SkillCooldownState;
 };
 
+export type SkillDefCastContext = {
+  skillDef: SkillDef;
+  nowMs: number;
+  cooldowns?: SkillCooldownState;
+};
+
 export type SkillCastResult =
   | {
       ok: true;
@@ -448,6 +454,25 @@ export function canCastSkill(context: SkillCastContext): SkillCastResult {
 
 export function castSkill(context: SkillCastContext): SkillCastResult {
   return canCastSkill(context);
+}
+
+export function canCastSkillDef(context: SkillDefCastContext): SkillCastResult {
+  const remainingCooldownMs = getSkillRemainingCooldownMs(context.skillDef.id, context.cooldowns, context.nowMs);
+  if (remainingCooldownMs > 0) {
+    return {
+      ok: false,
+      skillId: context.skillDef.id,
+      reason: "COOLDOWN",
+      remainingCooldownMs,
+      nextAvailableAtMs: context.nowMs + remainingCooldownMs,
+    };
+  }
+
+  return buildCastSuccess(context.skillDef, context.nowMs);
+}
+
+export function castSkillWithDef(context: SkillDefCastContext): SkillCastResult {
+  return canCastSkillDef(context);
 }
 
 function buildCastSuccess(def: SkillDef, startedAtMs: number): Extract<SkillCastResult, { ok: true }> {

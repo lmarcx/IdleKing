@@ -10,6 +10,7 @@
     "./power": "./dist/power/index.js",
     "./loot": "./dist/loot/index.js",
     "./progression": "./dist/progression/index.js",
+    "./character": "./dist/character/index.js",
     "./game/*": "./dist/game/*",
     "./building/*": "./dist/building/*",
     "./resources/*": "./dist/resources/*",

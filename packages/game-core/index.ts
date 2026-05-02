@@ -9,11 +9,22 @@ export * as combat from "./combat/index.js";
 export * as building from "./building/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
+export * as character from "./character/index.js";
+export {
+  buildCharacterCombatLoadout,
+} from "./character/index.js";
+export type {
+  CharacterCombatLoadout,
+  CharacterCombatStats,
+  EquippedCombatSkill,
+} from "./character/index.js";
 export {
   SKILL_DEFS,
   SKILL_UPGRADE_COST_BY_LEVEL,
   SKILL_UPGRADE_DEFS,
   canUnlockOrUpgradeSkill,
+  castSkillWithDef,
+  canCastSkillDef,
   createDefaultPlayerSkillsState,
   equipSkill,
   getDefaultSkillLoadout,

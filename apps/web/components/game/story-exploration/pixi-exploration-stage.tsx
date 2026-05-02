@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
@@ -109,8 +110,10 @@ type VisualActiveSkillEffect = combat.ActiveSkillEffect & {
   lastDamageTickAtMs?: number;
   originX?: number;
   originY?: number;
+  skillDef: combat.SkillDef;
 };
-type SkillLoadout = ReturnType<typeof combat.getDefaultSkillLoadout>;
+type CharacterCombatLoadout = import("@idleking/game-core").CharacterCombatLoadout;
+type EquippedCombatSkill = import("@idleking/game-core").EquippedCombatSkill;
 
 type DirectionalSkillSnapshot = {
   angle: number;
@@ -122,9 +125,9 @@ type DirectionalSkillSnapshot = {
 
 type LocalSkillsState = {
   activeEffects: VisualActiveSkillEffect[];
+  combatLoadout: CharacterCombatLoadout;
   cooldowns: SkillCooldownState;
   currentTimeMs: number;
-  skillLoadout: SkillLoadout;
 };
 
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
@@ -307,12 +310,16 @@ function getLootPopupLabel(resourceId: ResourceId): string {
 export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onPlayerMoveRef = useRef(onPlayerMove);
-  const skillLoadout = useMemo(() => combat.getDefaultSkillLoadout(), []);
+  const playerSkills = useGameStore((s) => s.state.skills);
+  const combatLoadout = useMemo(
+    () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
+    [playerSkills]
+  );
   const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
     activeEffects: [],
+    combatLoadout,
     cooldowns: {},
     currentTimeMs: 0,
-    skillLoadout,
   }));
   const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState({
@@ -373,9 +380,9 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     function publishSkillsState(nowMs: number) {
       const nextState: LocalSkillsState = {
         activeEffects: [...activeSkillEffects],
+        combatLoadout,
         cooldowns: { ...skillCooldowns },
         currentTimeMs: nowMs,
-        skillLoadout,
       };
       skillsStateRef.current = nextState;
       setSkillsState(nextState);
@@ -385,8 +392,8 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       activeSkillEffects = activeSkillEffects.filter((effect) => effect.endsAtMs >= nowMs);
     }
 
-    function getSkillIdForSlot(slot: SkillSlot): SkillId | null {
-      return skillLoadout.find((entry) => entry.slot === slot)?.skillId ?? null;
+    function getEquippedSkillForSlot(slot: SkillSlot): EquippedCombatSkill | undefined {
+      return combatLoadout.skills.find((skill) => skill.slot === slot);
     }
 
     function createDirectionalSnapshot(): DirectionalSkillSnapshot {
@@ -404,13 +411,13 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       if (isPlayerDefeated) return;
 
       removeExpiredSkillEffects(nowMs);
-      const skillId = getSkillIdForSlot(slot);
-      if (!skillId) return;
+      const equippedSkill = getEquippedSkillForSlot(slot);
+      if (!equippedSkill) return;
 
-      const result = combat.castSkill({
+      const result = combat.castSkillWithDef({
         cooldowns: skillCooldowns,
         nowMs,
-        skillId,
+        skillDef: equippedSkill.skillDef,
       });
 
       if (!result.ok) {
@@ -428,18 +435,20 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
           result.skillId === "royal_beam"
             ? {
                 ...result.activeEffect,
+                skillDef: equippedSkill.skillDef,
                 ...createDirectionalSnapshot(),
                 lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
               }
             : {
                 ...result.activeEffect,
+                skillDef: equippedSkill.skillDef,
                 lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
               };
         activeSkillEffects = [...activeSkillEffects, visualEffect];
       } else if (result.skillId === "royal_strike") {
         const snapshot = createDirectionalSnapshot();
         spawnInstantSkillEffect(player, result.skillId, result.startedAtMs, snapshot);
-        applyRoyalStrikeDamage(result.skillId, snapshot, nowMs);
+        applyRoyalStrikeDamage(equippedSkill.skillDef, snapshot, nowMs);
       }
 
       publishSkillsState(nowMs);
@@ -779,8 +788,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       damageActiveEnemy(enemy, damage);
     }
 
-    function applyRoyalStrikeDamage(skillId: SkillId, snapshot: DirectionalSkillSnapshot, nowMs: number) {
-      const skillDef = combat.SKILL_DEFS[skillId];
+    function applyRoyalStrikeDamage(skillDef: combat.SkillDef, snapshot: DirectionalSkillSnapshot, nowMs: number) {
       if (skillDef.kind !== "frontal_aoe") return;
 
       const damage = computeSkillDamage(skillDef, nowMs);
@@ -817,7 +825,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       for (const effect of activeSkillEffects) {
         if (effect.skillId === "war_cry") continue;
 
-        const skillDef = combat.SKILL_DEFS[effect.skillId];
+        const skillDef = effect.skillDef;
         const tickIntervalMs = effect.tickIntervalMs ?? skillDef.tickIntervalMs;
         if (!tickIntervalMs || tickIntervalMs <= 0) continue;
 
@@ -1189,7 +1197,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       cleanupEnemies();
       if (initialized) app.destroy(true);
     };
-  }, [levelId, mapHeight, mapWidth, pointsOfInterest]);
+  }, [combatLoadout, levelId, mapHeight, mapWidth, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">
@@ -1205,9 +1213,9 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       ) : null}
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
         <SkillBar
+          combatLoadout={skillsState.combatLoadout}
           cooldowns={skillsState.cooldowns}
           currentTimeMs={skillsState.currentTimeMs}
-          skillLoadout={skillsState.skillLoadout}
         />
       </div>
       <div className="pointer-events-none absolute bottom-20 right-4 z-10 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
