@@ -6,7 +6,7 @@ import type {
   StaminaState,
   BossDef,
   CombatLogEvent,
-  SkillId,
+  LegacyCombatSkillId,
   CombatMode,
 } from "./types.js";
 import type { CombatStats, Element } from "../power/types.js";
@@ -147,7 +147,7 @@ export function simulateCombat(params: {
   }
 
   function tickCooldowns(dt: number) {
-    for (const k of Object.keys(cd) as SkillId[]) {
+    for (const k of Object.keys(cd) as LegacyCombatSkillId[]) {
       cd[k] = Math.max(0, (cd[k] ?? 0) - dt);
     }
   }

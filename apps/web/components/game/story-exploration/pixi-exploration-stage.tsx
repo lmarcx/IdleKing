@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
+import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
+import { SkillBar } from "./skill-bar";
+import { isEnemyInBeam, isEnemyInCircle, isEnemyInFrontalAoe } from "./skills-hit-detection";
+import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   MELEE_DAMAGE,
   PLAYER_MAX_HP,
@@ -42,6 +47,9 @@ const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_DEATH_FADE_MS = 260;
 const LOOT_POPUP_DURATION_MS = 900;
+const PLAYER_SKILL_BASE_DAMAGE = MELEE_DAMAGE;
+const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
+const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 
 export type ExplorationStagePoi = {
   color: number;
@@ -85,9 +93,41 @@ type ActiveMouseAction = "melee" | "ranged" | null;
 type ActiveEnemy = StoryLevelEnemy & {
   body: PIXI.Graphics;
   container: PIXI.Container;
+  debugScenario?: boolean;
   deathFadeMs: number;
   hitFlashMs: number;
   hpBar: PIXI.Graphics;
+};
+
+type SkillId = combat.SkillId;
+type SkillSlot = combat.SkillSlot;
+type SkillCooldownState = combat.SkillCooldownState;
+type VisualActiveSkillEffect = combat.ActiveSkillEffect & {
+  angle?: number;
+  directionX?: number;
+  directionY?: number;
+  hitEnemyIds?: Set<EnemyId>;
+  lastDamageTickAtMs?: number;
+  originX?: number;
+  originY?: number;
+  skillDef: combat.SkillDef;
+};
+type CharacterCombatLoadout = import("@idleking/game-core").CharacterCombatLoadout;
+type EquippedCombatSkill = import("@idleking/game-core").EquippedCombatSkill;
+
+type DirectionalSkillSnapshot = {
+  angle: number;
+  directionX: number;
+  directionY: number;
+  originX: number;
+  originY: number;
+};
+
+type LocalSkillsState = {
+  activeEffects: VisualActiveSkillEffect[];
+  combatLoadout: CharacterCombatLoadout;
+  cooldowns: SkillCooldownState;
+  currentTimeMs: number;
 };
 
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
@@ -101,6 +141,24 @@ const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   KeyS: { x: 0, y: 1 },
   KeyW: { x: 0, y: -1 },
   KeyZ: { x: 0, y: -1 },
+};
+
+const SKILL_SLOT_BY_KEY: Record<string, SkillSlot> = {
+  "&": 1,
+  "1": 1,
+  "é": 2,
+  "2": 2,
+  "\"": 3,
+  "3": 3,
+  "'": 4,
+  "4": 4,
+};
+
+const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
+  Digit1: 1,
+  Digit2: 2,
+  Digit3: 3,
+  Digit4: 4,
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -175,9 +233,28 @@ function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
     ...enemy,
     body,
     container,
+    debugScenario: false,
     deathFadeMs: 0,
     hitFlashMs: 0,
     hpBar,
+  };
+}
+
+function createDebugEnemy(id: string, position: Vector2): StoryLevelEnemy {
+  return {
+    attackCooldownMs: 700,
+    contactDamage: 0,
+    detectionRadius: 0,
+    hp: 40,
+    id,
+    kind: "grunt",
+    lastContactDamageAt: -Infinity,
+    lootClaimed: false,
+    maxHp: 40,
+    moveSpeed: 0,
+    position,
+    radius: 20,
+    state: "idle",
   };
 }
 
@@ -233,6 +310,18 @@ function getLootPopupLabel(resourceId: ResourceId): string {
 export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const onPlayerMoveRef = useRef(onPlayerMove);
+  const playerSkills = useGameStore((s) => s.state.skills);
+  const combatLoadout = useMemo(
+    () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
+    [playerSkills]
+  );
+  const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
+    activeEffects: [],
+    combatLoadout,
+    cooldowns: {},
+    currentTimeMs: 0,
+  }));
+  const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState({
     enemiesRemaining: 0,
     isDefeated: false,
@@ -242,6 +331,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
   useEffect(() => {
     onPlayerMoveRef.current = onPlayerMove;
   }, [onPlayerMove]);
+
+  useEffect(() => {
+    skillsStateRef.current = skillsState;
+  }, [skillsState]);
 
   useEffect(() => {
     const nullableHostElement = hostRef.current;
@@ -272,17 +365,114 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     const projectiles: ActiveProjectile[] = [];
     const lootPopups: ActiveLootPopup[] = [];
     const enemies: ActiveEnemy[] = createInitialEnemies().map(createEnemyGraphics);
+    let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
+    let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
     let hudElapsed = 0;
+    let skillsHudElapsed = 0;
     let hasPointerWorldPosition = false;
     let isPlayerDefeated = false;
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
     let playerHp = PLAYER_MAX_HP;
 
+    function publishSkillsState(nowMs: number) {
+      const nextState: LocalSkillsState = {
+        activeEffects: [...activeSkillEffects],
+        combatLoadout,
+        cooldowns: { ...skillCooldowns },
+        currentTimeMs: nowMs,
+      };
+      skillsStateRef.current = nextState;
+      setSkillsState(nextState);
+    }
+
+    function removeExpiredSkillEffects(nowMs: number) {
+      activeSkillEffects = activeSkillEffects.filter((effect) => effect.endsAtMs >= nowMs);
+    }
+
+    function getEquippedSkillForSlot(slot: SkillSlot): EquippedCombatSkill | undefined {
+      return combatLoadout.skills.find((skill) => skill.slot === slot);
+    }
+
+    function createDirectionalSnapshot(): DirectionalSkillSnapshot {
+      const direction = normalizeVector(playerFacing);
+      return {
+        angle: Math.atan2(direction.y, direction.x),
+        directionX: direction.x,
+        directionY: direction.y,
+        originX: playerPosition.x,
+        originY: playerPosition.y,
+      };
+    }
+
+    function tryCastSkill(slot: SkillSlot, nowMs: number) {
+      if (isPlayerDefeated) return;
+
+      removeExpiredSkillEffects(nowMs);
+      const equippedSkill = getEquippedSkillForSlot(slot);
+      if (!equippedSkill) return;
+
+      const result = combat.castSkillWithDef({
+        cooldowns: skillCooldowns,
+        nowMs,
+        skillDef: equippedSkill.skillDef,
+      });
+
+      if (!result.ok) {
+        publishSkillsState(nowMs);
+        return;
+      }
+
+      skillCooldowns = {
+        ...skillCooldowns,
+        [result.skillId]: result.nextAvailableAtMs,
+      };
+
+      if (result.activeEffect) {
+        const visualEffect =
+          result.skillId === "royal_beam"
+            ? {
+                ...result.activeEffect,
+                skillDef: equippedSkill.skillDef,
+                ...createDirectionalSnapshot(),
+                lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
+              }
+            : {
+                ...result.activeEffect,
+                skillDef: equippedSkill.skillDef,
+                lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
+              };
+        activeSkillEffects = [...activeSkillEffects, visualEffect];
+      } else if (result.skillId === "royal_strike") {
+        const snapshot = createDirectionalSnapshot();
+        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs, snapshot);
+        applyRoyalStrikeDamage(equippedSkill.skillDef, snapshot, nowMs);
+      }
+
+      publishSkillsState(nowMs);
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
       if (isPlayerDefeated) return;
+      if (IS_SKILL_HIT_DEBUG_ENABLED && event.code === "F8") {
+        event.preventDefault();
+        if (!event.repeat) {
+          spawnSkillDebugScenario();
+        }
+        return;
+      }
+
+      const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
+      if (skillSlot) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryCastSkill(skillSlot, performance.now());
+        }
+        return;
+      }
+
       if (KEY_DIRECTIONS[event.code]) {
         pressedKeys.add(event.code);
         event.preventDefault();
@@ -447,6 +637,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       syncHeldMouseButtons(event.buttons);
     }
 
+    function handleSkillDebugScenarioEvent() {
+      spawnSkillDebugScenario();
+    }
+
     function removeAttackGraphic(graphic: PIXI.Graphics) {
       graphic.removeFromParent();
       graphic.destroy();
@@ -456,6 +650,50 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       const projectile = projectiles[index];
       removeAttackGraphic(projectile.graphic);
       projectiles.splice(index, 1);
+    }
+
+    function removeEnemyAt(index: number) {
+      const enemy = enemies[index];
+      enemy.container.removeFromParent();
+      enemy.container.destroy({ children: true });
+      enemies.splice(index, 1);
+    }
+
+    function spawnSkillDebugScenario() {
+      if (!IS_SKILL_HIT_DEBUG_ENABLED) return;
+
+      for (let index = enemies.length - 1; index >= 0; index -= 1) {
+        if (enemies[index].debugScenario) {
+          removeEnemyAt(index);
+        }
+      }
+
+      const direction = normalizeVector(playerFacing);
+      const side = { x: -direction.y, y: direction.x };
+      const debugEnemies = [
+        createDebugEnemy("debug-skill-front", {
+          x: clamp(playerPosition.x + direction.x * 120, 24, mapWidth - 24),
+          y: clamp(playerPosition.y + direction.y * 120, 24, mapHeight - 24),
+        }),
+        createDebugEnemy("debug-skill-close", {
+          x: clamp(playerPosition.x + side.x * 135, 24, mapWidth - 24),
+          y: clamp(playerPosition.y + side.y * 135, 24, mapHeight - 24),
+        }),
+        createDebugEnemy("debug-skill-far", {
+          x: clamp(playerPosition.x - side.x * 260, 24, mapWidth - 24),
+          y: clamp(playerPosition.y - side.y * 260, 24, mapHeight - 24),
+        }),
+      ];
+
+      for (const enemyDef of debugEnemies) {
+        const enemy = createEnemyGraphics(enemyDef);
+        enemy.debugScenario = true;
+        renderEnemy(enemy);
+        enemies.push(enemy);
+        enemyLayer.addChild(enemy.container);
+      }
+
+      syncCombatHud();
     }
 
     function getEnemiesRemaining() {
@@ -526,6 +764,110 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       }
     }
 
+    function getPlayerDamageMultiplier(effects: VisualActiveSkillEffect[], nowMs: number): number {
+      const warCry = effects.find(
+        (effect) => effect.skillId === "war_cry" && effect.startedAtMs <= nowMs && effect.endsAtMs >= nowMs
+      );
+      return warCry ? 1 + (warCry.bonusDamageMultiplier ?? 0.25) : 1;
+    }
+
+    function computeSkillDamage(skillDef: combat.SkillDef, nowMs: number): number {
+      const damageMultiplier = skillDef.damageMultiplier ?? 0;
+      if (damageMultiplier <= 0) return 0;
+
+      const damage = PLAYER_SKILL_BASE_DAMAGE * damageMultiplier * getPlayerDamageMultiplier(activeSkillEffects, nowMs);
+      return Math.max(1, Math.round(damage));
+    }
+
+    function computePlayerAttackDamage(baseDamage: number, nowMs: number): number {
+      return Math.max(1, Math.round(baseDamage * getPlayerDamageMultiplier(activeSkillEffects, nowMs)));
+    }
+
+    function applySkillDamageToEnemy(enemy: ActiveEnemy, damage: number) {
+      if (damage <= 0 || !isEnemyAlive(enemy)) return;
+      damageActiveEnemy(enemy, damage);
+    }
+
+    function applyRoyalStrikeDamage(skillDef: combat.SkillDef, snapshot: DirectionalSkillSnapshot, nowMs: number) {
+      if (skillDef.kind !== "frontal_aoe") return;
+
+      const damage = computeSkillDamage(skillDef, nowMs);
+      const hitEnemyIds = new Set<EnemyId>();
+
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
+        if (
+          !isEnemyInFrontalAoe(
+            enemy,
+            snapshot.originX,
+            snapshot.originY,
+            snapshot.directionX,
+            snapshot.directionY,
+            skillDef.range ?? 0,
+            skillDef.width ?? 0
+          )
+        ) {
+          continue;
+        }
+
+        hitEnemyIds.add(enemy.id);
+        applySkillDamageToEnemy(enemy, damage);
+      }
+
+      if (hitEnemyIds.size > 0) {
+        syncCombatHud();
+      }
+    }
+
+    function applyActiveSkillEffectDamage(nowMs: number) {
+      let didDamage = false;
+
+      for (const effect of activeSkillEffects) {
+        if (effect.skillId === "war_cry") continue;
+
+        const skillDef = effect.skillDef;
+        const tickIntervalMs = effect.tickIntervalMs ?? skillDef.tickIntervalMs;
+        if (!tickIntervalMs || tickIntervalMs <= 0) continue;
+
+        const lastDamageTickAtMs = effect.lastDamageTickAtMs ?? effect.startedAtMs - tickIntervalMs;
+        if (nowMs - lastDamageTickAtMs < tickIntervalMs) continue;
+
+        effect.lastDamageTickAtMs = nowMs;
+        const damage = computeSkillDamage(skillDef, nowMs);
+        if (damage <= 0) continue;
+
+        const hitEnemyIds = new Set<EnemyId>();
+        for (const enemy of enemies) {
+          if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
+
+          const isHit =
+            effect.skillId === "royal_beam"
+              ? isEnemyInBeam(
+                  enemy,
+                  effect.originX ?? playerPosition.x,
+                  effect.originY ?? playerPosition.y,
+                  effect.directionX ?? playerFacing.x,
+                  effect.directionY ?? playerFacing.y,
+                  skillDef.range ?? effect.range ?? 0,
+                  skillDef.width ?? effect.width ?? 0
+                )
+              : effect.skillId === "king_aura"
+                ? isEnemyInCircle(enemy, playerPosition.x, playerPosition.y, skillDef.radius ?? effect.radius ?? 0)
+                : false;
+
+          if (!isHit) continue;
+
+          hitEnemyIds.add(enemy.id);
+          applySkillDamageToEnemy(enemy, damage);
+          didDamage = true;
+        }
+      }
+
+      if (didDamage) {
+        syncCombatHud();
+      }
+    }
+
     function applyMeleeHits(attack: ActiveMeleeAttack) {
       for (const enemy of enemies) {
         if (!isEnemyAlive(enemy) || attack.hitEnemyIds.has(enemy.id)) continue;
@@ -541,7 +883,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
 
         if (!isHit) continue;
         attack.hitEnemyIds.add(enemy.id);
-        damageActiveEnemy(enemy, MELEE_DAMAGE);
+        damageActiveEnemy(enemy, computePlayerAttackDamage(MELEE_DAMAGE, performance.now()));
       }
     }
 
@@ -550,7 +892,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         if (!isEnemyAlive(enemy)) continue;
         if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
 
-        damageActiveEnemy(enemy, RANGED_DAMAGE);
+        damageActiveEnemy(enemy, computePlayerAttackDamage(RANGED_DAMAGE, performance.now()));
         return true;
       }
 
@@ -757,8 +1099,12 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       window.addEventListener("mouseup", handleWindowMouseUp);
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
+      if (IS_SKILL_HIT_DEBUG_ENABLED) {
+        window.addEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
+      }
 
       app.ticker.add((ticker) => {
+        const nowMs = performance.now();
         const deltaSeconds = ticker.deltaMS / 1000;
         let directionX = 0;
         let directionY = 0;
@@ -788,12 +1134,15 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
           player.position.set(playerPosition.x, playerPosition.y);
         }
 
-        updateEnemies(ticker.deltaMS, performance.now());
-        updateAttacks(ticker.deltaMS, performance.now());
+        removeExpiredSkillEffects(nowMs);
+        updateEnemies(ticker.deltaMS, nowMs);
+        updateAttacks(ticker.deltaMS, nowMs);
+        applyActiveSkillEffectDamage(nowMs);
         updateLootPopups(ticker.deltaMS);
         renderEnemies();
         renderAttacks();
         player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
+        renderSkillEffects(app, player, activeSkillEffects);
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;
@@ -805,6 +1154,12 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         if (hudElapsed >= 90) {
           hudElapsed = 0;
           onPlayerMoveRef.current({ ...playerPosition });
+        }
+
+        skillsHudElapsed += ticker.deltaMS;
+        if (skillsHudElapsed >= 90) {
+          skillsHudElapsed = 0;
+          publishSkillsState(nowMs);
         }
 
         combatHudElapsed += ticker.deltaMS;
@@ -825,6 +1180,9 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
+      if (IS_SKILL_HIT_DEBUG_ENABLED) {
+        window.removeEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
+      }
       canvasElement?.removeEventListener("contextmenu", handleContextMenu);
       canvasElement?.removeEventListener("pointerdown", handlePointerDown);
       canvasElement?.removeEventListener("pointerup", handlePointerUp);
@@ -835,14 +1193,31 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       pressedKeys.clear();
       cleanupAttacks();
       cleanupLootPopups();
+      cleanupSkillEffects(player);
       cleanupEnemies();
       if (initialized) app.destroy(true);
     };
-  }, [levelId, mapHeight, mapWidth, pointsOfInterest]);
+  }, [combatLoadout, levelId, mapHeight, mapWidth, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
+      {IS_SKILL_HIT_DEBUG_ENABLED ? (
+        <button
+          className="absolute right-4 top-4 z-20 rounded-md border border-cyan-200/30 bg-cyan-950/80 px-3 py-2 font-ik-menu text-[0.65rem] uppercase tracking-[0.12em] text-cyan-100 shadow-[0_10px_28px_rgba(0,0,0,0.4)] transition hover:border-cyan-100"
+          onClick={() => window.dispatchEvent(new Event(SKILL_DEBUG_EVENT))}
+          type="button"
+        >
+          Debug hits
+        </button>
+      ) : null}
+      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
+        <SkillBar
+          combatLoadout={skillsState.combatLoadout}
+          cooldowns={skillsState.cooldowns}
+          currentTimeMs={skillsState.currentTimeMs}
+        />
+      </div>
       <div className="pointer-events-none absolute bottom-20 right-4 z-10 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
         <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-red-200">Combat prototype</p>
         <div className="mt-2 grid gap-1">
