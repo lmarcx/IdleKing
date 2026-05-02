@@ -96,11 +96,17 @@ type ActiveEnemy = StoryLevelEnemy & {
 type SkillId = combat.SkillId;
 type SkillSlot = combat.SkillSlot;
 type SkillCooldownState = combat.SkillCooldownState;
-type ActiveSkillEffect = combat.ActiveSkillEffect;
+type VisualActiveSkillEffect = combat.ActiveSkillEffect & {
+  angle?: number;
+  directionX?: number;
+  directionY?: number;
+  originX?: number;
+  originY?: number;
+};
 type SkillLoadout = ReturnType<typeof combat.getDefaultSkillLoadout>;
 
 type LocalSkillsState = {
-  activeEffects: ActiveSkillEffect[];
+  activeEffects: VisualActiveSkillEffect[];
   cooldowns: SkillCooldownState;
   currentTimeMs: number;
   skillLoadout: SkillLoadout;
@@ -318,7 +324,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     const projectiles: ActiveProjectile[] = [];
     const lootPopups: ActiveLootPopup[] = [];
     const enemies: ActiveEnemy[] = createInitialEnemies().map(createEnemyGraphics);
-    let activeSkillEffects: ActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
+    let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
@@ -349,6 +355,17 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       return skillLoadout.find((entry) => entry.slot === slot)?.skillId ?? null;
     }
 
+    function createDirectionalSnapshot() {
+      const direction = normalizeVector(playerFacing);
+      return {
+        angle: Math.atan2(direction.y, direction.x),
+        directionX: direction.x,
+        directionY: direction.y,
+        originX: playerPosition.x,
+        originY: playerPosition.y,
+      };
+    }
+
     function tryCastSkill(slot: SkillSlot, nowMs: number) {
       if (isPlayerDefeated) return;
 
@@ -373,9 +390,16 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       };
 
       if (result.activeEffect) {
-        activeSkillEffects = [...activeSkillEffects, result.activeEffect];
+        const visualEffect =
+          result.skillId === "royal_beam"
+            ? {
+                ...result.activeEffect,
+                ...createDirectionalSnapshot(),
+              }
+            : result.activeEffect;
+        activeSkillEffects = [...activeSkillEffects, visualEffect];
       } else if (result.skillId === "royal_strike") {
-        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs);
+        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs, createDirectionalSnapshot());
       }
 
       publishSkillsState(nowMs);
