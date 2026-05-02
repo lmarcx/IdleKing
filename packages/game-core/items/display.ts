@@ -1,5 +1,6 @@
 import type { GameState } from "../game/state.js";
 import { ALL_RESOURCES, getQty, type ResourceId } from "../resources/types.js";
+import { isEquipmentItem, type EquipmentStats } from "./types.js";
 
 export type InventoryCategory = "equipment" | "resources" | "consumables" | "unique" | "materials";
 
@@ -19,6 +20,9 @@ export type InventoryDisplayItem = {
   id: string;
   name: string;
   quantity: number;
+  rarity?: string;
+  slot?: string;
+  stats?: EquipmentStats;
   value: number;
 };
 
@@ -66,18 +70,41 @@ function getResourceValue(id: ResourceId): number {
 }
 
 function getInventoryItemValue(item: GameState["inventory"]["items"][number]): number {
-  if ("slot" in item) return item.itemLevel ?? item.ilvl ?? 0;
+  if (isEquipmentItem(item)) return item.itemLevel ?? item.ilvl ?? 0;
   return item.value ?? 0;
 }
 
+function getInventoryItemCategory(item: GameState["inventory"]["items"][number]): InventoryCategory {
+  if (isEquipmentItem(item)) return "equipment";
+  if (item.kind === "material") return "materials";
+  if (item.kind === "resource") return "resources";
+  if (item.kind === "consumable") return "consumables";
+  return "unique";
+}
+
 export function getInventoryDisplayItems(state: GameState): InventoryDisplayItem[] {
-  const equipmentItems = state.inventory.items.map((item) => ({
-    category: "equipment" as const,
-    id: item.id,
-    name: item.name,
-    quantity: 1,
-    value: getInventoryItemValue(item),
-  }));
+  const inventoryItems = state.inventory.items.map((item) => {
+    if (isEquipmentItem(item)) {
+      return {
+        category: "equipment" as const,
+        id: item.id,
+        name: item.name,
+        quantity: 1,
+        rarity: item.rarity,
+        slot: item.slot,
+        stats: item.stats,
+        value: getInventoryItemValue(item),
+      };
+    }
+
+    return {
+      category: getInventoryItemCategory(item),
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity ?? 1,
+      value: getInventoryItemValue(item),
+    };
+  });
 
   const resourceItems = ALL_RESOURCES.map((id) => ({
     category: getResourceCategory(id),
@@ -87,7 +114,7 @@ export function getInventoryDisplayItems(state: GameState): InventoryDisplayItem
     value: getResourceValue(id),
   }));
 
-  return [...equipmentItems, ...resourceItems];
+  return [...inventoryItems, ...resourceItems];
 }
 
 export function filterAndSortInventoryItems(

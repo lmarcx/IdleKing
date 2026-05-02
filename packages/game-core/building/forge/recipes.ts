@@ -1,7 +1,7 @@
 import type { ResourceId } from "../../resources/types.js";
 import type { EquipmentSlot, ItemRarity } from "../../items/types.js";
 
-export type ForgeRecipeId = "BASIC_SWORD" | "BASIC_ARMOR" | (string & {});
+export type ForgeRecipeId = "BASIC_SWORD" | "BASIC_ARMOR" | "BASIC_CAPE" | "BASIC_ARTIFACT" | (string & {});
 
 export type ForgeRecipe = {
   id: ForgeRecipeId;
@@ -34,6 +34,24 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     rarity: "COMMON",
     cost: { COPPER: 2, STONE: 2 },
     staminaCostPct: 0.25,
+  },
+  {
+    id: "BASIC_CAPE",
+    label: "Basic Cape",
+    slot: "cape",
+    baseName: "Cape",
+    rarity: "COMMON",
+    cost: { WOOD: 2, COPPER: 1 },
+    staminaCostPct: 0.2,
+  },
+  {
+    id: "BASIC_ARTIFACT",
+    label: "Basic Artifact",
+    slot: "artifact",
+    baseName: "Relic",
+    rarity: "COMMON",
+    cost: { STONE: 3, GOLD: 1 },
+    staminaCostPct: 0.3,
   },
 ];
 

@@ -1,8 +1,9 @@
 import type { GameState } from "./state.js";
 import { getForgeRecipe, type ForgeRecipeId } from "../building/forge/recipes.js";
+import { generateEquipmentItem } from "../equipment/index.js";
 import { hasAtLeast, spend, addQty, type ResourceId } from "../resources/types.js";
 import { addItem, findItem, removeItem } from "../items/inventory.js";
-import { isEquipmentItem, type EquipmentItem } from "../items/types.js";
+import { isEquipmentItem } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
 
 function staminaCostFromPct(pct: number): number {
@@ -37,11 +38,11 @@ export function forgeCraft(
   villagerId: string
 ): ForgeCraftResult {
   if (!state.buildings.forge.unlocked) {
-  return { next: state, ok: false, reason: "FORGE_LOCKED" };
-}
+    return { next: state, ok: false, reason: "FORGE_LOCKED" };
+  }
   if (!state.buildings.forge.built) {
-  return { next: state, ok: false, reason: "FORGE_NOT_BUILT" };
-}
+    return { next: state, ok: false, reason: "FORGE_NOT_BUILT" };
+  }
 
   const recipe = getForgeRecipe(recipeId);
   if (!recipe) return { next: state, ok: false, reason: "RECIPE_NOT_FOUND" };
@@ -61,16 +62,13 @@ export function forgeCraft(
 
   // Create item
   const itemLevel = expectedIlvl(state.progression.worldLevel);
-  const item: EquipmentItem = {
+  const item = generateEquipmentItem({
     id: uid("item"),
-    kind: "equipment",
-    name: `${recipe.baseName}`,
     slot: recipe.slot,
+    name: recipe.baseName,
     itemLevel,
-    ilvl: itemLevel,
     rarity: recipe.rarity,
-    stats: {},
-  };
+  });
 
   // Drain stamina
   const cost = staminaCostFromPct(recipe.staminaCostPct);
@@ -125,8 +123,14 @@ export function forgeUpgrade(
 
   const nextResources = spend(state.resources, costStock);
 
-  // Upgrade rule: +10 ilvl
-  const upgraded = { ...item, itemLevel: currentItemLevel + 10, ilvl: currentItemLevel + 10 };
+  // Upgrade rule: +10 ilvl, regenerated through the same MVP stat model.
+  const upgraded = generateEquipmentItem({
+    id: item.id,
+    name: item.name,
+    slot: item.slot,
+    itemLevel: currentItemLevel + 10,
+    rarity: item.rarity,
+  });
 
   // Replace in inventory
   const nextItems = state.inventory.items.map((it) => (it.id === itemId ? upgraded : it));

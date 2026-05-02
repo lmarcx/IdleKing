@@ -156,12 +156,30 @@ function InventoryItemTooltip({ anchorRect, item }: { anchorRect: DOMRect | null
     >
       <div className="font-ik-title text-sm font-semibold text-foreground">{item.name}</div>
       <div className="font-ik-body mt-1 text-xs capitalize text-muted-foreground">{item.category}</div>
+      {(item.slot || item.rarity) && (
+        <div className="mt-2 flex items-center justify-between gap-2 font-ik-body text-xs">
+          {item.slot ? <span className="capitalize text-muted-foreground">{item.slot}</span> : <span />}
+          {item.rarity ? <span className="font-ik-menu text-[10px] uppercase tracking-wide text-amber-200">{item.rarity}</span> : null}
+        </div>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 font-ik-body text-xs">
         <span className="text-muted-foreground">Quantite</span>
         <span className="text-right tabular-nums">x{item.quantity}</span>
         <span className="text-muted-foreground">Valeur</span>
         <span className="text-right tabular-nums">{item.value}</span>
       </div>
+      {item.stats && (
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-border/50 pt-2 font-ik-body text-xs">
+          {Object.entries(item.stats)
+            .filter(([, value]) => typeof value === "number" && value > 0)
+            .map(([stat, value]) => (
+              <div key={stat} className="contents">
+                <span className="text-muted-foreground uppercase">{stat}</span>
+                <span className="text-right tabular-nums">+{value}</span>
+              </div>
+            ))}
+        </div>
+      )}
       <div className="mt-2 truncate border-t border-border/50 pt-2 font-ik-menu text-[10px] uppercase tracking-wide text-muted-foreground/75">
         {item.id}
       </div>

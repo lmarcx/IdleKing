@@ -1,4 +1,12 @@
 import type { GameState } from "../game/state.js";
+export {
+  generateEquipmentItem,
+  generateEquipmentLootDrop,
+} from "./generation.js";
+export type {
+  GenerateEquipmentItemParams,
+  GenerateEquipmentLootDropParams,
+} from "./generation.js";
 import {
   EQUIPMENT_SLOTS,
   isEquipmentItem,

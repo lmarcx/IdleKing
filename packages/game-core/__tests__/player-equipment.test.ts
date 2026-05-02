@@ -7,6 +7,8 @@ import {
   calculateFinalCharacterStats,
   createDefaultPlayerEquipmentState,
   equipItem,
+  generateEquipmentItem,
+  generateEquipmentLootDrop,
   type EquipItemResult,
   getEquippedItemIds,
   getEquippedItems,
@@ -14,7 +16,7 @@ import {
 } from "../equipment/index.js";
 import { createInitialGameState, type GameState } from "../game/state.js";
 import { loadGame } from "../game/save.js";
-import { EQUIPMENT_SLOTS, type EquipmentItem, type NonEquipmentItem } from "../items/types.js";
+import { EQUIPMENT_SLOTS, isEquipmentItem, type EquipmentItem, type NonEquipmentItem } from "../items/types.js";
 
 function equipmentItem(overrides: Partial<EquipmentItem> & Pick<EquipmentItem, "id" | "name" | "slot">): EquipmentItem {
   return {
@@ -35,6 +37,10 @@ function assertEquipOk(result: EquipItemResult): asserts result is Extract<Equip
   if (!result.ok) assert.fail(result.reason);
 }
 
+function totalStats(item: EquipmentItem): number {
+  return (item.stats.hp ?? 0) + (item.stats.attack ?? 0) + (item.stats.defense ?? 0) + (item.stats.power ?? 0);
+}
+
 test("default player equipment state initializes all active slots to null", () => {
   const equipment = createDefaultPlayerEquipmentState();
 
@@ -43,6 +49,48 @@ test("default player equipment state initializes all active slots to null", () =
     assert.equal(equipment.equipped[slot], null);
   }
   assert.deepEqual(getEquippedItemIds(equipment), []);
+});
+
+test("generateEquipmentItem produces valid equipment for every active slot", () => {
+  for (const slot of EQUIPMENT_SLOTS) {
+    const item = generateEquipmentItem({ slot, itemLevel: 12, seed: `test-${slot}` });
+
+    assert.ok(isEquipmentItem(item));
+    assert.equal(item.kind, "equipment");
+    assert.equal(item.slot, slot);
+    assert.notEqual(item.slot as string, "ring");
+    assert.ok(totalStats(item) > 0);
+  }
+});
+
+test("generateEquipmentItem stats scale with itemLevel", () => {
+  const low = generateEquipmentItem({ slot: "weapon", itemLevel: 5, seed: "weapon-low" });
+  const high = generateEquipmentItem({ slot: "weapon", itemLevel: 50, seed: "weapon-high" });
+
+  assert.ok((high.stats.attack ?? 0) > (low.stats.attack ?? 0));
+  assert.ok((high.stats.power ?? 0) > (low.stats.power ?? 0));
+});
+
+test("generateEquipmentLootDrop can produce a valid non-ring equipment item", () => {
+  const item = generateEquipmentLootDrop({ seed: 12345, worldLevel: 3, chance: 1 });
+
+  assert.ok(item);
+  assert.ok(isEquipmentItem(item));
+  assert.notEqual(item.slot as string, "ring");
+  assert.ok(totalStats(item) > 0);
+});
+
+test("generated equipment can live in inventory, equip, and affect final stats", () => {
+  const weapon = generateEquipmentItem({ slot: "weapon", itemLevel: 20, seed: "generated-weapon" });
+  const equipped = equipItem(stateWithItems([weapon]), weapon.id);
+  assertEquipOk(equipped);
+
+  assert.equal(equipped.state.equipment.equipped.weapon, weapon.id);
+  assert.deepEqual(equipped.state.inventory.items, [weapon]);
+
+  const finalStats = calculateFinalCharacterStats(equipped.state);
+  assert.equal(finalStats.attack, 25 + (weapon.stats.attack ?? 0));
+  assert.equal(finalStats.power, 25 + (weapon.stats.power ?? 0));
 });
 
 test("old save without equipment revives with default equipment state", () => {
