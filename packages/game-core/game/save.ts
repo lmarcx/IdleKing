@@ -1,6 +1,7 @@
 import type { GameState } from "./state.js";
 import { applyOfflineProgress } from "./offlineProgress.js";
 import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
+import { isItemSlot, type Item } from "../items/types.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
@@ -26,9 +27,18 @@ function toSet<T>(value: unknown): Set<T> {
   return new Set();
 }
 
+function reviveInventory(inventory: GameState["inventory"]): GameState["inventory"] {
+  const items = Array.isArray(inventory?.items) ? inventory.items : [];
+
+  return {
+    items: items.filter((item): item is Item => isItemSlot(item?.slot)),
+  };
+}
+
 function reviveGameState(state: GameState): GameState {
   return {
     ...state,
+    inventory: reviveInventory(state.inventory),
     skills: state.skills ?? createDefaultPlayerSkillsState(),
     story: {
       ...state.story,

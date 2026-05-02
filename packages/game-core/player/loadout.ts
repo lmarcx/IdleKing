@@ -4,6 +4,34 @@ import type { Inventory, Loadout, LoadoutComputed } from "./types.js";
 import { emptyCombatStats } from "./types.js";
 import type { Element } from "../power/types.js";
 
+const ACTIVE_ITEM_SLOTS: readonly ItemSlot[] = [
+  "HELM",
+  "CHEST",
+  "LEGS",
+  "SHOULDERS",
+  "BOOTS",
+  "GLOVES",
+  "CAPE",
+  "NECKLACE",
+  "ARTIFACT",
+  "STONE",
+] as const;
+
+function isActiveItemSlot(slot: unknown): slot is ItemSlot {
+  return typeof slot === "string" && (ACTIVE_ITEM_SLOTS as readonly string[]).includes(slot);
+}
+
+export function sanitizeLoadout(loadout: Loadout): Loadout {
+  const next: Loadout = {};
+
+  for (const [slot, itemId] of Object.entries(loadout)) {
+    if (!isActiveItemSlot(slot) || !itemId) continue;
+    next[slot] = itemId;
+  }
+
+  return next;
+}
+
 function addElementMap(
   target: Record<Element, number>,
   add?: Partial<Record<Element, number>>
@@ -48,11 +76,13 @@ export function equipItem(params: {
 }): { loadout: Loadout; replaced?: string } {
   const item = params.inventory.items[params.itemId];
   if (!item) return { loadout: params.loadout };
+  if (!isActiveItemSlot(item.slot)) return { loadout: sanitizeLoadout(params.loadout) };
 
   const slot: ItemSlot = item.slot;
-  const replaced = params.loadout[slot];
+  const currentLoadout = sanitizeLoadout(params.loadout);
+  const replaced = currentLoadout[slot];
 
-  const next: Loadout = { ...params.loadout, [slot]: item.id };
+  const next: Loadout = { ...currentLoadout, [slot]: item.id };
   return { loadout: next, replaced };
 }
 
@@ -69,10 +99,11 @@ export function computeLoadoutComputed(inventory: Inventory, loadout: Loadout): 
   const stats = emptyCombatStats();
   const equipped: GeneratedItem[] = [];
 
-  for (const itemId of Object.values(loadout)) {
+  for (const itemId of Object.values(sanitizeLoadout(loadout))) {
     if (!itemId) continue;
     const item = inventory.items[itemId];
     if (!item) continue;
+    if (!isActiveItemSlot(item.slot)) continue;
     equipped.push(item);
     addItemStats(stats, item);
   }

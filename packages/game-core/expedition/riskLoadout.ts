@@ -6,8 +6,36 @@ import { generateExpedition } from "./generator.js";
 import { generateExpeditionLoot } from "../loot/lootTables.js";
 import { rollKingamasForExpedition } from "../economy/kingamas.js";
 
+const ACTIVE_EXPEDITION_SLOTS: readonly ItemSlot[] = [
+  "HELM",
+  "CHEST",
+  "LEGS",
+  "SHOULDERS",
+  "BOOTS",
+  "GLOVES",
+  "CAPE",
+  "NECKLACE",
+  "ARTIFACT",
+  "STONE",
+] as const;
+
 function uniq(ids: string[]) {
   return Array.from(new Set(ids));
+}
+
+function isActiveExpeditionSlot(slot: unknown): slot is ItemSlot {
+  return typeof slot === "string" && (ACTIVE_EXPEDITION_SLOTS as readonly string[]).includes(slot);
+}
+
+function sanitizeExpeditionLoadout(loadout: ExpeditionLoadout): ExpeditionLoadout {
+  const next: ExpeditionLoadout = {};
+
+  for (const [slot, itemId] of Object.entries(loadout)) {
+    if (!isActiveExpeditionSlot(slot) || !itemId) continue;
+    next[slot] = itemId;
+  }
+
+  return next;
 }
 
 /**
@@ -22,8 +50,10 @@ export function createExpeditionLoadout(params: {
   const out: ExpeditionLoadout = {};
 
   for (const s of params.selections) {
+    if (!isActiveExpeditionSlot(s.slot)) continue;
     const item = params.inventory.items[s.itemId];
     if (!item) continue;
+    if (!isActiveExpeditionSlot(item.slot)) continue;
     if (item.slot !== s.slot) continue;
     out[s.slot] = item.id;
   }
@@ -41,13 +71,14 @@ export function startExpeditionRun(params: {
   loadout: ExpeditionLoadout;
   now: number;
 }): ExpeditionRunState {
-  const riskedItemIds = uniq(Object.values(params.loadout).filter(Boolean) as string[]);
+  const loadout = sanitizeExpeditionLoadout(params.loadout);
+  const riskedItemIds = uniq(Object.values(loadout).filter(Boolean) as string[]);
   const gen = generateExpedition(params.config);
 
   return {
     id: gen.id,
     config: params.config,
-    loadout: { ...params.loadout },
+    loadout,
     riskedItemIds,
     rooms: gen.rooms,
     startedAt: params.now,

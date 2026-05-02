@@ -13,7 +13,7 @@ test("LOSE removes risked items and clears expedition loadout", () => {
   let inv = createInventory();
 
   const a = generateItem({ seed: 1, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "NECKLACE" });
-  const b = generateItem({ seed: 2, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "RING" });
+  const b = generateItem({ seed: 2, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "ARTIFACT" });
 
   inv = addItem(inv, a);
   inv = addItem(inv, b);
