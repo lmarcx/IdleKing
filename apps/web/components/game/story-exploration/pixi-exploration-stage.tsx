@@ -47,6 +47,8 @@ const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_DEATH_FADE_MS = 260;
 const LOOT_POPUP_DURATION_MS = 900;
 const PLAYER_SKILL_BASE_DAMAGE = MELEE_DAMAGE;
+const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
+const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 
 export type ExplorationStagePoi = {
   color: number;
@@ -90,6 +92,7 @@ type ActiveMouseAction = "melee" | "ranged" | null;
 type ActiveEnemy = StoryLevelEnemy & {
   body: PIXI.Graphics;
   container: PIXI.Container;
+  debugScenario?: boolean;
   deathFadeMs: number;
   hitFlashMs: number;
   hpBar: PIXI.Graphics;
@@ -227,9 +230,28 @@ function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
     ...enemy,
     body,
     container,
+    debugScenario: false,
     deathFadeMs: 0,
     hitFlashMs: 0,
     hpBar,
+  };
+}
+
+function createDebugEnemy(id: string, position: Vector2): StoryLevelEnemy {
+  return {
+    attackCooldownMs: 700,
+    contactDamage: 0,
+    detectionRadius: 0,
+    hp: 40,
+    id,
+    kind: "grunt",
+    lastContactDamageAt: -Infinity,
+    lootClaimed: false,
+    maxHp: 40,
+    moveSpeed: 0,
+    position,
+    radius: 20,
+    state: "idle",
   };
 }
 
@@ -425,6 +447,14 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
 
     function handleKeyDown(event: KeyboardEvent) {
       if (isPlayerDefeated) return;
+      if (IS_SKILL_HIT_DEBUG_ENABLED && event.code === "F8") {
+        event.preventDefault();
+        if (!event.repeat) {
+          spawnSkillDebugScenario();
+        }
+        return;
+      }
+
       const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
       if (skillSlot) {
         event.preventDefault();
@@ -598,6 +628,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       syncHeldMouseButtons(event.buttons);
     }
 
+    function handleSkillDebugScenarioEvent() {
+      spawnSkillDebugScenario();
+    }
+
     function removeAttackGraphic(graphic: PIXI.Graphics) {
       graphic.removeFromParent();
       graphic.destroy();
@@ -607,6 +641,50 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       const projectile = projectiles[index];
       removeAttackGraphic(projectile.graphic);
       projectiles.splice(index, 1);
+    }
+
+    function removeEnemyAt(index: number) {
+      const enemy = enemies[index];
+      enemy.container.removeFromParent();
+      enemy.container.destroy({ children: true });
+      enemies.splice(index, 1);
+    }
+
+    function spawnSkillDebugScenario() {
+      if (!IS_SKILL_HIT_DEBUG_ENABLED) return;
+
+      for (let index = enemies.length - 1; index >= 0; index -= 1) {
+        if (enemies[index].debugScenario) {
+          removeEnemyAt(index);
+        }
+      }
+
+      const direction = normalizeVector(playerFacing);
+      const side = { x: -direction.y, y: direction.x };
+      const debugEnemies = [
+        createDebugEnemy("debug-skill-front", {
+          x: clamp(playerPosition.x + direction.x * 120, 24, mapWidth - 24),
+          y: clamp(playerPosition.y + direction.y * 120, 24, mapHeight - 24),
+        }),
+        createDebugEnemy("debug-skill-close", {
+          x: clamp(playerPosition.x + side.x * 135, 24, mapWidth - 24),
+          y: clamp(playerPosition.y + side.y * 135, 24, mapHeight - 24),
+        }),
+        createDebugEnemy("debug-skill-far", {
+          x: clamp(playerPosition.x - side.x * 260, 24, mapWidth - 24),
+          y: clamp(playerPosition.y - side.y * 260, 24, mapHeight - 24),
+        }),
+      ];
+
+      for (const enemyDef of debugEnemies) {
+        const enemy = createEnemyGraphics(enemyDef);
+        enemy.debugScenario = true;
+        renderEnemy(enemy);
+        enemies.push(enemy);
+        enemyLayer.addChild(enemy.container);
+      }
+
+      syncCombatHud();
     }
 
     function getEnemiesRemaining() {
@@ -1013,6 +1091,9 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       window.addEventListener("mouseup", handleWindowMouseUp);
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
+      if (IS_SKILL_HIT_DEBUG_ENABLED) {
+        window.addEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
+      }
 
       app.ticker.add((ticker) => {
         const nowMs = performance.now();
@@ -1091,6 +1172,9 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
+      if (IS_SKILL_HIT_DEBUG_ENABLED) {
+        window.removeEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
+      }
       canvasElement?.removeEventListener("contextmenu", handleContextMenu);
       canvasElement?.removeEventListener("pointerdown", handlePointerDown);
       canvasElement?.removeEventListener("pointerup", handlePointerUp);
@@ -1110,6 +1194,15 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
+      {IS_SKILL_HIT_DEBUG_ENABLED ? (
+        <button
+          className="absolute right-4 top-4 z-20 rounded-md border border-cyan-200/30 bg-cyan-950/80 px-3 py-2 font-ik-menu text-[0.65rem] uppercase tracking-[0.12em] text-cyan-100 shadow-[0_10px_28px_rgba(0,0,0,0.4)] transition hover:border-cyan-100"
+          onClick={() => window.dispatchEvent(new Event(SKILL_DEBUG_EVENT))}
+          type="button"
+        >
+          Debug hits
+        </button>
+      ) : null}
       <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
         <SkillBar
           cooldowns={skillsState.cooldowns}
