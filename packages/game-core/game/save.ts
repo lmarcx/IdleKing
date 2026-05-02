@@ -15,6 +15,28 @@ export type LoadGameResult = {
   offlineReport: ReturnType<typeof applyOfflineProgress>["report"];
 };
 
+function stringifyGameState(payload: PersistedSave): string {
+  return JSON.stringify(payload, (_key, value) => (value instanceof Set ? [...value] : value));
+}
+
+function toSet<T>(value: unknown): Set<T> {
+  if (value instanceof Set) return new Set(value as Set<T>);
+  if (Array.isArray(value)) return new Set(value as T[]);
+  return new Set();
+}
+
+function reviveGameState(state: GameState): GameState {
+  return {
+    ...state,
+    story: {
+      ...state.story,
+      completedChapters: toSet(state.story.completedChapters),
+      completedEvents: toSet(state.story.completedEvents),
+      completedLevels: toSet(state.story.completedLevels),
+    },
+  };
+}
+
 /**
  * Saves the current game state to localStorage.
  */
@@ -27,7 +49,7 @@ export function saveGame(state: GameState): void {
     state,
   };
 
-  localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+  localStorage.setItem(SAVE_KEY, stringifyGameState(payload));
 }
 
 /**
@@ -44,7 +66,7 @@ export function loadGameWithReport(): LoadGameResult | null {
     const parsed = JSON.parse(raw) as PersistedSave;
 
     // Future: migrations by schemaVersion
-    const baseState = parsed.state;
+    const baseState = reviveGameState(parsed.state);
 
     const now = Date.now();
     const diffMs = now - parsed.savedAt;

@@ -7,6 +7,7 @@ import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
 import { SkillBar } from "./skill-bar";
+import { isEnemyInBeam, isEnemyInCircle, isEnemyInFrontalAoe } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   MELEE_DAMAGE,
@@ -45,6 +46,7 @@ const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_DEATH_FADE_MS = 260;
 const LOOT_POPUP_DURATION_MS = 900;
+const PLAYER_SKILL_BASE_DAMAGE = MELEE_DAMAGE;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -100,10 +102,20 @@ type VisualActiveSkillEffect = combat.ActiveSkillEffect & {
   angle?: number;
   directionX?: number;
   directionY?: number;
+  hitEnemyIds?: Set<EnemyId>;
+  lastDamageTickAtMs?: number;
   originX?: number;
   originY?: number;
 };
 type SkillLoadout = ReturnType<typeof combat.getDefaultSkillLoadout>;
+
+type DirectionalSkillSnapshot = {
+  angle: number;
+  directionX: number;
+  directionY: number;
+  originX: number;
+  originY: number;
+};
 
 type LocalSkillsState = {
   activeEffects: VisualActiveSkillEffect[];
@@ -355,7 +367,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       return skillLoadout.find((entry) => entry.slot === slot)?.skillId ?? null;
     }
 
-    function createDirectionalSnapshot() {
+    function createDirectionalSnapshot(): DirectionalSkillSnapshot {
       const direction = normalizeVector(playerFacing);
       return {
         angle: Math.atan2(direction.y, direction.x),
@@ -395,11 +407,17 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
             ? {
                 ...result.activeEffect,
                 ...createDirectionalSnapshot(),
+                lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
               }
-            : result.activeEffect;
+            : {
+                ...result.activeEffect,
+                lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
+              };
         activeSkillEffects = [...activeSkillEffects, visualEffect];
       } else if (result.skillId === "royal_strike") {
-        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs, createDirectionalSnapshot());
+        const snapshot = createDirectionalSnapshot();
+        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs, snapshot);
+        applyRoyalStrikeDamage(result.skillId, snapshot, nowMs);
       }
 
       publishSkillsState(nowMs);
@@ -659,6 +677,111 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       }
     }
 
+    function getPlayerDamageMultiplier(effects: VisualActiveSkillEffect[], nowMs: number): number {
+      const warCry = effects.find(
+        (effect) => effect.skillId === "war_cry" && effect.startedAtMs <= nowMs && effect.endsAtMs >= nowMs
+      );
+      return warCry ? 1 + (warCry.bonusDamageMultiplier ?? 0.25) : 1;
+    }
+
+    function computeSkillDamage(skillDef: combat.SkillDef, nowMs: number): number {
+      const damageMultiplier = skillDef.damageMultiplier ?? 0;
+      if (damageMultiplier <= 0) return 0;
+
+      const damage = PLAYER_SKILL_BASE_DAMAGE * damageMultiplier * getPlayerDamageMultiplier(activeSkillEffects, nowMs);
+      return Math.max(1, Math.round(damage));
+    }
+
+    function computePlayerAttackDamage(baseDamage: number, nowMs: number): number {
+      return Math.max(1, Math.round(baseDamage * getPlayerDamageMultiplier(activeSkillEffects, nowMs)));
+    }
+
+    function applySkillDamageToEnemy(enemy: ActiveEnemy, damage: number) {
+      if (damage <= 0 || !isEnemyAlive(enemy)) return;
+      damageActiveEnemy(enemy, damage);
+    }
+
+    function applyRoyalStrikeDamage(skillId: SkillId, snapshot: DirectionalSkillSnapshot, nowMs: number) {
+      const skillDef = combat.SKILL_DEFS[skillId];
+      if (skillDef.kind !== "frontal_aoe") return;
+
+      const damage = computeSkillDamage(skillDef, nowMs);
+      const hitEnemyIds = new Set<EnemyId>();
+
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
+        if (
+          !isEnemyInFrontalAoe(
+            enemy,
+            snapshot.originX,
+            snapshot.originY,
+            snapshot.directionX,
+            snapshot.directionY,
+            skillDef.range ?? 0,
+            skillDef.width ?? 0
+          )
+        ) {
+          continue;
+        }
+
+        hitEnemyIds.add(enemy.id);
+        applySkillDamageToEnemy(enemy, damage);
+      }
+
+      if (hitEnemyIds.size > 0) {
+        syncCombatHud();
+      }
+    }
+
+    function applyActiveSkillEffectDamage(nowMs: number) {
+      let didDamage = false;
+
+      for (const effect of activeSkillEffects) {
+        if (effect.skillId === "war_cry") continue;
+
+        const skillDef = combat.SKILL_DEFS[effect.skillId];
+        const tickIntervalMs = effect.tickIntervalMs ?? skillDef.tickIntervalMs;
+        if (!tickIntervalMs || tickIntervalMs <= 0) continue;
+
+        const lastDamageTickAtMs = effect.lastDamageTickAtMs ?? effect.startedAtMs - tickIntervalMs;
+        if (nowMs - lastDamageTickAtMs < tickIntervalMs) continue;
+
+        effect.lastDamageTickAtMs = nowMs;
+        const damage = computeSkillDamage(skillDef, nowMs);
+        if (damage <= 0) continue;
+
+        const hitEnemyIds = new Set<EnemyId>();
+        for (const enemy of enemies) {
+          if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
+
+          const isHit =
+            effect.skillId === "royal_beam"
+              ? isEnemyInBeam(
+                  enemy,
+                  effect.originX ?? playerPosition.x,
+                  effect.originY ?? playerPosition.y,
+                  effect.directionX ?? playerFacing.x,
+                  effect.directionY ?? playerFacing.y,
+                  skillDef.range ?? effect.range ?? 0,
+                  skillDef.width ?? effect.width ?? 0
+                )
+              : effect.skillId === "king_aura"
+                ? isEnemyInCircle(enemy, playerPosition.x, playerPosition.y, skillDef.radius ?? effect.radius ?? 0)
+                : false;
+
+          if (!isHit) continue;
+
+          hitEnemyIds.add(enemy.id);
+          applySkillDamageToEnemy(enemy, damage);
+          didDamage = true;
+        }
+      }
+
+      if (didDamage) {
+        syncCombatHud();
+      }
+    }
+
     function applyMeleeHits(attack: ActiveMeleeAttack) {
       for (const enemy of enemies) {
         if (!isEnemyAlive(enemy) || attack.hitEnemyIds.has(enemy.id)) continue;
@@ -674,7 +797,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
 
         if (!isHit) continue;
         attack.hitEnemyIds.add(enemy.id);
-        damageActiveEnemy(enemy, MELEE_DAMAGE);
+        damageActiveEnemy(enemy, computePlayerAttackDamage(MELEE_DAMAGE, performance.now()));
       }
     }
 
@@ -683,7 +806,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         if (!isEnemyAlive(enemy)) continue;
         if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
 
-        damageActiveEnemy(enemy, RANGED_DAMAGE);
+        damageActiveEnemy(enemy, computePlayerAttackDamage(RANGED_DAMAGE, performance.now()));
         return true;
       }
 
@@ -925,6 +1048,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         removeExpiredSkillEffects(nowMs);
         updateEnemies(ticker.deltaMS, nowMs);
         updateAttacks(ticker.deltaMS, nowMs);
+        applyActiveSkillEffectDamage(nowMs);
         updateLootPopups(ticker.deltaMS);
         renderEnemies();
         renderAttacks();
