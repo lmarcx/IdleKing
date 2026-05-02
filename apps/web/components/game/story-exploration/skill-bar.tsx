@@ -55,7 +55,10 @@ export function SkillBar({ combatLoadout, cooldowns, currentTimeMs }: SkillBarPr
 
 function EmptySkillSlot({ slot }: { slot: SkillSlot }) {
   return (
-    <div className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-md border border-amber-200/15 bg-zinc-950/55 text-amber-50/35 shadow-inner">
+    <div
+      aria-label={`Slot ${slot} vide`}
+      className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-md border border-amber-200/15 bg-zinc-950/55 text-amber-50/35 shadow-inner"
+    >
       <span className="absolute left-1.5 top-1 font-ik-menu text-[0.65rem] leading-none text-amber-100/45">{slot}</span>
       <span className="h-8 w-8 rounded-full border border-dashed border-amber-100/15 bg-black/25" aria-hidden="true" />
     </div>
@@ -73,6 +76,7 @@ function EquippedSkillSlot({
 }) {
   return (
     <div
+      aria-label={`Slot ${skill.slot} ${skill.skillDef.name} niveau ${skill.level}`}
       className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-md border border-amber-200/30 bg-zinc-950/88 text-amber-50 shadow-inner"
     >
       <span className="absolute left-1.5 top-1 font-ik-menu text-[0.65rem] leading-none text-amber-100/80">

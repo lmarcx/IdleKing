@@ -2,6 +2,18 @@
 
 import { create } from "zustand";
 
+import {
+  createDefaultPlayerSkillsState,
+  equipSkill,
+  respecSkills,
+  unequipSkill,
+  unlockOrUpgradeSkill,
+  type SkillEquipResult,
+  type SkillId,
+  type SkillRespecResult,
+  type SkillSlot,
+  type SkillUpgradeResult,
+} from "@idleking/game-core";
 import { createInitialGameState, type GameState } from "@idleking/game-core/game/state.js";
 import {
   clearSave as clearPersistedSave,
@@ -21,9 +33,21 @@ type GameStore = {
   clearSave: () => void;
   dismissOfflineReport: () => void;
   dispatch: (actionFn: (state: GameState) => GameState) => void;
+  unlockOrUpgradePlayerSkill: (skillId: SkillId) => SkillUpgradeResult;
+  equipPlayerSkill: (skillId: SkillId, slot: SkillSlot) => SkillEquipResult;
+  unequipPlayerSkill: (slot: SkillSlot) => SkillEquipResult;
+  respecPlayerSkills: () => SkillRespecResult;
+  addDevSkillPoint: (amount: number) => void;
 };
 
 const SAVE_KEY = "idle_king_save_v1";
+
+function getStateWithSkills(state: GameState): GameState {
+  return {
+    ...state,
+    skills: state.skills ?? createDefaultPlayerSkillsState(),
+  };
+}
 
 export const useGameStore = create<GameStore>((set) => ({
   state: createInitialGameState(),
@@ -65,6 +89,95 @@ export const useGameStore = create<GameStore>((set) => ({
     set((current) => ({
       state: actionFn(current.state),
     })),
+  unlockOrUpgradePlayerSkill: (skillId) => {
+    let result: SkillUpgradeResult | undefined;
+    set((current) => {
+      const state = getStateWithSkills(current.state);
+      result = unlockOrUpgradeSkill(state.skills, skillId);
+      if (!result.ok) {
+        return { state };
+      }
+
+      return {
+        state: {
+          ...state,
+          skills: result.state,
+        },
+      };
+    });
+
+    return result ?? unlockOrUpgradeSkill(createDefaultPlayerSkillsState(), skillId);
+  },
+  equipPlayerSkill: (skillId, slot) => {
+    let result: SkillEquipResult | undefined;
+    set((current) => {
+      const state = getStateWithSkills(current.state);
+      result = equipSkill(state.skills, skillId, slot);
+      if (!result.ok) {
+        return { state };
+      }
+
+      return {
+        state: {
+          ...state,
+          skills: result.state,
+        },
+      };
+    });
+
+    return result ?? equipSkill(createDefaultPlayerSkillsState(), skillId, slot);
+  },
+  unequipPlayerSkill: (slot) => {
+    let result: SkillEquipResult | undefined;
+    set((current) => {
+      const state = getStateWithSkills(current.state);
+      result = unequipSkill(state.skills, slot);
+      if (!result.ok) {
+        return { state };
+      }
+
+      return {
+        state: {
+          ...state,
+          skills: result.state,
+        },
+      };
+    });
+
+    return result ?? unequipSkill(createDefaultPlayerSkillsState(), slot);
+  },
+  respecPlayerSkills: () => {
+    let result: SkillRespecResult | undefined;
+    set((current) => {
+      const state = getStateWithSkills(current.state);
+      result = respecSkills(state.skills);
+
+      return {
+        state: {
+          ...state,
+          skills: result.state,
+        },
+      };
+    });
+
+    return result ?? respecSkills(createDefaultPlayerSkillsState());
+  },
+  addDevSkillPoint: (amount) => {
+    if (process.env.NODE_ENV === "production") return;
+    set((current) => {
+      const state = getStateWithSkills(current.state);
+
+      return {
+        state: {
+          ...state,
+          skills: {
+            ...state.skills,
+            skillPoints: Math.max(0, state.skills.skillPoints + amount),
+          },
+        },
+      };
+    });
+  },
 }));
 
 let initialized = false;
