@@ -1,5 +1,6 @@
 import type { GameState } from "./state.js";
 import { applyOfflineProgress } from "./offlineProgress.js";
+import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
@@ -28,6 +29,7 @@ function toSet<T>(value: unknown): Set<T> {
 function reviveGameState(state: GameState): GameState {
   return {
     ...state,
+    skills: state.skills ?? createDefaultPlayerSkillsState(),
     story: {
       ...state.story,
       completedChapters: toSet(state.story.completedChapters),

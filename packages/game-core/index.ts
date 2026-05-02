@@ -10,6 +10,37 @@ export * as building from "./building/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export {
+  SKILL_DEFS,
+  SKILL_UPGRADE_COST_BY_LEVEL,
+  SKILL_UPGRADE_DEFS,
+  canUnlockOrUpgradeSkill,
+  createDefaultPlayerSkillsState,
+  equipSkill,
+  getDefaultSkillLoadout,
+  getEffectiveSkillDef,
+  getEffectiveSkillDefs,
+  getEquippedSkillLoadout,
+  getSkillDef,
+  getSkillDefOrThrow,
+  getSkillProgress,
+  isSkillUnlocked,
+  respecSkills,
+  unequipSkill,
+  unlockOrUpgradeSkill,
+} from "./combat/skills/index.js";
+export type {
+  PlayerSkillProgress,
+  PlayerSkillsState,
+  SkillEquipResult,
+  SkillId,
+  SkillLevel,
+  SkillRespecResult,
+  SkillSlot,
+  SkillUpgradeDef,
+  SkillUpgradeEffect,
+  SkillUpgradeResult,
+} from "./combat/skills/index.js";
+export {
   STORY_LEVEL_PLACEHOLDER_REWARDS,
   completeStoryLevelAction,
 } from "./game/storyLevelActions.js";
