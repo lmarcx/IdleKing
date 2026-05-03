@@ -11,9 +11,9 @@ import { SkillBar } from "./skill-bar";
 import { isEnemyInBeam, isEnemyInCircle, isEnemyInFrontalAoe } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
-  MELEE_DAMAGE,
   PLAYER_MAX_HP,
-  RANGED_DAMAGE,
+  RANGED_DAMAGE_MULTIPLIER,
+  calculatePlayerDamageFromStats,
   createInitialEnemies,
   damageEnemy,
   damagePlayer,
@@ -47,7 +47,6 @@ const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_DEATH_FADE_MS = 260;
 const LOOT_POPUP_DURATION_MS = 900;
-const PLAYER_SKILL_BASE_DAMAGE = MELEE_DAMAGE;
 const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
 const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 
@@ -327,6 +326,15 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     isDefeated: false,
     playerHp: PLAYER_MAX_HP,
   });
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    console.debug("[IdleKing] Story combat loadout", {
+      attack: combatLoadout.stats.attack,
+      power: combatLoadout.stats.power,
+      skills: combatLoadout.skills.map((skill) => skill.skillId),
+    });
+  }, [combatLoadout]);
 
   useEffect(() => {
     onPlayerMoveRef.current = onPlayerMove;
@@ -775,12 +783,19 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       const damageMultiplier = skillDef.damageMultiplier ?? 0;
       if (damageMultiplier <= 0) return 0;
 
-      const damage = PLAYER_SKILL_BASE_DAMAGE * damageMultiplier * getPlayerDamageMultiplier(activeSkillEffects, nowMs);
-      return Math.max(1, Math.round(damage));
+      return calculatePlayerDamageFromStats({
+        buffMultiplier: getPlayerDamageMultiplier(activeSkillEffects, nowMs),
+        damageMultiplier,
+        stats: combatLoadout.stats,
+      });
     }
 
-    function computePlayerAttackDamage(baseDamage: number, nowMs: number): number {
-      return Math.max(1, Math.round(baseDamage * getPlayerDamageMultiplier(activeSkillEffects, nowMs)));
+    function computePlayerAttackDamage(nowMs: number, rangedMultiplier = 1): number {
+      return calculatePlayerDamageFromStats({
+        buffMultiplier: getPlayerDamageMultiplier(activeSkillEffects, nowMs),
+        rangedMultiplier,
+        stats: combatLoadout.stats,
+      });
     }
 
     function applySkillDamageToEnemy(enemy: ActiveEnemy, damage: number) {
@@ -883,7 +898,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
 
         if (!isHit) continue;
         attack.hitEnemyIds.add(enemy.id);
-        damageActiveEnemy(enemy, computePlayerAttackDamage(MELEE_DAMAGE, performance.now()));
+        damageActiveEnemy(enemy, computePlayerAttackDamage(performance.now()));
       }
     }
 
@@ -892,7 +907,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         if (!isEnemyAlive(enemy)) continue;
         if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
 
-        damageActiveEnemy(enemy, computePlayerAttackDamage(RANGED_DAMAGE, performance.now()));
+        damageActiveEnemy(enemy, computePlayerAttackDamage(performance.now(), RANGED_DAMAGE_MULTIPLIER));
         return true;
       }
 

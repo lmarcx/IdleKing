@@ -1,4 +1,5 @@
 import type { ResourceId } from "@idleking/game-core/resources/types.js";
+import type { CharacterCombatStats } from "@idleking/game-core";
 
 export type EnemyId = string;
 export type EnemyKind = "grunt";
@@ -36,8 +37,8 @@ export const GRUNT_MOVE_SPEED = 90;
 export const GRUNT_DETECTION_RADIUS = 280;
 export const GRUNT_CONTACT_DAMAGE = 8;
 export const GRUNT_CONTACT_DAMAGE_COOLDOWN_MS = 700;
-export const MELEE_DAMAGE = 25;
-export const RANGED_DAMAGE = 15;
+export const PLAYER_DAMAGE_TUNING = 1;
+export const RANGED_DAMAGE_MULTIPLIER = 0.8;
 
 const GRUNT_RADIUS = 20;
 
@@ -159,6 +160,22 @@ export function damageEnemy(enemy: StoryLevelEnemy, amount: number): boolean {
 
 export function damagePlayer(currentHp: number, amount: number): number {
   return Math.max(0, currentHp - amount);
+}
+
+export function calculatePlayerDamageFromStats({
+  buffMultiplier = 1,
+  damageMultiplier = 1,
+  rangedMultiplier = 1,
+  stats,
+}: {
+  buffMultiplier?: number;
+  damageMultiplier?: number;
+  rangedMultiplier?: number;
+  stats: Pick<CharacterCombatStats, "attack" | "power">;
+}): number {
+  // TODO: POWER should remain a progression score, not the direct damage source.
+  const attack = Math.max(1, stats.attack);
+  return Math.max(1, Math.round(attack * rangedMultiplier * damageMultiplier * buffMultiplier * PLAYER_DAMAGE_TUNING));
 }
 
 export function isTargetInsideAttackCone({

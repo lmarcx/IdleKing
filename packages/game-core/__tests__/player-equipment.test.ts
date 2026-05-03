@@ -245,3 +245,13 @@ test("buildCharacterCombatLoadout uses final character stats", () => {
     power: 25,
   });
 });
+
+test("buildCharacterCombatLoadout includes equipped weapon attack", () => {
+  const weapon = equipmentItem({ id: "weapon-attack-10", name: "Sharp Sword", slot: "weapon", stats: { attack: 10 } });
+  const equipped = equipItem(stateWithItems([weapon]), weapon.id);
+  assertEquipOk(equipped);
+
+  const loadout = buildCharacterCombatLoadout(equipped.state);
+
+  assert.equal(loadout.stats.attack, 35);
+});
