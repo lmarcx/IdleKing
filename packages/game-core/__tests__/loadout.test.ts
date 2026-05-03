@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { generateItem } from "../loot/itemGenerator.js";
 import { createInventory, addItem } from "../player/inventory.js";
-import { equipItem, computeLoadoutComputed } from "../player/loadout.js";
+import { equipItem, computeLoadoutComputed, sanitizeLoadout } from "../player/loadout.js";
 
 function hasAnyContribution(stats: {
   hp: number;
@@ -53,4 +53,11 @@ test("equipping an item affects loadout stats (jewelry)", () => {
     hasAnyContribution(computed.loadoutStats),
     "Equipped item should contribute at least one stat to the loadout"
   );
+});
+
+test("legacy ring loadout slots are ignored", () => {
+  const loadout = sanitizeLoadout({ NECKLACE: "necklace-item", RING: "legacy-ring" } as any);
+
+  assert.equal(loadout.NECKLACE, "necklace-item");
+  assert.equal((loadout as any).RING, undefined);
 });

@@ -10,6 +10,31 @@ export * as building from "./building/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
+export * as equipment from "./equipment/index.js";
+export {
+  BASE_CHARACTER_STATS,
+  calculateEquipmentStats,
+  calculateFinalCharacterStats,
+  createDefaultPlayerEquipmentState,
+  equipItem,
+  generateEquipmentItem,
+  generateEquipmentLootDrop,
+  getEquippedItemIds,
+  getEquippedItems,
+  normalizePlayerEquipmentState,
+  unequipItem,
+} from "./equipment/index.js";
+export type {
+  EquipmentActionError,
+  EquipItemResult,
+  EquipmentItem,
+  EquipmentSlot,
+  GenerateEquipmentItemParams,
+  GenerateEquipmentLootDropParams,
+  PlayerEquipmentState,
+  ResolvedEquipmentStats,
+  UnequipItemResult,
+} from "./equipment/index.js";
 export {
   buildCharacterCombatLoadout,
 } from "./character/index.js";

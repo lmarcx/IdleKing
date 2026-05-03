@@ -88,7 +88,7 @@ const ARMOR_SLOTS: readonly ItemSlot[] = [
   "CAPE",
 ] as const;
 
-const JEWELRY_SLOTS: readonly ItemSlot[] = ["NECKLACE", "RING", "BAND"] as const;
+const JEWELRY_SLOTS: readonly ItemSlot[] = ["NECKLACE", "ARTIFACT"] as const;
 
 const ALL_SLOTS: readonly ItemSlot[] = [...ARMOR_SLOTS, ...JEWELRY_SLOTS, "STONE"] as const;
 
@@ -172,8 +172,7 @@ function defaultName(slot: ItemSlot, rarity: Rarity, element: Element): string {
     GLOVES: "Gants",
     CAPE: "Cape",
     NECKLACE: "Collier",
-    RING: "Anneau",
-    BAND: "Bague",
+    ARTIFACT: "Artefact",
     STONE: "Pierre",
   };
 

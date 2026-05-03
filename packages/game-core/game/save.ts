@@ -1,6 +1,8 @@
 import type { GameState } from "./state.js";
 import { applyOfflineProgress } from "./offlineProgress.js";
 import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
+import { normalizePlayerEquipmentState } from "../equipment/index.js";
+import { normalizeEquipmentItem, type Item } from "../items/types.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
@@ -26,9 +28,26 @@ function toSet<T>(value: unknown): Set<T> {
   return new Set();
 }
 
+function reviveInventory(inventory: GameState["inventory"]): GameState["inventory"] {
+  const items = Array.isArray(inventory?.items) ? inventory.items : [];
+
+  return {
+    items: items.flatMap((item): Item[] => {
+      if (!item || typeof item !== "object") return [];
+      if ("slot" in item) {
+        const equipmentItem = normalizeEquipmentItem(item);
+        return equipmentItem ? [equipmentItem] : [];
+      }
+      return [item as Item];
+    }),
+  };
+}
+
 function reviveGameState(state: GameState): GameState {
   return {
     ...state,
+    inventory: reviveInventory(state.inventory),
+    equipment: normalizePlayerEquipmentState(state.equipment),
     skills: state.skills ?? createDefaultPlayerSkillsState(),
     story: {
       ...state.story,

@@ -4,7 +4,7 @@ import { EquipmentSlot } from "./equipment-slot";
 import { EQUIPMENT_SLOTS, type EquippedItems, type EquipmentSlotDefinition, type EquipmentSlotId } from "./types";
 
 const ARMOR_SLOT_IDS: EquipmentSlotId[] = ["helmet", "chest", "gloves", "belt", "boots"];
-const ACCESSORY_SLOT_IDS: EquipmentSlotId[] = ["weapon", "offhand", "necklace", "ring", "artifact"];
+const ACCESSORY_SLOT_IDS: EquipmentSlotId[] = ["weapon", "offhand", "necklace", "artifact"];
 
 function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
   const slot = EQUIPMENT_SLOTS.find((entry) => entry.id === slotId);
@@ -36,10 +36,13 @@ export function EquipmentDoll({
             ))}
           </div>
 
-          <div className="grid min-h-[390px] place-items-center">
+          <div className="relative grid min-h-[390px] place-items-center">
+            <div className="absolute left-1/2 top-1 h-12 w-12 -translate-x-1/2 sm:h-[52px] sm:w-[52px]">
+              <EquipmentSlot item={equippedItems.cape} onUnequip={onUnequip} slot={getSlotDefinition("cape")} />
+            </div>
             <img
               alt="Roi dark fantasy"
-              className="h-[min(72vw,390px)] max-h-[390px] w-full max-w-[230px] object-contain drop-shadow-[0_0_14px_rgba(201,166,84,0.12)]"
+              className="mt-10 h-[min(72vw,350px)] max-h-[350px] w-full max-w-[230px] object-contain drop-shadow-[0_0_14px_rgba(201,166,84,0.12)]"
               src="/assets/character/character-placeholder.svg"
             />
           </div>

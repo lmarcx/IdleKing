@@ -4,6 +4,7 @@ import type { TempleState } from "../building/temple.js";
 import type { ResourceStock, ResourceId } from "../resources/types.js";
 import type { Inventory } from "../items/inventory.js";
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
+import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
 
 export type Villager = {
   id: string;
@@ -19,6 +20,7 @@ export type GameState = {
   story: StoryState;
   resources: ResourceStock;
   inventory: Inventory;
+  equipment: PlayerEquipmentState;
   skills: PlayerSkillsState;
 
   buildings: {
@@ -62,6 +64,7 @@ export function createInitialGameState(): GameState {
     },
     resources: {},
     inventory: { items: [] },
+    equipment: createDefaultPlayerEquipmentState(),
     skills: createDefaultPlayerSkillsState(),
     buildings: {
       forum: { unlocked: false, built: false, active: false },

@@ -11,9 +11,11 @@ export type ItemSlot =
   | "GLOVES"
   | "CAPE"
   | "NECKLACE"
-  | "RING"
-  | "BAND"
+  | "ARTIFACT"
   | "STONE";
+
+// TODO: Ring slots will be reintroduced later as skill modifier slots.
+export type LegacyItemSlot = "RING" | "BAND";
 
 export type ItemKind = "ARMOR_GEAR" | "JEWELRY" | "STONE";
 
@@ -38,8 +40,7 @@ export const SLOT_KIND: Record<ItemSlot, ItemKind> = {
   GLOVES: "ARMOR_GEAR",
   CAPE: "ARMOR_GEAR",
   NECKLACE: "JEWELRY",
-  RING: "JEWELRY",
-  BAND: "JEWELRY",
+  ARTIFACT: "JEWELRY",
   STONE: "STONE",
 };
 

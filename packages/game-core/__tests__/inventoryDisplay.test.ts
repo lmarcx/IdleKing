@@ -6,6 +6,7 @@ import {
   getInventoryDisplayItems,
   type InventoryDisplayItem,
 } from "../items/display.js";
+import { generateEquipmentItem } from "../equipment/index.js";
 import { createInitialGameState } from "../game/state.js";
 import { addQty } from "../resources/types.js";
 
@@ -57,4 +58,21 @@ test("inventory display includes resources from game state", () => {
   const items = getInventoryDisplayItems(withWood);
 
   assert.equal(items.find((item) => item.id === "WOOD")?.quantity, 3);
+});
+
+test("inventory display exposes generated equipment slot rarity and stats", () => {
+  const state = createInitialGameState();
+  const cape = generateEquipmentItem({ slot: "cape", itemLevel: 20, rarity: "RARE", seed: "display-cape" });
+  const items = getInventoryDisplayItems({
+    ...state,
+    inventory: { items: [cape] },
+  });
+
+  const displayed = items.find((item) => item.id === cape.id);
+  assert.ok(displayed);
+  assert.equal(displayed.category, "equipment");
+  assert.equal(displayed.quantity, 1);
+  assert.equal(displayed.slot, "cape");
+  assert.equal(displayed.rarity, "RARE");
+  assert.deepEqual(displayed.stats, cape.stats);
 });

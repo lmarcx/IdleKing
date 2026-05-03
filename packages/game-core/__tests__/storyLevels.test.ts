@@ -8,8 +8,9 @@ import {
   getVisibleStoryChaptersWithLevels,
   isStoryLevelAvailable,
 } from "../story/levels.js";
-import { completeStoryLevelAction } from "../game/storyLevelActions.js";
+import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction } from "../game/storyLevelActions.js";
 import { createInitialGameState } from "../game/state.js";
+import { isEquipmentItem } from "../items/types.js";
 import type { StoryState } from "../story/state.js";
 import type { UnlockId } from "../story/types.js";
 
@@ -74,5 +75,19 @@ test("completeStoryLevelAction marks the level complete and grants placeholder r
 
   const second = completeStoryLevelAction(first.next, "ch01-lv01");
   assert.equal(second.completed, false);
+  assert.equal(second.equipmentDrop, null);
   assert.equal(second.next.resources.XP_GLOBAL, 100);
+});
+
+test("completeStoryLevelAction can drop a real equipment item", () => {
+  const state = createInitialGameState();
+  const result = completeStoryLevelAction(state, "ch01-lv01", STORY_LEVEL_PLACEHOLDER_REWARDS, {
+    equipmentDropChance: 1,
+  });
+
+  assert.equal(result.completed, true);
+  assert.ok(result.equipmentDrop);
+  assert.ok(isEquipmentItem(result.equipmentDrop));
+  assert.notEqual(result.equipmentDrop.slot as string, "ring");
+  assert.ok(result.next.inventory.items.some((item) => item.id === result.equipmentDrop?.id));
 });

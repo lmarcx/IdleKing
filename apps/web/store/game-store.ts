@@ -4,15 +4,20 @@ import { create } from "zustand";
 
 import {
   createDefaultPlayerSkillsState,
+  equipItem as equipCoreItem,
   equipSkill,
   respecSkills,
+  unequipItem as unequipCoreItem,
   unequipSkill,
   unlockOrUpgradeSkill,
+  type EquipmentSlot,
+  type EquipItemResult,
   type SkillEquipResult,
   type SkillId,
   type SkillRespecResult,
   type SkillSlot,
   type SkillUpgradeResult,
+  type UnequipItemResult,
 } from "@idleking/game-core";
 import { createInitialGameState, type GameState } from "@idleking/game-core/game/state.js";
 import {
@@ -33,6 +38,8 @@ type GameStore = {
   clearSave: () => void;
   dismissOfflineReport: () => void;
   dispatch: (actionFn: (state: GameState) => GameState) => void;
+  equipPlayerItem: (itemId: string) => EquipItemResult;
+  unequipPlayerItem: (slot: EquipmentSlot) => UnequipItemResult;
   unlockOrUpgradePlayerSkill: (skillId: SkillId) => SkillUpgradeResult;
   equipPlayerSkill: (skillId: SkillId, slot: SkillSlot) => SkillEquipResult;
   unequipPlayerSkill: (slot: SkillSlot) => SkillEquipResult;
@@ -89,6 +96,41 @@ export const useGameStore = create<GameStore>((set) => ({
     set((current) => ({
       state: actionFn(current.state),
     })),
+  equipPlayerItem: (itemId) => {
+    let result: EquipItemResult | undefined;
+    let fallbackState = createInitialGameState();
+    set((current) => {
+      fallbackState = current.state;
+      result = equipCoreItem(current.state, itemId);
+      if (!result.ok) return {};
+
+      return {
+        state: result.state,
+      };
+    });
+
+    return (
+      result ?? {
+        ok: false,
+        state: fallbackState,
+        reason: "ITEM_NOT_FOUND",
+      }
+    );
+  },
+  unequipPlayerItem: (slot) => {
+    let result: UnequipItemResult | undefined;
+    let fallbackState = createInitialGameState();
+    set((current) => {
+      fallbackState = current.state;
+      result = unequipCoreItem(current.state, slot);
+
+      return {
+        state: result.state,
+      };
+    });
+
+    return result ?? unequipCoreItem(fallbackState, slot);
+  },
   unlockOrUpgradePlayerSkill: (skillId) => {
     let result: SkillUpgradeResult | undefined;
     set((current) => {

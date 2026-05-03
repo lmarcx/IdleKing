@@ -1,14 +1,17 @@
 export type EquipmentSlotId =
   | "weapon"
+  | "offhand"
   | "helmet"
   | "chest"
   | "gloves"
+  | "belt"
   | "boots"
   | "necklace"
-  | "ring"
-  | "artifact"
-  | "offhand"
-  | "belt";
+  | "cape"
+  | "artifact";
+
+// TODO: reintroduce ring slots later for skill modifiers system
+export type LegacyEquipmentSlotId = "ring";
 
 export type CharacterStat = {
   helper?: string;
@@ -47,15 +50,15 @@ export type EquipmentSlotDefinition = {
 
 export const EQUIPMENT_SLOTS: EquipmentSlotDefinition[] = [
   { id: "weapon", label: "Weapon" },
+  { id: "offhand", label: "Offhand" },
   { id: "helmet", label: "Helmet" },
   { id: "chest", label: "Chest" },
   { id: "gloves", label: "Gloves" },
+  { id: "belt", label: "Belt" },
   { id: "boots", label: "Boots" },
   { id: "necklace", label: "Necklace" },
-  { id: "ring", label: "Ring" },
+  { id: "cape", label: "Cape" },
   { id: "artifact", label: "Artifact" },
-  { id: "offhand", label: "Offhand" },
-  { id: "belt", label: "Belt" },
 ];
 
 export function getSlotIconPath(slotId: EquipmentSlotId) {

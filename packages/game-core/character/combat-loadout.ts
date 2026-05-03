@@ -1,4 +1,5 @@
 import type { GameState } from "../game/state.js";
+import { calculateFinalCharacterStats } from "../equipment/index.js";
 import {
   getEffectiveSkillDef,
   getEquippedSkillLoadout,
@@ -30,14 +31,6 @@ export type CharacterCombatLoadout = {
 
 const COMBAT_SKILL_SLOTS: readonly SkillSlot[] = [1, 2, 3, 4] as const;
 
-// TODO: Replace with the canonical player combat stats once equipment/progression stats feed combat modes.
-const TEMPORARY_CHARACTER_COMBAT_STATS: CharacterCombatStats = {
-  hp: 100,
-  attack: 25,
-  defense: 0,
-  power: 25,
-} as const;
-
 export function buildCharacterCombatLoadout(gameState: GameState): CharacterCombatLoadout {
   const equippedLoadout = getEquippedSkillLoadout(gameState.skills);
   const skills = COMBAT_SKILL_SLOTS.flatMap((slot): EquippedCombatSkill[] => {
@@ -58,7 +51,7 @@ export function buildCharacterCombatLoadout(gameState: GameState): CharacterComb
   });
 
   return {
-    stats: { ...TEMPORARY_CHARACTER_COMBAT_STATS },
+    stats: calculateFinalCharacterStats(gameState),
     skills,
   };
 }
