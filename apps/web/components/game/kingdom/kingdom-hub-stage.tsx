@@ -16,12 +16,20 @@ import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { claimCornucopia, getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
 import type { ResourceId } from "@idleking/game-core/resources/types.js";
+import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 
 const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 280, y: MAP_HEIGHT / 2 };
+const VILLAGER_NPC = {
+  id: "npc_villager_01",
+  label: "Villageois Errant",
+  text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
+  x: CORNUCOPIA_POSITION.x - 150,
+  y: CORNUCOPIA_POSITION.y + 135,
+} as const;
 
 type Vector2 = {
   x: number;
@@ -30,6 +38,8 @@ type Vector2 = {
 
 type Interactable = {
   id: string;
+  label: string;
+  type: "building" | "npc";
   x: number;
   y: number;
   radius: number;
@@ -112,6 +122,22 @@ function drawCornucopia() {
   return container;
 }
 
+function drawVillagerNpc() {
+  const container = new PIXI.Container();
+  const marker = new PIXI.Graphics();
+  marker.circle(0, 22, 34).fill({ color: 0x2fd8c8, alpha: 0.1 });
+  marker.circle(0, -16, 13).fill(0xc08a5a);
+  marker.roundRect(-15, -2, 30, 42, 9).fill(0x24495a);
+  marker.roundRect(-15, -2, 30, 42, 9).stroke({ color: 0x7df7ff, alpha: 0.5, width: 2 });
+  marker.rect(-20, 8, 8, 28).fill(0x1d303b);
+  marker.rect(12, 8, 8, 28).fill(0x1d303b);
+  marker.circle(-5, -19, 2).fill(0x10202a);
+  marker.circle(5, -19, 2).fill(0x10202a);
+  container.addChild(marker);
+  container.position.set(VILLAGER_NPC.x, VILLAGER_NPC.y);
+  return container;
+}
+
 function formatResourceList(resources: ResourceId[]) {
   if (resources.length === 0) return "No resource available";
   return resources.join(", ");
@@ -120,12 +146,14 @@ function formatResourceList(resources: ResourceId[]) {
 export function KingdomHubStage() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
+  const isDialogueOpenRef = useRef(false);
   const isClaimingCornucopiaRef = useRef(false);
   const nearbyInteractableIdRef = useRef<string | null>(null);
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
   const [isCornucopiaOpen, setIsCornucopiaOpen] = useState(false);
+  const [activeDialogue, setActiveDialogue] = useState<{ name: string; text: string } | null>(null);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
   const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
@@ -142,10 +170,28 @@ export function KingdomHubStage() {
     }
   }, [isCornucopiaOpen]);
 
+  useEffect(() => {
+    isDialogueOpenRef.current = activeDialogue !== null;
+  }, [activeDialogue]);
+
+  const closeDialogue = useCallback(() => {
+    isDialogueOpenRef.current = false;
+    setActiveDialogue(null);
+  }, []);
+
   const openCornucopia = useCallback(() => {
-    if (isModalOpenRef.current) return;
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
     isModalOpenRef.current = true;
     setIsCornucopiaOpen(true);
+  }, []);
+
+  const openVillagerDialogue = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    isDialogueOpenRef.current = true;
+    setActiveDialogue({
+      name: VILLAGER_NPC.label,
+      text: VILLAGER_NPC.text,
+    });
   }, []);
 
   const handleClaimCornucopia = useCallback(() => {
@@ -190,10 +236,21 @@ export function KingdomHubStage() {
     const interactables: Interactable[] = [
       {
         id: "cornucopia",
+        label: "Cornucopia",
+        type: "building",
         x: CORNUCOPIA_POSITION.x,
         y: CORNUCOPIA_POSITION.y,
         radius: 118,
         onInteract: openCornucopia,
+      },
+      {
+        id: VILLAGER_NPC.id,
+        label: VILLAGER_NPC.label,
+        type: "npc",
+        x: VILLAGER_NPC.x,
+        y: VILLAGER_NPC.y,
+        radius: 96,
+        onInteract: openVillagerDialogue,
       },
     ];
 
@@ -214,6 +271,14 @@ export function KingdomHubStage() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (isDialogueOpenRef.current) {
+        if (!event.repeat && (isInteractionKey(event) || event.code === "Escape")) {
+          event.preventDefault();
+          closeDialogue();
+        }
+        return;
+      }
+
       if (isModalOpenRef.current) return;
 
       if (isInteractionKey(event) && !event.repeat) {
@@ -260,6 +325,7 @@ export function KingdomHubStage() {
       app.stage.addChild(world);
       drawWorld(world);
       world.addChild(drawCornucopia());
+      world.addChild(drawVillagerNpc());
       world.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
       updateNearbyInteractable();
@@ -329,7 +395,7 @@ export function KingdomHubStage() {
         app.destroy(true, { children: true });
       }
     };
-  }, [openCornucopia]);
+  }, [closeDialogue, openCornucopia, openVillagerDialogue]);
 
   return (
     <section className="relative h-[calc(100vh-7rem)] min-h-[34rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
@@ -339,10 +405,14 @@ export function KingdomHubStage() {
         Move: WASD, ZQSD or arrows.
       </div>
 
-      {nearbyInteractableId === "cornucopia" ? (
+      {nearbyInteractableId ? (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-20 rounded-md border border-amber-200/45 bg-black/70 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-50 shadow-[0_0_24px_rgba(240,194,106,0.16)]">
           Press F
         </div>
+      ) : null}
+
+      {activeDialogue ? (
+        <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />
       ) : null}
 
       <Dialog open={isCornucopiaOpen} onOpenChange={setIsCornucopiaOpen}>
