@@ -23,6 +23,13 @@ const MAP_HEIGHT = 1200;
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 280, y: MAP_HEIGHT / 2 };
+const FARM_SLOT = {
+  id: "farm_slot_01",
+  buildingType: "farm",
+  label: "Farm",
+  x: MAP_WIDTH / 2 - 320,
+  y: MAP_HEIGHT / 2 - 90,
+} as const;
 const VILLAGER_NPC = {
   id: "npc_villager_01",
   label: "Villageois Errant",
@@ -36,10 +43,16 @@ type Vector2 = {
   y: number;
 };
 
+type BuildingState = "locked" | "unlocked" | "built";
+
+type BuildingModalState = {
+  state: BuildingState;
+} | null;
+
 type Interactable = {
   id: string;
   label: string;
-  type: "building" | "npc";
+  type: "building" | "building_slot" | "npc";
   x: number;
   y: number;
   radius: number;
@@ -122,6 +135,54 @@ function drawCornucopia() {
   return container;
 }
 
+function renderFarmSlot(marker: PIXI.Graphics, state: BuildingState) {
+  marker.clear();
+
+  const fillByState: Record<BuildingState, number> = {
+    built: 0x4f7d41,
+    locked: 0x171717,
+    unlocked: 0x243c30,
+  };
+  const strokeByState: Record<BuildingState, number> = {
+    built: 0xb9f28a,
+    locked: 0x5e5e5e,
+    unlocked: 0xf0c26a,
+  };
+  const alphaByState: Record<BuildingState, number> = {
+    built: 0.92,
+    locked: 0.35,
+    unlocked: 0.78,
+  };
+
+  marker.roundRect(-54, -54, 108, 108, 8).fill({ color: fillByState[state], alpha: alphaByState[state] });
+  marker.roundRect(-54, -54, 108, 108, 8).stroke({ color: strokeByState[state], alpha: 0.72, width: 3 });
+  marker.rect(-34, -34, 68, 68).stroke({ color: 0x101010, alpha: 0.45, width: 2 });
+
+  if (state === "built") {
+    marker.roundRect(-30, -18, 60, 50, 6).fill(0x6b4b2a);
+    marker.moveTo(-38, -18).lineTo(0, -48).lineTo(38, -18).closePath().fill(0x9f3a2f);
+    marker.rect(-8, 6, 16, 26).fill(0x1b1410);
+  } else if (state === "unlocked") {
+    marker.rect(-28, -4, 56, 8).fill({ color: 0xf0c26a, alpha: 0.85 });
+    marker.rect(-4, -28, 8, 56).fill({ color: 0xf0c26a, alpha: 0.85 });
+  } else {
+    marker.moveTo(-26, -26).lineTo(26, 26).stroke({ color: 0x777777, alpha: 0.6, width: 3 });
+    marker.moveTo(26, -26).lineTo(-26, 26).stroke({ color: 0x777777, alpha: 0.6, width: 3 });
+  }
+}
+
+function drawFarmSlot(state: BuildingState) {
+  const container = new PIXI.Container();
+  const marker = new PIXI.Graphics();
+  renderFarmSlot(marker, state);
+  container.addChild(marker);
+  container.position.set(FARM_SLOT.x, FARM_SLOT.y);
+  return {
+    container,
+    render: (nextState: BuildingState) => renderFarmSlot(marker, nextState),
+  };
+}
+
 function drawVillagerNpc() {
   const container = new PIXI.Container();
   const marker = new PIXI.Graphics();
@@ -149,11 +210,15 @@ export function KingdomHubStage() {
   const isDialogueOpenRef = useRef(false);
   const isClaimingCornucopiaRef = useRef(false);
   const nearbyInteractableIdRef = useRef<string | null>(null);
+  const farmStateRef = useRef<BuildingState>("unlocked");
+  const renderFarmSlotRef = useRef<((state: BuildingState) => void) | null>(null);
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
   const [isCornucopiaOpen, setIsCornucopiaOpen] = useState(false);
   const [activeDialogue, setActiveDialogue] = useState<{ name: string; text: string } | null>(null);
+  const [farmState, setFarmState] = useState<BuildingState>("unlocked");
+  const [farmModal, setFarmModal] = useState<BuildingModalState>(null);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
   const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
@@ -163,12 +228,17 @@ export function KingdomHubStage() {
   const canClaimCornucopia = Boolean(selectedResource && cornucopia.unlocked && cornucopia.built && cornucopia.active);
 
   useEffect(() => {
-    isModalOpenRef.current = isCornucopiaOpen;
+    isModalOpenRef.current = isCornucopiaOpen || farmModal !== null;
     if (isCornucopiaOpen) {
       isClaimingCornucopiaRef.current = false;
       setIsClaimingCornucopia(false);
     }
-  }, [isCornucopiaOpen]);
+  }, [farmModal, isCornucopiaOpen]);
+
+  useEffect(() => {
+    farmStateRef.current = farmState;
+    renderFarmSlotRef.current?.(farmState);
+  }, [farmState]);
 
   useEffect(() => {
     isDialogueOpenRef.current = activeDialogue !== null;
@@ -183,6 +253,32 @@ export function KingdomHubStage() {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
     isModalOpenRef.current = true;
     setIsCornucopiaOpen(true);
+  }, []);
+
+  const closeFarmModal = useCallback(() => {
+    isModalOpenRef.current = false;
+    setFarmModal(null);
+  }, []);
+
+  const openFarmSlot = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+
+    if (farmStateRef.current === "locked") {
+      toast.error("Building not unlocked");
+      return;
+    }
+
+    isModalOpenRef.current = true;
+    setFarmModal({ state: farmStateRef.current });
+  }, []);
+
+  const handleBuildFarm = useCallback(() => {
+    if (farmStateRef.current !== "unlocked") return;
+    farmStateRef.current = "built";
+    renderFarmSlotRef.current?.("built");
+    setFarmState("built");
+    setFarmModal(null);
+    isModalOpenRef.current = false;
   }, []);
 
   const openVillagerDialogue = useCallback(() => {
@@ -242,6 +338,15 @@ export function KingdomHubStage() {
         y: CORNUCOPIA_POSITION.y,
         radius: 118,
         onInteract: openCornucopia,
+      },
+      {
+        id: FARM_SLOT.id,
+        label: FARM_SLOT.label,
+        type: "building_slot",
+        x: FARM_SLOT.x,
+        y: FARM_SLOT.y,
+        radius: 104,
+        onInteract: openFarmSlot,
       },
       {
         id: VILLAGER_NPC.id,
@@ -325,6 +430,9 @@ export function KingdomHubStage() {
       app.stage.addChild(world);
       drawWorld(world);
       world.addChild(drawCornucopia());
+      const farmSlot = drawFarmSlot(farmStateRef.current);
+      renderFarmSlotRef.current = farmSlot.render;
+      world.addChild(farmSlot.container);
       world.addChild(drawVillagerNpc());
       world.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
@@ -391,11 +499,12 @@ export function KingdomHubStage() {
       window.removeEventListener("blur", handleWindowBlur);
       pressedKeys.clear();
       nearbyInteractableIdRef.current = null;
+      renderFarmSlotRef.current = null;
       if (initialized) {
         app.destroy(true, { children: true });
       }
     };
-  }, [closeDialogue, openCornucopia, openVillagerDialogue]);
+  }, [closeDialogue, openCornucopia, openFarmSlot, openVillagerDialogue]);
 
   return (
     <section className="relative h-[calc(100vh-7rem)] min-h-[34rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
@@ -443,6 +552,45 @@ export function KingdomHubStage() {
             >
               Claim resources
             </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={farmModal !== null}
+        onOpenChange={(open) => {
+          if (!open) closeFarmModal();
+        }}
+      >
+        <DialogContent className="border-amber-200/25 bg-zinc-950 text-amber-50">
+          <DialogHeader>
+            <DialogTitle>Farm</DialogTitle>
+            <DialogDescription>
+              {farmModal?.state === "built" ? "Building ready (placeholder)" : "Construct this building?"}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-body text-sm text-muted-foreground">
+            Building type: {FARM_SLOT.buildingType}
+          </div>
+
+          <DialogFooter>
+            <button
+              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
+              onClick={closeFarmModal}
+              type="button"
+            >
+              Close
+            </button>
+            {farmModal?.state === "unlocked" ? (
+              <button
+                className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24"
+                onClick={handleBuildFarm}
+                type="button"
+              >
+                Build
+              </button>
+            ) : null}
           </DialogFooter>
         </DialogContent>
       </Dialog>
