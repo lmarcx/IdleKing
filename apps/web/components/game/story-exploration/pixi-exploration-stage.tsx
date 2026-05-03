@@ -47,8 +47,25 @@ const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_DEATH_FADE_MS = 260;
 const LOOT_POPUP_DURATION_MS = 900;
+const SPARKLE_BURST_DURATION_MS = 520;
+const POI_HIGHLIGHT_RADIUS = 96;
 const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
 const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
+
+const EXPLORATION_ASSETS = {
+  chest: "/assets/exploration/golden_chest.png",
+  crackedFloor: "/assets/exploration/cracked_stone_floor_tile.png",
+  enemy: "/assets/exploration/resurrected_scarecrow.png",
+  floor: "/assets/exploration/dark_stone_floor_tile.png",
+  glow: "/assets/exploration/subtle_magic_glow.png",
+  player: "/assets/exploration/player_king.png",
+  rune: "/assets/exploration/ancient_rune.png",
+  shrine: "/assets/exploration/healing_shrine.png",
+  sparkle: "/assets/exploration/small_gold_sparkle.png",
+} as const;
+
+type ExplorationAssetKey = keyof typeof EXPLORATION_ASSETS;
+type ExplorationTextures = Record<ExplorationAssetKey, PIXI.Texture>;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -87,15 +104,46 @@ type ActiveLootPopup = {
   position: Vector2;
 };
 
+type ActiveSparkleParticle = {
+  lifeOffset: number;
+  sprite: PIXI.Sprite;
+  velocity: Vector2;
+};
+
+type ActiveSparkleBurst = {
+  ageMs: number;
+  container: PIXI.Container;
+  durationMs: number;
+  particles: ActiveSparkleParticle[];
+  position: Vector2;
+};
+
 type ActiveMouseAction = "melee" | "ranged" | null;
 
 type ActiveEnemy = StoryLevelEnemy & {
-  body: PIXI.Graphics;
+  baseScale: number;
+  body: PIXI.Sprite;
   container: PIXI.Container;
   debugScenario?: boolean;
   deathFadeMs: number;
   hitFlashMs: number;
   hpBar: PIXI.Graphics;
+  shadow: PIXI.Graphics;
+};
+
+type PoiKind = "chest" | "rune" | "shrine";
+
+type PoiVisual = {
+  baseScale: number;
+  container: PIXI.Container;
+  glow: PIXI.Sprite;
+  hint: PIXI.Text;
+  id: string;
+  kind: PoiKind;
+  point: ExplorationStagePoi;
+  pulseOffset: number;
+  sprite: PIXI.Sprite;
+  wasNear: boolean;
 };
 
 type SkillId = combat.SkillId;
@@ -173,69 +221,259 @@ function normalizeVector(vector: Vector2, fallback: Vector2 = { x: 0, y: -1 }): 
   };
 }
 
-function drawWorld(container: PIXI.Container, mapWidth: number, mapHeight: number, pointsOfInterest: ExplorationStagePoi[]) {
-  const background = new PIXI.Graphics();
-  background.rect(0, 0, mapWidth, mapHeight).fill(0x07090d);
-
-  for (let y = 0; y < mapHeight; y += 80) {
-    for (let x = 0; x < mapWidth; x += 80) {
-      const tone = (x / 80 + y / 80) % 2 === 0 ? 0x0d1417 : 0x0a1014;
-      background.rect(x, y, 80, 80).fill({ color: tone, alpha: 0.42 });
-    }
-  }
-
-  for (let x = 0; x <= mapWidth; x += 120) {
-    background.moveTo(x, 0).lineTo(x, mapHeight).stroke({ color: 0x2f4b45, alpha: 0.16, width: 1 });
-  }
-
-  for (let y = 0; y <= mapHeight; y += 120) {
-    background.moveTo(0, y).lineTo(mapWidth, y).stroke({ color: 0x2f4b45, alpha: 0.16, width: 1 });
-  }
-
-  container.addChild(background);
-
-  for (const point of pointsOfInterest) {
-    const marker = new PIXI.Graphics();
-    marker.circle(0, 0, 34).fill({ color: point.color, alpha: 0.14 });
-    marker.circle(0, 0, 10).fill({ color: point.color, alpha: 0.72 });
-    marker.moveTo(-48, 0).lineTo(48, 0).stroke({ color: point.color, alpha: 0.35, width: 1 });
-    marker.moveTo(0, -48).lineTo(0, 48).stroke({ color: point.color, alpha: 0.35, width: 1 });
-    marker.position.set(point.x, point.y);
-    container.addChild(marker);
-  }
+function createShadow(width: number, height: number, alpha = 0.42): PIXI.Graphics {
+  const shadow = new PIXI.Graphics();
+  shadow.ellipse(0, 0, width, height).fill({ color: 0x020307, alpha });
+  return shadow;
 }
 
-function drawPlayer() {
-  const player = new PIXI.Graphics();
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).fill(0x1a2330);
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).stroke({
-    color: 0xf0c26a,
-    width: 2,
-  });
-  player.rect(-8, -18, 16, 12).fill(0xf0c26a);
-  player.rect(-14, -4, 28, 24).fill(0x304457);
-  player.circle(-8, -10, 3).fill(0x79f5d4);
-  player.circle(8, -10, 3).fill(0x79f5d4);
-  return player;
+function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
+  const textureHeight = Math.max(sprite.texture.height, 1);
+  const scale = height / textureHeight;
+  sprite.scale.set(scale);
+  return scale;
 }
 
-function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
+function createFloatingText({
+  color,
+  label,
+  layer,
+  position,
+}: {
+  color: number;
+  label: string;
+  layer: PIXI.Container;
+  position: Vector2;
+}): ActiveLootPopup {
   const container = new PIXI.Container();
-  const body = new PIXI.Graphics();
-  const hpBar = new PIXI.Graphics();
+  const text = new PIXI.Text({
+    text: label,
+    style: {
+      fill: color,
+      fontFamily: "Arial",
+      fontSize: 17,
+      fontWeight: "700",
+      stroke: { color: 0x100805, width: 4 },
+    },
+  });
+  text.anchor.set(0.5, 0.5);
+  container.addChild(text);
+  container.position.set(position.x, position.y);
+  layer.addChild(container);
 
+  return {
+    ageMs: 0,
+    container,
+    durationMs: LOOT_POPUP_DURATION_MS,
+    position: { ...position },
+  };
+}
+
+function createSparkleBurst({
+  layer,
+  position,
+  texture,
+}: {
+  layer: PIXI.Container;
+  position: Vector2;
+  texture: PIXI.Texture;
+}): ActiveSparkleBurst {
+  const container = new PIXI.Container();
+  const particles: ActiveSparkleParticle[] = [];
+  const particleCount = 8;
+
+  for (let index = 0; index < particleCount; index += 1) {
+    const sprite = new PIXI.Sprite(texture);
+    const angle = (Math.PI * 2 * index) / particleCount + (index % 2) * 0.22;
+    const speed = 48 + (index % 3) * 18;
+    sprite.anchor.set(0.5);
+    sprite.scale.set(0.08 + (index % 2) * 0.025);
+    sprite.alpha = 0.92;
+    sprite.roundPixels = true;
+    container.addChild(sprite);
+    particles.push({
+      lifeOffset: index * 18,
+      sprite,
+      velocity: {
+        x: Math.cos(angle) * speed,
+        y: Math.sin(angle) * speed - 24,
+      },
+    });
+  }
+
+  container.position.set(position.x, position.y);
+  layer.addChild(container);
+
+  return {
+    ageMs: 0,
+    container,
+    durationMs: SPARKLE_BURST_DURATION_MS,
+    particles,
+    position: { ...position },
+  };
+}
+
+function createVignette(width: number, height: number): PIXI.Graphics {
+  const vignette = new PIXI.Graphics();
+  vignette.rect(0, 0, width, height).stroke({ color: 0x010104, alpha: 0.55, width: 64 });
+  vignette.rect(18, 18, Math.max(0, width - 36), Math.max(0, height - 36)).stroke({
+    color: 0x090219,
+    alpha: 0.22,
+    width: 34,
+  });
+  return vignette;
+}
+
+function getPoiKind(point: ExplorationStagePoi): PoiKind {
+  if (point.color === 0x8a5cff) return "rune";
+  if (point.color === 0x2fd8c8) return "shrine";
+  return "chest";
+}
+
+function createPoiSprite(point: ExplorationStagePoi, textures: ExplorationTextures): PoiVisual {
+  const kind = getPoiKind(point);
+  const container = new PIXI.Container();
+  const glow = new PIXI.Sprite(textures.glow);
+  const sprite = new PIXI.Sprite(textures[kind]);
+  const hint = new PIXI.Text({
+    text: "Nearby",
+    style: {
+      fill: 0xfff1b8,
+      fontFamily: "Arial",
+      fontSize: 14,
+      fontWeight: "700",
+      stroke: { color: 0x120c07, width: 4 },
+    },
+  });
+
+  glow.anchor.set(0.5);
+  glow.alpha = kind === "chest" ? 0.24 : 0.34;
+  setSpriteDisplayHeight(glow, kind === "chest" ? 86 : 104);
+  glow.tint = kind === "shrine" ? 0x7dffad : kind === "rune" ? 0x86a0ff : 0xffd36a;
+
+  sprite.anchor.set(0.5, 0.76);
+  sprite.roundPixels = true;
+  const baseScale = setSpriteDisplayHeight(sprite, kind === "chest" ? 62 : 76);
+  sprite.tint = kind === "shrine" ? 0xa4ffd0 : kind === "rune" ? 0xc5c7ff : 0xffffff;
+
+  hint.anchor.set(0.5, 0.5);
+  hint.position.set(0, -72);
+  hint.alpha = 0;
+  hint.visible = false;
+
+  container.addChild(glow);
+  container.addChild(sprite);
+  container.addChild(hint);
+  container.position.set(point.x, point.y);
+
+  return {
+    baseScale,
+    container,
+    glow,
+    hint,
+    id: point.id,
+    kind,
+    point,
+    pulseOffset: point.x * 0.017 + point.y * 0.011,
+    sprite,
+    wasNear: false,
+  };
+}
+
+function drawWorld({
+  backgroundLayer,
+  mapHeight,
+  mapWidth,
+  pointsOfInterest,
+  textures,
+  worldLayer,
+}: {
+  backgroundLayer: PIXI.Container;
+  mapHeight: number;
+  mapWidth: number;
+  pointsOfInterest: ExplorationStagePoi[];
+  textures: ExplorationTextures;
+  worldLayer: PIXI.Container;
+}): PoiVisual[] {
+  const fallback = new PIXI.Graphics();
+  fallback.rect(0, 0, mapWidth, mapHeight).fill(0x050711);
+  backgroundLayer.addChild(fallback);
+
+  const tileScale = 96 / Math.max(textures.floor.width, 1);
+  const floor = new PIXI.TilingSprite({
+    height: mapHeight,
+    roundPixels: true,
+    texture: textures.floor,
+    tileScale: { x: tileScale, y: tileScale },
+    width: mapWidth,
+  });
+  floor.alpha = 0.92;
+  backgroundLayer.addChild(floor);
+
+  const haze = new PIXI.Graphics();
+  haze.rect(0, 0, mapWidth, mapHeight).fill({ color: 0x120728, alpha: 0.2 });
+  backgroundLayer.addChild(haze);
+
+  const crackScale = 92 / Math.max(textures.crackedFloor.height, 1);
+  for (let index = 0; index < 34; index += 1) {
+    const crack = new PIXI.Sprite(textures.crackedFloor);
+    crack.anchor.set(0.5);
+    crack.scale.set(crackScale * (index % 3 === 0 ? 1.18 : 1));
+    crack.alpha = 0.16 + (index % 4) * 0.035;
+    crack.rotation = ((index * 37) % 4) * (Math.PI / 2);
+    crack.position.set((index * 397) % mapWidth, (index * 251 + 140) % mapHeight);
+    backgroundLayer.addChild(crack);
+  }
+
+  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point, textures));
+  for (const visual of poiVisuals) {
+    worldLayer.addChild(visual.container);
+  }
+
+  return poiVisuals;
+}
+
+function configurePlayerSprite(player: PIXI.Container, texture: PIXI.Texture) {
+  player.removeChildren();
+  const shadow = createShadow(22, 8, 0.5);
+  shadow.position.set(0, 12);
+  const sprite = new PIXI.Sprite(texture);
+  sprite.anchor.set(0.5, 0.82);
+  sprite.roundPixels = true;
+  const baseScale = setSpriteDisplayHeight(sprite, 68);
+  player.addChild(shadow);
+  player.addChild(sprite);
+  return {
+    baseScale,
+    sprite,
+  };
+}
+
+function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): ActiveEnemy {
+  const container = new PIXI.Container();
+  const shadow = createShadow(enemy.radius * 0.95, enemy.radius * 0.34, 0.45);
+  const body = new PIXI.Sprite(texture);
+  const hpBar = new PIXI.Graphics();
+  const baseScale = setSpriteDisplayHeight(body, enemy.radius * 3.2);
+
+  body.anchor.set(0.5, 0.82);
+  body.roundPixels = true;
+  shadow.position.set(0, enemy.radius * 0.48);
+  container.addChild(shadow);
   container.addChild(body);
   container.addChild(hpBar);
   container.position.set(enemy.position.x, enemy.position.y);
 
   return {
     ...enemy,
+    baseScale,
     body,
     container,
     debugScenario: false,
     deathFadeMs: 0,
     hitFlashMs: 0,
     hpBar,
+    shadow,
   };
 }
 
@@ -259,18 +497,15 @@ function createDebugEnemy(id: string, position: Vector2): StoryLevelEnemy {
 
 function renderEnemy(enemy: ActiveEnemy) {
   enemy.container.position.set(enemy.position.x, enemy.position.y);
+  enemy.container.zIndex = enemy.position.y;
   enemy.container.alpha = enemy.state === "dead" ? clamp(1 - enemy.deathFadeMs / ENEMY_DEATH_FADE_MS, 0, 1) : 1;
 
   const isChasing = enemy.state === "chasing";
   const hitProgress = clamp(enemy.hitFlashMs / ENEMY_HIT_FLASH_MS, 0, 1);
-  const bodyColor = enemy.hitFlashMs > 0 ? 0xffd0d0 : isChasing ? 0xd44848 : 0x742828;
-  const outlineColor = isChasing ? 0xff8f7c : 0x9f4a45;
-  const scale = enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.18 : 1;
-
-  enemy.body.clear();
-  enemy.body.circle(0, 0, enemy.radius * scale).fill({ color: bodyColor, alpha: enemy.state === "dead" ? 0.35 : 0.88 });
-  enemy.body.circle(0, 0, enemy.radius * scale).stroke({ color: outlineColor, alpha: 0.9, width: 2 });
-  enemy.body.circle(enemy.radius * 0.34, -enemy.radius * 0.18, enemy.radius * 0.18).fill(0x1a0c0c);
+  const scale = enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.16 : 1 + (isChasing ? 0.03 : 0);
+  enemy.body.scale.set(enemy.baseScale * scale);
+  enemy.body.tint = enemy.hitFlashMs > 0 ? 0xffd0d0 : isChasing ? 0xffb0a0 : 0xffffff;
+  enemy.shadow.alpha = enemy.state === "dead" ? 0.16 : 0.45;
 
   const barWidth = enemy.radius * 2.3;
   const hpRatio = enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0;
@@ -350,14 +585,20 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     const hostElement: HTMLDivElement = nullableHostElement;
 
     let cancelled = false;
+    let destroyed = false;
     let initialized = false;
     const pressedKeys = new Set<string>();
     const app = new PIXI.Application();
     const world = new PIXI.Container();
+    const backgroundLayer = new PIXI.Container();
+    const worldLayer = new PIXI.Container();
+    const entityLayer = new PIXI.Container();
+    const fxLayer = new PIXI.Container();
+    const uiLayer = new PIXI.Container();
     const enemyLayer = new PIXI.Container();
     const attackLayer = new PIXI.Container();
     const lootPopupLayer = new PIXI.Container();
-    const player = drawPlayer();
+    const player = new PIXI.Container();
     const playerPosition = {
       x: mapWidth / 2,
       y: mapHeight / 2,
@@ -372,18 +613,32 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     const meleeAttacks: ActiveMeleeAttack[] = [];
     const projectiles: ActiveProjectile[] = [];
     const lootPopups: ActiveLootPopup[] = [];
-    const enemies: ActiveEnemy[] = createInitialEnemies().map(createEnemyGraphics);
+    const sparkleBursts: ActiveSparkleBurst[] = [];
+    const enemies: ActiveEnemy[] = [];
+    const poiVisuals: PoiVisual[] = [];
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
+    let playerSprite: PIXI.Sprite | null = null;
+    let playerBaseScale = 1;
+    let enemyTexture: PIXI.Texture | null = null;
+    let sparkleTexture: PIXI.Texture | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
     let hudElapsed = 0;
+    let lastUiHeight = 0;
+    let lastUiWidth = 0;
     let skillsHudElapsed = 0;
     let hasPointerWorldPosition = false;
     let isPlayerDefeated = false;
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
     let playerHp = PLAYER_MAX_HP;
+
+    function destroyPixiApp() {
+      if (!initialized || destroyed) return;
+      destroyed = true;
+      app.destroy(true);
+    }
 
     function publishSkillsState(nowMs: number) {
       const nextState: LocalSkillsState = {
@@ -694,7 +949,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       ];
 
       for (const enemyDef of debugEnemies) {
-        const enemy = createEnemyGraphics(enemyDef);
+        const enemy = createEnemyGraphics(enemyDef, enemyTexture ?? PIXI.Texture.EMPTY);
         enemy.debugScenario = true;
         renderEnemy(enemy);
         enemies.push(enemy);
@@ -716,34 +971,118 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     }
 
     function createLootPopup(position: Vector2, loot: EnemyLoot) {
-      const container = new PIXI.Container();
-      const icon = new PIXI.Graphics();
-      const text = new PIXI.Text({
-        text: `+${loot.amount} ${getLootPopupLabel(loot.resourceId)}`,
-        style: {
-          fill: 0xfff1b8,
-          fontFamily: "Arial",
-          fontSize: 17,
-          fontWeight: "700",
-          stroke: { color: 0x150b08, width: 3 },
-        },
-      });
+      lootPopups.push(
+        createFloatingText({
+          color: getLootPopupColor(loot.resourceId),
+          label: `+${loot.amount} ${getLootPopupLabel(loot.resourceId)}`,
+          layer: lootPopupLayer,
+          position: { x: position.x + 8, y: position.y - 54 },
+        })
+      );
 
-      icon.circle(0, 0, 8).fill({ color: getLootPopupColor(loot.resourceId), alpha: 0.95 });
-      icon.circle(0, 0, 13).stroke({ color: 0xfff1b8, alpha: 0.55, width: 2 });
-      text.anchor.set(0.5, 0.5);
-      text.position.set(34, 0);
-      container.addChild(icon);
-      container.addChild(text);
-      container.position.set(position.x - 18, position.y - 42);
+      if (sparkleTexture) {
+        sparkleBursts.push(
+          createSparkleBurst({
+            layer: fxLayer,
+            position: { x: position.x, y: position.y - 24 },
+            texture: sparkleTexture,
+          })
+        );
+      }
+    }
 
-      lootPopups.push({
-        ageMs: 0,
-        container,
-        durationMs: LOOT_POPUP_DURATION_MS,
-        position: { x: position.x - 18, y: position.y - 42 },
-      });
-      lootPopupLayer.addChild(container);
+    function spawnPoiDiscoveryFeedback(visual: PoiVisual) {
+      lootPopups.push(
+        createFloatingText({
+          color: visual.kind === "chest" ? 0xffe08a : visual.kind === "shrine" ? 0x8dffbd : 0xaeb4ff,
+          label: "Discovered",
+          layer: lootPopupLayer,
+          position: { x: visual.point.x, y: visual.point.y - 74 },
+        })
+      );
+
+      if (sparkleTexture) {
+        sparkleBursts.push(
+          createSparkleBurst({
+            layer: fxLayer,
+            position: { x: visual.point.x, y: visual.point.y - 18 },
+            texture: sparkleTexture,
+          })
+        );
+      }
+    }
+
+    function updatePoiVisuals(nowMs: number) {
+      for (const visual of poiVisuals) {
+        const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
+        const isNear = distance <= POI_HIGHLIGHT_RADIUS;
+        const pulse = 1 + Math.sin(nowMs / 520 + visual.pulseOffset) * 0.035;
+        const targetScale = visual.baseScale * pulse * (isNear ? 1.13 : 1);
+        visual.sprite.scale.set(targetScale);
+        visual.glow.alpha = (visual.kind === "chest" ? 0.22 : 0.32) + (isNear ? 0.3 : 0);
+        visual.glow.scale.set(1 + Math.sin(nowMs / 650 + visual.pulseOffset) * 0.04 + (isNear ? 0.08 : 0));
+        visual.hint.visible = isNear;
+        visual.hint.alpha = isNear ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
+
+        if (isNear && !visual.wasNear) {
+          spawnPoiDiscoveryFeedback(visual);
+        }
+        visual.wasNear = isNear;
+      }
+    }
+
+    function updateSparkleBursts(deltaMs: number) {
+      for (let index = sparkleBursts.length - 1; index >= 0; index -= 1) {
+        const burst = sparkleBursts[index];
+        burst.ageMs += deltaMs;
+        const burstProgress = clamp(burst.ageMs / burst.durationMs, 0, 1);
+        burst.container.alpha = 1 - burstProgress;
+
+        for (const particle of burst.particles) {
+          const age = Math.max(0, burst.ageMs - particle.lifeOffset);
+          const progress = clamp(age / Math.max(1, burst.durationMs - particle.lifeOffset), 0, 1);
+          particle.sprite.position.set(particle.velocity.x * progress * 0.55, particle.velocity.y * progress * 0.55);
+          particle.sprite.rotation += deltaMs * 0.003;
+          particle.sprite.scale.set((0.08 + progress * 0.035) * (1 - progress * 0.35));
+          particle.sprite.alpha = 1 - progress;
+        }
+
+        if (burst.ageMs < burst.durationMs) continue;
+        burst.container.removeFromParent();
+        burst.container.destroy({ children: true });
+        sparkleBursts.splice(index, 1);
+      }
+    }
+
+    function renderPlayer(nowMs: number) {
+      player.position.set(playerPosition.x, playerPosition.y);
+      player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
+      player.zIndex = playerPosition.y;
+
+      if (!playerSprite) return;
+      const breath = 1 + Math.sin(nowMs / 380) * 0.026;
+      playerSprite.scale.set(playerBaseScale * breath, playerBaseScale * (1 / breath));
+    }
+
+    function resizeUiLayer() {
+      uiLayer.removeChildren().forEach((child) => child.destroy({ children: true }));
+      const screenWidth = app.renderer.width / app.renderer.resolution;
+      const screenHeight = app.renderer.height / app.renderer.resolution;
+      uiLayer.addChild(createVignette(screenWidth, screenHeight));
+    }
+
+    function getTextures(): ExplorationTextures {
+      return {
+        chest: PIXI.Texture.from(EXPLORATION_ASSETS.chest),
+        crackedFloor: PIXI.Texture.from(EXPLORATION_ASSETS.crackedFloor),
+        enemy: PIXI.Texture.from(EXPLORATION_ASSETS.enemy),
+        floor: PIXI.Texture.from(EXPLORATION_ASSETS.floor),
+        glow: PIXI.Texture.from(EXPLORATION_ASSETS.glow),
+        player: PIXI.Texture.from(EXPLORATION_ASSETS.player),
+        rune: PIXI.Texture.from(EXPLORATION_ASSETS.rune),
+        shrine: PIXI.Texture.from(EXPLORATION_ASSETS.shrine),
+        sparkle: PIXI.Texture.from(EXPLORATION_ASSETS.sparkle),
+      };
     }
 
     function claimEnemyLoot(enemy: ActiveEnemy) {
@@ -1063,12 +1402,93 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       lootPopups.length = 0;
     }
 
+    function cleanupSparkleBursts() {
+      for (const burst of sparkleBursts) {
+        burst.container.removeFromParent();
+        burst.container.destroy({ children: true });
+      }
+      sparkleBursts.length = 0;
+    }
+
     function cleanupEnemies() {
       for (const enemy of enemies) {
         enemy.container.removeFromParent();
         enemy.container.destroy({ children: true });
       }
       enemies.length = 0;
+    }
+
+    function tick(ticker: PIXI.Ticker) {
+      const nowMs = performance.now();
+      const deltaSeconds = ticker.deltaMS / 1000;
+      let directionX = 0;
+      let directionY = 0;
+
+      for (const key of pressedKeys) {
+        const direction = KEY_DIRECTIONS[key];
+        if (!direction) continue;
+        directionX += direction.x;
+        directionY += direction.y;
+      }
+
+      if (!isPlayerDefeated && (directionX !== 0 || directionY !== 0)) {
+        const length = Math.hypot(directionX, directionY) || 1;
+        if (!hasPointerWorldPosition) {
+          updatePlayerFacing({ x: directionX / length, y: directionY / length });
+        }
+        playerPosition.x = clamp(
+          playerPosition.x + (directionX / length) * PLAYER_SPEED * deltaSeconds,
+          PLAYER_SIZE / 2,
+          mapWidth - PLAYER_SIZE / 2
+        );
+        playerPosition.y = clamp(
+          playerPosition.y + (directionY / length) * PLAYER_SPEED * deltaSeconds,
+          PLAYER_SIZE / 2,
+          mapHeight - PLAYER_SIZE / 2
+        );
+      }
+
+      removeExpiredSkillEffects(nowMs);
+      updateEnemies(ticker.deltaMS, nowMs);
+      updateAttacks(ticker.deltaMS, nowMs);
+      applyActiveSkillEffectDamage(nowMs);
+      updatePoiVisuals(nowMs);
+      updateLootPopups(ticker.deltaMS);
+      updateSparkleBursts(ticker.deltaMS);
+      renderEnemies();
+      renderAttacks();
+      renderPlayer(nowMs);
+      renderSkillEffects(app, player, activeSkillEffects);
+
+      const screenWidth = app.renderer.width / app.renderer.resolution;
+      const screenHeight = app.renderer.height / app.renderer.resolution;
+      if (screenWidth !== lastUiWidth || screenHeight !== lastUiHeight) {
+        lastUiWidth = screenWidth;
+        lastUiHeight = screenHeight;
+        resizeUiLayer();
+      }
+
+      const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, mapWidth - screenWidth));
+      const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, mapHeight - screenHeight));
+      world.position.set(-cameraX, -cameraY);
+
+      hudElapsed += ticker.deltaMS;
+      if (hudElapsed >= 90) {
+        hudElapsed = 0;
+        onPlayerMoveRef.current({ ...playerPosition });
+      }
+
+      skillsHudElapsed += ticker.deltaMS;
+      if (skillsHudElapsed >= 90) {
+        skillsHudElapsed = 0;
+        publishSkillsState(nowMs);
+      }
+
+      combatHudElapsed += ticker.deltaMS;
+      if (combatHudElapsed >= 120) {
+        combatHudElapsed = 0;
+        syncCombatHud();
+      }
     }
 
     async function setup() {
@@ -1082,7 +1502,20 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       initialized = true;
 
       if (cancelled) {
-        app.destroy(true);
+        destroyPixiApp();
+        return;
+      }
+
+      await PIXI.Assets.load(Object.values(EXPLORATION_ASSETS));
+      const textures = getTextures();
+      enemyTexture = textures.enemy;
+      sparkleTexture = textures.sparkle;
+      const configuredPlayer = configurePlayerSprite(player, textures.player);
+      playerSprite = configuredPlayer.sprite;
+      playerBaseScale = configuredPlayer.baseScale;
+
+      if (cancelled) {
+        destroyPixiApp();
         return;
       }
 
@@ -1095,16 +1528,34 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       canvasElement.addEventListener("pointerleave", handlePointerLeave);
       canvasElement.addEventListener("pointermove", handlePointerMove);
       app.stage.addChild(world);
-      drawWorld(world, mapWidth, mapHeight, pointsOfInterest);
+      app.stage.addChild(uiLayer);
+      world.addChild(backgroundLayer);
+      world.addChild(worldLayer);
+      world.addChild(entityLayer);
+      world.addChild(fxLayer);
+      entityLayer.sortableChildren = true;
+      enemyLayer.sortableChildren = true;
+      fxLayer.addChild(attackLayer);
+      fxLayer.addChild(lootPopupLayer);
+      poiVisuals.push(
+        ...drawWorld({
+          backgroundLayer,
+          mapHeight,
+          mapWidth,
+          pointsOfInterest,
+          textures,
+          worldLayer,
+        })
+      );
+      enemies.push(...createInitialEnemies().map((enemy) => createEnemyGraphics(enemy, textures.enemy)));
       for (const enemy of enemies) {
         renderEnemy(enemy);
         enemyLayer.addChild(enemy.container);
       }
-      world.addChild(enemyLayer);
-      world.addChild(attackLayer);
-      world.addChild(lootPopupLayer);
-      world.addChild(player);
+      entityLayer.addChild(enemyLayer);
+      entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
+      resizeUiLayer();
       onPlayerMoveRef.current(playerPosition);
       syncCombatHud();
 
@@ -1118,71 +1569,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         window.addEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
       }
 
-      app.ticker.add((ticker) => {
-        const nowMs = performance.now();
-        const deltaSeconds = ticker.deltaMS / 1000;
-        let directionX = 0;
-        let directionY = 0;
-
-        for (const key of pressedKeys) {
-          const direction = KEY_DIRECTIONS[key];
-          if (!direction) continue;
-          directionX += direction.x;
-          directionY += direction.y;
-        }
-
-        if (!isPlayerDefeated && (directionX !== 0 || directionY !== 0)) {
-          const length = Math.hypot(directionX, directionY) || 1;
-          if (!hasPointerWorldPosition) {
-            updatePlayerFacing({ x: directionX / length, y: directionY / length });
-          }
-          playerPosition.x = clamp(
-            playerPosition.x + (directionX / length) * PLAYER_SPEED * deltaSeconds,
-            PLAYER_SIZE / 2,
-            mapWidth - PLAYER_SIZE / 2
-          );
-          playerPosition.y = clamp(
-            playerPosition.y + (directionY / length) * PLAYER_SPEED * deltaSeconds,
-            PLAYER_SIZE / 2,
-            mapHeight - PLAYER_SIZE / 2
-          );
-          player.position.set(playerPosition.x, playerPosition.y);
-        }
-
-        removeExpiredSkillEffects(nowMs);
-        updateEnemies(ticker.deltaMS, nowMs);
-        updateAttacks(ticker.deltaMS, nowMs);
-        applyActiveSkillEffectDamage(nowMs);
-        updateLootPopups(ticker.deltaMS);
-        renderEnemies();
-        renderAttacks();
-        player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
-        renderSkillEffects(app, player, activeSkillEffects);
-
-        const screenWidth = app.renderer.width / app.renderer.resolution;
-        const screenHeight = app.renderer.height / app.renderer.resolution;
-        const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, mapWidth - screenWidth));
-        const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, mapHeight - screenHeight));
-        world.position.set(-cameraX, -cameraY);
-
-        hudElapsed += ticker.deltaMS;
-        if (hudElapsed >= 90) {
-          hudElapsed = 0;
-          onPlayerMoveRef.current({ ...playerPosition });
-        }
-
-        skillsHudElapsed += ticker.deltaMS;
-        if (skillsHudElapsed >= 90) {
-          skillsHudElapsed = 0;
-          publishSkillsState(nowMs);
-        }
-
-        combatHudElapsed += ticker.deltaMS;
-        if (combatHudElapsed >= 120) {
-          combatHudElapsed = 0;
-          syncCombatHud();
-        }
-      });
+      app.ticker.add(tick);
     }
 
     void setup();
@@ -1206,11 +1593,13 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       canvasElement?.removeEventListener("pointermove", handlePointerMove);
       resetHeldMouseButtons();
       pressedKeys.clear();
+      app.ticker.remove(tick);
       cleanupAttacks();
       cleanupLootPopups();
+      cleanupSparkleBursts();
       cleanupSkillEffects(player);
       cleanupEnemies();
-      if (initialized) app.destroy(true);
+      destroyPixiApp();
     };
   }, [combatLoadout, levelId, mapHeight, mapWidth, pointsOfInterest]);
 
