@@ -23,6 +23,7 @@ const MAP_HEIGHT = 1200;
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 280, y: MAP_HEIGHT / 2 };
+const ANCIENT_CHEST_POSITION = { x: MAP_WIDTH / 2 + 80, y: MAP_HEIGHT / 2 - 260 };
 const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
@@ -48,6 +49,30 @@ type BuildingState = "locked" | "unlocked" | "built";
 type BuildingModalState = {
   state: BuildingState;
 } | null;
+
+type PoiVisualKind = "chest" | "interactable" | "npc" | "resource";
+
+type PoiVisual = {
+  container: PIXI.Container;
+  setNear: (near: boolean) => void;
+  update: (elapsedSeconds: number) => void;
+};
+
+type FloatingTextFx = {
+  age: number;
+  duration: number;
+  node: PIXI.Text;
+  startY: number;
+};
+
+type ParticleFx = {
+  age: number;
+  duration: number;
+  node: PIXI.Graphics;
+  velocity: Vector2;
+};
+
+type SpawnWorldFx = (position: Vector2, label?: string, color?: number) => void;
 
 type Interactable = {
   id: string;
@@ -84,55 +109,144 @@ function isInteractionKey(event: KeyboardEvent): boolean {
   return event.code === "KeyF";
 }
 
+function createGroundTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 160;
+  canvas.height = 160;
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) return PIXI.Texture.WHITE;
+
+  const gradient = ctx.createLinearGradient(0, 0, 160, 160);
+  gradient.addColorStop(0, "#070a18");
+  gradient.addColorStop(0.48, "#11102a");
+  gradient.addColorStop(1, "#080812");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 160, 160);
+
+  for (let i = 0; i < 130; i += 1) {
+    const x = (i * 47) % 160;
+    const y = (i * 83) % 160;
+    const alpha = 0.035 + ((i % 7) * 0.007);
+    ctx.fillStyle = `rgba(132, 96, 205, ${alpha})`;
+    ctx.fillRect(x, y, 1 + (i % 2), 1 + ((i + 1) % 2));
+  }
+
+  ctx.strokeStyle = "rgba(96, 78, 168, 0.16)";
+  ctx.lineWidth = 1;
+  for (let i = -160; i <= 160; i += 40) {
+    ctx.beginPath();
+    ctx.moveTo(i, 160);
+    ctx.lineTo(i + 160, 0);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "rgba(50, 180, 150, 0.08)";
+  ctx.beginPath();
+  ctx.arc(80, 80, 46, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(80, 80, 18, 0, Math.PI * 2);
+  ctx.stroke();
+
+  return PIXI.Texture.from(canvas);
+}
+
 function drawWorld(container: PIXI.Container) {
-  const background = new PIXI.Graphics();
-  background.rect(0, 0, MAP_WIDTH, MAP_HEIGHT).fill(0x07090d);
+  const texture = createGroundTexture();
+  const background = new PIXI.TilingSprite({
+    height: MAP_HEIGHT,
+    texture,
+    width: MAP_WIDTH,
+  });
 
-  for (let y = 0; y < MAP_HEIGHT; y += 80) {
-    for (let x = 0; x < MAP_WIDTH; x += 80) {
-      const tone = (x / 80 + y / 80) % 2 === 0 ? 0x0e1714 : 0x0a1110;
-      background.rect(x, y, 80, 80).fill({ color: tone, alpha: 0.5 });
-    }
-  }
+  const haze = new PIXI.Graphics();
+  haze.circle(MAP_WIDTH * 0.3, MAP_HEIGHT * 0.22, 340).fill({ color: 0x33235f, alpha: 0.16 });
+  haze.circle(MAP_WIDTH * 0.76, MAP_HEIGHT * 0.68, 420).fill({ color: 0x062f38, alpha: 0.14 });
+  haze.circle(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5, 560).stroke({ color: 0x7b5dde, alpha: 0.08, width: 2 });
 
-  for (let x = 0; x <= MAP_WIDTH; x += 120) {
-    background.moveTo(x, 0).lineTo(x, MAP_HEIGHT).stroke({ color: 0x375c49, alpha: 0.18, width: 1 });
-  }
+  container.addChild(background, haze);
+  return texture;
+}
 
-  for (let y = 0; y <= MAP_HEIGHT; y += 120) {
-    background.moveTo(0, y).lineTo(MAP_WIDTH, y).stroke({ color: 0x375c49, alpha: 0.18, width: 1 });
-  }
-
-  container.addChild(background);
+function renderVignette(vignette: PIXI.Graphics, width: number, height: number) {
+  vignette.clear();
+  vignette.rect(0, 0, width, height).fill({ color: 0x02030a, alpha: 0.12 });
+  vignette.rect(0, 0, width, height * 0.18).fill({ color: 0x000000, alpha: 0.34 });
+  vignette.rect(0, height * 0.78, width, height * 0.22).fill({ color: 0x000000, alpha: 0.42 });
+  vignette.rect(0, 0, width * 0.14, height).fill({ color: 0x000000, alpha: 0.3 });
+  vignette.rect(width * 0.86, 0, width * 0.14, height).fill({ color: 0x000000, alpha: 0.3 });
 }
 
 function drawPlayer() {
-  const player = new PIXI.Graphics();
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).fill(0x1a2330);
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).stroke({
+  const container = new PIXI.Container();
+  const shadow = new PIXI.Graphics();
+  const body = new PIXI.Graphics();
+
+  shadow.ellipse(0, 24, 30, 11).fill({ color: 0x000000, alpha: 0.42 });
+
+  body.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).fill(0x1a2330);
+  body.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).stroke({
     color: 0xf0c26a,
     width: 2,
   });
-  player.rect(-8, -18, 16, 12).fill(0xf0c26a);
-  player.rect(-14, -4, 28, 24).fill(0x304457);
-  player.circle(-8, -10, 3).fill(0x79f5d4);
-  player.circle(8, -10, 3).fill(0x79f5d4);
-  return player;
+  body.rect(-8, -18, 16, 12).fill(0xf0c26a);
+  body.rect(-14, -4, 28, 24).fill(0x304457);
+  body.circle(-8, -10, 3).fill(0x79f5d4);
+  body.circle(8, -10, 3).fill(0x79f5d4);
+
+  container.addChild(shadow, body);
+  return { body, container, shadow };
+}
+
+function createPoiShell(kind: PoiVisualKind, position: Vector2, radius: number) {
+  const container = new PIXI.Container();
+  const glow = new PIXI.Graphics();
+  const art = new PIXI.Container();
+  let isNear = false;
+
+  const colorByKind: Record<PoiVisualKind, number> = {
+    chest: 0xf0c26a,
+    interactable: 0xb18cff,
+    npc: 0x7df7ff,
+    resource: 0x55d979,
+  };
+
+  const color = colorByKind[kind];
+  glow.circle(0, 0, radius).fill({ color, alpha: 0.28 });
+  glow.filters = [new PIXI.BlurFilter({ quality: 1, strength: kind === "chest" ? 14 : 9 })];
+
+  container.addChild(glow, art);
+  container.position.set(position.x, position.y);
+
+  return {
+    art,
+    color,
+    container,
+    setNear: (near: boolean) => {
+      isNear = near;
+    },
+    update: (elapsedSeconds: number) => {
+      const pulse = Math.sin(elapsedSeconds * 3.2 + position.x * 0.01) * 0.035;
+      const hover = isNear ? 1.12 : 1;
+      container.scale.set(hover + pulse);
+      glow.alpha = (isNear ? 0.78 : 0.42) + Math.sin(elapsedSeconds * 4.4) * 0.08;
+    },
+  };
 }
 
 function drawCornucopia() {
-  const container = new PIXI.Container();
+  const poi = createPoiShell("resource", CORNUCOPIA_POSITION, 70);
   const marker = new PIXI.Graphics();
-  marker.circle(0, 0, 62).fill({ color: 0xf0c26a, alpha: 0.11 });
-  marker.circle(0, 0, 44).stroke({ color: 0xf0c26a, alpha: 0.5, width: 2 });
+  marker.circle(0, 0, 62).fill({ color: 0x55d979, alpha: 0.12 });
+  marker.circle(0, 0, 44).stroke({ color: 0x55d979, alpha: 0.55, width: 2 });
   marker.roundRect(-38, -28, 76, 56, 12).fill(0x6b3f1f);
   marker.roundRect(-34, -24, 68, 48, 10).stroke({ color: 0xf7d487, alpha: 0.9, width: 3 });
   marker.circle(-14, -6, 8).fill(0xffd166);
   marker.circle(8, -10, 7).fill(0x87d37c);
   marker.circle(18, 8, 8).fill(0xd86f45);
-  container.addChild(marker);
-  container.position.set(CORNUCOPIA_POSITION.x, CORNUCOPIA_POSITION.y);
-  return container;
+  poi.art.addChild(marker);
+  return poi;
 }
 
 function renderFarmSlot(marker: PIXI.Graphics, state: BuildingState) {
@@ -172,19 +286,20 @@ function renderFarmSlot(marker: PIXI.Graphics, state: BuildingState) {
 }
 
 function drawFarmSlot(state: BuildingState) {
-  const container = new PIXI.Container();
+  const poi = createPoiShell("interactable", FARM_SLOT, 70);
   const marker = new PIXI.Graphics();
   renderFarmSlot(marker, state);
-  container.addChild(marker);
-  container.position.set(FARM_SLOT.x, FARM_SLOT.y);
+  poi.art.addChild(marker);
   return {
-    container,
+    container: poi.container,
     render: (nextState: BuildingState) => renderFarmSlot(marker, nextState),
+    setNear: poi.setNear,
+    update: poi.update,
   };
 }
 
 function drawVillagerNpc() {
-  const container = new PIXI.Container();
+  const poi = createPoiShell("npc", VILLAGER_NPC, 52);
   const marker = new PIXI.Graphics();
   marker.circle(0, 22, 34).fill({ color: 0x2fd8c8, alpha: 0.1 });
   marker.circle(0, -16, 13).fill(0xc08a5a);
@@ -194,9 +309,21 @@ function drawVillagerNpc() {
   marker.rect(12, 8, 8, 28).fill(0x1d303b);
   marker.circle(-5, -19, 2).fill(0x10202a);
   marker.circle(5, -19, 2).fill(0x10202a);
-  container.addChild(marker);
-  container.position.set(VILLAGER_NPC.x, VILLAGER_NPC.y);
-  return container;
+  poi.art.addChild(marker);
+  return poi;
+}
+
+function drawAncientChest() {
+  const poi = createPoiShell("chest", ANCIENT_CHEST_POSITION, 54);
+  const marker = new PIXI.Graphics();
+  marker.circle(0, 0, 46).fill({ color: 0xf0c26a, alpha: 0.12 });
+  marker.roundRect(-34, -18, 68, 40, 7).fill(0x6e421e);
+  marker.roundRect(-34, -18, 68, 40, 7).stroke({ color: 0xf0c26a, alpha: 0.92, width: 3 });
+  marker.rect(-38, -20, 76, 11).fill(0x2a1720);
+  marker.rect(-5, -4, 10, 16).fill(0xf0c26a);
+  marker.circle(0, 4, 3).fill(0x1b1012);
+  poi.art.addChild(marker);
+  return poi;
 }
 
 function formatResourceLabel(resourceId: ResourceId) {
@@ -211,6 +338,7 @@ export function KingdomHubStage() {
   const nearbyInteractableIdRef = useRef<string | null>(null);
   const farmStateRef = useRef<BuildingState>("unlocked");
   const renderFarmSlotRef = useRef<((state: BuildingState) => void) | null>(null);
+  const spawnWorldFxRef = useRef<SpawnWorldFx | null>(null);
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
@@ -260,6 +388,7 @@ export function KingdomHubStage() {
 
   const openCornucopia = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, undefined, 0x55d979);
     isModalOpenRef.current = true;
     setIsCornucopiaOpen(true);
   }, []);
@@ -273,10 +402,12 @@ export function KingdomHubStage() {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
 
     if (farmStateRef.current === "locked") {
+      spawnWorldFxRef.current?.(FARM_SLOT, undefined, 0x777777);
       toast.error("Building not unlocked");
       return;
     }
 
+    spawnWorldFxRef.current?.(FARM_SLOT, undefined, 0xb18cff);
     isModalOpenRef.current = true;
     setFarmModal({ state: farmStateRef.current });
   }, []);
@@ -285,6 +416,7 @@ export function KingdomHubStage() {
     if (farmStateRef.current !== "unlocked") return;
     farmStateRef.current = "built";
     renderFarmSlotRef.current?.("built");
+    spawnWorldFxRef.current?.(FARM_SLOT, "Built", 0xf0c26a);
     setFarmState("built");
     setFarmModal(null);
     isModalOpenRef.current = false;
@@ -292,6 +424,7 @@ export function KingdomHubStage() {
 
   const openVillagerDialogue = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(VILLAGER_NPC, undefined, 0x7df7ff);
     isDialogueOpenRef.current = true;
     setActiveDialogue({
       name: VILLAGER_NPC.label,
@@ -321,6 +454,7 @@ export function KingdomHubStage() {
 
     dispatch(() => result.next);
     showResourceGain({ amount: result.amount, resourceId: result.resourceId });
+    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, `+${result.amount} ${result.resourceId}`, 0x55d979);
     toast.success(`Claimed ${result.amount} ${result.resourceId}`);
     isClaimingCornucopiaRef.current = false;
     setIsClaimingCornucopia(false);
@@ -336,9 +470,18 @@ export function KingdomHubStage() {
     const pressedKeys = new Set<string>();
     const app = new PIXI.Application();
     const world = new PIXI.Container();
-    const player = drawPlayer();
+    const backgroundLayer = new PIXI.Container();
+    const entityLayer = new PIXI.Container();
+    const fxLayer = new PIXI.Container();
+    const uiLayer = new PIXI.Container();
+    const playerVisual = drawPlayer();
+    const player = playerVisual.container;
     const playerPosition = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 };
     const playerFacing = { x: 0, y: -1 };
+    const poiVisuals = new Map<string, PoiVisual>();
+    const floatingTexts: FloatingTextFx[] = [];
+    const particles: ParticleFx[] = [];
+    const vignette = new PIXI.Graphics();
     const interactables: Interactable[] = [
       {
         id: "cornucopia",
@@ -372,6 +515,9 @@ export function KingdomHubStage() {
     function setNearby(id: string | null) {
       if (nearbyInteractableIdRef.current === id) return;
       nearbyInteractableIdRef.current = id;
+      for (const [visualId, visual] of poiVisuals) {
+        visual.setNear(visualId === id);
+      }
       setNearbyInteractableId(id);
     }
 
@@ -419,7 +565,82 @@ export function KingdomHubStage() {
       pressedKeys.clear();
     }
 
+    function spawnWorldFx(position: Vector2, label?: string, color = 0xf0c26a) {
+      if (label) {
+        const text = new PIXI.Text({
+          style: {
+            align: "center",
+            dropShadow: {
+              alpha: 0.85,
+              blur: 3,
+              color: 0x000000,
+              distance: 2,
+            },
+            fill: color,
+            fontFamily: "serif",
+            fontSize: 16,
+            fontWeight: "700",
+          },
+          text: label,
+        });
+        text.anchor.set(0.5);
+        text.position.set(position.x, position.y - 72);
+        fxLayer.addChild(text);
+        floatingTexts.push({ age: 0, duration: 1.1, node: text, startY: text.y });
+      }
+
+      for (let i = 0; i < 14; i += 1) {
+        const angle = (Math.PI * 2 * i) / 14;
+        const speed = 42 + (i % 4) * 18;
+        const particle = new PIXI.Graphics();
+        particle.circle(0, 0, 3 + (i % 3)).fill({ color, alpha: 0.82 });
+        particle.position.set(position.x, position.y);
+        fxLayer.addChild(particle);
+        particles.push({
+          age: 0,
+          duration: 0.62,
+          node: particle,
+          velocity: { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed - 22 },
+        });
+      }
+    }
+
+    function updateFx(deltaSeconds: number) {
+      for (let i = floatingTexts.length - 1; i >= 0; i -= 1) {
+        const fx = floatingTexts[i];
+        fx.age += deltaSeconds;
+        const progress = clamp(fx.age / fx.duration, 0, 1);
+        fx.node.y = fx.startY - progress * 42;
+        fx.node.alpha = 1 - progress;
+        fx.node.scale.set(1 + progress * 0.16);
+
+        if (progress >= 1) {
+          fx.node.destroy();
+          floatingTexts.splice(i, 1);
+        }
+      }
+
+      for (let i = particles.length - 1; i >= 0; i -= 1) {
+        const fx = particles[i];
+        fx.age += deltaSeconds;
+        const progress = clamp(fx.age / fx.duration, 0, 1);
+        fx.node.position.set(
+          fx.node.x + fx.velocity.x * deltaSeconds,
+          fx.node.y + fx.velocity.y * deltaSeconds,
+        );
+        fx.velocity.y += 72 * deltaSeconds;
+        fx.node.alpha = 1 - progress;
+        fx.node.scale.set(1 - progress * 0.55);
+
+        if (progress >= 1) {
+          fx.node.destroy();
+          particles.splice(i, 1);
+        }
+      }
+    }
+
     let tickerCallback: ((ticker: PIXI.Ticker) => void) | null = null;
+    let groundTexture: PIXI.Texture | null = null;
 
     async function setup() {
       await app.init({
@@ -437,15 +658,26 @@ export function KingdomHubStage() {
       }
 
       resizeTarget.appendChild(app.canvas);
-      app.stage.addChild(world);
-      drawWorld(world);
-      world.addChild(drawCornucopia());
+      app.stage.addChild(world, uiLayer);
+      world.addChild(backgroundLayer, entityLayer, fxLayer);
+      groundTexture = drawWorld(backgroundLayer);
+      const cornucopiaVisual = drawCornucopia();
+      poiVisuals.set("cornucopia", cornucopiaVisual);
+      entityLayer.addChild(cornucopiaVisual.container);
       const farmSlot = drawFarmSlot(farmStateRef.current);
       renderFarmSlotRef.current = farmSlot.render;
-      world.addChild(farmSlot.container);
-      world.addChild(drawVillagerNpc());
-      world.addChild(player);
+      poiVisuals.set(FARM_SLOT.id, farmSlot);
+      entityLayer.addChild(farmSlot.container);
+      const villagerVisual = drawVillagerNpc();
+      poiVisuals.set(VILLAGER_NPC.id, villagerVisual);
+      entityLayer.addChild(villagerVisual.container);
+      const chestVisual = drawAncientChest();
+      entityLayer.addChild(chestVisual.container);
+      entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
+      uiLayer.addChild(vignette);
+      renderVignette(vignette, app.screen.width, app.screen.height);
+      spawnWorldFxRef.current = spawnWorldFx;
       updateNearbyInteractable();
 
       window.addEventListener("keydown", handleKeyDown);
@@ -454,6 +686,7 @@ export function KingdomHubStage() {
 
       const updateHub = (ticker: PIXI.Ticker) => {
         const deltaSeconds = ticker.deltaMS / 1000;
+        const elapsedSeconds = ticker.lastTime / 1000;
         let directionX = 0;
         let directionY = 0;
 
@@ -485,8 +718,19 @@ export function KingdomHubStage() {
           updateNearbyInteractable();
         }
 
+        const breathing = 1 + Math.sin(elapsedSeconds * 2.4) * 0.025;
+        playerVisual.body.scale.set(breathing);
+        playerVisual.shadow.scale.set(1 + Math.sin(elapsedSeconds * 2.4 + Math.PI) * 0.045, 1);
+
+        for (const visual of poiVisuals.values()) {
+          visual.update(elapsedSeconds);
+        }
+        chestVisual.update(elapsedSeconds);
+        updateFx(deltaSeconds);
+
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;
+        renderVignette(vignette, screenWidth, screenHeight);
         const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, MAP_WIDTH - screenWidth));
         const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, MAP_HEIGHT - screenHeight));
         world.position.set(-cameraX, -cameraY);
@@ -510,6 +754,18 @@ export function KingdomHubStage() {
       pressedKeys.clear();
       nearbyInteractableIdRef.current = null;
       renderFarmSlotRef.current = null;
+      spawnWorldFxRef.current = null;
+      for (const fx of floatingTexts) {
+        fx.node.destroy();
+      }
+      floatingTexts.length = 0;
+      for (const fx of particles) {
+        fx.node.destroy();
+      }
+      particles.length = 0;
+      poiVisuals.clear();
+      groundTexture?.destroy(true);
+      groundTexture = null;
       if (initialized) {
         app.destroy(true, { children: true });
       }
