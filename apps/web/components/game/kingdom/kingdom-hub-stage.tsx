@@ -57,6 +57,10 @@ function distanceBetween(a: Vector2, b: Vector2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function isInteractionKey(event: KeyboardEvent): boolean {
+  return event.code === "KeyF";
+}
+
 function drawWorld(container: PIXI.Container) {
   const background = new PIXI.Graphics();
   background.rect(0, 0, MAP_WIDTH, MAP_HEIGHT).fill(0x07090d);
@@ -116,11 +120,13 @@ function formatResourceList(resources: ResourceId[]) {
 export function KingdomHubStage() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
+  const isClaimingCornucopiaRef = useRef(false);
   const nearbyInteractableIdRef = useRef<string | null>(null);
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
   const [isCornucopiaOpen, setIsCornucopiaOpen] = useState(false);
+  const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
   const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
   const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
@@ -130,22 +136,35 @@ export function KingdomHubStage() {
 
   useEffect(() => {
     isModalOpenRef.current = isCornucopiaOpen;
+    if (isCornucopiaOpen) {
+      isClaimingCornucopiaRef.current = false;
+      setIsClaimingCornucopia(false);
+    }
   }, [isCornucopiaOpen]);
 
   const openCornucopia = useCallback(() => {
+    if (isModalOpenRef.current) return;
+    isModalOpenRef.current = true;
     setIsCornucopiaOpen(true);
   }, []);
 
   const handleClaimCornucopia = useCallback(() => {
+    if (isClaimingCornucopiaRef.current) return;
+
     if (!selectedResource) {
       toast.error("No Cornucopia resource available");
       return;
     }
 
+    isClaimingCornucopiaRef.current = true;
+    setIsClaimingCornucopia(true);
+
     const result = claimCornucopia(useGameStore.getState().state, { resourceId: selectedResource });
 
     if (!result.ok) {
       toast.error(`Cornucopia claim failed: ${result.error}`);
+      isClaimingCornucopiaRef.current = false;
+      setIsClaimingCornucopia(false);
       return;
     }
 
@@ -197,7 +216,7 @@ export function KingdomHubStage() {
     function handleKeyDown(event: KeyboardEvent) {
       if (isModalOpenRef.current) return;
 
-      if (event.code === "KeyF" && !event.repeat) {
+      if (isInteractionKey(event) && !event.repeat) {
         const nearby = getNearbyInteractable();
         if (nearby) {
           event.preventDefault();
@@ -219,6 +238,8 @@ export function KingdomHubStage() {
     function handleWindowBlur() {
       pressedKeys.clear();
     }
+
+    let tickerCallback: ((ticker: PIXI.Ticker) => void) | null = null;
 
     async function setup() {
       await app.init({
@@ -247,7 +268,7 @@ export function KingdomHubStage() {
       window.addEventListener("keyup", handleKeyUp);
       window.addEventListener("blur", handleWindowBlur);
 
-      app.ticker.add((ticker) => {
+      const updateHub = (ticker: PIXI.Ticker) => {
         const deltaSeconds = ticker.deltaMS / 1000;
         let directionX = 0;
         let directionY = 0;
@@ -285,18 +306,25 @@ export function KingdomHubStage() {
         const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, MAP_WIDTH - screenWidth));
         const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, MAP_HEIGHT - screenHeight));
         world.position.set(-cameraX, -cameraY);
-      });
+      };
+
+      tickerCallback = updateHub;
+      app.ticker.add(updateHub);
     }
 
     void setup();
 
     return () => {
       cancelled = true;
+      if (tickerCallback) {
+        app.ticker.remove(tickerCallback);
+        tickerCallback = null;
+      }
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleWindowBlur);
       pressedKeys.clear();
-      setNearby(null);
+      nearbyInteractableIdRef.current = null;
       if (initialized) {
         app.destroy(true, { children: true });
       }
@@ -339,7 +367,7 @@ export function KingdomHubStage() {
             </button>
             <button
               className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canClaimCornucopia}
+              disabled={!canClaimCornucopia || isClaimingCornucopia}
               onClick={handleClaimCornucopia}
               type="button"
             >
