@@ -224,8 +224,6 @@ export function KingdomHubStage() {
 
   const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
   const selectedResource = selectedCornucopiaResource;
-  const cornucopia = state.buildings.cornucopia;
-  const canClaimCornucopia = Boolean(selectedResource && cornucopia.unlocked && cornucopia.built && cornucopia.active);
 
   useEffect(() => {
     isModalOpenRef.current = isCornucopiaOpen || farmModal !== null;
@@ -324,7 +322,8 @@ export function KingdomHubStage() {
     dispatch(() => result.next);
     showResourceGain({ amount: result.amount, resourceId: result.resourceId });
     toast.success(`Claimed ${result.amount} ${result.resourceId}`);
-    setIsCornucopiaOpen(false);
+    isClaimingCornucopiaRef.current = false;
+    setIsClaimingCornucopia(false);
   }, [dispatch, selectedResource, showResourceGain]);
 
   useEffect(() => {
@@ -579,7 +578,7 @@ export function KingdomHubStage() {
             </button>
             <button
               className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!canClaimCornucopia || isClaimingCornucopia}
+              disabled={isClaimingCornucopia}
               onClick={handleClaimCornucopia}
               type="button"
             >
