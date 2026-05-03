@@ -11,6 +11,7 @@ import {
   getCornucopiaClaimables,
   claimCornucopia,
 } from "../building/cornucopiaActions.js";
+import { getQty } from "../resources/types.js";
 
 /* ---------------------------------------------------------
    AGE MAPPING
@@ -146,4 +147,18 @@ test("cornucopia refuses locked resource", () => {
 
   const res = claimCornucopia(s1, { resourceId: "IRON" });
   assert.equal(res.ok, false);
+});
+
+test("cornucopia claim grants the selected resource without consuming stamina", () => {
+  const s0 = createInitialGameState();
+  const beforeStamina = s0.buildings.cornucopia.stamina;
+
+  const res = claimCornucopia(s0, { resourceId: "WOOD" });
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
+
+  assert.equal(res.resourceId, "WOOD");
+  assert.equal(getQty(res.next.resources, "WOOD"), res.amount);
+  assert.equal(res.next.buildings.cornucopia.stamina, beforeStamina);
+  assert.equal(res.staminaSpent, 0);
 });

@@ -199,9 +199,8 @@ function drawVillagerNpc() {
   return container;
 }
 
-function formatResourceList(resources: ResourceId[]) {
-  if (resources.length === 0) return "No resource available";
-  return resources.join(", ");
+function formatResourceLabel(resourceId: ResourceId) {
+  return resourceId.replaceAll("_", " ");
 }
 
 export function KingdomHubStage() {
@@ -219,11 +218,12 @@ export function KingdomHubStage() {
   const [activeDialogue, setActiveDialogue] = useState<{ name: string; text: string } | null>(null);
   const [farmState, setFarmState] = useState<BuildingState>("unlocked");
   const [farmModal, setFarmModal] = useState<BuildingModalState>(null);
+  const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
   const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
   const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
-  const selectedResource = cornucopiaClaimables[0] ?? null;
+  const selectedResource = selectedCornucopiaResource;
   const cornucopia = state.buildings.cornucopia;
   const canClaimCornucopia = Boolean(selectedResource && cornucopia.unlocked && cornucopia.built && cornucopia.active);
 
@@ -243,6 +243,17 @@ export function KingdomHubStage() {
   useEffect(() => {
     isDialogueOpenRef.current = activeDialogue !== null;
   }, [activeDialogue]);
+
+  useEffect(() => {
+    if (cornucopiaClaimables.length === 0) {
+      setSelectedCornucopiaResource(null);
+      return;
+    }
+
+    setSelectedCornucopiaResource((current) =>
+      current && cornucopiaClaimables.includes(current) ? current : cornucopiaClaimables[0],
+    );
+  }, [cornucopiaClaimables]);
 
   const closeDialogue = useCallback(() => {
     isDialogueOpenRef.current = false;
@@ -531,9 +542,31 @@ export function KingdomHubStage() {
             <DialogDescription>Infinite resource source</DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-body text-sm text-muted-foreground">
-            <div>Available: {formatResourceList(cornucopiaClaimables)}</div>
-            <div className="mt-1">Stamina: {cornucopia.stamina}/{cornucopia.staminaMax}</div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {cornucopiaClaimables.length > 0 ? (
+              cornucopiaClaimables.map((resourceId) => {
+                const isSelected = resourceId === selectedResource;
+
+                return (
+                  <button
+                    className={`rounded-md border px-3 py-2 text-left font-ik-menu text-xs uppercase tracking-[0.12em] transition ${
+                      isSelected
+                        ? "border-amber-200 bg-amber-500/18 text-amber-50 shadow-[0_0_18px_rgba(240,194,106,0.14)]"
+                        : "border-amber-200/15 bg-black/35 text-muted-foreground hover:border-amber-200/35 hover:text-amber-50"
+                    }`}
+                    key={resourceId}
+                    onClick={() => setSelectedCornucopiaResource(resourceId)}
+                    type="button"
+                  >
+                    {formatResourceLabel(resourceId)}
+                  </button>
+                );
+              })
+            ) : (
+              <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-body text-sm text-muted-foreground">
+                No resource available
+              </div>
+            )}
           </div>
 
           <DialogFooter>

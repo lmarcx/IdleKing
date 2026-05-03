@@ -8,14 +8,12 @@ import {
 } from "../game/buildingActions.js";
 
 import {
-  ageFromWorldLevel,
   ageCoeffFromWorldLevel,
 } from "../progression/age.js";
 
 export type ClaimCornucopiaError =
   | "INVALID_RESOURCE"
-  | "LOCKED_RESOURCE"
-  | "NO_STAMINA";
+  | "LOCKED_RESOURCE";
 
 export type ClaimCornucopiaResult =
   | {
@@ -39,21 +37,6 @@ export function getCornucopiaClaimables(state: GameState): ResourceId[] {
   const mine = mineResourcesAvailable(wl);
 
   return unique([...farm, ...mine]);
-}
-
-/* ---------------------------------------------------------
-   STAMINA COST BASED ON RESOURCE AGE
---------------------------------------------------------- */
-
-function staminaCostForResource(resourceAge: number): number {
-  switch (resourceAge) {
-    case 1: return 15;
-    case 2: return 20;
-    case 3: return 25;
-    case 4: return 30;
-    case 5: return 40;
-    default: return 20;
-  }
 }
 
 /* ---------------------------------------------------------
@@ -105,14 +88,7 @@ export function claimCornucopia(
 
   const b = state.buildings.cornucopia;
 
-  const resourceAge = ageFromWorldLevel(state.progression.worldLevel);
-  const staminaCost = staminaCostForResource(resourceAge);
-
-  if (b.stamina < staminaCost) {
-    return { ok: false, next: state, error: "NO_STAMINA" };
-  }
-
-  const staminaRatio = b.stamina / b.staminaMax;
+  const staminaRatio = b.staminaMax > 0 ? b.stamina / b.staminaMax : 0;
 
   const { amount, overdrive } = computeCornucopiaAmount({
     worldLevel: state.progression.worldLevel,
@@ -123,13 +99,6 @@ export function claimCornucopia(
   const next: GameState = {
     ...state,
     resources: addQty(state.resources, resourceId, amount),
-    buildings: {
-      ...state.buildings,
-      cornucopia: {
-        ...b,
-        stamina: b.stamina - staminaCost,
-      },
-    },
   };
 
   return {
@@ -137,7 +106,7 @@ export function claimCornucopia(
     next,
     resourceId,
     amount,
-    staminaSpent: staminaCost,
+    staminaSpent: 0,
     overdrive,
   };
 }
