@@ -102,6 +102,39 @@ type BuildingModalState = {
   state: BuildingState;
 } | null;
 
+type PlaceholderBuildingId = "forum" | "kitchen" | "mine";
+
+type PlaceholderBuildingStatus = {
+  active: boolean;
+  built: boolean;
+  unlocked: boolean;
+};
+
+const PLACEHOLDER_BUILDINGS: Record<
+  PlaceholderBuildingId,
+  {
+    asset: string;
+    label: string;
+    position: Vector2;
+  }
+> = {
+  forum: {
+    asset: HUB_ASSETS.forum,
+    label: "Forum",
+    position: FORUM_POSITION,
+  },
+  kitchen: {
+    asset: HUB_ASSETS.kitchen,
+    label: "Kitchen",
+    position: KITCHEN_POSITION,
+  },
+  mine: {
+    asset: HUB_ASSETS.mine,
+    label: "Mine",
+    position: MINE_POSITION,
+  },
+};
+
 type PoiVisual = {
   container: PIXI.Container;
   setNear: (near: boolean) => void;
@@ -537,6 +570,13 @@ function isDevUnlocked(building: { unlocked: boolean }) {
   return DEV_MODE && !building.unlocked;
 }
 
+function getPlaceholderBuildingState(
+  buildings: Record<PlaceholderBuildingId, PlaceholderBuildingStatus>,
+  buildingId: PlaceholderBuildingId,
+) {
+  return getEffectiveBuildingState(buildings[buildingId]);
+}
+
 export function KingdomHubStage() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
@@ -555,6 +595,7 @@ export function KingdomHubStage() {
   const [farmModal, setFarmModal] = useState<BuildingModalState>(null);
   const [isTempleOpen, setIsTempleOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
+  const [placeholderBuildingId, setPlaceholderBuildingId] = useState<PlaceholderBuildingId | null>(null);
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
@@ -570,16 +611,21 @@ export function KingdomHubStage() {
   const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
   const effectiveTemple = getEffectiveBuildingState(state.buildings.temple);
   const effectiveForge = getEffectiveBuildingState(state.buildings.forge);
+  const placeholderBuilding = placeholderBuildingId ? PLACEHOLDER_BUILDINGS[placeholderBuildingId] : null;
+  const placeholderBuildingState = placeholderBuildingId
+    ? getPlaceholderBuildingState(state.buildings, placeholderBuildingId)
+    : null;
   const canBuildTemple = effectiveTemple.unlocked && !effectiveTemple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
   const canBuildForge = effectiveForge.unlocked && !effectiveForge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
 
   useEffect(() => {
-    isModalOpenRef.current = isCornucopiaOpen || farmModal !== null || isTempleOpen || isForgeOpen;
+    isModalOpenRef.current =
+      isCornucopiaOpen || farmModal !== null || isTempleOpen || isForgeOpen || placeholderBuildingId !== null;
     if (isCornucopiaOpen) {
       isClaimingCornucopiaRef.current = false;
       setIsClaimingCornucopia(false);
     }
-  }, [farmModal, isCornucopiaOpen, isForgeOpen, isTempleOpen]);
+  }, [farmModal, isCornucopiaOpen, isForgeOpen, isTempleOpen, placeholderBuildingId]);
 
   useEffect(() => {
     farmStateRef.current = farmState;
@@ -626,6 +672,19 @@ export function KingdomHubStage() {
   const closeForgeModal = useCallback(() => {
     isModalOpenRef.current = false;
     setIsForgeOpen(false);
+  }, []);
+
+  const closePlaceholderBuildingModal = useCallback(() => {
+    isModalOpenRef.current = false;
+    setPlaceholderBuildingId(null);
+  }, []);
+
+  const openPlaceholderBuilding = useCallback((buildingId: PlaceholderBuildingId) => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    const building = PLACEHOLDER_BUILDINGS[buildingId];
+    spawnWorldFxRef.current?.(building.position, undefined, 0xf0c26a);
+    isModalOpenRef.current = true;
+    setPlaceholderBuildingId(buildingId);
   }, []);
 
   const openTemple = useCallback(() => {
@@ -823,6 +882,15 @@ export function KingdomHubStage() {
     const vignette = new PIXI.Graphics();
     const interactables: Interactable[] = [
       {
+        id: "forum",
+        label: "Forum",
+        type: "building",
+        x: FORUM_POSITION.x,
+        y: FORUM_POSITION.y,
+        radius: 138,
+        onInteract: () => openPlaceholderBuilding("forum"),
+      },
+      {
         id: "cornucopia",
         label: "Cornucopia",
         type: "building",
@@ -848,6 +916,24 @@ export function KingdomHubStage() {
         y: FORGE_POSITION.y,
         radius: 112,
         onInteract: openForge,
+      },
+      {
+        id: "mine",
+        label: "Mine",
+        type: "building",
+        x: MINE_POSITION.x,
+        y: MINE_POSITION.y,
+        radius: 116,
+        onInteract: () => openPlaceholderBuilding("mine"),
+      },
+      {
+        id: "kitchen",
+        label: "Kitchen",
+        type: "building",
+        x: KITCHEN_POSITION.x,
+        y: KITCHEN_POSITION.y,
+        radius: 108,
+        onInteract: () => openPlaceholderBuilding("kitchen"),
       },
       {
         id: FARM_SLOT.id,
@@ -879,9 +965,17 @@ export function KingdomHubStage() {
     }
 
     function getNearbyInteractable() {
-      return (
-        interactables.find((interactable) => distanceBetween(playerPosition, interactable) <= interactable.radius) ?? null
-      );
+      let nearest: Interactable | null = null;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+
+      for (const interactable of interactables) {
+        const distance = distanceBetween(playerPosition, interactable);
+        if (distance > interactable.radius || distance >= nearestDistance) continue;
+        nearest = interactable;
+        nearestDistance = distance;
+      }
+
+      return nearest;
     }
 
     function updateNearbyInteractable() {
@@ -1133,6 +1227,7 @@ export function KingdomHubStage() {
         glowHeight: 238,
         glowTexture: textures.softGlow,
         glowTint: 0xb18cff,
+        hintOffsetY: -168,
         important: true,
         position: FORUM_POSITION,
         shadowAlpha: 0.48,
@@ -1148,6 +1243,7 @@ export function KingdomHubStage() {
         glowHeight: 206,
         glowTexture: textures.softGlow,
         glowTint: 0x83f7ff,
+        hintOffsetY: -142,
         important: true,
         position: TEMPLE_POSITION,
         shadowAlpha: 0.45,
@@ -1160,6 +1256,7 @@ export function KingdomHubStage() {
 
       const mineVisual = createBuildingSprite({
         displayHeight: HUB_DISPLAY_HEIGHTS.mine,
+        hintOffsetY: -126,
         position: MINE_POSITION,
         shadowAlpha: 0.48,
         shadowHeight: 24,
@@ -1171,6 +1268,7 @@ export function KingdomHubStage() {
 
       const kitchenVisual = createBuildingSprite({
         displayHeight: HUB_DISPLAY_HEIGHTS.kitchen,
+        hintOffsetY: -120,
         position: KITCHEN_POSITION,
         shadowAlpha: 0.45,
         shadowHeight: 23,
@@ -1182,6 +1280,7 @@ export function KingdomHubStage() {
 
       const forgeVisual = createBuildingSprite({
         displayHeight: HUB_DISPLAY_HEIGHTS.forge,
+        hintOffsetY: -128,
         position: FORGE_POSITION,
         shadowAlpha: 0.48,
         shadowHeight: 24,
@@ -1313,7 +1412,15 @@ export function KingdomHubStage() {
         destroyPixiApp();
       }
     };
-  }, [closeDialogue, openCornucopia, openFarmSlot, openForge, openTemple, openVillagerDialogue]);
+  }, [
+    closeDialogue,
+    openCornucopia,
+    openFarmSlot,
+    openForge,
+    openPlaceholderBuilding,
+    openTemple,
+    openVillagerDialogue,
+  ]);
 
   return (
     <section className="relative h-[calc(100vh-7rem)] min-h-[34rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
@@ -1332,6 +1439,61 @@ export function KingdomHubStage() {
       {activeDialogue ? (
         <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />
       ) : null}
+
+      <Dialog
+        open={placeholderBuildingId !== null}
+        onOpenChange={(open) => {
+          if (!open) closePlaceholderBuildingModal();
+        }}
+      >
+        <DialogContent className="max-w-md border-amber-200/25 bg-zinc-950 text-amber-50">
+          <DialogHeader>
+            <DialogTitle>{placeholderBuilding?.label ?? "Building"}</DialogTitle>
+            <DialogDescription>Coming Soon</DialogDescription>
+          </DialogHeader>
+
+          {placeholderBuilding ? (
+            <div className="mt-4 space-y-4">
+              <div className="flex justify-center rounded-md border border-amber-200/15 bg-black/35 p-5">
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className="h-32 w-auto object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.45)]"
+                  src={placeholderBuilding.asset}
+                />
+              </div>
+
+              {placeholderBuildingState ? (
+                <div className="rounded-md border border-amber-200/15 bg-black/35 p-3">
+                  <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
+                  <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-amber-50">
+                    {getBuildingStatusLabel(placeholderBuildingState)}
+                    {placeholderBuildingId && isDevUnlocked(state.buildings[placeholderBuildingId]) ? (
+                      <span className="rounded border border-amber-200/20 bg-amber-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-amber-100">
+                        DEV UNLOCK
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-title text-lg text-amber-50">
+                Coming Soon
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <button
+              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
+              onClick={closePlaceholderBuildingModal}
+              type="button"
+            >
+              Close
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isCornucopiaOpen} onOpenChange={setIsCornucopiaOpen}>
         <DialogContent className="max-w-3xl border-amber-200/25 bg-zinc-950 text-amber-50">
