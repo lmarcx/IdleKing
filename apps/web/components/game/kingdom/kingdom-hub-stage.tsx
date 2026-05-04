@@ -40,6 +40,8 @@ const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
+const PLAYER_COLLIDER = { height: 28, offsetY: 10, width: 32 } as const;
+const SHOW_HUB_COLLIDER_DEBUG = false;
 const HUB_ASSETS = {
   circleTile: "/assets/kingdom-hub/tile_circular_pattern.png",
   cornucopia: "/assets/kingdom-hub/cornucopia_magical.png",
@@ -61,6 +63,15 @@ const MINE_POSITION = { x: MAP_WIDTH / 2 - 350, y: MAP_HEIGHT / 2 - 160 };
 const KITCHEN_POSITION = { x: MAP_WIDTH / 2 - 70, y: MAP_HEIGHT / 2 + 270 };
 const FORGE_POSITION = { x: MAP_WIDTH / 2 + 350, y: MAP_HEIGHT / 2 + 220 };
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 245, y: MAP_HEIGHT / 2 + 15 };
+const HUB_DISPLAY_HEIGHTS = {
+  cornucopia: 116,
+  farm: 190,
+  forge: 186,
+  forum: 250,
+  kitchen: 174,
+  mine: 184,
+  temple: 210,
+} as const;
 const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
@@ -123,6 +134,14 @@ type Interactable = {
   onInteract: () => void;
 };
 
+type HubCollider = {
+  height: number;
+  id: string;
+  width: number;
+  x: number;
+  y: number;
+};
+
 type HubTextures = {
   circleTile: PIXI.Texture;
   cornucopia: PIXI.Texture;
@@ -173,6 +192,10 @@ function distanceBetween(a: Vector2, b: Vector2): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function rectsOverlap(a: HubCollider, b: HubCollider): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
 function isInteractionKey(event: KeyboardEvent): boolean {
   return event.code === "KeyF";
 }
@@ -182,6 +205,67 @@ function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
   const scale = height / textureHeight;
   sprite.scale.set(scale);
   return scale;
+}
+
+function getTextureDisplayWidth(texture: PIXI.Texture, displayHeight: number): number {
+  return (Math.max(texture.width, 1) / Math.max(texture.height, 1)) * displayHeight;
+}
+
+function createGroundCollider({
+  displayHeight,
+  heightRatio = 0.32,
+  id,
+  offsetY,
+  position,
+  texture,
+  widthRatio = 0.68,
+}: {
+  displayHeight: number;
+  heightRatio?: number;
+  id: string;
+  offsetY?: number;
+  position: Vector2;
+  texture: PIXI.Texture;
+  widthRatio?: number;
+}): HubCollider {
+  const displayWidth = getTextureDisplayWidth(texture, displayHeight);
+  const width = displayWidth * widthRatio;
+  const height = displayHeight * heightRatio;
+  const centerY = position.y + (offsetY ?? displayHeight * 0.08);
+
+  return {
+    height,
+    id,
+    width,
+    x: position.x - width / 2,
+    y: centerY - height / 2,
+  };
+}
+
+function getPlayerCollider(position: Vector2): HubCollider {
+  return {
+    height: PLAYER_COLLIDER.height,
+    id: "player",
+    width: PLAYER_COLLIDER.width,
+    x: position.x - PLAYER_COLLIDER.width / 2,
+    y: position.y + PLAYER_COLLIDER.offsetY - PLAYER_COLLIDER.height / 2,
+  };
+}
+
+function drawColliderDebug(colliders: HubCollider[]): PIXI.Container {
+  const layer = new PIXI.Container();
+  layer.zIndex = 10_000;
+
+  for (const collider of colliders) {
+    const rect = new PIXI.Graphics();
+    rect
+      .rect(collider.x, collider.y, collider.width, collider.height)
+      .fill({ alpha: 0.08, color: 0x83f7ff })
+      .stroke({ alpha: 0.38, color: 0x83f7ff, width: 1 });
+    layer.addChild(rect);
+  }
+
+  return layer;
 }
 
 function createHubShadow(width: number, height: number, alpha = 0.4): PIXI.Graphics {
@@ -353,13 +437,12 @@ function createHubSprite({
       }
     },
     update: (elapsedSeconds: number) => {
-      const pulse = Math.sin(elapsedSeconds * (important ? 2.6 : 2.2) + position.x * 0.01) * (important ? 0.026 : 0.014);
-      const hover = isNear ? 1.08 : 1;
-      sprite.scale.set(baseScale * (hover + pulse));
-      shadow.scale.set(1 + Math.sin(elapsedSeconds * 2.1 + position.y * 0.01) * 0.035, 1);
+      const hover = isNear ? 1.07 : 1;
+      sprite.scale.set(baseScale * hover);
+      shadow.scale.set(isNear ? 1.04 : 1, 1);
       if (glow) {
-        glow.alpha = (isNear ? 0.56 : important ? 0.32 : 0.2) + Math.sin(elapsedSeconds * 3.2) * 0.055;
-        glow.scale.set(baseGlowScale * (1 + pulse * 0.15));
+        glow.alpha = (isNear ? 0.5 : important ? 0.22 : 0.14) + Math.sin(elapsedSeconds * 2.2) * 0.025;
+        glow.scale.set(baseGlowScale);
       }
       if (hint) {
         hint.alpha = isNear ? 1 : 0;
@@ -374,11 +457,11 @@ function createHubSpriteVisual(options: HubSpriteOptions & { glowTexture?: PIXI.
 
 function renderFarmSlot(foundation: PIXI.Graphics, sprite: PIXI.Sprite, state: BuildingState) {
   foundation.clear();
-  foundation.roundRect(-64, -48, 128, 92, 8).fill({
+  foundation.roundRect(-86, -60, 172, 112, 8).fill({
     alpha: state === "built" ? 0.12 : state === "unlocked" ? 0.22 : 0.12,
     color: state === "locked" ? 0x111111 : 0x243c30,
   });
-  foundation.roundRect(-64, -48, 128, 92, 8).stroke({
+  foundation.roundRect(-86, -60, 172, 112, 8).stroke({
     alpha: state === "built" ? 0.34 : state === "unlocked" ? 0.58 : 0.3,
     color: state === "locked" ? 0x5e5e5e : 0xf0c26a,
     width: 2,
@@ -389,14 +472,15 @@ function renderFarmSlot(foundation: PIXI.Graphics, sprite: PIXI.Sprite, state: B
 
 function createFarmSlotVisual(textures: HubTextures, state: BuildingState) {
   const visual = createHubSprite({
-    displayHeight: 142,
-    glowHeight: 120,
+    displayHeight: HUB_DISPLAY_HEIGHTS.farm,
+    glowHeight: 154,
     glowTexture: textures.softGlow,
     glowTint: 0x9fdc76,
-    hintOffsetY: -106,
+    hintOffsetY: -134,
     position: FARM_SLOT,
-    shadowHeight: 17,
-    shadowWidth: 58,
+    shadowAlpha: 0.45,
+    shadowHeight: 24,
+    shadowWidth: 104,
     texture: textures.farm,
   });
   const foundation = new PIXI.Graphics();
@@ -734,6 +818,7 @@ export function KingdomHubStage() {
     const poiVisuals = new Map<string, PoiVisual>();
     const floatingTexts: FloatingTextFx[] = [];
     const particles: ParticleFx[] = [];
+    const solidColliders: HubCollider[] = [];
     let sparkleTexture: PIXI.Texture | null = null;
     const vignette = new PIXI.Graphics();
     const interactables: Interactable[] = [
@@ -801,6 +886,23 @@ export function KingdomHubStage() {
 
     function updateNearbyInteractable() {
       setNearby(getNearbyInteractable()?.id ?? null);
+    }
+
+    function collidesWithBuilding(position: Vector2) {
+      const playerCollider = getPlayerCollider(position);
+      return solidColliders.some((collider) => rectsOverlap(playerCollider, collider));
+    }
+
+    function movePlayerWithCollisions(deltaX: number, deltaY: number) {
+      const nextX = clamp(playerPosition.x + deltaX, PLAYER_SIZE / 2, MAP_WIDTH - PLAYER_SIZE / 2);
+      if (!collidesWithBuilding({ x: nextX, y: playerPosition.y })) {
+        playerPosition.x = nextX;
+      }
+
+      const nextY = clamp(playerPosition.y + deltaY, PLAYER_SIZE / 2, MAP_HEIGHT - PLAYER_SIZE / 2);
+      if (!collidesWithBuilding({ x: playerPosition.x, y: nextY })) {
+        playerPosition.y = nextY;
+      }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
@@ -956,74 +1058,149 @@ export function KingdomHubStage() {
       entityLayer.sortableChildren = true;
       drawWorld(backgroundLayer, textures);
 
+      solidColliders.push(
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.forum,
+          heightRatio: 0.3,
+          id: "forum",
+          offsetY: 26,
+          position: FORUM_POSITION,
+          texture: textures.forum,
+          widthRatio: 0.72,
+        }),
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.temple,
+          heightRatio: 0.34,
+          id: "temple",
+          offsetY: 22,
+          position: TEMPLE_POSITION,
+          texture: textures.temple,
+          widthRatio: 0.66,
+        }),
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.mine,
+          heightRatio: 0.34,
+          id: "mine",
+          offsetY: 18,
+          position: MINE_POSITION,
+          texture: textures.mine,
+          widthRatio: 0.74,
+        }),
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.kitchen,
+          heightRatio: 0.32,
+          id: "kitchen",
+          offsetY: 18,
+          position: KITCHEN_POSITION,
+          texture: textures.kitchen,
+          widthRatio: 0.68,
+        }),
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.forge,
+          heightRatio: 0.34,
+          id: "forge",
+          offsetY: 20,
+          position: FORGE_POSITION,
+          texture: textures.forge,
+          widthRatio: 0.7,
+        }),
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.farm,
+          heightRatio: 0.3,
+          id: FARM_SLOT.id,
+          offsetY: 20,
+          position: FARM_SLOT,
+          texture: textures.farm,
+          widthRatio: 0.72,
+        }),
+        createGroundCollider({
+          displayHeight: HUB_DISPLAY_HEIGHTS.cornucopia,
+          heightRatio: 0.34,
+          id: "cornucopia",
+          offsetY: 12,
+          position: CORNUCOPIA_POSITION,
+          texture: textures.cornucopia,
+          widthRatio: 0.68,
+        }),
+      );
+
+      if (DEV_MODE && SHOW_HUB_COLLIDER_DEBUG) {
+        entityLayer.addChild(drawColliderDebug(solidColliders));
+      }
+
       const forumVisual = createBuildingSprite({
-        displayHeight: 184,
-        glowHeight: 190,
+        displayHeight: HUB_DISPLAY_HEIGHTS.forum,
+        glowHeight: 238,
         glowTexture: textures.softGlow,
         glowTint: 0xb18cff,
         important: true,
         position: FORUM_POSITION,
-        shadowHeight: 22,
-        shadowWidth: 86,
+        shadowAlpha: 0.48,
+        shadowHeight: 30,
+        shadowWidth: 132,
         texture: textures.forum,
       });
       poiVisuals.set("forum", forumVisual);
       entityLayer.addChild(forumVisual.container);
 
       const templeVisual = createBuildingSprite({
-        displayHeight: 156,
-        glowHeight: 168,
+        displayHeight: HUB_DISPLAY_HEIGHTS.temple,
+        glowHeight: 206,
         glowTexture: textures.softGlow,
         glowTint: 0x83f7ff,
         important: true,
         position: TEMPLE_POSITION,
-        shadowHeight: 18,
-        shadowWidth: 68,
+        shadowAlpha: 0.45,
+        shadowHeight: 25,
+        shadowWidth: 104,
         texture: textures.temple,
       });
       poiVisuals.set("temple", templeVisual);
       entityLayer.addChild(templeVisual.container);
 
       const mineVisual = createBuildingSprite({
-        displayHeight: 138,
+        displayHeight: HUB_DISPLAY_HEIGHTS.mine,
         position: MINE_POSITION,
-        shadowHeight: 18,
-        shadowWidth: 70,
+        shadowAlpha: 0.48,
+        shadowHeight: 24,
+        shadowWidth: 108,
         texture: textures.mine,
       });
       poiVisuals.set("mine", mineVisual);
       entityLayer.addChild(mineVisual.container);
 
       const kitchenVisual = createBuildingSprite({
-        displayHeight: 130,
+        displayHeight: HUB_DISPLAY_HEIGHTS.kitchen,
         position: KITCHEN_POSITION,
-        shadowHeight: 17,
-        shadowWidth: 64,
+        shadowAlpha: 0.45,
+        shadowHeight: 23,
+        shadowWidth: 96,
         texture: textures.kitchen,
       });
       poiVisuals.set("kitchen", kitchenVisual);
       entityLayer.addChild(kitchenVisual.container);
 
       const forgeVisual = createBuildingSprite({
-        displayHeight: 138,
+        displayHeight: HUB_DISPLAY_HEIGHTS.forge,
         position: FORGE_POSITION,
-        shadowHeight: 18,
-        shadowWidth: 68,
+        shadowAlpha: 0.48,
+        shadowHeight: 24,
+        shadowWidth: 106,
         texture: textures.forge,
       });
       poiVisuals.set("forge", forgeVisual);
       entityLayer.addChild(forgeVisual.container);
 
       const cornucopiaVisual = createHubSpriteVisual({
-        displayHeight: 96,
-        glowHeight: 126,
+        displayHeight: HUB_DISPLAY_HEIGHTS.cornucopia,
+        glowHeight: 146,
         glowTexture: textures.softGlow,
         glowTint: 0xd2a4ff,
         hintOffsetY: -84,
         important: true,
         position: CORNUCOPIA_POSITION,
-        shadowHeight: 13,
-        shadowWidth: 48,
+        shadowHeight: 16,
+        shadowWidth: 62,
         texture: textures.cornucopia,
       });
       poiVisuals.set("cornucopia", cornucopiaVisual);
@@ -1059,7 +1236,7 @@ export function KingdomHubStage() {
       window.addEventListener("blur", handleWindowBlur);
 
       const updateHub = (ticker: PIXI.Ticker) => {
-        const deltaSeconds = ticker.deltaMS / 1000;
+        const deltaSeconds = Math.min(ticker.deltaMS / 1000, 0.05);
         const elapsedSeconds = ticker.lastTime / 1000;
         let directionX = 0;
         let directionY = 0;
@@ -1077,15 +1254,9 @@ export function KingdomHubStage() {
           const length = Math.hypot(directionX, directionY) || 1;
           playerFacing.x = directionX / length;
           playerFacing.y = directionY / length;
-          playerPosition.x = clamp(
-            playerPosition.x + (directionX / length) * PLAYER_SPEED * deltaSeconds,
-            PLAYER_SIZE / 2,
-            MAP_WIDTH - PLAYER_SIZE / 2,
-          );
-          playerPosition.y = clamp(
-            playerPosition.y + (directionY / length) * PLAYER_SPEED * deltaSeconds,
-            PLAYER_SIZE / 2,
-            MAP_HEIGHT - PLAYER_SIZE / 2,
+          movePlayerWithCollisions(
+            (directionX / length) * PLAYER_SPEED * deltaSeconds,
+            (directionY / length) * PLAYER_SPEED * deltaSeconds,
           );
           player.position.set(playerPosition.x, playerPosition.y);
           player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
