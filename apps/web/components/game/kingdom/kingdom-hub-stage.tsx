@@ -17,12 +17,15 @@ import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import {
   FORGE_RECIPES,
+  buildBuilding,
   convertTempleGlobalXp,
   forgeCraft,
+  getBuildCost,
   getQty,
   hasAtLeast,
   isEquipmentItem,
   xpNext,
+  type BuildingId,
   type ForgeRecipe,
   type ResourceId,
   type TempleXpTarget,
@@ -71,6 +74,8 @@ const VILLAGER_NPC = {
 } as const;
 const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
+const TEMPLE_BUILD_COST = getBuildCost("TEMPLE");
+const FORGE_BUILD_COST = getBuildCost("FORGE");
 
 type Vector2 = {
   x: number;
@@ -410,6 +415,19 @@ function formatResourceLabel(resourceId: ResourceId) {
   return resourceId.replaceAll("_", " ");
 }
 
+function getBuildingStatusLabel(building: { unlocked: boolean; built: boolean }) {
+  if (!building.unlocked) return "Verrouillé";
+  if (!building.built) return "À construire";
+  return "Construit";
+}
+
+function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, canBuild: boolean) {
+  if (!building.unlocked) return "Verrouillé";
+  if (building.built) return "Construit";
+  if (!canBuild) return "Ressources insuffisantes";
+  return "Construire";
+}
+
 export function KingdomHubStage() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
@@ -439,6 +457,8 @@ export function KingdomHubStage() {
   const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
   const playerXpToNext = xpNext(state.progression.playerLevel);
   const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
+  const canBuildTemple = state.buildings.temple.unlocked && !state.buildings.temple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
+  const canBuildForge = state.buildings.forge.unlocked && !state.buildings.forge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
 
   useEffect(() => {
     isModalOpenRef.current = isCornucopiaOpen || farmModal !== null || isTempleOpen || isForgeOpen;
@@ -534,6 +554,29 @@ export function KingdomHubStage() {
     setFarmModal(null);
     isModalOpenRef.current = false;
   }, []);
+
+  const handleBuildCoreBuilding = useCallback(
+    (buildingId: Extract<BuildingId, "TEMPLE" | "FORGE">) => {
+      const result = buildBuilding(useGameStore.getState().state, buildingId);
+      if (!result.ok) {
+        toast.error(`Build failed: ${result.reason}`);
+        return;
+      }
+
+      dispatch(() => result.next);
+      const position = buildingId === "TEMPLE" ? TEMPLE_POSITION : FORGE_POSITION;
+      const label = buildingId === "TEMPLE" ? "Temple built" : "Forge built";
+      spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" ? 0x83f7ff : 0xf0c26a);
+
+      if (buildingId === "TEMPLE") {
+        setTempleFeedback(label);
+      } else {
+        setForgeFeedback(label);
+      }
+      toast.success(label);
+    },
+    [dispatch],
+  );
 
   const handleTempleConvert = useCallback(
     (target: TempleXpTarget) => {
@@ -1155,6 +1198,10 @@ export function KingdomHubStage() {
 
           <div className="mt-4 grid gap-3 font-ik-body text-sm text-muted-foreground sm:grid-cols-3">
             <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
+              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Status</div>
+              <div className="mt-1 font-ik-menu text-lg text-cyan-50">{getBuildingStatusLabel(state.buildings.temple)}</div>
+            </div>
+            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
               <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">XP_GLOBAL</div>
               <div className="mt-1 font-ik-menu text-lg text-cyan-50">{xpGlobalAvailable}</div>
             </div>
@@ -1165,13 +1212,38 @@ export function KingdomHubStage() {
                 {playerXpToNext > 0 ? `/${playerXpToNext}` : ""}
               </div>
             </div>
-            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
+            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3 sm:col-span-3">
               <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">World</div>
               <div className="mt-1 font-ik-menu text-sm text-cyan-50">
                 Level {state.progression.worldLevel} · WXP {state.progression.worldWxp}
               </div>
             </div>
           </div>
+
+          {!state.buildings.temple.built ? (
+            <div className="mt-3 rounded-md border border-cyan-200/20 bg-black/35 p-3">
+              <div className="font-ik-title text-sm text-cyan-50">Construction</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(Object.entries(TEMPLE_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                  <span
+                    className="inline-flex items-center gap-1 rounded border border-cyan-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-cyan-50"
+                    key={resourceId}
+                  >
+                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                    {formatResourceLabel(resourceId)} {amount}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="mt-3 rounded-md border border-cyan-300/45 bg-cyan-500/14 px-4 py-2 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canBuildTemple}
+                onClick={() => handleBuildCoreBuilding("TEMPLE")}
+                type="button"
+              >
+                {getBuildActionLabel(state.buildings.temple, canBuildTemple)}
+              </button>
+            </div>
+          ) : null}
 
           {templeFeedback ? (
             <div className="mt-3 rounded-md border border-cyan-200/20 bg-cyan-400/10 p-3 font-ik-body text-sm text-cyan-50">
@@ -1189,7 +1261,7 @@ export function KingdomHubStage() {
             </button>
             <button
               className="rounded-md border border-cyan-300/45 bg-cyan-500/14 px-4 py-2 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={xpGlobalAvailable <= 0}
+              disabled={!state.buildings.temple.built || xpGlobalAvailable <= 0}
               onClick={() => handleTempleConvert("playerXp")}
               type="button"
             >
@@ -1197,7 +1269,7 @@ export function KingdomHubStage() {
             </button>
             <button
               className="rounded-md border border-violet-300/45 bg-violet-500/14 px-4 py-2 font-ik-menu text-sm text-violet-50 transition hover:border-violet-200 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={xpGlobalAvailable <= 0}
+              disabled={!state.buildings.temple.built || xpGlobalAvailable <= 0}
               onClick={() => handleTempleConvert("worldWxp")}
               type="button"
             >
@@ -1219,39 +1291,77 @@ export function KingdomHubStage() {
             <DialogDescription>Craft deterministic MVP equipment from mined ore.</DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {FORGE_MVP_RECIPES.map((recipe) => {
-              const canCraft = hasAtLeast(state.resources, recipe.cost) && forgeVillagerId.length > 0;
-
-              return (
-                <div className="rounded-md border border-amber-200/15 bg-black/35 p-3" key={recipe.id}>
-                  <div className="font-ik-title text-sm text-amber-50">{recipe.label}</div>
-                  <div className="mt-1 font-ik-body text-xs capitalize text-muted-foreground">
-                    {recipe.slot} · {recipe.rarity.toLowerCase()} · ilvl from World {state.progression.worldLevel}
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(Object.entries(recipe.cost) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                      <span
-                        className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
-                        key={resourceId}
-                      >
-                        <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                        {formatResourceLabel(resourceId)} {amount}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    className="mt-4 w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-3 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={!canCraft}
-                    onClick={() => handleForgeCraft(recipe)}
-                    type="button"
-                  >
-                    Forge
-                  </button>
-                </div>
-              );
-            })}
+          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3">
+            <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
+            <div className="mt-1 font-ik-menu text-lg text-amber-50">{getBuildingStatusLabel(state.buildings.forge)}</div>
           </div>
+
+          {!state.buildings.forge.built ? (
+            <div className="mt-3 rounded-md border border-amber-200/20 bg-black/35 p-3">
+              <div className="font-ik-title text-sm text-amber-50">Construction</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(Object.entries(FORGE_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                  <span
+                    className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
+                    key={resourceId}
+                  >
+                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                    {formatResourceLabel(resourceId)} {amount}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="mt-3 rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canBuildForge}
+                onClick={() => handleBuildCoreBuilding("FORGE")}
+                type="button"
+              >
+                {getBuildActionLabel(state.buildings.forge, canBuildForge)}
+              </button>
+            </div>
+          ) : null}
+
+          {state.buildings.forge.built ? (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {FORGE_MVP_RECIPES.map((recipe) => {
+                const hasRecipeResources = hasAtLeast(state.resources, recipe.cost);
+                const canCraft = hasRecipeResources && forgeVillagerId.length > 0;
+                const craftLabel = canCraft
+                  ? "Forge"
+                  : !hasRecipeResources
+                    ? "Ressources insuffisantes"
+                    : "Verrouillé";
+
+                return (
+                  <div className="rounded-md border border-amber-200/15 bg-black/35 p-3" key={recipe.id}>
+                    <div className="font-ik-title text-sm text-amber-50">{recipe.label}</div>
+                    <div className="mt-1 font-ik-body text-xs capitalize text-muted-foreground">
+                      {recipe.slot} · {recipe.rarity.toLowerCase()} · ilvl from World {state.progression.worldLevel}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {(Object.entries(recipe.cost) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                        <span
+                          className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
+                          key={resourceId}
+                        >
+                          <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                          {formatResourceLabel(resourceId)} {amount}
+                        </span>
+                      ))}
+                    </div>
+                    <button
+                      className="mt-4 w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-3 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={!canCraft}
+                      onClick={() => handleForgeCraft(recipe)}
+                      type="button"
+                    >
+                      {craftLabel}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
 
           {forgeFeedback ? (
             <div className="mt-3 rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">

@@ -6,11 +6,25 @@ import { convertTempleGlobalXp } from "../game/templeActions.js";
 import { xpNext } from "../progression/xpCurve.js";
 import { getQty } from "../resources/types.js";
 
-test("Temple converts XP_GLOBAL to playerXp", () => {
-  const state = {
-    ...createInitialGameState(),
-    resources: { XP_GLOBAL: 10 },
+function builtTempleState(resources: ReturnType<typeof createInitialGameState>["resources"] = {}) {
+  const state = createInitialGameState();
+  return {
+    ...state,
+    resources,
+    buildings: {
+      ...state.buildings,
+      temple: {
+        ...state.buildings.temple,
+        unlocked: true,
+        built: true,
+        active: true,
+      },
+    },
   };
+}
+
+test("Temple converts XP_GLOBAL to playerXp", () => {
+  const state = builtTempleState({ XP_GLOBAL: 10 });
 
   const result = convertTempleGlobalXp(state, "playerXp", 6);
 
@@ -21,10 +35,7 @@ test("Temple converts XP_GLOBAL to playerXp", () => {
 });
 
 test("Temple consumes XP_GLOBAL", () => {
-  const state = {
-    ...createInitialGameState(),
-    resources: { XP_GLOBAL: 8 },
-  };
+  const state = builtTempleState({ XP_GLOBAL: 8 });
 
   const result = convertTempleGlobalXp(state, "playerXp", 3);
 
@@ -35,10 +46,7 @@ test("Temple consumes XP_GLOBAL", () => {
 
 test("Temple levels up player when threshold is reached", () => {
   const threshold = xpNext(1);
-  const state = {
-    ...createInitialGameState(),
-    resources: { XP_GLOBAL: threshold },
-  };
+  const state = builtTempleState({ XP_GLOBAL: threshold });
 
   const result = convertTempleGlobalXp(state, "playerXp", threshold);
 
@@ -50,14 +58,14 @@ test("Temple levels up player when threshold is reached", () => {
 });
 
 test("Temple converts XP_GLOBAL to worldWxp without automatic rank up", () => {
+  const base = builtTempleState({ XP_GLOBAL: 10 });
   const state = {
-    ...createInitialGameState(),
+    ...base,
     progression: {
-      ...createInitialGameState().progression,
+      ...base.progression,
       worldLevel: 1,
       worldWxp: 139,
     },
-    resources: { XP_GLOBAL: 10 },
   };
 
   const result = convertTempleGlobalXp(state, "worldWxp", 10);
@@ -70,10 +78,7 @@ test("Temple converts XP_GLOBAL to worldWxp without automatic rank up", () => {
 });
 
 test("Temple refuses conversion when XP_GLOBAL is insufficient", () => {
-  const state = {
-    ...createInitialGameState(),
-    resources: { XP_GLOBAL: 2 },
-  };
+  const state = builtTempleState({ XP_GLOBAL: 2 });
 
   const result = convertTempleGlobalXp(state, "worldWxp", 3);
 
@@ -81,4 +86,26 @@ test("Temple refuses conversion when XP_GLOBAL is insufficient", () => {
   assert.equal(result.next, state);
   if (result.ok) return;
   assert.equal(result.reason, "NOT_ENOUGH_XP_GLOBAL");
+});
+
+test("Temple refuses conversion when unlocked but not built", () => {
+  const base = createInitialGameState();
+  const state = {
+    ...base,
+    resources: { XP_GLOBAL: 5 },
+    buildings: {
+      ...base.buildings,
+      temple: {
+        ...base.buildings.temple,
+        unlocked: true,
+        built: false,
+      },
+    },
+  };
+
+  const result = convertTempleGlobalXp(state, "playerXp", 5);
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "TEMPLE_NOT_BUILT");
 });

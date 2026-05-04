@@ -12,6 +12,18 @@ export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export {
+  getBuildCost,
+} from "./building/buildCosts.js";
+export {
+  buildBuilding,
+} from "./game/buildingBuildActions.js";
+export type {
+  BuildBuildingResult,
+} from "./game/buildingBuildActions.js";
+export type {
+  BuildingId,
+} from "./building/types.js";
+export {
   FORGE_RECIPES,
   getForgeRecipe,
 } from "./building/forge/recipes.js";

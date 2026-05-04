@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
 import { completeChapterAction } from "../game/actions.js";
+import { buildBuilding } from "../game/buildingBuildActions.js";
 import { FORGE_RECIPES } from "../building/forge/recipes.js";
 import { forgeCraft, forgeUpgrade, forgeRecycle } from "../game/forgeActions.js";
 import { isEquipmentItem } from "../items/types.js";
 import { addQty, getQty } from "../resources/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
+import { getBuildCost } from "../building/buildCosts.js";
 
 function progressToChapter4AndBuildForge(s: ReturnType<typeof createInitialGameState>) {
   // Chapter progression is linear in MVP: chapters must be completed in order.
@@ -84,6 +86,47 @@ test("Forge craft consumes ore resources", () => {
   const result = forgeCraft(s, "iron_sword", s.villagers.list[0].id);
 
   assert.equal(result.ok, true);
+  assert.equal(getQty(result.next.resources, "IRON"), 0);
+});
+
+test("Forge unlocked but not built does not allow crafting", () => {
+  let s = createInitialGameState();
+  for (const ch of [1, 2, 3, 4] as const) {
+    s = completeChapterAction(s, ch).next;
+  }
+  s = { ...s, resources: addQty(s.resources, "IRON", 4) };
+
+  const result = forgeCraft(s, "iron_sword", s.villagers.list[0].id);
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "FORGE_NOT_BUILT");
+});
+
+test("Forge craft works after building Forge when resources are sufficient", () => {
+  let s = createInitialGameState();
+  for (const ch of [1, 2, 3, 4] as const) {
+    s = completeChapterAction(s, ch).next;
+  }
+
+  const cost = getBuildCost("FORGE");
+  s = {
+    ...s,
+    resources: {
+      ...s.resources,
+      WOOD: cost.WOOD ?? 0,
+      STONE: cost.STONE ?? 0,
+      IRON: (cost.IRON ?? 0) + 4,
+    },
+  };
+
+  const built = buildBuilding(s, "FORGE");
+  assert.equal(built.ok, true);
+
+  const result = forgeCraft(built.next, "iron_sword", built.next.villagers.list[0].id);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.next.inventory.items.length, 1);
   assert.equal(getQty(result.next.resources, "IRON"), 0);
 });
 

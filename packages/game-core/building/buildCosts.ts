@@ -20,11 +20,10 @@ export function getBuildCost(buildingId: BuildingId): ResourceStock {
       return { WOOD: 20, STONE: 10, WATER: 5, GOLD: 5 };
 
     case "TEMPLE":
-      // Matches your earlier temple base cost direction (can be adjusted).
-      return { WOOD: 200, STONE: 150, WATER: 100, GOLD: 300 };
+      return { WOOD: 30, STONE: 60 };
 
     case "FORGE":
-      return { STONE: 30, WOOD: 10, COPPER: 10, GOLD: 10 };
+      return { WOOD: 50, STONE: 40, IRON: 25 };
 
     default:
       return {};

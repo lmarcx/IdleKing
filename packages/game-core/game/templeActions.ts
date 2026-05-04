@@ -16,7 +16,7 @@ export type TempleGlobalXpConversionResult =
   | {
       ok: false;
       next: GameState;
-      reason: "INVALID_AMOUNT" | "NOT_ENOUGH_XP_GLOBAL";
+      reason: "TEMPLE_LOCKED" | "TEMPLE_NOT_BUILT" | "INVALID_AMOUNT" | "NOT_ENOUGH_XP_GLOBAL";
     };
 
 export function convertTempleGlobalXp(
@@ -24,6 +24,13 @@ export function convertTempleGlobalXp(
   target: TempleXpTarget,
   amount: number,
 ): TempleGlobalXpConversionResult {
+  if (!state.buildings.temple.unlocked) {
+    return { ok: false, next: state, reason: "TEMPLE_LOCKED" };
+  }
+  if (!state.buildings.temple.built) {
+    return { ok: false, next: state, reason: "TEMPLE_NOT_BUILT" };
+  }
+
   const spendAmount = Math.max(0, Math.floor(amount));
   if (spendAmount <= 0) return { ok: false, next: state, reason: "INVALID_AMOUNT" };
 
