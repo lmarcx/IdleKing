@@ -4,7 +4,7 @@ import { EquipmentSlot } from "./equipment-slot";
 import { EQUIPMENT_SLOTS, type EquippedItems, type EquipmentSlotDefinition, type EquipmentSlotId } from "./types";
 
 const ARMOR_SLOT_IDS: EquipmentSlotId[] = ["helmet", "chest", "gloves", "belt", "boots"];
-const ACCESSORY_SLOT_IDS: EquipmentSlotId[] = ["weapon", "offhand", "necklace", "artifact"];
+const ACCESSORY_SLOT_IDS: EquipmentSlotId[] = ["weapon", "offhand", "necklace", "ring", "artifact"];
 
 function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
   const slot = EQUIPMENT_SLOTS.find((entry) => entry.id === slotId);

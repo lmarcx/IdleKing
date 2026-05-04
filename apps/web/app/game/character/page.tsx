@@ -25,7 +25,7 @@ type EquipmentMetadata = {
 
 const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipment["rarity"], ItemRarity> = {
   common: "COMMON",
-  uncommon: "COMMON",
+  uncommon: "UNCOMMON",
   rare: "RARE",
   epic: "EPIC",
   legendary: "LEGENDARY",
@@ -33,6 +33,7 @@ const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipment["rarity"], ItemRarity>
 
 const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]> = {
   COMMON: "common",
+  UNCOMMON: "uncommon",
   RARE: "rare",
   EPIC: "epic",
   LEGENDARY: "legendary",

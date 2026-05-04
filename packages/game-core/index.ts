@@ -12,6 +12,42 @@ export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export {
+  FORGE_RECIPES,
+  getForgeRecipe,
+} from "./building/forge/recipes.js";
+export type {
+  ForgeRecipe,
+  ForgeRecipeId,
+} from "./building/forge/recipes.js";
+export {
+  forgeCraft,
+} from "./game/forgeActions.js";
+export type {
+  ForgeCraftResult,
+} from "./game/forgeActions.js";
+export {
+  convertTempleGlobalXp,
+} from "./game/templeActions.js";
+export type {
+  TempleGlobalXpConversionResult,
+  TempleXpTarget,
+} from "./game/templeActions.js";
+export {
+  isEquipmentItem,
+  normalizeEquipmentItem,
+} from "./items/index.js";
+export {
+  getQty,
+  hasAtLeast,
+} from "./resources/types.js";
+export type {
+  ResourceId,
+  ResourceStock,
+} from "./resources/types.js";
+export {
+  xpNext,
+} from "./progression/index.js";
+export {
   BASE_CHARACTER_STATS,
   calculateEquipmentStats,
   calculateFinalCharacterStats,

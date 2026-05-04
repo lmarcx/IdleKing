@@ -7,6 +7,7 @@ import { FORGE_RECIPES } from "../building/forge/recipes.js";
 import { forgeCraft, forgeUpgrade, forgeRecycle } from "../game/forgeActions.js";
 import { isEquipmentItem } from "../items/types.js";
 import { addQty, getQty } from "../resources/types.js";
+import { expectedIlvl } from "../progression/expectedIlvl.js";
 
 function progressToChapter4AndBuildForge(s: ReturnType<typeof createInitialGameState>) {
   // Chapter progression is linear in MVP: chapters must be completed in order.
@@ -51,6 +52,9 @@ test("Forge craft creates item, spends resources, drains stamina", () => {
 
 test("Forge has MVP recipes that create real equipment items", () => {
   const recipeIds = FORGE_RECIPES.map((recipe) => recipe.id);
+  assert.ok(recipeIds.includes("iron_sword"));
+  assert.ok(recipeIds.includes("iron_helmet"));
+  assert.ok(recipeIds.includes("copper_ring"));
   assert.ok(recipeIds.includes("BASIC_SWORD"));
   assert.ok(recipeIds.includes("BASIC_ARMOR"));
   assert.ok(recipeIds.includes("BASIC_CAPE"));
@@ -70,6 +74,65 @@ test("Forge has MVP recipes that create real equipment items", () => {
   assert.ok((item.stats.hp ?? 0) > 0);
   assert.ok((item.stats.defense ?? 0) > 0);
   assert.ok((item.stats.power ?? 0) > 0);
+});
+
+test("Forge craft consumes ore resources", () => {
+  let s = createInitialGameState();
+  s = progressToChapter4AndBuildForge(s);
+  s = { ...s, resources: addQty(s.resources, "IRON", 4) };
+
+  const result = forgeCraft(s, "iron_sword", s.villagers.list[0].id);
+
+  assert.equal(result.ok, true);
+  assert.equal(getQty(result.next.resources, "IRON"), 0);
+});
+
+test("Forge craft adds equipment to inventory", () => {
+  let s = createInitialGameState();
+  s = progressToChapter4AndBuildForge(s);
+  s = { ...s, resources: addQty(s.resources, "IRON", 3) };
+
+  const result = forgeCraft(s, "iron_helmet", s.villagers.list[0].id);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.next.inventory.items.length, 1);
+  const item = result.next.inventory.items[0];
+  assert.ok(isEquipmentItem(item));
+  assert.equal(item.slot, "helmet");
+  assert.equal(item.rarity, "UNCOMMON");
+  assert.ok((item.stats.defense ?? 0) > 0);
+  assert.ok((item.stats.hp ?? 0) > 0);
+});
+
+test("Forge craft refuses when resources are insufficient", () => {
+  let s = createInitialGameState();
+  s = progressToChapter4AndBuildForge(s);
+  s = { ...s, resources: addQty(s.resources, "COPPER", 2) };
+
+  const result = forgeCraft(s, "copper_ring", s.villagers.list[0].id);
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "NOT_ENOUGH_RESOURCES");
+  assert.equal(result.next.inventory.items.length, 0);
+});
+
+test("Forge crafted itemLevel depends on worldLevel", () => {
+  let s = createInitialGameState();
+  s = progressToChapter4AndBuildForge(s);
+  s = {
+    ...s,
+    progression: { ...s.progression, worldLevel: 7 },
+    resources: addQty(s.resources, "COPPER", 3),
+  };
+
+  const result = forgeCraft(s, "copper_ring", s.villagers.list[0].id);
+
+  assert.equal(result.ok, true);
+  const item = result.next.inventory.items[0];
+  assert.ok(isEquipmentItem(item));
+  assert.equal(item.slot, "ring");
+  assert.equal(item.itemLevel, expectedIlvl(7));
 });
 
 test("Forge upgrade increases ilvl and spends gold", () => {

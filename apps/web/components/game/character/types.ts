@@ -7,11 +7,9 @@ export type EquipmentSlotId =
   | "belt"
   | "boots"
   | "necklace"
+  | "ring"
   | "cape"
   | "artifact";
-
-// TODO: reintroduce ring slots later for skill modifiers system
-export type LegacyEquipmentSlotId = "ring";
 
 export type CharacterStat = {
   helper?: string;
@@ -57,6 +55,7 @@ export const EQUIPMENT_SLOTS: EquipmentSlotDefinition[] = [
   { id: "belt", label: "Belt" },
   { id: "boots", label: "Boots" },
   { id: "necklace", label: "Necklace" },
+  { id: "ring", label: "Ring" },
   { id: "cape", label: "Cape" },
   { id: "artifact", label: "Artifact" },
 ];

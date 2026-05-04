@@ -27,12 +27,14 @@ const SLOT_BASE_NAMES: Record<EquipmentSlot, string> = {
   belt: "Belt",
   boots: "Boots",
   necklace: "Pendant",
+  ring: "Ring",
   cape: "Cape",
   artifact: "Relic",
 };
 
 const RARITY_MULTIPLIER: Record<ItemRarity, number> = {
   COMMON: 1,
+  UNCOMMON: 1.09,
   RARE: 1.18,
   EPIC: 1.42,
   LEGENDARY: 1.8,
@@ -107,6 +109,10 @@ function buildStats(slot: EquipmentSlot, itemLevel: number, rarity: ItemRarity):
     case "necklace": {
       const stats = { hp: stat(5 + scale * 0.45), attack: stat(1 + scale * 0.14) };
       return { ...stats, power: derivedPower(stats) + stat(1 + scale * 0.08) };
+    }
+    case "ring": {
+      const stats = { attack: stat(1 + scale * 0.08), defense: stat(1 + scale * 0.07) };
+      return { ...stats, power: derivedPower(stats) + stat(1 + scale * 0.12) };
     }
     case "artifact": {
       const stats = { hp: stat(6 + scale * 0.5), attack: stat(2 + scale * 0.16), defense: stat(1 + scale * 0.08) };

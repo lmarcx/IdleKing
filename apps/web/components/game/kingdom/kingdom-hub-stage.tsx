@@ -12,10 +12,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getResourceAssetPath } from "@/lib/resource-assets";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
+import {
+  FORGE_RECIPES,
+  convertTempleGlobalXp,
+  forgeCraft,
+  getQty,
+  hasAtLeast,
+  isEquipmentItem,
+  xpNext,
+  type ForgeRecipe,
+  type ResourceId,
+  type TempleXpTarget,
+} from "@idleking/game-core";
 import { claimCornucopia, getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
-import type { ResourceId } from "@idleking/game-core/resources/types.js";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 
 const MAP_WIDTH = 1800;
@@ -57,6 +69,8 @@ const VILLAGER_NPC = {
   x: MAP_WIDTH / 2 - 105,
   y: MAP_HEIGHT / 2 + 75,
 } as const;
+const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
+const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
 
 type Vector2 = {
   x: number;
@@ -412,20 +426,27 @@ export function KingdomHubStage() {
   const [activeDialogue, setActiveDialogue] = useState<{ name: string; text: string } | null>(null);
   const [farmState, setFarmState] = useState<BuildingState>("unlocked");
   const [farmModal, setFarmModal] = useState<BuildingModalState>(null);
+  const [isTempleOpen, setIsTempleOpen] = useState(false);
+  const [isForgeOpen, setIsForgeOpen] = useState(false);
+  const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
+  const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
   const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
   const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
   const selectedResource = selectedCornucopiaResource;
+  const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
+  const playerXpToNext = xpNext(state.progression.playerLevel);
+  const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
 
   useEffect(() => {
-    isModalOpenRef.current = isCornucopiaOpen || farmModal !== null;
+    isModalOpenRef.current = isCornucopiaOpen || farmModal !== null || isTempleOpen || isForgeOpen;
     if (isCornucopiaOpen) {
       isClaimingCornucopiaRef.current = false;
       setIsClaimingCornucopia(false);
     }
-  }, [farmModal, isCornucopiaOpen]);
+  }, [farmModal, isCornucopiaOpen, isForgeOpen, isTempleOpen]);
 
   useEffect(() => {
     farmStateRef.current = farmState;
@@ -464,6 +485,32 @@ export function KingdomHubStage() {
     setFarmModal(null);
   }, []);
 
+  const closeTempleModal = useCallback(() => {
+    isModalOpenRef.current = false;
+    setIsTempleOpen(false);
+  }, []);
+
+  const closeForgeModal = useCallback(() => {
+    isModalOpenRef.current = false;
+    setIsForgeOpen(false);
+  }, []);
+
+  const openTemple = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(TEMPLE_POSITION, undefined, 0x83f7ff);
+    setTempleFeedback(null);
+    isModalOpenRef.current = true;
+    setIsTempleOpen(true);
+  }, []);
+
+  const openForge = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(FORGE_POSITION, undefined, 0xf0c26a);
+    setForgeFeedback(null);
+    isModalOpenRef.current = true;
+    setIsForgeOpen(true);
+  }, []);
+
   const openFarmSlot = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
 
@@ -487,6 +534,71 @@ export function KingdomHubStage() {
     setFarmModal(null);
     isModalOpenRef.current = false;
   }, []);
+
+  const handleTempleConvert = useCallback(
+    (target: TempleXpTarget) => {
+      const amount = getQty(useGameStore.getState().state.resources, "XP_GLOBAL");
+      if (amount <= 0) {
+        toast.error("No XP_GLOBAL available");
+        return;
+      }
+
+      const result = convertTempleGlobalXp(useGameStore.getState().state, target, amount);
+      if (!result.ok) {
+        toast.error(`Temple conversion failed: ${result.reason}`);
+        return;
+      }
+
+      dispatch(() => result.next);
+      spawnWorldFxRef.current?.(TEMPLE_POSITION, `-${result.amount} XP`, target === "playerXp" ? 0x83f7ff : 0xb18cff);
+      const feedback =
+        target === "playerXp"
+          ? `Converted ${result.amount} XP_GLOBAL to Player XP${
+              result.player?.leveledUp ? ` (+${result.player.levelsGained} level)` : ""
+            }.`
+          : `Converted ${result.amount} XP_GLOBAL to World WXP. Rank up remains available in the Forum.`;
+      setTempleFeedback(feedback);
+      toast.success(feedback);
+    },
+    [dispatch],
+  );
+
+  const handleForgeCraft = useCallback(
+    (recipe: ForgeRecipe) => {
+      if (!hasAtLeast(useGameStore.getState().state.resources, recipe.cost)) {
+        toast.error("Not enough resources");
+        return;
+      }
+
+      const currentState = useGameStore.getState().state;
+      const villagerId = currentState.villagers.list.find((villager) => villager.stamina > 0)?.id ?? currentState.villagers.list[0]?.id;
+      if (!villagerId) {
+        toast.error("No villager available");
+        return;
+      }
+
+      const result = forgeCraft(currentState, recipe.id, villagerId);
+      if (!result.ok) {
+        toast.error(`Forge failed: ${result.reason}`);
+        return;
+      }
+
+      const createdItem = result.next.inventory.items.find((item) => item.id === result.createdItemId);
+      dispatch(() => result.next);
+      spawnWorldFxRef.current?.(FORGE_POSITION, "Forged", 0xf0c26a);
+
+      if (createdItem && isEquipmentItem(createdItem)) {
+        const feedback = `${createdItem.name} crafted (${createdItem.slot}, ilvl ${createdItem.itemLevel ?? createdItem.ilvl ?? 1}).`;
+        setForgeFeedback(feedback);
+        toast.success(feedback);
+        return;
+      }
+
+      setForgeFeedback(`${recipe.label} crafted.`);
+      toast.success(`${recipe.label} crafted`);
+    },
+    [dispatch],
+  );
 
   const openVillagerDialogue = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
@@ -558,6 +670,24 @@ export function KingdomHubStage() {
         y: CORNUCOPIA_POSITION.y,
         radius: 118,
         onInteract: openCornucopia,
+      },
+      {
+        id: "temple",
+        label: "Temple",
+        type: "building",
+        x: TEMPLE_POSITION.x,
+        y: TEMPLE_POSITION.y,
+        radius: 122,
+        onInteract: openTemple,
+      },
+      {
+        id: "forge",
+        label: "Forge",
+        type: "building",
+        x: FORGE_POSITION.x,
+        y: FORGE_POSITION.y,
+        radius: 112,
+        onInteract: openForge,
       },
       {
         id: FARM_SLOT.id,
@@ -937,7 +1067,7 @@ export function KingdomHubStage() {
         destroyPixiApp();
       }
     };
-  }, [closeDialogue, openCornucopia, openFarmSlot, openVillagerDialogue]);
+  }, [closeDialogue, openCornucopia, openFarmSlot, openForge, openTemple, openVillagerDialogue]);
 
   return (
     <section className="relative h-[calc(100vh-7rem)] min-h-[34rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
@@ -1006,6 +1136,136 @@ export function KingdomHubStage() {
               type="button"
             >
               Claim resources
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isTempleOpen}
+        onOpenChange={(open) => {
+          if (!open) closeTempleModal();
+        }}
+      >
+        <DialogContent className="border-cyan-200/25 bg-zinc-950 text-cyan-50">
+          <DialogHeader>
+            <DialogTitle>Temple</DialogTitle>
+            <DialogDescription>Convert XP_GLOBAL into player growth or banked World WXP.</DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 grid gap-3 font-ik-body text-sm text-muted-foreground sm:grid-cols-3">
+            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
+              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">XP_GLOBAL</div>
+              <div className="mt-1 font-ik-menu text-lg text-cyan-50">{xpGlobalAvailable}</div>
+            </div>
+            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
+              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Player</div>
+              <div className="mt-1 font-ik-menu text-sm text-cyan-50">
+                Level {state.progression.playerLevel} · XP {state.progression.playerXp}
+                {playerXpToNext > 0 ? `/${playerXpToNext}` : ""}
+              </div>
+            </div>
+            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
+              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">World</div>
+              <div className="mt-1 font-ik-menu text-sm text-cyan-50">
+                Level {state.progression.worldLevel} · WXP {state.progression.worldWxp}
+              </div>
+            </div>
+          </div>
+
+          {templeFeedback ? (
+            <div className="mt-3 rounded-md border border-cyan-200/20 bg-cyan-400/10 p-3 font-ik-body text-sm text-cyan-50">
+              {templeFeedback}
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <button
+              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
+              onClick={closeTempleModal}
+              type="button"
+            >
+              Close
+            </button>
+            <button
+              className="rounded-md border border-cyan-300/45 bg-cyan-500/14 px-4 py-2 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={xpGlobalAvailable <= 0}
+              onClick={() => handleTempleConvert("playerXp")}
+              type="button"
+            >
+              Convert to Player XP
+            </button>
+            <button
+              className="rounded-md border border-violet-300/45 bg-violet-500/14 px-4 py-2 font-ik-menu text-sm text-violet-50 transition hover:border-violet-200 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={xpGlobalAvailable <= 0}
+              onClick={() => handleTempleConvert("worldWxp")}
+              type="button"
+            >
+              Convert to World WXP
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isForgeOpen}
+        onOpenChange={(open) => {
+          if (!open) closeForgeModal();
+        }}
+      >
+        <DialogContent className="max-w-2xl border-amber-200/25 bg-zinc-950 text-amber-50">
+          <DialogHeader>
+            <DialogTitle>Forge</DialogTitle>
+            <DialogDescription>Craft deterministic MVP equipment from mined ore.</DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            {FORGE_MVP_RECIPES.map((recipe) => {
+              const canCraft = hasAtLeast(state.resources, recipe.cost) && forgeVillagerId.length > 0;
+
+              return (
+                <div className="rounded-md border border-amber-200/15 bg-black/35 p-3" key={recipe.id}>
+                  <div className="font-ik-title text-sm text-amber-50">{recipe.label}</div>
+                  <div className="mt-1 font-ik-body text-xs capitalize text-muted-foreground">
+                    {recipe.slot} · {recipe.rarity.toLowerCase()} · ilvl from World {state.progression.worldLevel}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(Object.entries(recipe.cost) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                      <span
+                        className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
+                        key={resourceId}
+                      >
+                        <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                        {formatResourceLabel(resourceId)} {amount}
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    className="mt-4 w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-3 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!canCraft}
+                    onClick={() => handleForgeCraft(recipe)}
+                    type="button"
+                  >
+                    Forge
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {forgeFeedback ? (
+            <div className="mt-3 rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">
+              {forgeFeedback}
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <button
+              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
+              onClick={closeForgeModal}
+              type="button"
+            >
+              Close
             </button>
           </DialogFooter>
         </DialogContent>

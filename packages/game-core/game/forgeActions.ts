@@ -11,8 +11,9 @@ function staminaCostFromPct(pct: number): number {
   return Math.ceil(100 * p);
 }
 
-function uid(prefix = "it"): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+function createCraftedItemId(state: GameState, recipeId: ForgeRecipeId): string {
+  const matchingItems = state.inventory.items.filter((item) => item.id.startsWith(`forge_${recipeId}_`)).length;
+  return `forge_${recipeId}_${state.progression.worldLevel}_${matchingItems + 1}`;
 }
 
 export type ForgeCraftResult = {
@@ -63,7 +64,7 @@ export function forgeCraft(
   // Create item
   const itemLevel = expectedIlvl(state.progression.worldLevel);
   const item = generateEquipmentItem({
-    id: uid("item"),
+    id: createCraftedItemId(state, recipe.id),
     slot: recipe.slot,
     name: recipe.baseName,
     itemLevel,
