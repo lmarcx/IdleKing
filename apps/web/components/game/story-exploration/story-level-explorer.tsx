@@ -101,7 +101,7 @@ function CompletionPanel({
           type="button"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Retour à la Story
+          Retour au Royaume
         </button>
       </div>
     </div>
@@ -193,7 +193,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
       {completion ? (
         <CompletionPanel
           alreadyCompleted={completion.alreadyCompleted}
-          onReturn={() => router.push("/game/worlds")}
+          onReturn={() => router.push("/game/kingdom")}
           rewards={completion.rewards}
         />
       ) : null}

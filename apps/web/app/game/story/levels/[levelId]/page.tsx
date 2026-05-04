@@ -23,9 +23,9 @@ export default async function StoryLevelPage({ params }: StoryLevelPageProps) {
           </p>
           <Link
             className="mt-5 inline-flex rounded-md border border-amber-200/35 bg-black/55 px-4 py-2 font-ik-menu text-xs text-amber-50 transition hover:border-amber-100"
-            href="/game/worlds"
+            href="/game/kingdom"
           >
-            Retour aux mondes
+            Retour au Royaume
           </Link>
         </div>
       </div>
