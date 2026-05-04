@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 
-export default function KingdomPage() {
-  return (
-    <main className="space-y-5 p-6">
-      <div>
-        <h1 className="font-ik-title text-3xl font-semibold text-foreground">Kingdom</h1>
-      </div>
+import { KingdomHubStage } from "@/components/game/kingdom/kingdom-hub-stage";
+import { DEV_MODE } from "@/lib/env";
 
-      <div className="grid max-w-lg gap-3 sm:grid-cols-2">
+function LegacyKingdomModeChoice() {
+  return (
+    <details className="rounded-lg border border-amber-200/15 bg-black/30 p-3">
+      <summary className="cursor-pointer font-ik-menu text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        Legacy mode selector
+      </summary>
+
+      <div className="mt-3 grid max-w-lg gap-3 sm:grid-cols-2">
         <span title="Coming soon">
           <button
             className="h-12 w-full rounded-md border border-border/70 bg-muted/35 px-4 font-ik-menu text-sm text-muted-foreground opacity-70"
@@ -28,6 +31,20 @@ export default function KingdomPage() {
           Offline Mode
         </Link>
       </div>
+    </details>
+  );
+}
+
+export default function KingdomPage() {
+  return (
+    <main className="space-y-4 p-4">
+      <div>
+        <h1 className="font-ik-title text-2xl font-semibold text-foreground">Kingdom</h1>
+      </div>
+
+      <KingdomHubStage />
+
+      {DEV_MODE ? <LegacyKingdomModeChoice /> : null}
     </main>
   );
 }
