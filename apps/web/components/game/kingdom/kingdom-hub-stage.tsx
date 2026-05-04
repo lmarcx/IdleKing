@@ -22,21 +22,40 @@ const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
-const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 280, y: MAP_HEIGHT / 2 };
-const ANCIENT_CHEST_POSITION = { x: MAP_WIDTH / 2 + 80, y: MAP_HEIGHT / 2 - 260 };
+const HUB_ASSETS = {
+  circleTile: "/assets/kingdom-hub/tile_circular_pattern.png",
+  cornucopia: "/assets/kingdom-hub/cornucopia_magical.png",
+  farm: "/assets/kingdom-hub/building_farm.png",
+  floor: "/assets/kingdom-hub/tile_royal_stone_floor.png",
+  forge: "/assets/kingdom-hub/building_forge.png",
+  forum: "/assets/kingdom-hub/building_forum.png",
+  kitchen: "/assets/kingdom-hub/building_kitchen.png",
+  mine: "/assets/kingdom-hub/building_mine.png",
+  npcVillager: "/assets/kingdom-hub/npc_villager.png",
+  runeTile: "/assets/kingdom-hub/tile_engraved_runes.png",
+  softGlow: "/assets/kingdom-hub/fx_soft_glow_aura.png",
+  sparkle: "/assets/kingdom-hub/fx_sparkle_particles.png",
+  temple: "/assets/kingdom-hub/building_temple.png",
+} as const;
+const FORUM_POSITION = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 - 170 };
+const TEMPLE_POSITION = { x: MAP_WIDTH / 2 + 330, y: MAP_HEIGHT / 2 - 210 };
+const MINE_POSITION = { x: MAP_WIDTH / 2 - 350, y: MAP_HEIGHT / 2 - 160 };
+const KITCHEN_POSITION = { x: MAP_WIDTH / 2 - 70, y: MAP_HEIGHT / 2 + 270 };
+const FORGE_POSITION = { x: MAP_WIDTH / 2 + 350, y: MAP_HEIGHT / 2 + 220 };
+const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 245, y: MAP_HEIGHT / 2 + 15 };
 const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
   label: "Farm",
-  x: MAP_WIDTH / 2 - 320,
-  y: MAP_HEIGHT / 2 - 90,
+  x: MAP_WIDTH / 2 - 340,
+  y: MAP_HEIGHT / 2 + 150,
 } as const;
 const VILLAGER_NPC = {
   id: "npc_villager_01",
   label: "Villageois Errant",
   text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
-  x: CORNUCOPIA_POSITION.x - 150,
-  y: CORNUCOPIA_POSITION.y + 135,
+  x: MAP_WIDTH / 2 - 105,
+  y: MAP_HEIGHT / 2 + 75,
 } as const;
 
 type Vector2 = {
@@ -49,8 +68,6 @@ type BuildingState = "locked" | "unlocked" | "built";
 type BuildingModalState = {
   state: BuildingState;
 } | null;
-
-type PoiVisualKind = "chest" | "interactable" | "npc" | "resource";
 
 type PoiVisual = {
   container: PIXI.Container;
@@ -68,7 +85,7 @@ type FloatingTextFx = {
 type ParticleFx = {
   age: number;
   duration: number;
-  node: PIXI.Graphics;
+  node: PIXI.Container;
   velocity: Vector2;
 };
 
@@ -82,6 +99,35 @@ type Interactable = {
   y: number;
   radius: number;
   onInteract: () => void;
+};
+
+type HubTextures = {
+  circleTile: PIXI.Texture;
+  cornucopia: PIXI.Texture;
+  farm: PIXI.Texture;
+  floor: PIXI.Texture;
+  forge: PIXI.Texture;
+  forum: PIXI.Texture;
+  kitchen: PIXI.Texture;
+  mine: PIXI.Texture;
+  npcVillager: PIXI.Texture;
+  runeTile: PIXI.Texture;
+  softGlow: PIXI.Texture;
+  sparkle: PIXI.Texture;
+  temple: PIXI.Texture;
+};
+
+type HubSpriteOptions = {
+  displayHeight: number;
+  glowHeight?: number;
+  glowTint?: number;
+  hintOffsetY?: number;
+  important?: boolean;
+  position: Vector2;
+  shadowAlpha?: number;
+  shadowHeight?: number;
+  shadowWidth?: number;
+  texture: PIXI.Texture;
 };
 
 const KEY_DIRECTIONS: Record<string, Vector2> = {
@@ -109,64 +155,104 @@ function isInteractionKey(event: KeyboardEvent): boolean {
   return event.code === "KeyF";
 }
 
-function createGroundTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 160;
-  canvas.height = 160;
-  const ctx = canvas.getContext("2d");
-
-  if (!ctx) return PIXI.Texture.WHITE;
-
-  const gradient = ctx.createLinearGradient(0, 0, 160, 160);
-  gradient.addColorStop(0, "#070a18");
-  gradient.addColorStop(0.48, "#11102a");
-  gradient.addColorStop(1, "#080812");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 160, 160);
-
-  for (let i = 0; i < 130; i += 1) {
-    const x = (i * 47) % 160;
-    const y = (i * 83) % 160;
-    const alpha = 0.035 + ((i % 7) * 0.007);
-    ctx.fillStyle = `rgba(132, 96, 205, ${alpha})`;
-    ctx.fillRect(x, y, 1 + (i % 2), 1 + ((i + 1) % 2));
-  }
-
-  ctx.strokeStyle = "rgba(96, 78, 168, 0.16)";
-  ctx.lineWidth = 1;
-  for (let i = -160; i <= 160; i += 40) {
-    ctx.beginPath();
-    ctx.moveTo(i, 160);
-    ctx.lineTo(i + 160, 0);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = "rgba(50, 180, 150, 0.08)";
-  ctx.beginPath();
-  ctx.arc(80, 80, 46, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(80, 80, 18, 0, Math.PI * 2);
-  ctx.stroke();
-
-  return PIXI.Texture.from(canvas);
+function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
+  const textureHeight = Math.max(sprite.texture.height, 1);
+  const scale = height / textureHeight;
+  sprite.scale.set(scale);
+  return scale;
 }
 
-function drawWorld(container: PIXI.Container) {
-  const texture = createGroundTexture();
-  const background = new PIXI.TilingSprite({
+function createHubShadow(width: number, height: number, alpha = 0.4): PIXI.Graphics {
+  const shadow = new PIXI.Graphics();
+  shadow.ellipse(0, 0, width, height).fill({ color: 0x010208, alpha });
+  return shadow;
+}
+
+function createGlowSprite(texture: PIXI.Texture, height: number, tint = 0xffffff, alpha = 0.34): PIXI.Sprite {
+  const glow = new PIXI.Sprite(texture);
+  glow.anchor.set(0.5);
+  glow.alpha = alpha;
+  glow.tint = tint;
+  glow.roundPixels = true;
+  setSpriteDisplayHeight(glow, height);
+  return glow;
+}
+
+function createInteractionHint(offsetY = -100): PIXI.Text {
+  const hint = new PIXI.Text({
+    style: {
+      fill: 0xfff0b8,
+      fontFamily: "Arial",
+      fontSize: 13,
+      fontWeight: "700",
+      stroke: { color: 0x100805, width: 4 },
+    },
+    text: "Press F",
+  });
+  hint.anchor.set(0.5);
+  hint.alpha = 0;
+  hint.position.set(0, offsetY);
+  hint.visible = false;
+  return hint;
+}
+
+function getHubTextures(): HubTextures {
+  return {
+    circleTile: PIXI.Texture.from(HUB_ASSETS.circleTile),
+    cornucopia: PIXI.Texture.from(HUB_ASSETS.cornucopia),
+    farm: PIXI.Texture.from(HUB_ASSETS.farm),
+    floor: PIXI.Texture.from(HUB_ASSETS.floor),
+    forge: PIXI.Texture.from(HUB_ASSETS.forge),
+    forum: PIXI.Texture.from(HUB_ASSETS.forum),
+    kitchen: PIXI.Texture.from(HUB_ASSETS.kitchen),
+    mine: PIXI.Texture.from(HUB_ASSETS.mine),
+    npcVillager: PIXI.Texture.from(HUB_ASSETS.npcVillager),
+    runeTile: PIXI.Texture.from(HUB_ASSETS.runeTile),
+    softGlow: PIXI.Texture.from(HUB_ASSETS.softGlow),
+    sparkle: PIXI.Texture.from(HUB_ASSETS.sparkle),
+    temple: PIXI.Texture.from(HUB_ASSETS.temple),
+  };
+}
+
+function createTileAccent(texture: PIXI.Texture, x: number, y: number, alpha = 0.82, scale = 1): PIXI.Sprite {
+  const tile = new PIXI.Sprite(texture);
+  tile.anchor.set(0.5);
+  tile.alpha = alpha;
+  tile.position.set(x, y);
+  tile.roundPixels = true;
+  tile.scale.set(scale);
+  return tile;
+}
+
+function drawWorld(container: PIXI.Container, textures: HubTextures) {
+  const fallback = new PIXI.Graphics();
+  fallback.rect(0, 0, MAP_WIDTH, MAP_HEIGHT).fill(0x050711);
+
+  const floor = new PIXI.TilingSprite({
     height: MAP_HEIGHT,
-    texture,
+    roundPixels: true,
+    texture: textures.floor,
     width: MAP_WIDTH,
   });
+  floor.alpha = 0.96;
+
+  const tileVariations = [
+    createTileAccent(textures.circleTile, FORUM_POSITION.x, FORUM_POSITION.y + 28, 0.92, 1.35),
+    createTileAccent(textures.circleTile, TEMPLE_POSITION.x, TEMPLE_POSITION.y + 34, 0.82, 1.18),
+    createTileAccent(textures.circleTile, CORNUCOPIA_POSITION.x, CORNUCOPIA_POSITION.y + 16, 0.9, 1.08),
+    createTileAccent(textures.runeTile, 360, 274, 0.72),
+    createTileAccent(textures.runeTile, 604, 658, 0.64),
+    createTileAccent(textures.runeTile, 1148, 816, 0.66),
+    createTileAccent(textures.runeTile, 1416, 454, 0.58),
+    createTileAccent(textures.runeTile, 836, 1008, 0.52),
+  ];
 
   const haze = new PIXI.Graphics();
-  haze.circle(MAP_WIDTH * 0.3, MAP_HEIGHT * 0.22, 340).fill({ color: 0x33235f, alpha: 0.16 });
-  haze.circle(MAP_WIDTH * 0.76, MAP_HEIGHT * 0.68, 420).fill({ color: 0x062f38, alpha: 0.14 });
+  haze.circle(MAP_WIDTH * 0.3, MAP_HEIGHT * 0.22, 340).fill({ color: 0x33235f, alpha: 0.12 });
+  haze.circle(MAP_WIDTH * 0.76, MAP_HEIGHT * 0.68, 420).fill({ color: 0x062f38, alpha: 0.11 });
   haze.circle(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5, 560).stroke({ color: 0x7b5dde, alpha: 0.08, width: 2 });
 
-  container.addChild(background, haze);
-  return texture;
+  container.addChild(fallback, floor, ...tileVariations, haze);
 }
 
 function renderVignette(vignette: PIXI.Graphics, width: number, height: number) {
@@ -199,131 +285,111 @@ function drawPlayer() {
   return { body, container, shadow };
 }
 
-function createPoiShell(kind: PoiVisualKind, position: Vector2, radius: number) {
+function createHubSprite({
+  displayHeight,
+  glowTexture,
+  glowHeight,
+  glowTint = 0xffffff,
+  hintOffsetY,
+  important = false,
+  position,
+  shadowAlpha = 0.42,
+  shadowHeight = 16,
+  shadowWidth = 44,
+  texture,
+}: HubSpriteOptions & { glowTexture?: PIXI.Texture }): PoiVisual & { sprite: PIXI.Sprite } {
   const container = new PIXI.Container();
-  const glow = new PIXI.Graphics();
-  const art = new PIXI.Container();
+  const glow = glowHeight && glowTexture ? createGlowSprite(glowTexture, glowHeight, glowTint, important ? 0.34 : 0.22) : null;
+  const shadow = createHubShadow(shadowWidth, shadowHeight, shadowAlpha);
+  const sprite = new PIXI.Sprite(texture);
+  const hint = hintOffsetY === undefined ? null : createInteractionHint(hintOffsetY);
   let isNear = false;
 
-  const colorByKind: Record<PoiVisualKind, number> = {
-    chest: 0xf0c26a,
-    interactable: 0xb18cff,
-    npc: 0x7df7ff,
-    resource: 0x55d979,
-  };
+  shadow.position.set(0, 18);
+  sprite.anchor.set(0.5, 0.78);
+  sprite.roundPixels = true;
+  const baseScale = setSpriteDisplayHeight(sprite, displayHeight);
+  const baseGlowScale = glow?.scale.x ?? 1;
+  if (glow) {
+    glow.anchor.set(0.5, 0.72);
+    glow.blendMode = "add";
+  }
 
-  const color = colorByKind[kind];
-  glow.circle(0, 0, radius).fill({ color, alpha: 0.28 });
-  glow.filters = [new PIXI.BlurFilter({ quality: 1, strength: kind === "chest" ? 14 : 9 })];
-
-  container.addChild(glow, art);
+  if (glow) container.addChild(glow);
+  container.addChild(shadow, sprite);
+  if (hint) container.addChild(hint);
   container.position.set(position.x, position.y);
+  container.zIndex = position.y;
 
   return {
-    art,
-    color,
     container,
+    sprite,
     setNear: (near: boolean) => {
       isNear = near;
+      if (hint) {
+        hint.visible = near;
+      }
     },
     update: (elapsedSeconds: number) => {
-      const pulse = Math.sin(elapsedSeconds * 3.2 + position.x * 0.01) * 0.035;
-      const hover = isNear ? 1.12 : 1;
-      container.scale.set(hover + pulse);
-      glow.alpha = (isNear ? 0.78 : 0.42) + Math.sin(elapsedSeconds * 4.4) * 0.08;
+      const pulse = Math.sin(elapsedSeconds * (important ? 2.6 : 2.2) + position.x * 0.01) * (important ? 0.026 : 0.014);
+      const hover = isNear ? 1.08 : 1;
+      sprite.scale.set(baseScale * (hover + pulse));
+      shadow.scale.set(1 + Math.sin(elapsedSeconds * 2.1 + position.y * 0.01) * 0.035, 1);
+      if (glow) {
+        glow.alpha = (isNear ? 0.56 : important ? 0.32 : 0.2) + Math.sin(elapsedSeconds * 3.2) * 0.055;
+        glow.scale.set(baseGlowScale * (1 + pulse * 0.15));
+      }
+      if (hint) {
+        hint.alpha = isNear ? 1 : 0;
+      }
     },
   };
 }
 
-function drawCornucopia() {
-  const poi = createPoiShell("resource", CORNUCOPIA_POSITION, 70);
-  const marker = new PIXI.Graphics();
-  marker.circle(0, 0, 62).fill({ color: 0x55d979, alpha: 0.12 });
-  marker.circle(0, 0, 44).stroke({ color: 0x55d979, alpha: 0.55, width: 2 });
-  marker.roundRect(-38, -28, 76, 56, 12).fill(0x6b3f1f);
-  marker.roundRect(-34, -24, 68, 48, 10).stroke({ color: 0xf7d487, alpha: 0.9, width: 3 });
-  marker.circle(-14, -6, 8).fill(0xffd166);
-  marker.circle(8, -10, 7).fill(0x87d37c);
-  marker.circle(18, 8, 8).fill(0xd86f45);
-  poi.art.addChild(marker);
-  return poi;
+function createHubSpriteVisual(options: HubSpriteOptions & { glowTexture?: PIXI.Texture }): PoiVisual {
+  return createHubSprite(options);
 }
 
-function renderFarmSlot(marker: PIXI.Graphics, state: BuildingState) {
-  marker.clear();
-
-  const fillByState: Record<BuildingState, number> = {
-    built: 0x4f7d41,
-    locked: 0x171717,
-    unlocked: 0x243c30,
-  };
-  const strokeByState: Record<BuildingState, number> = {
-    built: 0xb9f28a,
-    locked: 0x5e5e5e,
-    unlocked: 0xf0c26a,
-  };
-  const alphaByState: Record<BuildingState, number> = {
-    built: 0.92,
-    locked: 0.35,
-    unlocked: 0.78,
-  };
-
-  marker.roundRect(-54, -54, 108, 108, 8).fill({ color: fillByState[state], alpha: alphaByState[state] });
-  marker.roundRect(-54, -54, 108, 108, 8).stroke({ color: strokeByState[state], alpha: 0.72, width: 3 });
-  marker.rect(-34, -34, 68, 68).stroke({ color: 0x101010, alpha: 0.45, width: 2 });
-
-  if (state === "built") {
-    marker.roundRect(-30, -18, 60, 50, 6).fill(0x6b4b2a);
-    marker.moveTo(-38, -18).lineTo(0, -48).lineTo(38, -18).closePath().fill(0x9f3a2f);
-    marker.rect(-8, 6, 16, 26).fill(0x1b1410);
-  } else if (state === "unlocked") {
-    marker.rect(-28, -4, 56, 8).fill({ color: 0xf0c26a, alpha: 0.85 });
-    marker.rect(-4, -28, 8, 56).fill({ color: 0xf0c26a, alpha: 0.85 });
-  } else {
-    marker.moveTo(-26, -26).lineTo(26, 26).stroke({ color: 0x777777, alpha: 0.6, width: 3 });
-    marker.moveTo(26, -26).lineTo(-26, 26).stroke({ color: 0x777777, alpha: 0.6, width: 3 });
-  }
+function renderFarmSlot(foundation: PIXI.Graphics, sprite: PIXI.Sprite, state: BuildingState) {
+  foundation.clear();
+  foundation.roundRect(-64, -48, 128, 92, 8).fill({
+    alpha: state === "built" ? 0.12 : state === "unlocked" ? 0.22 : 0.12,
+    color: state === "locked" ? 0x111111 : 0x243c30,
+  });
+  foundation.roundRect(-64, -48, 128, 92, 8).stroke({
+    alpha: state === "built" ? 0.34 : state === "unlocked" ? 0.58 : 0.3,
+    color: state === "locked" ? 0x5e5e5e : 0xf0c26a,
+    width: 2,
+  });
+  sprite.alpha = state === "built" ? 1 : state === "unlocked" ? 0.78 : 0.42;
+  sprite.tint = state === "locked" ? 0x777777 : 0xffffff;
 }
 
-function drawFarmSlot(state: BuildingState) {
-  const poi = createPoiShell("interactable", FARM_SLOT, 70);
-  const marker = new PIXI.Graphics();
-  renderFarmSlot(marker, state);
-  poi.art.addChild(marker);
+function createFarmSlotVisual(textures: HubTextures, state: BuildingState) {
+  const visual = createHubSprite({
+    displayHeight: 142,
+    glowHeight: 120,
+    glowTexture: textures.softGlow,
+    glowTint: 0x9fdc76,
+    hintOffsetY: -106,
+    position: FARM_SLOT,
+    shadowHeight: 17,
+    shadowWidth: 58,
+    texture: textures.farm,
+  });
+  const foundation = new PIXI.Graphics();
+  visual.container.addChildAt(foundation, 0);
+  renderFarmSlot(foundation, visual.sprite, state);
   return {
-    container: poi.container,
-    render: (nextState: BuildingState) => renderFarmSlot(marker, nextState),
-    setNear: poi.setNear,
-    update: poi.update,
+    container: visual.container,
+    render: (nextState: BuildingState) => renderFarmSlot(foundation, visual.sprite, nextState),
+    setNear: visual.setNear,
+    update: visual.update,
   };
 }
 
-function drawVillagerNpc() {
-  const poi = createPoiShell("npc", VILLAGER_NPC, 52);
-  const marker = new PIXI.Graphics();
-  marker.circle(0, 22, 34).fill({ color: 0x2fd8c8, alpha: 0.1 });
-  marker.circle(0, -16, 13).fill(0xc08a5a);
-  marker.roundRect(-15, -2, 30, 42, 9).fill(0x24495a);
-  marker.roundRect(-15, -2, 30, 42, 9).stroke({ color: 0x7df7ff, alpha: 0.5, width: 2 });
-  marker.rect(-20, 8, 8, 28).fill(0x1d303b);
-  marker.rect(12, 8, 8, 28).fill(0x1d303b);
-  marker.circle(-5, -19, 2).fill(0x10202a);
-  marker.circle(5, -19, 2).fill(0x10202a);
-  poi.art.addChild(marker);
-  return poi;
-}
-
-function drawAncientChest() {
-  const poi = createPoiShell("chest", ANCIENT_CHEST_POSITION, 54);
-  const marker = new PIXI.Graphics();
-  marker.circle(0, 0, 46).fill({ color: 0xf0c26a, alpha: 0.12 });
-  marker.roundRect(-34, -18, 68, 40, 7).fill(0x6e421e);
-  marker.roundRect(-34, -18, 68, 40, 7).stroke({ color: 0xf0c26a, alpha: 0.92, width: 3 });
-  marker.rect(-38, -20, 76, 11).fill(0x2a1720);
-  marker.rect(-5, -4, 10, 16).fill(0xf0c26a);
-  marker.circle(0, 4, 3).fill(0x1b1012);
-  poi.art.addChild(marker);
-  return poi;
+function createBuildingSprite(options: HubSpriteOptions & { glowTexture?: PIXI.Texture }): PoiVisual {
+  return createHubSpriteVisual(options);
 }
 
 function formatResourceLabel(resourceId: ResourceId) {
@@ -481,6 +547,7 @@ export function KingdomHubStage() {
     const poiVisuals = new Map<string, PoiVisual>();
     const floatingTexts: FloatingTextFx[] = [];
     const particles: ParticleFx[] = [];
+    let sparkleTexture: PIXI.Texture | null = null;
     const vignette = new PIXI.Graphics();
     const interactables: Interactable[] = [
       {
@@ -592,8 +659,14 @@ export function KingdomHubStage() {
       for (let i = 0; i < 14; i += 1) {
         const angle = (Math.PI * 2 * i) / 14;
         const speed = 42 + (i % 4) * 18;
-        const particle = new PIXI.Graphics();
-        particle.circle(0, 0, 3 + (i % 3)).fill({ color, alpha: 0.82 });
+        const particle = sparkleTexture ? new PIXI.Sprite(sparkleTexture) : new PIXI.Graphics();
+        if (particle instanceof PIXI.Sprite) {
+          particle.anchor.set(0.5);
+          particle.tint = color;
+          particle.scale.set(0.09 + (i % 3) * 0.018);
+        } else {
+          particle.circle(0, 0, 3 + (i % 3)).fill({ color, alpha: 0.82 });
+        }
         particle.position.set(position.x, position.y);
         fxLayer.addChild(particle);
         particles.push({
@@ -640,7 +713,13 @@ export function KingdomHubStage() {
     }
 
     let tickerCallback: ((ticker: PIXI.Ticker) => void) | null = null;
-    let groundTexture: PIXI.Texture | null = null;
+    let destroyed = false;
+
+    function destroyPixiApp() {
+      if (destroyed) return;
+      destroyed = true;
+      app.destroy(true, { children: true });
+    }
 
     async function setup() {
       await app.init({
@@ -653,26 +732,116 @@ export function KingdomHubStage() {
       initialized = true;
 
       if (cancelled) {
-        app.destroy(true);
+        destroyPixiApp();
+        return;
+      }
+
+      await PIXI.Assets.load(Object.values(HUB_ASSETS));
+      const textures = getHubTextures();
+      sparkleTexture = textures.sparkle;
+
+      if (cancelled) {
+        destroyPixiApp();
         return;
       }
 
       resizeTarget.appendChild(app.canvas);
       app.stage.addChild(world, uiLayer);
       world.addChild(backgroundLayer, entityLayer, fxLayer);
-      groundTexture = drawWorld(backgroundLayer);
-      const cornucopiaVisual = drawCornucopia();
+      entityLayer.sortableChildren = true;
+      drawWorld(backgroundLayer, textures);
+
+      const forumVisual = createBuildingSprite({
+        displayHeight: 184,
+        glowHeight: 190,
+        glowTexture: textures.softGlow,
+        glowTint: 0xb18cff,
+        important: true,
+        position: FORUM_POSITION,
+        shadowHeight: 22,
+        shadowWidth: 86,
+        texture: textures.forum,
+      });
+      poiVisuals.set("forum", forumVisual);
+      entityLayer.addChild(forumVisual.container);
+
+      const templeVisual = createBuildingSprite({
+        displayHeight: 156,
+        glowHeight: 168,
+        glowTexture: textures.softGlow,
+        glowTint: 0x83f7ff,
+        important: true,
+        position: TEMPLE_POSITION,
+        shadowHeight: 18,
+        shadowWidth: 68,
+        texture: textures.temple,
+      });
+      poiVisuals.set("temple", templeVisual);
+      entityLayer.addChild(templeVisual.container);
+
+      const mineVisual = createBuildingSprite({
+        displayHeight: 138,
+        position: MINE_POSITION,
+        shadowHeight: 18,
+        shadowWidth: 70,
+        texture: textures.mine,
+      });
+      poiVisuals.set("mine", mineVisual);
+      entityLayer.addChild(mineVisual.container);
+
+      const kitchenVisual = createBuildingSprite({
+        displayHeight: 130,
+        position: KITCHEN_POSITION,
+        shadowHeight: 17,
+        shadowWidth: 64,
+        texture: textures.kitchen,
+      });
+      poiVisuals.set("kitchen", kitchenVisual);
+      entityLayer.addChild(kitchenVisual.container);
+
+      const forgeVisual = createBuildingSprite({
+        displayHeight: 138,
+        position: FORGE_POSITION,
+        shadowHeight: 18,
+        shadowWidth: 68,
+        texture: textures.forge,
+      });
+      poiVisuals.set("forge", forgeVisual);
+      entityLayer.addChild(forgeVisual.container);
+
+      const cornucopiaVisual = createHubSpriteVisual({
+        displayHeight: 96,
+        glowHeight: 126,
+        glowTexture: textures.softGlow,
+        glowTint: 0xd2a4ff,
+        hintOffsetY: -84,
+        important: true,
+        position: CORNUCOPIA_POSITION,
+        shadowHeight: 13,
+        shadowWidth: 48,
+        texture: textures.cornucopia,
+      });
       poiVisuals.set("cornucopia", cornucopiaVisual);
       entityLayer.addChild(cornucopiaVisual.container);
-      const farmSlot = drawFarmSlot(farmStateRef.current);
+
+      const farmSlot = createFarmSlotVisual(textures, farmStateRef.current);
       renderFarmSlotRef.current = farmSlot.render;
       poiVisuals.set(FARM_SLOT.id, farmSlot);
       entityLayer.addChild(farmSlot.container);
-      const villagerVisual = drawVillagerNpc();
+
+      const villagerVisual = createHubSpriteVisual({
+        displayHeight: 70,
+        glowHeight: 82,
+        glowTexture: textures.softGlow,
+        glowTint: 0x7df7ff,
+        hintOffsetY: -72,
+        position: VILLAGER_NPC,
+        shadowHeight: 9,
+        shadowWidth: 24,
+        texture: textures.npcVillager,
+      });
       poiVisuals.set(VILLAGER_NPC.id, villagerVisual);
       entityLayer.addChild(villagerVisual.container);
-      const chestVisual = drawAncientChest();
-      entityLayer.addChild(chestVisual.container);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
       uiLayer.addChild(vignette);
@@ -725,7 +894,6 @@ export function KingdomHubStage() {
         for (const visual of poiVisuals.values()) {
           visual.update(elapsedSeconds);
         }
-        chestVisual.update(elapsedSeconds);
         updateFx(deltaSeconds);
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
@@ -734,6 +902,7 @@ export function KingdomHubStage() {
         const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, MAP_WIDTH - screenWidth));
         const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, MAP_HEIGHT - screenHeight));
         world.position.set(-cameraX, -cameraY);
+        player.zIndex = playerPosition.y;
       };
 
       tickerCallback = updateHub;
@@ -745,7 +914,7 @@ export function KingdomHubStage() {
     return () => {
       cancelled = true;
       if (tickerCallback) {
-        app.ticker.remove(tickerCallback);
+        app.ticker?.remove?.(tickerCallback);
         tickerCallback = null;
       }
       window.removeEventListener("keydown", handleKeyDown);
@@ -764,10 +933,8 @@ export function KingdomHubStage() {
       }
       particles.length = 0;
       poiVisuals.clear();
-      groundTexture?.destroy(true);
-      groundTexture = null;
-      if (initialized) {
-        app.destroy(true, { children: true });
+      if (initialized && !destroyed) {
+        destroyPixiApp();
       }
     };
   }, [closeDialogue, openCornucopia, openFarmSlot, openVillagerDialogue]);
