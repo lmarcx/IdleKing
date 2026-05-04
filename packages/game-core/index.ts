@@ -27,6 +27,7 @@ export {
   buildBuilding,
 } from "./game/buildingBuildActions.js";
 export type {
+  BuildBuildingOptions,
   BuildBuildingResult,
 } from "./game/buildingBuildActions.js";
 export type {
@@ -44,12 +45,14 @@ export {
   forgeCraft,
 } from "./game/forgeActions.js";
 export type {
+  ForgeCraftOptions,
   ForgeCraftResult,
 } from "./game/forgeActions.js";
 export {
   convertTempleGlobalXp,
 } from "./game/templeActions.js";
 export type {
+  TempleGlobalXpConversionOptions,
   TempleGlobalXpConversionResult,
   TempleXpTarget,
 } from "./game/templeActions.js";

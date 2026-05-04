@@ -103,6 +103,44 @@ test("Forge unlocked but not built does not allow crafting", () => {
   assert.equal(result.reason, "FORGE_NOT_BUILT");
 });
 
+test("Forge dev-unlocked but not built does not allow crafting", () => {
+  const s = {
+    ...createInitialGameState(),
+    resources: { IRON: 4 },
+  };
+
+  const result = forgeCraft(s, "iron_sword", s.villagers.list[0].id, { allowLocked: true });
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "FORGE_NOT_BUILT");
+});
+
+test("Forge dev override works after build and still consumes construction resources", () => {
+  let s = createInitialGameState();
+  const cost = getBuildCost("FORGE");
+  s = {
+    ...s,
+    resources: {
+      WOOD: cost.WOOD ?? 0,
+      STONE: cost.STONE ?? 0,
+      IRON: (cost.IRON ?? 0) + 4,
+    },
+  };
+
+  const built = buildBuilding(s, "FORGE", { allowLocked: true });
+  assert.equal(built.ok, true);
+  assert.equal(getQty(built.next.resources, "WOOD"), 0);
+  assert.equal(getQty(built.next.resources, "STONE"), 0);
+  assert.equal(getQty(built.next.resources, "IRON"), 4);
+
+  const crafted = forgeCraft(built.next, "iron_sword", built.next.villagers.list[0].id, { allowLocked: true });
+
+  assert.equal(crafted.ok, true);
+  assert.equal(crafted.next.inventory.items.length, 1);
+  assert.equal(getQty(crafted.next.resources, "IRON"), 0);
+});
+
 test("Forge craft works after building Forge when resources are sufficient", () => {
   let s = createInitialGameState();
   for (const ch of [1, 2, 3, 4] as const) {

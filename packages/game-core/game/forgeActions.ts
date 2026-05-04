@@ -29,6 +29,10 @@ export type ForgeCraftResult = {
     | "NOT_ENOUGH_RESOURCES";
 };
 
+export type ForgeCraftOptions = {
+  allowLocked?: boolean;
+};
+
 /**
  * Crafts an equipment item by consuming resources and villager stamina.
  * Item ilvl is derived from the current world level snapshot at craft time.
@@ -36,9 +40,10 @@ export type ForgeCraftResult = {
 export function forgeCraft(
   state: GameState,
   recipeId: ForgeRecipeId,
-  villagerId: string
+  villagerId: string,
+  options: ForgeCraftOptions = {},
 ): ForgeCraftResult {
-  if (!state.buildings.forge.unlocked) {
+  if (!state.buildings.forge.unlocked && options.allowLocked !== true) {
     return { next: state, ok: false, reason: "FORGE_LOCKED" };
   }
   if (!state.buildings.forge.built) {

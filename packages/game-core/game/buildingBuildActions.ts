@@ -13,14 +13,23 @@ export type BuildBuildingResult = {
   cost?: ReturnType<typeof getBuildCost>;
 };
 
+export type BuildBuildingOptions = {
+  allowLocked?: boolean;
+};
+
 /**
  * Builds a building by spending resources.
  * This is a generic helper used for all Kingdom buildings in MVP.
  */
-export function buildBuilding(state: GameState, buildingId: BuildingId): BuildBuildingResult {
+export function buildBuilding(
+  state: GameState,
+  buildingId: BuildingId,
+  options: BuildBuildingOptions = {},
+): BuildBuildingResult {
   const b = state.buildings;
 
   const unlocked =
+    options.allowLocked === true ||
     (buildingId === "FORUM" && b.forum.unlocked) ||
     (buildingId === "FARM" && b.farm.unlocked) ||
     (buildingId === "MINE" && b.mine.unlocked) ||

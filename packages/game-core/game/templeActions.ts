@@ -19,12 +19,17 @@ export type TempleGlobalXpConversionResult =
       reason: "TEMPLE_LOCKED" | "TEMPLE_NOT_BUILT" | "INVALID_AMOUNT" | "NOT_ENOUGH_XP_GLOBAL";
     };
 
+export type TempleGlobalXpConversionOptions = {
+  allowLocked?: boolean;
+};
+
 export function convertTempleGlobalXp(
   state: GameState,
   target: TempleXpTarget,
   amount: number,
+  options: TempleGlobalXpConversionOptions = {},
 ): TempleGlobalXpConversionResult {
-  if (!state.buildings.temple.unlocked) {
+  if (!state.buildings.temple.unlocked && options.allowLocked !== true) {
     return { ok: false, next: state, reason: "TEMPLE_LOCKED" };
   }
   if (!state.buildings.temple.built) {

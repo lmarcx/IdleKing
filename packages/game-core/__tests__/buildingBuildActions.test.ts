@@ -75,6 +75,28 @@ test("buildBuilding refuses when building is locked", () => {
   assert.equal(result.reason, "BUILDING_LOCKED");
 });
 
+test("buildBuilding can build a normally locked building with dev override", () => {
+  const base = createInitialGameState();
+  const cost = getBuildCost("FORGE");
+  const state = {
+    ...base,
+    resources: {
+      WOOD: cost.WOOD ?? 0,
+      STONE: cost.STONE ?? 0,
+      IRON: cost.IRON ?? 0,
+    },
+  };
+
+  const result = buildBuilding(state, "FORGE", { allowLocked: true });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.next.buildings.forge.unlocked, false);
+  assert.equal(result.next.buildings.forge.built, true);
+  assert.equal(getQty(result.next.resources, "WOOD"), 0);
+  assert.equal(getQty(result.next.resources, "STONE"), 0);
+  assert.equal(getQty(result.next.resources, "IRON"), 0);
+});
+
 test("buildBuilding refuses when building is already built", () => {
   const base = createInitialGameState();
   const state = {

@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { buildBuilding } from "../game/buildingBuildActions.js";
 import { convertTempleGlobalXp } from "../game/templeActions.js";
+import { getBuildCost } from "../building/buildCosts.js";
 import { xpNext } from "../progression/xpCurve.js";
 import { getQty } from "../resources/types.js";
 
@@ -108,4 +110,42 @@ test("Temple refuses conversion when unlocked but not built", () => {
   assert.equal(result.ok, false);
   if (result.ok) return;
   assert.equal(result.reason, "TEMPLE_NOT_BUILT");
+});
+
+test("Temple dev-unlocked but not built refuses conversion", () => {
+  const state = {
+    ...createInitialGameState(),
+    resources: { XP_GLOBAL: 5 },
+  };
+
+  const result = convertTempleGlobalXp(state, "playerXp", 5, { allowLocked: true });
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "TEMPLE_NOT_BUILT");
+});
+
+test("Temple dev override works after build and still consumes construction resources", () => {
+  const base = createInitialGameState();
+  const cost = getBuildCost("TEMPLE");
+  const state = {
+    ...base,
+    resources: {
+      WOOD: cost.WOOD ?? 0,
+      STONE: cost.STONE ?? 0,
+      XP_GLOBAL: 7,
+    },
+  };
+
+  const built = buildBuilding(state, "TEMPLE", { allowLocked: true });
+  assert.equal(built.ok, true);
+  assert.equal(getQty(built.next.resources, "WOOD"), 0);
+  assert.equal(getQty(built.next.resources, "STONE"), 0);
+
+  const result = convertTempleGlobalXp(built.next, "worldWxp", 7, { allowLocked: true });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.next.progression.worldWxp, 7);
+  assert.equal(getQty(result.next.resources, "XP_GLOBAL"), 0);
 });

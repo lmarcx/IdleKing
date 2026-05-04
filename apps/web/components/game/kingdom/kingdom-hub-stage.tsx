@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DEV_MODE } from "@/lib/env";
 import { getResourceAssetPath } from "@/lib/resource-assets";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
@@ -435,6 +436,23 @@ function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, ca
   return "Construire";
 }
 
+function getEffectiveBuildingState<T extends { unlocked: boolean; built: boolean; active?: boolean }>(
+  building: T,
+  devMode = DEV_MODE,
+): T {
+  if (!devMode) return building;
+
+  return {
+    ...building,
+    unlocked: true,
+    active: building.built ? (building.active ?? true) : false,
+  };
+}
+
+function isDevUnlocked(building: { unlocked: boolean }) {
+  return DEV_MODE && !building.unlocked;
+}
+
 export function KingdomHubStage() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
@@ -466,8 +484,10 @@ export function KingdomHubStage() {
   const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
   const playerXpToNext = xpNext(state.progression.playerLevel);
   const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
-  const canBuildTemple = state.buildings.temple.unlocked && !state.buildings.temple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
-  const canBuildForge = state.buildings.forge.unlocked && !state.buildings.forge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
+  const effectiveTemple = getEffectiveBuildingState(state.buildings.temple);
+  const effectiveForge = getEffectiveBuildingState(state.buildings.forge);
+  const canBuildTemple = effectiveTemple.unlocked && !effectiveTemple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
+  const canBuildForge = effectiveForge.unlocked && !effectiveForge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
 
   useEffect(() => {
     isModalOpenRef.current = isCornucopiaOpen || farmModal !== null || isTempleOpen || isForgeOpen;
@@ -566,7 +586,7 @@ export function KingdomHubStage() {
 
   const handleBuildCoreBuilding = useCallback(
     (buildingId: Extract<BuildingId, "TEMPLE" | "FORGE">) => {
-      const result = buildBuilding(useGameStore.getState().state, buildingId);
+      const result = buildBuilding(useGameStore.getState().state, buildingId, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Build failed: ${result.reason}`);
         return;
@@ -595,7 +615,7 @@ export function KingdomHubStage() {
         return;
       }
 
-      const result = convertTempleGlobalXp(useGameStore.getState().state, target, amount);
+      const result = convertTempleGlobalXp(useGameStore.getState().state, target, amount, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Temple conversion failed: ${result.reason}`);
         return;
@@ -629,7 +649,7 @@ export function KingdomHubStage() {
         return;
       }
 
-      const result = forgeCraft(currentState, recipe.id, villagerId);
+      const result = forgeCraft(currentState, recipe.id, villagerId, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Forge failed: ${result.reason}`);
         return;
@@ -1265,7 +1285,14 @@ export function KingdomHubStage() {
           <div className="mt-4 grid gap-3 font-ik-body text-sm text-muted-foreground sm:grid-cols-3">
             <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
               <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Status</div>
-              <div className="mt-1 font-ik-menu text-lg text-cyan-50">{getBuildingStatusLabel(state.buildings.temple)}</div>
+              <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-cyan-50">
+                {getBuildingStatusLabel(effectiveTemple)}
+                {isDevUnlocked(state.buildings.temple) ? (
+                  <span className="rounded border border-cyan-200/20 bg-cyan-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-cyan-100">
+                    DEV UNLOCK
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
               <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">XP_GLOBAL</div>
@@ -1286,7 +1313,7 @@ export function KingdomHubStage() {
             </div>
           </div>
 
-          {!state.buildings.temple.built ? (
+          {!effectiveTemple.built ? (
             <div className="mt-3 rounded-md border border-cyan-200/20 bg-black/35 p-3">
               <div className="font-ik-title text-sm text-cyan-50">Construction</div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -1306,7 +1333,7 @@ export function KingdomHubStage() {
                 onClick={() => handleBuildCoreBuilding("TEMPLE")}
                 type="button"
               >
-                {getBuildActionLabel(state.buildings.temple, canBuildTemple)}
+                {getBuildActionLabel(effectiveTemple, canBuildTemple)}
               </button>
             </div>
           ) : null}
@@ -1327,7 +1354,7 @@ export function KingdomHubStage() {
             </button>
             <button
               className="rounded-md border border-cyan-300/45 bg-cyan-500/14 px-4 py-2 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!state.buildings.temple.built || xpGlobalAvailable <= 0}
+              disabled={!effectiveTemple.built || xpGlobalAvailable <= 0}
               onClick={() => handleTempleConvert("playerXp")}
               type="button"
             >
@@ -1335,7 +1362,7 @@ export function KingdomHubStage() {
             </button>
             <button
               className="rounded-md border border-violet-300/45 bg-violet-500/14 px-4 py-2 font-ik-menu text-sm text-violet-50 transition hover:border-violet-200 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!state.buildings.temple.built || xpGlobalAvailable <= 0}
+              disabled={!effectiveTemple.built || xpGlobalAvailable <= 0}
               onClick={() => handleTempleConvert("worldWxp")}
               type="button"
             >
@@ -1359,10 +1386,17 @@ export function KingdomHubStage() {
 
           <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3">
             <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
-            <div className="mt-1 font-ik-menu text-lg text-amber-50">{getBuildingStatusLabel(state.buildings.forge)}</div>
+            <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-amber-50">
+              {getBuildingStatusLabel(effectiveForge)}
+              {isDevUnlocked(state.buildings.forge) ? (
+                <span className="rounded border border-amber-200/20 bg-amber-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-amber-100">
+                  DEV UNLOCK
+                </span>
+              ) : null}
+            </div>
           </div>
 
-          {!state.buildings.forge.built ? (
+          {!effectiveForge.built ? (
             <div className="mt-3 rounded-md border border-amber-200/20 bg-black/35 p-3">
               <div className="font-ik-title text-sm text-amber-50">Construction</div>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -1382,12 +1416,12 @@ export function KingdomHubStage() {
                 onClick={() => handleBuildCoreBuilding("FORGE")}
                 type="button"
               >
-                {getBuildActionLabel(state.buildings.forge, canBuildForge)}
+                {getBuildActionLabel(effectiveForge, canBuildForge)}
               </button>
             </div>
           ) : null}
 
-          {state.buildings.forge.built ? (
+          {effectiveForge.built ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {FORGE_MVP_RECIPES.map((recipe) => {
                 const hasRecipeResources = hasAtLeast(state.resources, recipe.cost);
