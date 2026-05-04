@@ -92,6 +92,12 @@ const VILLAGER_NPC = {
   x: MAP_WIDTH / 2 - 105,
   y: MAP_HEIGHT / 2 + 75,
 } as const;
+const BOTO_NPC = {
+  id: "npc_boto",
+  label: "Boto",
+  x: MAP_WIDTH / 2 + 95,
+  y: MAP_HEIGHT / 2 + 88,
+} as const;
 const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
 const TEMPLE_BUILD_COST = getBuildCost("TEMPLE");
@@ -109,7 +115,7 @@ type BuildingModalState = {
 } | null;
 
 type PlaceholderBuildingId = "forum" | "kitchen" | "mine";
-type HubOverlayId = "character" | "inventory" | "skills" | "worlds";
+type HubOverlayId = "character" | "inventory" | "skills" | "worlds" | "boto";
 
 type PlaceholderBuildingStatus = {
   active: boolean;
@@ -142,6 +148,7 @@ const PLACEHOLDER_BUILDINGS: Record<
   },
 };
 const HUB_OVERLAYS: Record<HubOverlayId, { label: string; title: string }> = {
+  boto: { label: "Boto", title: "Boto" },
   character: { label: "Character", title: "Character" },
   inventory: { label: "Inventory", title: "Inventory" },
   skills: { label: "Skills", title: "Skills" },
@@ -657,6 +664,7 @@ export function KingdomHubStage() {
   const [placeholderBuildingId, setPlaceholderBuildingId] = useState<PlaceholderBuildingId | null>(null);
   const [activeOverlay, setActiveOverlay] = useState<HubOverlayId | null>(null);
   const [mountedOverlays, setMountedOverlays] = useState<Record<HubOverlayId, boolean>>({
+    boto: false,
     character: false,
     inventory: false,
     skills: false,
@@ -1048,6 +1056,15 @@ export function KingdomHubStage() {
         radius: 96,
         onInteract: openVillagerDialogue,
       },
+      {
+        id: BOTO_NPC.id,
+        label: BOTO_NPC.label,
+        type: "npc",
+        x: BOTO_NPC.x,
+        y: BOTO_NPC.y,
+        radius: 92,
+        onInteract: () => openHubOverlay("boto"),
+      },
     ];
 
     function setNearby(id: string | null) {
@@ -1420,6 +1437,20 @@ export function KingdomHubStage() {
         shadowWidth: 24,
         texture: textures.npcVillager,
       });
+      const botoVisual = createHubSpriteVisual({
+        displayHeight: 78,
+        glowHeight: 92,
+        glowTexture: textures.softGlow,
+        glowTint: 0x55d979,
+        hintOffsetY: -78,
+        position: BOTO_NPC,
+        shadowHeight: 10,
+        shadowWidth: 28,
+        texture: textures.npcVillager,
+      });
+      poiVisuals.set(BOTO_NPC.id, botoVisual);
+      entityLayer.addChild(botoVisual.container);
+
       poiVisuals.set(VILLAGER_NPC.id, villagerVisual);
       entityLayer.addChild(villagerVisual.container);
       entityLayer.addChild(player);
@@ -1516,6 +1547,7 @@ export function KingdomHubStage() {
     openCornucopia,
     openFarmSlot,
     openForge,
+    openHubOverlay,
     openPlaceholderBuilding,
     openTemple,
     openVillagerDialogue,
@@ -1554,6 +1586,49 @@ export function KingdomHubStage() {
 
       {activeDialogue ? (
         <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />
+      ) : null}
+
+      {activeOverlay === "boto" ? (
+        <KingdomOverlay onClose={closeHubOverlay} open title={HUB_OVERLAYS.boto.title}>
+          <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+            <div className="rounded-xl border border-emerald-300/20 bg-black/50 p-4 text-center">
+              <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/10 text-4xl">
+                🤖
+              </div>
+              <div className="mt-3 font-ik-title text-lg text-emerald-100">Boto Unit</div>
+              <div className="mt-1 font-ik-menu text-xs uppercase tracking-[0.16em] text-emerald-300/70">
+                Link established
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-emerald-300/20 bg-black/70 p-4">
+              <div className="font-mono text-xs uppercase tracking-[0.16em] text-emerald-300">
+                &gt; BOTO
+              </div>
+              <p className="mt-3 font-ik-body text-sm text-emerald-50/90">
+                Connexion établie, Roi. Le Royaume répond à vos ordres.
+              </p>
+              <p className="mt-2 font-ik-body text-sm text-muted-foreground">
+                Les systèmes principaux sont en cours de synchronisation. Je peux déjà vous assister dans la lecture du Royaume.
+              </p>
+
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <button
+                  className="rounded-md border border-emerald-300/25 bg-emerald-500/10 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-emerald-50 transition hover:border-emerald-200 hover:bg-emerald-500/16"
+                  type="button"
+                >
+                  Analyser les ressources
+                </button>
+                <button
+                  className="rounded-md border border-emerald-300/25 bg-emerald-500/10 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-emerald-50 transition hover:border-emerald-200 hover:bg-emerald-500/16"
+                  type="button"
+                >
+                  Conseils de progression
+                </button>
+              </div>
+            </div>
+          </div>
+        </KingdomOverlay>
       ) : null}
 
       {mountedOverlays.character ? (
