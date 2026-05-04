@@ -17,10 +17,13 @@ import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import {
   FORGE_RECIPES,
+  CORNUCOPIA_MAX_CLAIM_AMOUNT,
   buildBuilding,
+  claimCornucopia,
   convertTempleGlobalXp,
   forgeCraft,
   getBuildCost,
+  getCornucopiaClaimables,
   getQty,
   hasAtLeast,
   isEquipmentItem,
@@ -30,7 +33,6 @@ import {
   type ResourceId,
   type TempleXpTarget,
 } from "@idleking/game-core";
-import { claimCornucopia, getCornucopiaClaimables } from "@idleking/game-core/building/cornucopiaActions.js";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 
 const MAP_WIDTH = 1800;
@@ -415,6 +417,11 @@ function formatResourceLabel(resourceId: ResourceId) {
   return resourceId.replaceAll("_", " ");
 }
 
+function clampCornucopiaAmount(amount: number) {
+  if (!Number.isFinite(amount)) return 1;
+  return clamp(Math.floor(amount), 1, CORNUCOPIA_MAX_CLAIM_AMOUNT);
+}
+
 function getBuildingStatusLabel(building: { unlocked: boolean; built: boolean }) {
   if (!building.unlocked) return "Verrouillé";
   if (!building.built) return "À construire";
@@ -449,11 +456,13 @@ export function KingdomHubStage() {
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
+  const [cornucopiaClaimAmount, setCornucopiaClaimAmount] = useState(100);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
   const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
   const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
   const selectedResource = selectedCornucopiaResource;
+  const selectedResourceQuantity = selectedResource ? getQty(state.resources, selectedResource) : 0;
   const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
   const playerXpToNext = xpNext(state.progression.playerLevel);
   const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
@@ -664,7 +673,10 @@ export function KingdomHubStage() {
     isClaimingCornucopiaRef.current = true;
     setIsClaimingCornucopia(true);
 
-    const result = claimCornucopia(useGameStore.getState().state, { resourceId: selectedResource });
+    const amount = clampCornucopiaAmount(cornucopiaClaimAmount);
+    setCornucopiaClaimAmount(amount);
+
+    const result = claimCornucopia(useGameStore.getState().state, { resourceId: selectedResource, amount });
 
     if (!result.ok) {
       toast.error(`Cornucopia claim failed: ${result.error}`);
@@ -679,7 +691,7 @@ export function KingdomHubStage() {
     toast.success(`Claimed ${result.amount} ${result.resourceId}`);
     isClaimingCornucopiaRef.current = false;
     setIsClaimingCornucopia(false);
-  }, [dispatch, selectedResource, showResourceGain]);
+  }, [cornucopiaClaimAmount, dispatch, selectedResource, showResourceGain]);
 
   useEffect(() => {
     const hostElement = hostRef.current;
@@ -1131,37 +1143,99 @@ export function KingdomHubStage() {
       ) : null}
 
       <Dialog open={isCornucopiaOpen} onOpenChange={setIsCornucopiaOpen}>
-        <DialogContent className="border-amber-200/25 bg-zinc-950 text-amber-50">
+        <DialogContent className="max-w-3xl border-amber-200/25 bg-zinc-950 text-amber-50">
           <DialogHeader>
             <DialogTitle>Cornucopia</DialogTitle>
-            <DialogDescription>Infinite resource source</DialogDescription>
+            <DialogDescription>Dev resource console for fast Kingdom testing.</DialogDescription>
           </DialogHeader>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {cornucopiaClaimables.length > 0 ? (
-              cornucopiaClaimables.map((resourceId) => {
-                const isSelected = resourceId === selectedResource;
+          <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
+            <div className="max-h-[24rem] overflow-y-auto rounded-md border border-amber-200/15 bg-black/35 p-2">
+              <div className="space-y-1">
+                {cornucopiaClaimables.map((resourceId) => {
+                  const isSelected = resourceId === selectedResource;
 
-                return (
+                  return (
+                    <button
+                      className={`flex w-full items-center gap-3 rounded px-3 py-2 text-left transition ${
+                        isSelected
+                          ? "border border-amber-200/55 bg-amber-500/18 text-amber-50 shadow-[0_0_18px_rgba(240,194,106,0.12)]"
+                          : "border border-transparent text-muted-foreground hover:border-amber-200/20 hover:bg-amber-500/8 hover:text-amber-50"
+                      }`}
+                      key={resourceId}
+                      onClick={() => setSelectedCornucopiaResource(resourceId)}
+                      type="button"
+                    >
+                      <img alt="" aria-hidden="true" className="h-6 w-6 shrink-0" src={getResourceAssetPath(resourceId)} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-ik-menu text-xs uppercase tracking-[0.12em]">
+                          {formatResourceLabel(resourceId)}
+                        </span>
+                        <span className="block font-ik-body text-xs text-muted-foreground">
+                          Owned {getQty(state.resources, resourceId)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-md border border-amber-200/18 bg-black/45 p-4">
+              {selectedResource ? (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="h-10 w-10"
+                      src={getResourceAssetPath(selectedResource)}
+                    />
+                    <div>
+                      <div className="font-ik-title text-base text-amber-50">{formatResourceLabel(selectedResource)}</div>
+                      <div className="font-ik-body text-xs text-muted-foreground">Owned {selectedResourceQuantity}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="font-ik-menu text-xs uppercase tracking-[0.14em] text-amber-100/70">Quantity</div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[1, 10, 100, 1000].map((amount) => (
+                        <button
+                          className="rounded border border-amber-200/20 bg-amber-500/10 px-2 py-1 font-ik-menu text-xs text-amber-50 transition hover:border-amber-200/45 hover:bg-amber-500/18"
+                          key={amount}
+                          onClick={() => setCornucopiaClaimAmount(amount)}
+                          type="button"
+                        >
+                          +{amount}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      className="w-full rounded-md border border-amber-200/20 bg-black/40 px-3 py-2 font-ik-menu text-sm text-amber-50 outline-none transition focus:border-amber-200/55"
+                      max={CORNUCOPIA_MAX_CLAIM_AMOUNT}
+                      min={1}
+                      onChange={(event) => {
+                        setCornucopiaClaimAmount(clampCornucopiaAmount(Number(event.target.value)));
+                      }}
+                      type="number"
+                      value={cornucopiaClaimAmount}
+                    />
+                  </div>
+
                   <button
-                    className={`rounded-md border px-3 py-2 text-left font-ik-menu text-xs uppercase tracking-[0.12em] transition ${
-                      isSelected
-                        ? "border-amber-200 bg-amber-500/18 text-amber-50 shadow-[0_0_18px_rgba(240,194,106,0.14)]"
-                        : "border-amber-200/15 bg-black/35 text-muted-foreground hover:border-amber-200/35 hover:text-amber-50"
-                    }`}
-                    key={resourceId}
-                    onClick={() => setSelectedCornucopiaResource(resourceId)}
+                    className="w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={isClaimingCornucopia}
+                    onClick={handleClaimCornucopia}
                     type="button"
                   >
-                    {formatResourceLabel(resourceId)}
+                    Claim Resources
                   </button>
-                );
-              })
-            ) : (
-              <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-body text-sm text-muted-foreground">
-                No resource available
-              </div>
-            )}
+                </div>
+              ) : (
+                <div className="font-ik-body text-sm text-muted-foreground">No resource selected</div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
@@ -1171,14 +1245,6 @@ export function KingdomHubStage() {
               type="button"
             >
               Close
-            </button>
-            <button
-              className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={isClaimingCornucopia}
-              onClick={handleClaimCornucopia}
-              type="button"
-            >
-              Claim resources
             </button>
           </DialogFooter>
         </DialogContent>

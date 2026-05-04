@@ -12,6 +12,15 @@ export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export {
+  claimCornucopia,
+  CORNUCOPIA_MAX_CLAIM_AMOUNT,
+  getCornucopiaClaimables,
+} from "./building/cornucopiaActions.js";
+export type {
+  ClaimCornucopiaError,
+  ClaimCornucopiaResult,
+} from "./building/cornucopiaActions.js";
+export {
   getBuildCost,
 } from "./building/buildCosts.js";
 export {
@@ -49,6 +58,7 @@ export {
   normalizeEquipmentItem,
 } from "./items/index.js";
 export {
+  ALL_RESOURCES,
   getQty,
   hasAtLeast,
 } from "./resources/types.js";
