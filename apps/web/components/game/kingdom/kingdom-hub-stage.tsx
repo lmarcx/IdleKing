@@ -19,6 +19,7 @@ import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { CharacterView } from "@/components/game/character/character-view";
 import { InventoryView } from "@/components/game/inventory/inventory-view";
 import { SkillsView } from "@/components/game/skills/skills-view";
+import { WorldsModeShell } from "@/components/game/worlds/worlds-mode-shell";
 import {
   FORGE_RECIPES,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,
@@ -67,6 +68,7 @@ const MINE_POSITION = { x: MAP_WIDTH / 2 - 350, y: MAP_HEIGHT / 2 - 160 };
 const KITCHEN_POSITION = { x: MAP_WIDTH / 2 - 70, y: MAP_HEIGHT / 2 + 270 };
 const FORGE_POSITION = { x: MAP_WIDTH / 2 + 350, y: MAP_HEIGHT / 2 + 220 };
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 245, y: MAP_HEIGHT / 2 + 15 };
+const PORTAL_POSITION = { x: MAP_WIDTH / 2 - 455, y: MAP_HEIGHT / 2 + 375 };
 const HUB_DISPLAY_HEIGHTS = {
   cornucopia: 116,
   farm: 190,
@@ -107,7 +109,7 @@ type BuildingModalState = {
 } | null;
 
 type PlaceholderBuildingId = "forum" | "kitchen" | "mine";
-type HubOverlayId = "character" | "inventory" | "skills";
+type HubOverlayId = "character" | "inventory" | "skills" | "worlds";
 
 type PlaceholderBuildingStatus = {
   active: boolean;
@@ -143,7 +145,9 @@ const HUB_OVERLAYS: Record<HubOverlayId, { label: string; title: string }> = {
   character: { label: "Character", title: "Character" },
   inventory: { label: "Inventory", title: "Inventory" },
   skills: { label: "Skills", title: "Skills" },
+  worlds: { label: "World Gate", title: "World Gate" },
 };
+const HUD_OVERLAY_IDS: HubOverlayId[] = ["character", "inventory", "skills"];
 
 type PoiVisual = {
   container: PIXI.Container;
@@ -389,6 +393,7 @@ function drawWorld(container: PIXI.Container, textures: HubTextures) {
     createTileAccent(textures.circleTile, FORUM_POSITION.x, FORUM_POSITION.y + 28, 0.92, 1.35),
     createTileAccent(textures.circleTile, TEMPLE_POSITION.x, TEMPLE_POSITION.y + 34, 0.82, 1.18),
     createTileAccent(textures.circleTile, CORNUCOPIA_POSITION.x, CORNUCOPIA_POSITION.y + 16, 0.9, 1.08),
+    createTileAccent(textures.circleTile, PORTAL_POSITION.x, PORTAL_POSITION.y + 30, 0.78, 1.1),
     createTileAccent(textures.runeTile, 360, 274, 0.72),
     createTileAccent(textures.runeTile, 604, 658, 0.64),
     createTileAccent(textures.runeTile, 1148, 816, 0.66),
@@ -541,6 +546,50 @@ function createBuildingSprite(options: HubSpriteOptions & { glowTexture?: PIXI.T
   return createHubSpriteVisual(options);
 }
 
+function createPortalVisual(textures: HubTextures): PoiVisual {
+  const container = new PIXI.Container();
+  const glow = createGlowSprite(textures.softGlow, 190, 0x83f7ff, 0.24);
+  const shadow = createHubShadow(86, 24, 0.46);
+  const portal = new PIXI.Container();
+  const base = new PIXI.Graphics();
+  const outerRing = new PIXI.Graphics();
+  const innerRing = new PIXI.Graphics();
+  const core = new PIXI.Graphics();
+  const hint = createInteractionHint(-88);
+  let isNear = false;
+
+  glow.blendMode = "add";
+  glow.anchor.set(0.5, 0.58);
+  shadow.position.set(0, 24);
+  base.ellipse(0, 24, 72, 31).fill({ color: 0x06151f, alpha: 0.9 });
+  base.ellipse(0, 24, 72, 31).stroke({ color: 0xf0c26a, alpha: 0.5, width: 3 });
+  outerRing.ellipse(0, 0, 54, 78).stroke({ color: 0x83f7ff, alpha: 0.76, width: 5 });
+  innerRing.ellipse(0, 0, 34, 55).stroke({ color: 0xb18cff, alpha: 0.72, width: 3 });
+  core.ellipse(0, 0, 24, 42).fill({ color: 0x15427d, alpha: 0.38 });
+  core.ellipse(0, 0, 18, 34).fill({ color: 0x83f7ff, alpha: 0.22 });
+  portal.position.set(0, -22);
+  portal.addChild(core, outerRing, innerRing);
+  container.addChild(glow, shadow, base, portal, hint);
+  container.position.set(PORTAL_POSITION.x, PORTAL_POSITION.y);
+  container.zIndex = PORTAL_POSITION.y;
+
+  return {
+    container,
+    setNear: (near: boolean) => {
+      isNear = near;
+      hint.visible = near;
+    },
+    update: (elapsedSeconds: number) => {
+      const pulse = Math.sin(elapsedSeconds * 2.6) * 0.04;
+      portal.scale.set(isNear ? 1.08 : 1);
+      outerRing.alpha = (isNear ? 0.95 : 0.72) + pulse;
+      innerRing.alpha = (isNear ? 0.88 : 0.64) - pulse;
+      glow.alpha = (isNear ? 0.54 : 0.24) + Math.sin(elapsedSeconds * 2.1) * 0.035;
+      hint.alpha = isNear ? 1 : 0;
+    },
+  };
+}
+
 function formatResourceLabel(resourceId: ResourceId) {
   return resourceId.replaceAll("_", " ");
 }
@@ -611,6 +660,7 @@ export function KingdomHubStage() {
     character: false,
     inventory: false,
     skills: false,
+    worlds: false,
   });
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
@@ -934,6 +984,15 @@ export function KingdomHubStage() {
         y: CORNUCOPIA_POSITION.y,
         radius: 118,
         onInteract: openCornucopia,
+      },
+      {
+        id: "portal",
+        label: "Portail",
+        type: "building",
+        x: PORTAL_POSITION.x,
+        y: PORTAL_POSITION.y,
+        radius: 112,
+        onInteract: () => openHubOverlay("worlds"),
       },
       {
         id: "temple",
@@ -1341,6 +1400,10 @@ export function KingdomHubStage() {
       poiVisuals.set("cornucopia", cornucopiaVisual);
       entityLayer.addChild(cornucopiaVisual.container);
 
+      const portalVisual = createPortalVisual(textures);
+      poiVisuals.set("portal", portalVisual);
+      entityLayer.addChild(portalVisual.container);
+
       const farmSlot = createFarmSlotVisual(textures, farmStateRef.current);
       renderFarmSlotRef.current = farmSlot.render;
       poiVisuals.set(FARM_SLOT.id, farmSlot);
@@ -1467,8 +1530,10 @@ export function KingdomHubStage() {
       </div>
 
       <div className="absolute right-4 top-4 z-10 flex flex-wrap justify-end gap-2">
-        {(Object.entries(HUB_OVERLAYS) as Array<[HubOverlayId, (typeof HUB_OVERLAYS)[HubOverlayId]]>).map(
-          ([overlayId, overlay]) => (
+        {HUD_OVERLAY_IDS.map((overlayId) => {
+          const overlay = HUB_OVERLAYS[overlayId];
+
+          return (
             <button
               className="rounded-md border border-amber-200/25 bg-black/62 px-3 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-amber-50 shadow-[0_0_18px_rgba(0,0,0,0.35)] transition hover:border-amber-100 hover:bg-amber-500/16"
               key={overlayId}
@@ -1477,8 +1542,8 @@ export function KingdomHubStage() {
             >
               {overlay.label}
             </button>
-          ),
-        )}
+          );
+        })}
       </div>
 
       {nearbyInteractableId ? (
@@ -1511,6 +1576,12 @@ export function KingdomHubStage() {
       {activeOverlay === "skills" ? (
         <KingdomOverlay contentClassName="overscroll-contain" onClose={closeHubOverlay} open title={HUB_OVERLAYS.skills.title}>
           <SkillsView />
+        </KingdomOverlay>
+      ) : null}
+
+      {activeOverlay === "worlds" ? (
+        <KingdomOverlay contentClassName="overscroll-contain" onClose={closeHubOverlay} open title={HUB_OVERLAYS.worlds.title}>
+          <WorldsModeShell />
         </KingdomOverlay>
       ) : null}
 
