@@ -16,6 +16,9 @@ import { DEV_MODE } from "@/lib/env";
 import { getResourceAssetPath } from "@/lib/resource-assets";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
+import { CharacterView } from "@/components/game/character/character-view";
+import { InventoryView } from "@/components/game/inventory/inventory-view";
+import { SkillsView } from "@/components/game/skills/skills-view";
 import {
   FORGE_RECIPES,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,
@@ -35,6 +38,7 @@ import {
   type TempleXpTarget,
 } from "@idleking/game-core";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
+import { KingdomOverlay } from "./kingdom-overlay";
 
 const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
@@ -103,6 +107,7 @@ type BuildingModalState = {
 } | null;
 
 type PlaceholderBuildingId = "forum" | "kitchen" | "mine";
+type HubOverlayId = "character" | "inventory" | "skills";
 
 type PlaceholderBuildingStatus = {
   active: boolean;
@@ -133,6 +138,11 @@ const PLACEHOLDER_BUILDINGS: Record<
     label: "Mine",
     position: MINE_POSITION,
   },
+};
+const HUB_OVERLAYS: Record<HubOverlayId, { label: string; title: string }> = {
+  character: { label: "Character", title: "Character" },
+  inventory: { label: "Inventory", title: "Inventory" },
+  skills: { label: "Skills", title: "Skills" },
 };
 
 type PoiVisual = {
@@ -596,6 +606,12 @@ export function KingdomHubStage() {
   const [isTempleOpen, setIsTempleOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
   const [placeholderBuildingId, setPlaceholderBuildingId] = useState<PlaceholderBuildingId | null>(null);
+  const [activeOverlay, setActiveOverlay] = useState<HubOverlayId | null>(null);
+  const [mountedOverlays, setMountedOverlays] = useState<Record<HubOverlayId, boolean>>({
+    character: false,
+    inventory: false,
+    skills: false,
+  });
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
@@ -620,12 +636,17 @@ export function KingdomHubStage() {
 
   useEffect(() => {
     isModalOpenRef.current =
-      isCornucopiaOpen || farmModal !== null || isTempleOpen || isForgeOpen || placeholderBuildingId !== null;
+      isCornucopiaOpen ||
+      farmModal !== null ||
+      isTempleOpen ||
+      isForgeOpen ||
+      placeholderBuildingId !== null ||
+      activeOverlay !== null;
     if (isCornucopiaOpen) {
       isClaimingCornucopiaRef.current = false;
       setIsClaimingCornucopia(false);
     }
-  }, [farmModal, isCornucopiaOpen, isForgeOpen, isTempleOpen, placeholderBuildingId]);
+  }, [activeOverlay, farmModal, isCornucopiaOpen, isForgeOpen, isTempleOpen, placeholderBuildingId]);
 
   useEffect(() => {
     farmStateRef.current = farmState;
@@ -677,6 +698,21 @@ export function KingdomHubStage() {
   const closePlaceholderBuildingModal = useCallback(() => {
     isModalOpenRef.current = false;
     setPlaceholderBuildingId(null);
+  }, []);
+
+  const closeHubOverlay = useCallback(() => {
+    isModalOpenRef.current = false;
+    setActiveOverlay(null);
+  }, []);
+
+  const openHubOverlay = useCallback((overlayId: HubOverlayId) => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    isModalOpenRef.current = true;
+    setMountedOverlays((current) => ({
+      ...current,
+      [overlayId]: true,
+    }));
+    setActiveOverlay(overlayId);
   }, []);
 
   const openPlaceholderBuilding = useCallback((buildingId: PlaceholderBuildingId) => {
@@ -1430,6 +1466,21 @@ export function KingdomHubStage() {
         Move: WASD, ZQSD or arrows.
       </div>
 
+      <div className="absolute right-4 top-4 z-10 flex flex-wrap justify-end gap-2">
+        {(Object.entries(HUB_OVERLAYS) as Array<[HubOverlayId, (typeof HUB_OVERLAYS)[HubOverlayId]]>).map(
+          ([overlayId, overlay]) => (
+            <button
+              className="rounded-md border border-amber-200/25 bg-black/62 px-3 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-amber-50 shadow-[0_0_18px_rgba(0,0,0,0.35)] transition hover:border-amber-100 hover:bg-amber-500/16"
+              key={overlayId}
+              onClick={() => openHubOverlay(overlayId)}
+              type="button"
+            >
+              {overlay.label}
+            </button>
+          ),
+        )}
+      </div>
+
       {nearbyInteractableId ? (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-20 rounded-md border border-amber-200/45 bg-black/70 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-50 shadow-[0_0_24px_rgba(240,194,106,0.16)]">
           Press F
@@ -1438,6 +1489,29 @@ export function KingdomHubStage() {
 
       {activeDialogue ? (
         <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />
+      ) : null}
+
+      {mountedOverlays.character ? (
+        <KingdomOverlay
+          keepMounted
+          onClose={closeHubOverlay}
+          open={activeOverlay === "character"}
+          title={HUB_OVERLAYS.character.title}
+        >
+          <CharacterView />
+        </KingdomOverlay>
+      ) : null}
+
+      {activeOverlay === "inventory" ? (
+        <KingdomOverlay onClose={closeHubOverlay} open title={HUB_OVERLAYS.inventory.title}>
+          <InventoryView />
+        </KingdomOverlay>
+      ) : null}
+
+      {activeOverlay === "skills" ? (
+        <KingdomOverlay contentClassName="overscroll-contain" onClose={closeHubOverlay} open title={HUB_OVERLAYS.skills.title}>
+          <SkillsView />
+        </KingdomOverlay>
       ) : null}
 
       <Dialog
