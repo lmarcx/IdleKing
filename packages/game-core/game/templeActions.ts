@@ -1,7 +1,8 @@
 import type { GameState } from "./state.js";
-import { applyPlayerXp } from "../progression/xp.js";
+import type { PlayerXpResult } from "../progression/xp.js";
 import { addWorldWxp } from "../progression/worldXp.js";
 import { getQty, spend } from "../resources/types.js";
+import { applyPlayerXpGain } from "./playerXpActions.js";
 
 export type TempleXpTarget = "playerXp" | "worldWxp";
 
@@ -11,7 +12,7 @@ export type TempleGlobalXpConversionResult =
       next: GameState;
       amount: number;
       target: TempleXpTarget;
-      player?: ReturnType<typeof applyPlayerXp>;
+      player?: PlayerXpResult;
     }
   | {
       ok: false;
@@ -46,22 +47,20 @@ export function convertTempleGlobalXp(
   const nextResources = spend(state.resources, { XP_GLOBAL: spendAmount });
 
   if (target === "playerXp") {
-    const player = applyPlayerXp(state.progression.playerLevel, state.progression.playerXp, spendAmount);
+    const playerResult = applyPlayerXpGain(
+      {
+        ...state,
+        resources: nextResources,
+      },
+      spendAmount,
+    );
 
     return {
       ok: true,
       amount: spendAmount,
       target,
-      player,
-      next: {
-        ...state,
-        resources: nextResources,
-        progression: {
-          ...state.progression,
-          playerLevel: player.newLevel,
-          playerXp: player.newXp,
-        },
-      },
+      player: playerResult.player,
+      next: playerResult.next,
     };
   }
 

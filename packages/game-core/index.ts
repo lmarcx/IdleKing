@@ -57,6 +57,14 @@ export type {
   TempleXpTarget,
 } from "./game/templeActions.js";
 export {
+  applyGameXpGain,
+  applyPlayerXpGain,
+} from "./game/playerXpActions.js";
+export type {
+  AppliedGameXpGain,
+  AppliedPlayerXpGain,
+} from "./game/playerXpActions.js";
+export {
   isEquipmentItem,
   normalizeEquipmentItem,
 } from "./items/index.js";

@@ -1,7 +1,7 @@
 import type { GameState } from "./state.js";
 import { getQty } from "../resources/types.js";
-import { applyPlayerXp } from "../progression/xp.js";
 import { convertXpToWxp, addWorldWxp } from "../progression/worldXp.js";
+import { applyPlayerXpGain } from "./playerXpActions.js";
 
 export type GlobalXpAllocation = {
   toPlayerXp: number;
@@ -42,10 +42,11 @@ export function allocateGlobalXp(
     XP_GLOBAL: available - spend,
   };
 
-  // Apply Player XP progression.
-  const pres = applyPlayerXp(
-    state.progression.playerLevel,
-    state.progression.playerXp,
+  const playerState = applyPlayerXpGain(
+    {
+      ...state,
+      resources: nextResources,
+    },
     givePlayer
   );
 
@@ -58,11 +59,9 @@ export function allocateGlobalXp(
   );
 
   return {
-    ...state,
-    resources: nextResources,
+    ...playerState.next,
     progression: {
-      playerLevel: pres.newLevel,
-      playerXp: pres.newXp,
+      ...playerState.next.progression,
       worldLevel: wres.newWorldLevel,
       worldWxp: wres.newWorldWxp,
     },

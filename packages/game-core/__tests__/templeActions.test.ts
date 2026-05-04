@@ -59,6 +59,18 @@ test("Temple levels up player when threshold is reached", () => {
   assert.equal(result.player?.leveledUp, true);
 });
 
+test("Temple conversion to playerXp grants skill points for gained player levels", () => {
+  const threshold = xpNext(1);
+  const state = builtTempleState({ XP_GLOBAL: threshold });
+
+  const result = convertTempleGlobalXp(state, "playerXp", threshold);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.next.progression.playerLevel, 2);
+  assert.equal(result.next.skills.skillPoints, 1);
+});
+
 test("Temple converts XP_GLOBAL to worldWxp without automatic rank up", () => {
   const base = builtTempleState({ XP_GLOBAL: 10 });
   const state = {
@@ -76,6 +88,7 @@ test("Temple converts XP_GLOBAL to worldWxp without automatic rank up", () => {
   if (!result.ok) return;
   assert.equal(result.next.progression.worldLevel, 1);
   assert.equal(result.next.progression.worldWxp, 149);
+  assert.equal(result.next.skills.skillPoints, 0);
   assert.equal(getQty(result.next.resources, "XP_GLOBAL"), 0);
 });
 

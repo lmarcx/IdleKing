@@ -1,7 +1,7 @@
 import type { GameState } from "./state.js";
 import { completeChapter } from "../story/engine.js";
-import { applyXpGain } from "../progression/applyXpGain.js";
 import { applyUnlocks } from "./unlocks.js";
+import { applyGameXpGain } from "./playerXpActions.js";
 
 export type CompleteChapterActionResult = {
   next: GameState;
@@ -18,12 +18,11 @@ export function completeChapterAction(
   const storyRes = completeChapter(state.story, chapterId as any);
 
   // apply xp + wxp
-  const progRes = applyXpGain(state.progression, storyRes.gained);
+  const progRes = applyGameXpGain(state, storyRes.gained);
 
   // build next state
   let next: GameState = {
-    ...state,
-    progression: progRes.next,
+    ...progRes.next,
     story: storyRes.nextStory,
   };
 
