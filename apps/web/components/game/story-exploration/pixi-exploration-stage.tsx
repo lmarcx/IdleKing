@@ -1593,7 +1593,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       canvasElement?.removeEventListener("pointermove", handlePointerMove);
       resetHeldMouseButtons();
       pressedKeys.clear();
-      app.ticker.remove(tick);
+      app.ticker?.remove?.(tick);
       cleanupAttacks();
       cleanupLootPopups();
       cleanupSparkleBursts();
