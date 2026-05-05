@@ -47,6 +47,9 @@ const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
 const ENEMY_ATTACK_ANIM_MS = 200;
 const ENEMY_DEATH_FADE_MS = 260;
+const PLAYER_SHAKE_DURATION_MS = 160;
+const PLAYER_SHAKE_INTENSITY = 5;
+const HIT_PARTICLE_DURATION_MS = 320;
 const LOOT_POPUP_DURATION_MS = 900;
 const SPARKLE_BURST_DURATION_MS = 520;
 const POI_HIGHLIGHT_RADIUS = 96;
@@ -117,6 +120,13 @@ type ActiveSparkleBurst = {
   durationMs: number;
   particles: ActiveSparkleParticle[];
   position: Vector2;
+};
+
+type ActiveHitParticle = {
+  ageMs: number;
+  durationMs: number;
+  graphic: PIXI.Graphics;
+  velocity: Vector2;
 };
 
 type ActiveMouseAction = "melee" | "ranged" | null;
@@ -634,6 +644,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     const projectiles: ActiveProjectile[] = [];
     const lootPopups: ActiveLootPopup[] = [];
     const sparkleBursts: ActiveSparkleBurst[] = [];
+    const hitParticles: ActiveHitParticle[] = [];
     const enemies: ActiveEnemy[] = [];
     const poiVisuals: PoiVisual[] = [];
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
@@ -647,6 +658,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     let hudElapsed = 0;
     let lastUiHeight = 0;
     let lastUiWidth = 0;
+    let playerShakeMs = 0;
     let skillsHudElapsed = 0;
     let hasPointerWorldPosition = false;
     let isPlayerDefeated = false;
@@ -1011,6 +1023,30 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       }
     }
 
+    function createHitParticles(position: Vector2) {
+      const particleCount = 4 + Math.floor(Math.random() * 3);
+      for (let index = 0; index < particleCount; index += 1) {
+        const graphic = new PIXI.Graphics();
+        const size = 2 + Math.random() * 4;
+        const color = index % 2 === 0 ? 0xfff1b8 : 0xff7b5d;
+        graphic.rect(-size / 2, -size / 2, size, size).fill({ color, alpha: 0.9 });
+        graphic.position.set(position.x, position.y - 12);
+        fxLayer.addChild(graphic);
+
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 40 + Math.random() * 80;
+        hitParticles.push({
+          ageMs: 0,
+          durationMs: HIT_PARTICLE_DURATION_MS,
+          graphic,
+          velocity: {
+            x: Math.cos(angle) * speed,
+            y: Math.sin(angle) * speed,
+          },
+        });
+      }
+    }
+
     function spawnPoiDiscoveryFeedback(visual: PoiVisual) {
       lootPopups.push(
         createFloatingText({
@@ -1074,6 +1110,25 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       }
     }
 
+    function updateHitParticles(deltaMs: number) {
+      const deltaSeconds = deltaMs / 1000;
+      for (let index = hitParticles.length - 1; index >= 0; index -= 1) {
+        const particle = hitParticles[index];
+        particle.ageMs += deltaMs;
+
+        const progress = clamp(particle.ageMs / particle.durationMs, 0, 1);
+        particle.graphic.position.x += particle.velocity.x * deltaSeconds;
+        particle.graphic.position.y += particle.velocity.y * deltaSeconds;
+        particle.graphic.alpha = 1 - progress;
+        particle.graphic.scale.set(1 - progress * 0.5);
+
+        if (particle.ageMs < particle.durationMs) continue;
+        particle.graphic.removeFromParent();
+        particle.graphic.destroy();
+        hitParticles.splice(index, 1);
+      }
+    }
+
     function renderPlayer(nowMs: number) {
       player.position.set(playerPosition.x, playerPosition.y);
       player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
@@ -1125,6 +1180,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     function damageActiveEnemy(enemy: ActiveEnemy, amount: number) {
       const died = damageEnemy(enemy, amount);
       enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
+      createHitParticles(enemy.position);
       if (died) {
         enemy.deathFadeMs = 0;
         claimEnemyLoot(enemy);
@@ -1286,7 +1342,12 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       enemy.attackLungeX = (dx / dist) * 18;
       enemy.attackLungeY = (dy / dist) * 18;
 
-      playerHp = damagePlayer(playerHp, enemy.contactDamage);
+      const nextHp = damagePlayer(playerHp, enemy.contactDamage);
+      if (nextHp < playerHp) {
+        playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+      }
+      playerHp = nextHp;
+
       if (playerHp <= 0) {
         isPlayerDefeated = true;
         pressedKeys.clear();
@@ -1440,6 +1501,14 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       sparkleBursts.length = 0;
     }
 
+    function cleanupHitParticles() {
+      for (const particle of hitParticles) {
+        particle.graphic.removeFromParent();
+        particle.graphic.destroy();
+      }
+      hitParticles.length = 0;
+    }
+
     function cleanupEnemies() {
       for (const enemy of enemies) {
         enemy.container.removeFromParent();
@@ -1485,10 +1554,19 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       updatePoiVisuals(nowMs);
       updateLootPopups(ticker.deltaMS);
       updateSparkleBursts(ticker.deltaMS);
+      updateHitParticles(ticker.deltaMS);
       renderEnemies();
       renderAttacks();
       renderPlayer(nowMs);
       renderSkillEffects(app, player, activeSkillEffects);
+
+      playerShakeMs = Math.max(0, playerShakeMs - ticker.deltaMS);
+      let shakeX = 0;
+      let shakeY = 0;
+      if (playerShakeMs > 0) {
+        shakeX = (Math.random() * 2 - 1) * PLAYER_SHAKE_INTENSITY;
+        shakeY = (Math.random() * 2 - 1) * PLAYER_SHAKE_INTENSITY;
+      }
 
       const screenWidth = app.renderer.width / app.renderer.resolution;
       const screenHeight = app.renderer.height / app.renderer.resolution;
@@ -1500,7 +1578,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
 
       const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, mapWidth - screenWidth));
       const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, mapHeight - screenHeight));
-      world.position.set(-cameraX, -cameraY);
+      world.position.set(-cameraX + shakeX, -cameraY + shakeY);
 
       hudElapsed += ticker.deltaMS;
       if (hudElapsed >= 90) {
@@ -1627,6 +1705,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       cleanupAttacks();
       cleanupLootPopups();
       cleanupSparkleBursts();
+      cleanupHitParticles();
       cleanupSkillEffects(player);
       cleanupEnemies();
       destroyPixiApp();
