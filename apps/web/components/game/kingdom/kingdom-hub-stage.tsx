@@ -409,15 +409,6 @@ function drawWorld(container: PIXI.Container, textures: HubTextures) {
   container.addChild(fallback, floor, ...tileVariations, haze);
 }
 
-function renderVignette(vignette: PIXI.Graphics, width: number, height: number) {
-  vignette.clear();
-  vignette.rect(0, 0, width, height).fill({ color: 0x02030a, alpha: 0.12 });
-  vignette.rect(0, 0, width, height * 0.18).fill({ color: 0x000000, alpha: 0.34 });
-  vignette.rect(0, height * 0.78, width, height * 0.22).fill({ color: 0x000000, alpha: 0.42 });
-  vignette.rect(0, 0, width * 0.14, height).fill({ color: 0x000000, alpha: 0.3 });
-  vignette.rect(width * 0.86, 0, width * 0.14, height).fill({ color: 0x000000, alpha: 0.3 });
-}
-
 function drawPlayer() {
   const container = new PIXI.Container();
   const shadow = new PIXI.Graphics();
@@ -976,7 +967,6 @@ export function KingdomHubStage() {
     const particles: ParticleFx[] = [];
     const solidColliders: HubCollider[] = [];
     let sparkleTexture: PIXI.Texture | null = null;
-    const vignette = new PIXI.Graphics();
     const interactables: Interactable[] = [
       {
         id: "forum",
@@ -1458,8 +1448,6 @@ export function KingdomHubStage() {
       entityLayer.addChild(villagerVisual.container);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
-      uiLayer.addChild(vignette);
-      renderVignette(vignette, app.screen.width, app.screen.height);
       spawnWorldFxRef.current = spawnWorldFx;
       updateNearbyInteractable();
 
@@ -1506,7 +1494,6 @@ export function KingdomHubStage() {
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;
-        renderVignette(vignette, screenWidth, screenHeight);
         const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, MAP_WIDTH - screenWidth));
         const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, MAP_HEIGHT - screenHeight));
         world.position.set(-cameraX, -cameraY);
