@@ -45,6 +45,7 @@ const PROJECTILE_MAX_RANGE = 620;
 const PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const ENEMY_HIT_FLASH_MS = 140;
+const ENEMY_ATTACK_ANIM_MS = 200;
 const ENEMY_DEATH_FADE_MS = 260;
 const LOOT_POPUP_DURATION_MS = 900;
 const SPARKLE_BURST_DURATION_MS = 520;
@@ -121,6 +122,9 @@ type ActiveSparkleBurst = {
 type ActiveMouseAction = "melee" | "ranged" | null;
 
 type ActiveEnemy = StoryLevelEnemy & {
+  attackAnimMs: number;
+  attackLungeX: number;
+  attackLungeY: number;
   baseScale: number;
   body: PIXI.Sprite;
   container: PIXI.Container;
@@ -466,6 +470,9 @@ function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): Act
 
   return {
     ...enemy,
+    attackAnimMs: 0,
+    attackLungeX: 0,
+    attackLungeY: 0,
     baseScale,
     body,
     container,
@@ -496,15 +503,28 @@ function createDebugEnemy(id: string, position: Vector2): StoryLevelEnemy {
 }
 
 function renderEnemy(enemy: ActiveEnemy) {
-  enemy.container.position.set(enemy.position.x, enemy.position.y);
+  let lungeX = 0;
+  let lungeY = 0;
+  const isAttacking = enemy.attackAnimMs > 0;
+
+  if (isAttacking) {
+    const animProgress = enemy.attackAnimMs / ENEMY_ATTACK_ANIM_MS;
+    const lungePower = Math.sin(animProgress * Math.PI);
+    lungeX = enemy.attackLungeX * lungePower;
+    lungeY = enemy.attackLungeY * lungePower;
+  }
+
+  enemy.container.position.set(enemy.position.x + lungeX, enemy.position.y + lungeY);
   enemy.container.zIndex = enemy.position.y;
   enemy.container.alpha = enemy.state === "dead" ? clamp(1 - enemy.deathFadeMs / ENEMY_DEATH_FADE_MS, 0, 1) : 1;
 
   const isChasing = enemy.state === "chasing";
   const hitProgress = clamp(enemy.hitFlashMs / ENEMY_HIT_FLASH_MS, 0, 1);
-  const scale = enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.16 : 1 + (isChasing ? 0.03 : 0);
+  const scale =
+    enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.16 : 1 + (isAttacking ? 0.14 : isChasing ? 0.03 : 0);
   enemy.body.scale.set(enemy.baseScale * scale);
-  enemy.body.tint = enemy.hitFlashMs > 0 ? 0xffd0d0 : isChasing ? 0xffb0a0 : 0xffffff;
+  enemy.body.tint =
+    enemy.hitFlashMs > 0 ? 0xffd0d0 : isAttacking ? 0xff7050 : isChasing ? 0xffb0a0 : 0xffffff;
   enemy.shadow.alpha = enemy.state === "dead" ? 0.16 : 0.45;
 
   const barWidth = enemy.radius * 2.3;
@@ -1257,6 +1277,15 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       if (now - enemy.lastContactDamageAt < enemy.attackCooldownMs) return;
 
       enemy.lastContactDamageAt = now;
+
+      // Trigger attack animation
+      enemy.attackAnimMs = ENEMY_ATTACK_ANIM_MS;
+      const dx = playerPosition.x - enemy.position.x;
+      const dy = playerPosition.y - enemy.position.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      enemy.attackLungeX = (dx / dist) * 18;
+      enemy.attackLungeY = (dy / dist) * 18;
+
       playerHp = damagePlayer(playerHp, enemy.contactDamage);
       if (playerHp <= 0) {
         isPlayerDefeated = true;
@@ -1280,6 +1309,7 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         }
 
         enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
+        enemy.attackAnimMs = Math.max(0, enemy.attackAnimMs - deltaMs);
         updateEnemyMovement(enemy, playerPosition, deltaSeconds);
 
         if (isCircleIntersectingCircle(enemy.position, enemy.radius, playerPosition, PLAYER_SIZE / 2)) {
