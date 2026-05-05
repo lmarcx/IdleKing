@@ -1623,25 +1623,36 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
         />
       </div>
       <div className="pointer-events-none absolute bottom-20 right-4 z-10 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
-        <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-red-200">Combat prototype</p>
-        <div className="mt-2 grid gap-1">
-          <span>
-            HP joueur {combatHud.playerHp}/{PLAYER_MAX_HP}
-          </span>
-          <span>Ennemis restants {combatHud.enemiesRemaining}</span>
+        <div className="flex items-center gap-4">
+          <div className="relative h-20 w-20 overflow-hidden rounded-full border-2 border-red-950 bg-zinc-900 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
+            <div
+              className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-red-900 to-red-600 transition-all duration-500 ease-out"
+              style={{ height: `${Math.max(0, Math.min(1, combatHud.playerHp / PLAYER_MAX_HP)) * 100}%` }}
+            />
+            <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/10 to-white/20" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center font-ik-menu text-[0.65rem] font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+              <span>{combatHud.playerHp}</span>
+              <div className="my-0.5 h-[1px] w-8 bg-white/40" />
+              <span className="opacity-70">{PLAYER_MAX_HP}</span>
+            </div>
+          </div>
+          <div className="grid gap-1">
+            <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-red-200">Combat prototype</p>
+            <span className="text-xs text-amber-50">Ennemis restants {combatHud.enemiesRemaining}</span>
+          </div>
         </div>
       </div>
       {combatHud.isDefeated ? (
         <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/68 px-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-lg border border-red-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
             <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-red-200">Defaite</p>
-            <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Vous etes tombe</h2>
-            <p className="mt-3 font-ik-body text-sm text-muted-foreground">Le prototype de combat vous a mis hors d'etat.</p>
+            <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Game Over</h2>
+            <p className="mt-3 font-ik-body text-sm text-muted-foreground">Vous vous êtes fait arrachés...</p>
             <a
               className="mt-5 inline-flex w-full items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
-              href="/game/worlds"
+              href="/game/kingdom"
             >
-              Retour a la Story
+              Retour au Royaume
             </a>
           </div>
         </div>
