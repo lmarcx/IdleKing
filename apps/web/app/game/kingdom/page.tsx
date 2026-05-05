@@ -37,11 +37,7 @@ function LegacyKingdomModeChoice() {
 
 export default function KingdomPage() {
   return (
-    <main className="space-y-4 p-4">
-      <div>
-        <h1 className="font-ik-title text-2xl font-semibold text-foreground">Kingdom</h1>
-      </div>
-
+    <main className="mx-auto w-full max-w-[1800px] p-2 sm:p-3">
       <KingdomHubStage />
 
       {DEV_MODE ? <LegacyKingdomModeChoice /> : null}

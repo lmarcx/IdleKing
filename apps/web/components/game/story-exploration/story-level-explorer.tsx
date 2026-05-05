@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { GameHud } from "@/components/game/hud/game-hud";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction, type StoryEventDef } from "@idleking/game-core";
 import type { ResourceStock } from "@idleking/game-core/resources/types.js";
@@ -112,6 +114,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   const router = useRouter();
   const dispatch = useGameStore((s) => s.dispatch);
   const hasCompletedLevel = useGameStore((s) => s.state.story.completedLevels.has(level.id));
+  const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const [playerPosition, setPlayerPosition] = useState({
     x: MAP_WIDTH / 2,
     y: MAP_HEIGHT / 2,
@@ -180,12 +183,16 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
+        inputBlocked={isGameHudOverlayOpen || completion !== null}
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
         onPlayerMove={setPlayerPosition}
         pointsOfInterest={pointsOfInterest}
       />
+      <div className="pointer-events-none absolute left-3 right-3 top-3 z-20">
+        <GameHud />
+      </div>
       <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
       <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
         Deplacement : WASD, ZQSD ou fleches directionnelles.

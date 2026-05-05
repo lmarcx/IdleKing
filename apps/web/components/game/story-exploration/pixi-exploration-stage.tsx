@@ -28,6 +28,7 @@ import {
 } from "./story-level-combat";
 
 type PixiExplorationStageProps = {
+  inputBlocked?: boolean;
   levelId: string;
   mapHeight: number;
   mapWidth: number;
@@ -571,8 +572,16 @@ function getLootPopupLabel(resourceId: ResourceId): string {
   }
 }
 
-export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMove, pointsOfInterest }: PixiExplorationStageProps) {
+export function PixiExplorationStage({
+  inputBlocked = false,
+  levelId,
+  mapHeight,
+  mapWidth,
+  onPlayerMove,
+  pointsOfInterest,
+}: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const inputBlockedRef = useRef(inputBlocked);
   const onPlayerMoveRef = useRef(onPlayerMove);
   const playerSkills = useGameStore((s) => s.state.skills);
   const combatLoadout = useMemo(
@@ -604,6 +613,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
   useEffect(() => {
     onPlayerMoveRef.current = onPlayerMove;
   }, [onPlayerMove]);
+
+  useEffect(() => {
+    inputBlockedRef.current = inputBlocked;
+  }, [inputBlocked]);
 
   useEffect(() => {
     skillsStateRef.current = skillsState;
@@ -750,6 +763,11 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (inputBlockedRef.current) {
+        pressedKeys.clear();
+        resetHeldMouseButtons();
+        return;
+      }
       if (isPlayerDefeated) return;
       if (IS_SKILL_HIT_DEBUG_ENABLED && event.code === "F8") {
         event.preventDefault();
@@ -881,11 +899,19 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     }
 
     function handlePointerMove(event: PointerEvent) {
+      if (inputBlockedRef.current) {
+        resetHeldMouseButtons();
+        return;
+      }
       updatePointerWorldPosition(event);
       syncHeldMouseButtons(event.buttons);
     }
 
     function handlePointerDown(event: PointerEvent) {
+      if (inputBlockedRef.current) {
+        resetHeldMouseButtons();
+        return;
+      }
       if (isPlayerDefeated) return;
       if ((event.buttons & 3) === 0) return;
       event.preventDefault();
@@ -904,6 +930,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     }
 
     function handlePointerUp(event: PointerEvent) {
+      if (inputBlockedRef.current) {
+        resetHeldMouseButtons();
+        return;
+      }
       if (canvasElement?.hasPointerCapture(event.pointerId)) {
         canvasElement.releasePointerCapture(event.pointerId);
       }
@@ -912,6 +942,10 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
     }
 
     function handlePointerLeave(event: PointerEvent) {
+      if (inputBlockedRef.current) {
+        resetHeldMouseButtons();
+        return;
+      }
       syncHeldMouseButtons(event.buttons);
     }
 
@@ -1522,6 +1556,12 @@ export function PixiExplorationStage({ levelId, mapHeight, mapWidth, onPlayerMov
       const deltaSeconds = ticker.deltaMS / 1000;
       let directionX = 0;
       let directionY = 0;
+
+      if (inputBlockedRef.current) {
+        pressedKeys.clear();
+        resetHeldMouseButtons();
+        return;
+      }
 
       for (const key of pressedKeys) {
         const direction = KEY_DIRECTIONS[key];

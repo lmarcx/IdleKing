@@ -16,10 +16,8 @@ import { DEV_MODE } from "@/lib/env";
 import { getResourceAssetPath } from "@/lib/resource-assets";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
-import { CharacterView } from "@/components/game/character/character-view";
-import { InventoryView } from "@/components/game/inventory/inventory-view";
-import { SkillsView } from "@/components/game/skills/skills-view";
-import { WorldsModeShell } from "@/components/game/worlds/worlds-mode-shell";
+import { GameHud } from "@/components/game/hud/game-hud";
+import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import {
   FORGE_RECIPES,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,
@@ -115,7 +113,7 @@ type BuildingModalState = {
 } | null;
 
 type PlaceholderBuildingId = "forum" | "kitchen" | "mine";
-type HubOverlayId = "character" | "inventory" | "skills" | "worlds" | "boto";
+type HubOverlayId = "boto";
 
 type PlaceholderBuildingStatus = {
   active: boolean;
@@ -149,12 +147,7 @@ const PLACEHOLDER_BUILDINGS: Record<
 };
 const HUB_OVERLAYS: Record<HubOverlayId, { label: string; title: string }> = {
   boto: { label: "Boto", title: "Boto" },
-  character: { label: "Character", title: "Character" },
-  inventory: { label: "Inventory", title: "Inventory" },
-  skills: { label: "Skills", title: "Skills" },
-  worlds: { label: "World Gate", title: "World Gate" },
 };
-const HUD_OVERLAY_IDS: HubOverlayId[] = ["character", "inventory", "skills"];
 
 type PoiVisual = {
   container: PIXI.Container;
@@ -655,6 +648,10 @@ export function KingdomHubStage() {
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
+  const {
+    isOverlayOpen: isGameHudOverlayOpen,
+    openOverlay: openGameHudOverlay,
+  } = useGameHudOverlay();
   const [isCornucopiaOpen, setIsCornucopiaOpen] = useState(false);
   const [activeDialogue, setActiveDialogue] = useState<{ name: string; text: string } | null>(null);
   const [farmState, setFarmState] = useState<BuildingState>("unlocked");
@@ -665,10 +662,6 @@ export function KingdomHubStage() {
   const [activeOverlay, setActiveOverlay] = useState<HubOverlayId | null>(null);
   const [mountedOverlays, setMountedOverlays] = useState<Record<HubOverlayId, boolean>>({
     boto: false,
-    character: false,
-    inventory: false,
-    skills: false,
-    worlds: false,
   });
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
@@ -699,12 +692,13 @@ export function KingdomHubStage() {
       isTempleOpen ||
       isForgeOpen ||
       placeholderBuildingId !== null ||
-      activeOverlay !== null;
+      activeOverlay !== null ||
+      isGameHudOverlayOpen;
     if (isCornucopiaOpen) {
       isClaimingCornucopiaRef.current = false;
       setIsClaimingCornucopia(false);
     }
-  }, [activeOverlay, farmModal, isCornucopiaOpen, isForgeOpen, isTempleOpen, placeholderBuildingId]);
+  }, [activeOverlay, farmModal, isCornucopiaOpen, isForgeOpen, isGameHudOverlayOpen, isTempleOpen, placeholderBuildingId]);
 
   useEffect(() => {
     farmStateRef.current = farmState;
@@ -772,6 +766,15 @@ export function KingdomHubStage() {
     }));
     setActiveOverlay(overlayId);
   }, []);
+
+  const openGlobalHudOverlay = useCallback(
+    (overlayId: GameHudOverlayId) => {
+      if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+      isModalOpenRef.current = true;
+      openGameHudOverlay(overlayId);
+    },
+    [openGameHudOverlay]
+  );
 
   const openPlaceholderBuilding = useCallback((buildingId: PlaceholderBuildingId) => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
@@ -1000,7 +1003,7 @@ export function KingdomHubStage() {
         x: PORTAL_POSITION.x,
         y: PORTAL_POSITION.y,
         radius: 112,
-        onInteract: () => openHubOverlay("worlds"),
+        onInteract: () => openGlobalHudOverlay("worlds"),
       },
       {
         id: "temple",
@@ -1547,6 +1550,7 @@ export function KingdomHubStage() {
     openCornucopia,
     openFarmSlot,
     openForge,
+    openGlobalHudOverlay,
     openHubOverlay,
     openPlaceholderBuilding,
     openTemple,
@@ -1554,28 +1558,17 @@ export function KingdomHubStage() {
   ]);
 
   return (
-    <section className="relative h-[calc(100vh-7rem)] min-h-[34rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
+    <section className="relative h-[calc(100vh-1rem)] min-h-[34rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <div ref={hostRef} className="absolute inset-0" />
 
-      <div className="pointer-events-none absolute left-4 top-4 z-10 rounded-lg border border-amber-200/18 bg-black/60 px-4 py-2 font-ik-body text-xs text-muted-foreground">
-        Move: WASD, ZQSD or arrows.
-      </div>
-
-      <div className="absolute right-4 top-4 z-10 flex flex-wrap justify-end gap-2">
-        {HUD_OVERLAY_IDS.map((overlayId) => {
-          const overlay = HUB_OVERLAYS[overlayId];
-
-          return (
-            <button
-              className="rounded-md border border-amber-200/25 bg-black/62 px-3 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-amber-50 shadow-[0_0_18px_rgba(0,0,0,0.35)] transition hover:border-amber-100 hover:bg-amber-500/16"
-              key={overlayId}
-              onClick={() => openHubOverlay(overlayId)}
-              type="button"
-            >
-              {overlay.label}
-            </button>
-          );
-        })}
+      <div className="pointer-events-none absolute left-3 right-3 top-3 z-20">
+        <GameHud
+          onOpenCharacter={() => openGlobalHudOverlay("character")}
+          onOpenInventory={() => openGlobalHudOverlay("inventory")}
+          onOpenSettings={() => openGlobalHudOverlay("settings")}
+          onOpenSkills={() => openGlobalHudOverlay("skills")}
+          onOpenWorlds={() => openGlobalHudOverlay("worlds")}
+        />
       </div>
 
       {nearbyInteractableId ? (
@@ -1628,35 +1621,6 @@ export function KingdomHubStage() {
               </div>
             </div>
           </div>
-        </KingdomOverlay>
-      ) : null}
-
-      {mountedOverlays.character ? (
-        <KingdomOverlay
-          keepMounted
-          onClose={closeHubOverlay}
-          open={activeOverlay === "character"}
-          title={HUB_OVERLAYS.character.title}
-        >
-          <CharacterView />
-        </KingdomOverlay>
-      ) : null}
-
-      {activeOverlay === "inventory" ? (
-        <KingdomOverlay onClose={closeHubOverlay} open title={HUB_OVERLAYS.inventory.title}>
-          <InventoryView />
-        </KingdomOverlay>
-      ) : null}
-
-      {activeOverlay === "skills" ? (
-        <KingdomOverlay contentClassName="overscroll-contain" onClose={closeHubOverlay} open title={HUB_OVERLAYS.skills.title}>
-          <SkillsView />
-        </KingdomOverlay>
-      ) : null}
-
-      {activeOverlay === "worlds" ? (
-        <KingdomOverlay contentClassName="overscroll-contain" onClose={closeHubOverlay} open title={HUB_OVERLAYS.worlds.title}>
-          <WorldsModeShell />
         </KingdomOverlay>
       ) : null}
 

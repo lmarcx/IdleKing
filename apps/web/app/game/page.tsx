@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function GameIndexPage() {
-  redirect("/game/boto");
+  redirect("/game/kingdom");
 }
