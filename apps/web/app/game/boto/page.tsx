@@ -6,15 +6,15 @@ import { HoloPanel } from "@/components/ui/holo-panel";
 const BOTO_MESSAGES = [
   {
     speaker: "BOTO" as const,
-    text: "Mon lien avec ce monde est instable... mais suffisant pour te guider.",
+    text: "Tu m'as l'ai familier, d'où viens tu ? Et que fais-tu dans ce Royaume en ruines, il n'y a plus rien à faire ici...",
   },
   {
     speaker: "ROI" as const,
-    text: "Alors montre-moi quoi faire maintenant.",
+    text: "Je ne sais pas, j'ai l'impression d'être sorti d'un long sommeil. Quel est cet endroit ? Qui es-tu ?",
   },
   {
     speaker: "BOTO" as const,
-    text: "Commence par stabiliser le Royaume. Construis la Ferme puis la Mine.",
+    text: "Je suis BOTO, un vestige de ce monde dévasté. J'avais pour habitude de servir les anciens rois, mais maintenant je suis seul. Je peux t'aider à explorer ce royaume et à découvrir ses secrets, si tu le souhaites. Bien qu'il ne reste pas grand chose...",
   },
 ];
 

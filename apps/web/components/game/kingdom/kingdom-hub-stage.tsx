@@ -1606,10 +1606,10 @@ export function KingdomHubStage() {
                 &gt; BOTO
               </div>
               <p className="mt-3 font-ik-body text-sm text-emerald-50/90">
-                Connexion établie, Roi. Le Royaume répond à vos ordres.
+                Explorer. Analyser. Récolter... C'était quoi déjà ?
               </p>
               <p className="mt-2 font-ik-body text-sm text-muted-foreground">
-                Les systèmes principaux sont en cours de synchronisation. Je peux déjà vous assister dans la lecture du Royaume.
+                En attente d'instructions complémentaires. Mise en veille dans 5, 4, 3...
               </p>
 
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -1617,13 +1617,13 @@ export function KingdomHubStage() {
                   className="rounded-md border border-emerald-300/25 bg-emerald-500/10 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-emerald-50 transition hover:border-emerald-200 hover:bg-emerald-500/16"
                   type="button"
                 >
-                  Analyser les ressources
+                  Qu'est-ce que c'est que ce truc ?
                 </button>
                 <button
                   className="rounded-md border border-emerald-300/25 bg-emerald-500/10 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.12em] text-emerald-50 transition hover:border-emerald-200 hover:bg-emerald-500/16"
                   type="button"
                 >
-                  Conseils de progression
+                  Hé ! Toi, t'es un robot ! Mais c'est génial !
                 </button>
               </div>
             </div>
