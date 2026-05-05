@@ -32,7 +32,7 @@ type PixiExplorationStageProps = {
   levelId: string;
   mapHeight: number;
   mapWidth: number;
-  onPlayerMove: (position: { x: number; y: number }) => void;
+  onPlayerMoveAction: (position: { x: number; y: number }) => void;
   pointsOfInterest: ExplorationStagePoi[];
 };
 
@@ -577,12 +577,12 @@ export function PixiExplorationStage({
   levelId,
   mapHeight,
   mapWidth,
-  onPlayerMove,
+  onPlayerMoveAction,
   pointsOfInterest,
 }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(inputBlocked);
-  const onPlayerMoveRef = useRef(onPlayerMove);
+  const onPlayerMoveRef = useRef(onPlayerMoveAction);
   const playerSkills = useGameStore((s) => s.state.skills);
   const combatLoadout = useMemo(
     () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
@@ -611,8 +611,8 @@ export function PixiExplorationStage({
   }, [combatLoadout]);
 
   useEffect(() => {
-    onPlayerMoveRef.current = onPlayerMove;
-  }, [onPlayerMove]);
+    onPlayerMoveRef.current = onPlayerMoveAction;
+  }, [onPlayerMoveAction]);
 
   useEffect(() => {
     inputBlockedRef.current = inputBlocked;
