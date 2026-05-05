@@ -187,7 +187,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
-        onPlayerMove={setPlayerPosition}
+        onPlayerMoveAction={setPlayerPosition}
         pointsOfInterest={pointsOfInterest}
       />
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-20">
