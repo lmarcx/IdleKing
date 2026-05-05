@@ -9,7 +9,7 @@ type KingdomOverlayProps = {
   children: ReactNode;
   contentClassName?: string;
   keepMounted?: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
   open: boolean;
   title: string;
 };
@@ -18,7 +18,7 @@ export function KingdomOverlay({
   children,
   contentClassName,
   keepMounted = false,
-  onClose,
+  onCloseAction,
   open,
   title,
 }: KingdomOverlayProps) {
@@ -28,7 +28,7 @@ export function KingdomOverlay({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.code !== "Escape") return;
       event.preventDefault();
-      onClose();
+      onCloseAction();
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -36,7 +36,7 @@ export function KingdomOverlay({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, open]);
+  }, [onCloseAction, open]);
 
   if (!open && !keepMounted) return null;
 
@@ -55,7 +55,7 @@ export function KingdomOverlay({
           <button
             aria-label={`Close ${title}`}
             className="grid h-9 w-9 place-items-center rounded-md border border-amber-200/25 bg-black/35 font-ik-menu text-lg leading-none text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/14"
-            onClick={onClose}
+            onClick={onCloseAction}
             type="button"
           >
             X

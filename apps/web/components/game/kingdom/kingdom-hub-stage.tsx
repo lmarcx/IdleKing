@@ -1569,7 +1569,7 @@ export function KingdomHubStage() {
       ) : null}
 
       {activeOverlay === "boto" ? (
-        <KingdomOverlay onClose={closeHubOverlay} open title={HUB_OVERLAYS.boto.title}>
+        <KingdomOverlay onCloseAction={closeHubOverlay} open title={HUB_OVERLAYS.boto.title}>
           <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
             <div className="rounded-xl border border-emerald-300/20 bg-black/50 p-4 text-center">
               <div className="mx-auto flex h-28 w-28 items-center justify-center rounded-full border border-emerald-300/30 bg-emerald-400/10 text-4xl">
