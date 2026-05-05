@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function AltWorldPage() {
+export default function OriginalWorldsPage() {
   redirect("/game/kingdom");
 }

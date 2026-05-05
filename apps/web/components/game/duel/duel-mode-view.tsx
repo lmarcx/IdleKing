@@ -76,21 +76,24 @@ function ModeCard({
 
 function OpponentCard({
   isSelected,
+  onSelect,
   opponent,
 }: {
   isSelected: boolean;
+  onSelect: (opponentId: string) => void;
   opponent: DuelOpponent;
 }) {
   return (
-    <Link
-      aria-current={isSelected ? "true" : undefined}
+    <button
+      aria-pressed={isSelected}
       className={cn(
-        "block rounded-lg border bg-black/42 p-4 text-left transition",
+        "block w-full rounded-lg border bg-black/42 p-4 text-left transition",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55",
         isSelected && "border-amber-200/80 bg-amber-200/[0.08] shadow-[0_0_28px_rgba(198,168,91,0.16)]",
         !isSelected && "border-amber-200/18 hover:border-amber-200/45 hover:bg-white/[0.035]"
       )}
-      href={`/game/worlds?mode=duel&opponent=${opponent.id}`}
+      onClick={() => onSelect(opponent.id)}
+      type="button"
     >
       <span className="flex flex-wrap items-start justify-between gap-3">
         <span>
@@ -103,7 +106,7 @@ function OpponentCard({
       </span>
       <span className="mt-3 block font-ik-menu text-xs uppercase tracking-[0.18em] text-muted-foreground">{opponent.type}</span>
       <span className="mt-3 block font-ik-body text-sm leading-relaxed text-muted-foreground">{opponent.description}</span>
-    </Link>
+    </button>
   );
 }
 
@@ -114,7 +117,11 @@ type DuelModeViewProps = {
 export function DuelModeView({ initialOpponentId = null }: DuelModeViewProps) {
   const [selectedMode, setSelectedMode] = useState<DuelMode>("offline");
   const offlineOpponents = useMemo(() => DUEL_OPPONENTS.filter((opponent) => opponent.mode === "offline"), []);
-  const selectedOpponent = offlineOpponents.find((opponent) => opponent.id === initialOpponentId) ?? null;
+  const [selectedOpponentId, setSelectedOpponentId] = useState<string | null>(
+    initialOpponentId ?? offlineOpponents.find((opponent) => opponent.available)?.id ?? null
+  );
+  const selectedOpponent = offlineOpponents.find((opponent) => opponent.id === selectedOpponentId) ?? null;
+  const canLaunchFight = selectedMode === "offline" && selectedOpponent?.available;
 
   return (
     <section className="min-h-[38rem] rounded-xl border border-amber-200/20 bg-black/35 p-5 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)] sm:p-6">
@@ -126,10 +133,10 @@ export function DuelModeView({ initialOpponentId = null }: DuelModeViewProps) {
             Affronte un adversaire dans une arène instanciée.
           </p>
         </div>
-        {selectedOpponent ? (
+        {canLaunchFight ? (
           <Link
             className="inline-flex items-center justify-center rounded-md border border-amber-200/65 bg-amber-500/18 px-5 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
-            href={`/game/worlds/duel/${selectedOpponent.id}`}
+            href={selectedOpponent.fightHref}
             role="button"
           >
             Lancer le combat
@@ -156,7 +163,7 @@ export function DuelModeView({ initialOpponentId = null }: DuelModeViewProps) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-ik-title text-xl font-semibold text-amber-50">Adversaires disponibles</h2>
-              <p className="mt-1 font-ik-body text-sm text-muted-foreground">Sélectionne une cible pour ouvrir une arène vide.</p>
+              <p className="mt-1 font-ik-body text-sm text-muted-foreground">Sélectionne un adversaire puis lance le combat.</p>
             </div>
             <span className="rounded-full border border-emerald-200/25 bg-emerald-400/10 px-3 py-1 font-ik-menu text-[0.65rem] uppercase tracking-[0.16em] text-emerald-100">
               Hors ligne
@@ -165,8 +172,9 @@ export function DuelModeView({ initialOpponentId = null }: DuelModeViewProps) {
           <div className="mt-4 grid gap-3">
             {offlineOpponents.map((opponent) => (
               <OpponentCard
-                isSelected={initialOpponentId === opponent.id}
+                isSelected={selectedOpponentId === opponent.id}
                 key={opponent.id}
+                onSelect={setSelectedOpponentId}
                 opponent={opponent}
               />
             ))}

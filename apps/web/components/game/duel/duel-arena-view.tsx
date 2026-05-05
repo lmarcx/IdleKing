@@ -23,9 +23,9 @@ export function DuelArenaView({ opponent }: DuelArenaViewProps) {
 
       <Link
         className="pointer-events-auto absolute right-4 top-28 z-10 rounded-md border border-amber-200/35 bg-black/65 px-4 py-2 font-ik-menu text-xs text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/16"
-        href="/game/worlds?mode=duel"
+        href="/game/kingdom"
       >
-        Retour au Duel
+        Retour au Royaume
       </Link>
 
       <div className="pointer-events-none absolute inset-x-4 bottom-4 z-10 rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">

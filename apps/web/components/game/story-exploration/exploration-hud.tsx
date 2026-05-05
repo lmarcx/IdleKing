@@ -58,7 +58,7 @@ export function ExplorationHud({ level, playerPosition, pointsOfInterest }: Expl
 
       <Link
         className="pointer-events-auto rounded-md border border-amber-200/35 bg-black/70 px-4 py-2 font-ik-menu text-xs text-amber-50 transition hover:border-amber-100"
-        href="/game/worlds"
+        href="/game/kingdom"
       >
         Quitter
       </Link>
