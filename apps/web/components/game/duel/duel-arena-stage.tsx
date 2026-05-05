@@ -1,11 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import * as PIXI from "pixi.js";
 
+import { CombatHud } from "@/components/game/combat/combat-hud";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
+import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
+import { getResourceAssetPath } from "@/lib/resource-assets";
+import { useGameStore } from "@/store/game-store";
+import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
+import { applyPlayerXpGain, combat, type CharacterCombatLoadout, type EquippedCombatSkill } from "@idleking/game-core";
+import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
 import {
   RESURRECTED_SCARECROW_BOSS,
   RESURRECTED_SCARECROW_COLUMNS,
+  SCARECROW_DUEL_REWARDS,
   clamp,
   createDuelRng,
   createRainTarget,
@@ -92,7 +102,30 @@ type DuelArenaStageProps = {
 type DuelHudState = {
   bossDefeated: boolean;
   bossHp: number;
+  durationMs: number;
+  rewardsApplied: boolean;
+  outcome: "fighting" | "victory" | "defeat";
   playerHp: number;
+};
+
+type SkillId = combat.SkillId;
+type SkillSlot = combat.SkillSlot;
+type SkillCooldownState = combat.SkillCooldownState;
+type ActiveDuelSkillEffect = combat.ActiveSkillEffect & {
+  directionX?: number;
+  directionY?: number;
+  hitBoss?: boolean;
+  lastDamageTickAtMs?: number;
+  originX?: number;
+  originY?: number;
+  skillDef: combat.SkillDef;
+};
+
+type LocalSkillsState = {
+  activeEffects: ActiveDuelSkillEffect[];
+  combatLoadout: CharacterCombatLoadout;
+  cooldowns: SkillCooldownState;
+  currentTimeMs: number;
 };
 
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
@@ -106,6 +139,24 @@ const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
   KeyS: { x: 0, y: 1 },
   KeyW: { x: 0, y: -1 },
   KeyZ: { x: 0, y: -1 },
+};
+
+const SKILL_SLOT_BY_KEY: Record<string, SkillSlot> = {
+  "&": 1,
+  "1": 1,
+  "é": 2,
+  "2": 2,
+  "\"": 3,
+  "3": 3,
+  "'": 4,
+  "4": 4,
+};
+
+const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
+  Digit1: 1,
+  Digit2: 2,
+  Digit3: 3,
+  Digit4: 4,
 };
 
 function normalizeVector(vector: DuelVector, fallback: DuelVector = { x: 0, y: -1 }): DuelVector {
@@ -222,13 +273,83 @@ function isPointInsideMeleeCone({
   return Math.acos(dot) <= MELEE_ATTACK_HALF_ANGLE_RADIANS;
 }
 
+function isBossInsideBeam({
+  bossPosition,
+  direction,
+  origin,
+  range,
+  width,
+}: {
+  bossPosition: DuelVector;
+  direction: DuelVector;
+  origin: DuelVector;
+  range: number;
+  width: number;
+}) {
+  const toBoss = {
+    x: bossPosition.x - origin.x,
+    y: bossPosition.y - origin.y,
+  };
+  const forwardDistance = toBoss.x * direction.x + toBoss.y * direction.y;
+  if (forwardDistance < -RESURRECTED_SCARECROW_BOSS.bossRadius || forwardDistance > range + RESURRECTED_SCARECROW_BOSS.bossRadius) {
+    return false;
+  }
+  const perpendicularDistance = Math.abs(toBoss.x * -direction.y + toBoss.y * direction.x);
+  return perpendicularDistance <= width / 2 + RESURRECTED_SCARECROW_BOSS.bossRadius;
+}
+
+function getActiveDamageMultiplier(effects: ActiveDuelSkillEffect[], nowMs: number) {
+  return effects.reduce((multiplier, effect) => {
+    if (effect.skillId !== "war_cry" || effect.endsAtMs < nowMs) return multiplier;
+    return multiplier + (effect.bonusDamageMultiplier ?? effect.skillDef.bonusDamageMultiplier ?? 0);
+  }, 1);
+}
+
 export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const inputBlockedRef = useRef(false);
+  const dispatch = useGameStore((store) => store.dispatch);
+  const playerSkills = useGameStore((store) => store.state.skills);
+  const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
+  const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
+  const combatLoadout = useMemo(
+    () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
+    [playerSkills]
+  );
   const [hudState, setHudState] = useState<DuelHudState>({
     bossDefeated: false,
+    durationMs: 0,
+    outcome: "fighting",
     bossHp: RESURRECTED_SCARECROW_BOSS.hp,
+    rewardsApplied: false,
     playerHp: 100,
   });
+  const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
+    activeEffects: [],
+    combatLoadout,
+    cooldowns: {},
+    currentTimeMs: 0,
+  }));
+  const skillsStateRef = useRef(skillsState);
+
+  useEffect(() => {
+    const nextState = {
+      activeEffects: skillsStateRef.current.activeEffects,
+      combatLoadout,
+      cooldowns: skillsStateRef.current.cooldowns,
+      currentTimeMs: skillsStateRef.current.currentTimeMs,
+    };
+    skillsStateRef.current = nextState;
+    setSkillsState(nextState);
+  }, [combatLoadout]);
+
+  useEffect(() => {
+    skillsStateRef.current = skillsState;
+  }, [skillsState]);
+
+  useEffect(() => {
+    inputBlockedRef.current = isGameHudOverlayOpen;
+  }, [isGameHudOverlayOpen]);
 
   useEffect(() => {
     const nullableHostElement = hostRef.current;
@@ -282,6 +403,10 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     let bossHitFlashMs = 0;
     let playerHitFlashMs = 0;
     let hudSyncElapsedMs = 0;
+    let skillsHudSyncElapsedMs = 0;
+    let activeSkillEffects: ActiveDuelSkillEffect[] = [...skillsStateRef.current.activeEffects];
+    let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
+    let rewardsApplied = false;
     let tickerCallback: ((ticker: PIXI.Ticker) => void) | null = null;
     let bossVisual: ReturnType<typeof drawBoss> | null = null;
 
@@ -298,8 +423,45 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       setHudState({
         bossDefeated: bossHp <= 0,
         bossHp: Math.max(0, Math.ceil(bossHp)),
+        durationMs: elapsedFightMs,
+        outcome: bossHp <= 0 ? "victory" : playerHp <= 0 ? "defeat" : "fighting",
         playerHp: Math.max(0, Math.ceil(playerHp)),
+        rewardsApplied,
       });
+    }
+
+    function publishSkillsState(nowMs: number) {
+      const nextState: LocalSkillsState = {
+        activeEffects: [...activeSkillEffects],
+        combatLoadout,
+        cooldowns: { ...skillCooldowns },
+        currentTimeMs: nowMs,
+      };
+      skillsStateRef.current = nextState;
+      setSkillsState(nextState);
+    }
+
+    function removeExpiredSkillEffects(nowMs: number) {
+      activeSkillEffects = activeSkillEffects.filter((effect) => effect.endsAtMs >= nowMs);
+    }
+
+    function getEquippedSkillForSlot(slot: SkillSlot): EquippedCombatSkill | undefined {
+      return combatLoadout.skills.find((skill) => skill.slot === slot);
+    }
+
+    function applyRewardsOnce() {
+      if (rewardsApplied) return;
+      rewardsApplied = true;
+      const result = applyPlayerXpGain(useGameStore.getState().state, SCARECROW_DUEL_REWARDS.playerXp);
+      let nextResources = result.next.resources;
+      for (const reward of SCARECROW_DUEL_REWARDS.resources) {
+        nextResources = addQty(nextResources, reward.resourceId, reward.amount);
+      }
+      dispatch(() => ({
+        ...result.next,
+        resources: nextResources,
+      }));
+      showResourceGain(SCARECROW_DUEL_REWARDS.resources.map((reward) => ({ amount: reward.amount, resourceId: reward.resourceId })));
     }
 
     function damageBoss(amount: number) {
@@ -311,6 +473,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         activeSpecial = null;
         cleanupBossProjectiles();
         cleanupRainImpacts();
+        applyRewardsOnce();
       }
       syncHud(true);
     }
@@ -327,7 +490,17 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (inputBlockedRef.current) return;
       if (playerHp <= 0 || bossHp <= 0) return;
+      const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
+      if (skillSlot) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryCastSkill(skillSlot, performance.now());
+        }
+        return;
+      }
+
       if (KEY_DIRECTIONS[event.code]) {
         pressedKeys.add(event.code);
         event.preventDefault();
@@ -436,6 +609,66 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       playerProjectiles.push(projectile);
       attackLayer.addChild(projectile.graphic);
       projectile.graphic.position.set(projectile.position.x, projectile.position.y);
+    }
+
+    function getPlayerDamage(multiplier = 1, nowMs = performance.now()) {
+      return Math.max(1, Math.round(combatLoadout.stats.attack * multiplier * getActiveDamageMultiplier(activeSkillEffects, nowMs)));
+    }
+
+    function applyInstantSkillDamage(skillDef: combat.SkillDef, nowMs: number) {
+      if (
+        isPointInsideMeleeCone({
+          attackDirection: { ...playerFacing },
+          attackPosition: { ...playerPosition },
+          targetPosition: bossPosition,
+          targetRadius: RESURRECTED_SCARECROW_BOSS.bossRadius,
+        })
+      ) {
+        damageBoss(getPlayerDamage(skillDef.damageMultiplier ?? 1, nowMs));
+      }
+    }
+
+    function tryCastSkill(slot: SkillSlot, nowMs: number) {
+      if (playerHp <= 0 || bossHp <= 0) return;
+      removeExpiredSkillEffects(nowMs);
+      const equippedSkill = getEquippedSkillForSlot(slot);
+      if (!equippedSkill) return;
+
+      const result = combat.castSkillWithDef({
+        cooldowns: skillCooldowns,
+        nowMs,
+        skillDef: equippedSkill.skillDef,
+      });
+
+      if (!result.ok) {
+        publishSkillsState(nowMs);
+        return;
+      }
+
+      skillCooldowns = {
+        ...skillCooldowns,
+        [result.skillId]: result.nextAvailableAtMs,
+      };
+
+      if (result.activeEffect) {
+        const direction = normalizeVector(playerFacing);
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            ...result.activeEffect,
+            directionX: direction.x,
+            directionY: direction.y,
+            lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
+            originX: playerPosition.x,
+            originY: playerPosition.y,
+            skillDef: equippedSkill.skillDef,
+          },
+        ];
+      } else if (result.skillId === "royal_strike") {
+        applyInstantSkillDamage(equippedSkill.skillDef, nowMs);
+      }
+
+      publishSkillsState(nowMs);
     }
 
     function createBossBasicProjectile() {
@@ -643,7 +876,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
           })
         ) {
           attack.hitBoss = true;
-          damageBoss(RESURRECTED_SCARECROW_BOSS.meleeDamage);
+          damageBoss(getPlayerDamage(RESURRECTED_SCARECROW_BOSS.meleeDamage / 10, now));
         }
         if (attack.ageMs >= attack.durationMs) {
           removeGraphic(attack.graphic);
@@ -672,7 +905,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
           projectile.position.y > mapHeight;
 
         if (hitBoss) {
-          damageBoss(RESURRECTED_SCARECROW_BOSS.rangedDamage);
+          damageBoss(getPlayerDamage(RESURRECTED_SCARECROW_BOSS.rangedDamage / 10, now));
           removePlayerProjectileAt(index);
         } else if (projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds) {
           removePlayerProjectileAt(index);
@@ -752,6 +985,53 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         } else if (isOutOfBounds) {
           removeBossProjectileAt(index);
         }
+      }
+    }
+
+    function updateActiveSkillEffects(nowMs: number) {
+      removeExpiredSkillEffects(nowMs);
+      let didMutateEffects = false;
+
+      for (const effect of activeSkillEffects) {
+        if (effect.skillId === "war_cry") continue;
+        const interval = effect.tickIntervalMs ?? effect.skillDef.tickIntervalMs ?? 0;
+        if (interval <= 0) continue;
+        if (nowMs - (effect.lastDamageTickAtMs ?? effect.startedAtMs) < interval) continue;
+
+        let isHit = false;
+        if (effect.skillId === "royal_beam") {
+          const direction = normalizeVector({
+            x: effect.directionX ?? playerFacing.x,
+            y: effect.directionY ?? playerFacing.y,
+          });
+          isHit = isBossInsideBeam({
+            bossPosition,
+            direction,
+            origin: {
+              x: effect.originX ?? playerPosition.x,
+              y: effect.originY ?? playerPosition.y,
+            },
+            range: effect.range ?? effect.skillDef.range ?? 0,
+            width: effect.width ?? effect.skillDef.width ?? 0,
+          });
+        } else if (effect.skillId === "king_aura") {
+          isHit = isCircleCollision(
+            playerPosition,
+            effect.radius ?? effect.skillDef.radius ?? 0,
+            bossPosition,
+            RESURRECTED_SCARECROW_BOSS.bossRadius
+          );
+        }
+
+        effect.lastDamageTickAtMs = nowMs;
+        didMutateEffects = true;
+        if (isHit) {
+          damageBoss(getPlayerDamage(effect.damageMultiplier ?? effect.skillDef.damageMultiplier ?? 1, nowMs));
+        }
+      }
+
+      if (didMutateEffects) {
+        publishSkillsState(nowMs);
       }
     }
 
@@ -896,6 +1176,12 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         let directionX = 0;
         let directionY = 0;
 
+        if (inputBlockedRef.current) {
+          hudSyncElapsedMs += deltaMs;
+          syncHud();
+          return;
+        }
+
         if (playerHp > 0 && bossHp > 0) {
           for (const key of pressedKeys) {
             const direction = KEY_DIRECTIONS[key];
@@ -924,6 +1210,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         }
 
         updatePlayerAttacks(deltaMs, now);
+        updateActiveSkillEffects(now);
         updateBossAi(deltaMs);
         updateBossProjectiles(deltaMs);
         updateRainImpacts(deltaMs);
@@ -940,6 +1227,11 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         world.position.set(-cameraX, -cameraY);
 
         hudSyncElapsedMs += deltaMs;
+        skillsHudSyncElapsedMs += deltaMs;
+        if (skillsHudSyncElapsedMs >= 90) {
+          skillsHudSyncElapsedMs = 0;
+          publishSkillsState(now);
+        }
         syncHud();
       };
       app.ticker.add(tickerCallback);
@@ -971,44 +1263,121 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       cleanupRainImpacts();
       if (initialized) destroyPixiApp();
     };
-  }, [mapHeight, mapWidth]);
-
-  const bossHpPercent = (hudState.bossHp / RESURRECTED_SCARECROW_BOSS.hp) * 100;
+  }, [combatLoadout, dispatch, mapHeight, mapWidth, showResourceGain]);
 
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
-      <div className="pointer-events-none absolute inset-x-4 top-4 z-20 mx-auto max-w-2xl rounded-lg border border-red-200/28 bg-black/64 px-4 py-3 shadow-[0_14px_36px_rgba(0,0,0,0.42)] backdrop-blur-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.18em] text-red-200/80">Boss Duel</p>
-            <h2 className="font-ik-title text-lg font-semibold text-amber-50">Epouvantail Ressuscite</h2>
+      <CombatHud
+        bossHealth={{ current: hudState.bossHp, max: RESURRECTED_SCARECROW_BOSS.hp }}
+        bossLabel="Epouvantail Ressuscite"
+        mode="duel"
+        playerEnergy={{ current: 100, max: 100 }}
+        playerHealth={{ current: hudState.playerHp, max: 100 }}
+        skillBar={{
+          combatLoadout: skillsState.combatLoadout,
+          cooldowns: skillsState.cooldowns,
+          currentTimeMs: skillsState.currentTimeMs,
+        }}
+        subtitle="Boss d'entrainement"
+        title="Epouvantail Ressuscite"
+      />
+
+      {hudState.outcome === "victory" ? <DuelVictoryScreen durationMs={hudState.durationMs} playerHp={hudState.playerHp} /> : null}
+      {hudState.outcome === "defeat" ? <DuelDefeatScreen /> : null}
+    </div>
+  );
+}
+
+function formatDuration(durationMs: number) {
+  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function DuelVictoryScreen({ durationMs, playerHp }: { durationMs: number; playerHp: number }) {
+  return (
+    <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-xl border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+        <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">Duel termine</p>
+        <h2 className="mt-2 font-ik-title text-3xl font-semibold text-amber-50">Victoire</h2>
+        <p className="mt-2 font-ik-body text-sm text-muted-foreground">Boss vaincu : Epouvantail Ressuscite</p>
+
+        <div className="mt-5 grid gap-3 rounded-lg border border-amber-200/18 bg-black/35 p-4 text-left font-ik-body text-sm text-amber-50">
+          <div className="flex items-center justify-between gap-3">
+            <span>Duree</span>
+            <span className="font-ik-menu text-amber-100">{formatDuration(durationMs)}</span>
           </div>
-          <span className="font-ik-menu text-xs tabular-nums text-amber-100">
-            {hudState.bossHp}/{RESURRECTED_SCARECROW_BOSS.hp}
-          </span>
+          <div className="flex items-center justify-between gap-3">
+            <span>HP restant</span>
+            <span className="font-ik-menu text-amber-100">{Math.max(0, Math.ceil(playerHp))}/100</span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span>Player XP</span>
+            <span className="font-ik-menu text-emerald-200">+{SCARECROW_DUEL_REWARDS.playerXp}</span>
+          </div>
+          <div className="grid gap-2">
+            {SCARECROW_DUEL_REWARDS.resources.map((reward) => (
+              <div className="flex items-center justify-between gap-3" key={reward.resourceId}>
+                <span className="flex items-center gap-2">
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 object-contain"
+                    src={getResourceAssetPath(reward.resourceId)}
+                  />
+                  {reward.resourceId}
+                </span>
+                <span className="font-ik-menu text-emerald-200">+{reward.amount}</span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="mt-3 h-3 overflow-hidden rounded-full border border-red-200/24 bg-black/55">
-          <div className="h-full rounded-full bg-gradient-to-r from-red-700 via-red-500 to-amber-300" style={{ width: `${bossHpPercent}%` }} />
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Link
+            className="inline-flex items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
+            href="/game/kingdom"
+          >
+            Retour au Royaume
+          </Link>
+          <button
+            className="inline-flex items-center justify-center rounded-md border border-cyan-200/35 bg-cyan-500/12 px-4 py-3 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-100 hover:bg-cyan-500/18"
+            onClick={() => window.location.reload()}
+            type="button"
+          >
+            Recommencer
+          </button>
         </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="pointer-events-none absolute bottom-20 right-4 z-20 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
-        <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.16em] text-red-200/80">Player HP</p>
-        <div className="mt-2 h-2 w-40 overflow-hidden rounded-full border border-red-200/20 bg-black/55">
-          <div className="h-full rounded-full bg-red-400" style={{ width: `${hudState.playerHp}%` }} />
+function DuelDefeatScreen() {
+  return (
+    <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/62 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-xl border border-red-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+        <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-red-200">Defaite</p>
+        <h2 className="mt-2 font-ik-title text-3xl font-semibold text-amber-50">Combat perdu</h2>
+        <p className="mt-3 font-ik-body text-sm text-muted-foreground">Aucune recompense n'a ete appliquee.</p>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <Link
+            className="inline-flex items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
+            href="/game/kingdom"
+          >
+            Retour au Royaume
+          </Link>
+          <button
+            className="inline-flex items-center justify-center rounded-md border border-cyan-200/35 bg-cyan-500/12 px-4 py-3 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-100 hover:bg-cyan-500/18"
+            onClick={() => window.location.reload()}
+            type="button"
+          >
+            Recommencer
+          </button>
         </div>
-        <p className="mt-1 font-ik-menu text-xs tabular-nums text-amber-50">{hudState.playerHp}/100</p>
       </div>
-
-      {hudState.bossDefeated ? (
-        <div className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-black/46 px-4 backdrop-blur-[2px]">
-          <div className="rounded-lg border border-amber-200/35 bg-zinc-950/92 px-6 py-5 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
-            <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">Prototype clear</p>
-            <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Boss vaincu</h2>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

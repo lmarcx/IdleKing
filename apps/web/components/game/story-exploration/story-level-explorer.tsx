@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { GameHud } from "@/components/game/hud/game-hud";
+import { CombatHud } from "@/components/game/combat/combat-hud";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction, type StoryEventDef } from "@idleking/game-core";
@@ -80,7 +80,7 @@ function CompletionPanel({
   rewards: ResourceStock;
 }) {
   return (
-    <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
+    <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-lg border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
         <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">
           {alreadyCompleted ? "Objectifs deja valides" : "Objectifs valides"}
@@ -190,9 +190,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
         onPlayerMoveAction={setPlayerPosition}
         pointsOfInterest={pointsOfInterest}
       />
-      <div className="pointer-events-none absolute left-3 right-3 top-3 z-20">
-        <GameHud />
-      </div>
+      <CombatHud mode="story" subtitle={`Power ${level.recommendedPower}`} title={level.title} />
       <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
       <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
         Deplacement : WASD, ZQSD ou fleches directionnelles.

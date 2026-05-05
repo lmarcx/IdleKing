@@ -13,6 +13,11 @@ export type DuelColumnConfig = {
   xRatio: number;
 };
 
+export type DuelReward = {
+  amount: number;
+  resourceId: "XP_GLOBAL" | "WOOD" | "STONE" | "IRON";
+};
+
 export const RESURRECTED_SCARECROW_BOSS = {
   basicProjectileDamage: 8,
   basicProjectileRadius: 13,
@@ -43,6 +48,16 @@ export const RESURRECTED_SCARECROW_COLUMNS: DuelColumnConfig[] = [
   { delayMs: 220, intervalMs: 620, label: "medium", speed: 285, xRatio: 0.5 },
   { delayMs: 420, intervalMs: 430, label: "fast", speed: 355, xRatio: 0.76 },
 ];
+
+export const SCARECROW_DUEL_REWARDS = {
+  playerXp: 30,
+  resources: [
+    { amount: 20, resourceId: "XP_GLOBAL" },
+    { amount: 15, resourceId: "WOOD" },
+    { amount: 10, resourceId: "STONE" },
+    { amount: 3, resourceId: "IRON" },
+  ] satisfies DuelReward[],
+} as const;
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
