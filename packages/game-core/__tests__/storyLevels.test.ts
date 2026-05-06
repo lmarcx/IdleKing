@@ -88,6 +88,5 @@ test("completeStoryLevelAction can drop a real equipment item", () => {
   assert.equal(result.completed, true);
   assert.ok(result.equipmentDrop);
   assert.ok(isEquipmentItem(result.equipmentDrop));
-  assert.notEqual(result.equipmentDrop.slot as string, "ring");
   assert.ok(result.next.inventory.items.some((item) => item.id === result.equipmentDrop?.id));
 });

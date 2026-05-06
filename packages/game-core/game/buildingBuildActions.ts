@@ -13,14 +13,23 @@ export type BuildBuildingResult = {
   cost?: ReturnType<typeof getBuildCost>;
 };
 
+export type BuildBuildingOptions = {
+  allowLocked?: boolean;
+};
+
 /**
  * Builds a building by spending resources.
  * This is a generic helper used for all Kingdom buildings in MVP.
  */
-export function buildBuilding(state: GameState, buildingId: BuildingId): BuildBuildingResult {
+export function buildBuilding(
+  state: GameState,
+  buildingId: BuildingId,
+  options: BuildBuildingOptions = {},
+): BuildBuildingResult {
   const b = state.buildings;
 
   const unlocked =
+    options.allowLocked === true ||
     (buildingId === "FORUM" && b.forum.unlocked) ||
     (buildingId === "FARM" && b.farm.unlocked) ||
     (buildingId === "MINE" && b.mine.unlocked) ||
@@ -56,22 +65,22 @@ export function buildBuilding(state: GameState, buildingId: BuildingId): BuildBu
 
   switch (buildingId) {
     case "FORUM":
-      nextBuildings.forum = { ...nextBuildings.forum, built: true };
+      nextBuildings.forum = { ...nextBuildings.forum, built: true, active: true };
       break;
     case "FARM":
-      nextBuildings.farm = { ...nextBuildings.farm, built: true };
+      nextBuildings.farm = { ...nextBuildings.farm, built: true, active: true };
       break;
     case "MINE":
-      nextBuildings.mine = { ...nextBuildings.mine, built: true };
+      nextBuildings.mine = { ...nextBuildings.mine, built: true, active: true };
       break;
     case "KITCHEN":
-      nextBuildings.kitchen = { ...nextBuildings.kitchen, built: true };
+      nextBuildings.kitchen = { ...nextBuildings.kitchen, built: true, active: true };
       break;
     case "TEMPLE":
-      nextBuildings.temple = { ...nextBuildings.temple, built: true };
+      nextBuildings.temple = { ...nextBuildings.temple, built: true, active: true };
       break;
     case "FORGE":
-      nextBuildings.forge = { ...nextBuildings.forge, built: true };
+      nextBuildings.forge = { ...nextBuildings.forge, built: true, active: true };
       break;
   }
 

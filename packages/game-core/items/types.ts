@@ -1,4 +1,4 @@
-export type ItemRarity = "COMMON" | "RARE" | "EPIC" | "LEGENDARY";
+export type ItemRarity = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
 
 export type EquipmentSlot =
   | "weapon"
@@ -9,6 +9,7 @@ export type EquipmentSlot =
   | "belt"
   | "boots"
   | "necklace"
+  | "ring"
   | "cape"
   | "artifact";
 
@@ -21,12 +22,10 @@ export const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = [
   "belt",
   "boots",
   "necklace",
+  "ring",
   "cape",
   "artifact",
 ] as const;
-
-// TODO: Ring slots will be reintroduced later as skill modifier slots.
-export type LegacyEquipmentSlot = "ring";
 
 export type LegacyItemSlot = "WEAPON" | "ARMOR" | "CAPE" | "AMULET" | "RING";
 
@@ -74,6 +73,7 @@ const LEGACY_ITEM_SLOT_MAP: Partial<Record<LegacyItemSlot, EquipmentSlot>> = {
   ARMOR: "chest",
   CAPE: "cape",
   AMULET: "necklace",
+  RING: "ring",
 };
 
 export function isEquipmentSlot(slot: unknown): slot is EquipmentSlot {

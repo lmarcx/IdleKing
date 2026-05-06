@@ -11,8 +11,9 @@ function staminaCostFromPct(pct: number): number {
   return Math.ceil(100 * p);
 }
 
-function uid(prefix = "it"): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+function createCraftedItemId(state: GameState, recipeId: ForgeRecipeId): string {
+  const matchingItems = state.inventory.items.filter((item) => item.id.startsWith(`forge_${recipeId}_`)).length;
+  return `forge_${recipeId}_${state.progression.worldLevel}_${matchingItems + 1}`;
 }
 
 export type ForgeCraftResult = {
@@ -28,6 +29,10 @@ export type ForgeCraftResult = {
     | "NOT_ENOUGH_RESOURCES";
 };
 
+export type ForgeCraftOptions = {
+  allowLocked?: boolean;
+};
+
 /**
  * Crafts an equipment item by consuming resources and villager stamina.
  * Item ilvl is derived from the current world level snapshot at craft time.
@@ -35,9 +40,10 @@ export type ForgeCraftResult = {
 export function forgeCraft(
   state: GameState,
   recipeId: ForgeRecipeId,
-  villagerId: string
+  villagerId: string,
+  options: ForgeCraftOptions = {},
 ): ForgeCraftResult {
-  if (!state.buildings.forge.unlocked) {
+  if (!state.buildings.forge.unlocked && options.allowLocked !== true) {
     return { next: state, ok: false, reason: "FORGE_LOCKED" };
   }
   if (!state.buildings.forge.built) {
@@ -63,7 +69,7 @@ export function forgeCraft(
   // Create item
   const itemLevel = expectedIlvl(state.progression.worldLevel);
   const item = generateEquipmentItem({
-    id: uid("item"),
+    id: createCraftedItemId(state, recipe.id),
     slot: recipe.slot,
     name: recipe.baseName,
     itemLevel,

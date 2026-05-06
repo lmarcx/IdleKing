@@ -41,7 +41,7 @@ export default function StartScreenPage() {
             <Button
               onClick={() => {
                 newGame();
-                router.push("/game/boto");
+                router.push("/game/kingdom");
               }}
             >
               New Game
@@ -51,7 +51,7 @@ export default function StartScreenPage() {
               disabled={!canLoad}
               onClick={() => {
                 loadGame();
-                router.push("/game/boto");
+                router.push("/game/kingdom");
               }}
             >
               Load Game

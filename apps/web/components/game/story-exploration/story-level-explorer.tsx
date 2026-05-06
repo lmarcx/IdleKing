@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { CombatHud } from "@/components/game/combat/combat-hud";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction, type StoryEventDef } from "@idleking/game-core";
 import type { ResourceStock } from "@idleking/game-core/resources/types.js";
@@ -78,7 +80,7 @@ function CompletionPanel({
   rewards: ResourceStock;
 }) {
   return (
-    <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
+    <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-lg border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
         <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">
           {alreadyCompleted ? "Objectifs deja valides" : "Objectifs valides"}
@@ -101,7 +103,7 @@ function CompletionPanel({
           type="button"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Retour à la Story
+          Retour au Royaume
         </button>
       </div>
     </div>
@@ -112,6 +114,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   const router = useRouter();
   const dispatch = useGameStore((s) => s.dispatch);
   const hasCompletedLevel = useGameStore((s) => s.state.story.completedLevels.has(level.id));
+  const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const [playerPosition, setPlayerPosition] = useState({
     x: MAP_WIDTH / 2,
     y: MAP_HEIGHT / 2,
@@ -180,12 +183,14 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
+        inputBlocked={isGameHudOverlayOpen || completion !== null}
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
-        onPlayerMove={setPlayerPosition}
+        onPlayerMoveAction={setPlayerPosition}
         pointsOfInterest={pointsOfInterest}
       />
+      <CombatHud mode="story" subtitle={`Power ${level.recommendedPower}`} title={level.title} />
       <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
       <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
         Deplacement : WASD, ZQSD ou fleches directionnelles.
@@ -193,7 +198,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
       {completion ? (
         <CompletionPanel
           alreadyCompleted={completion.alreadyCompleted}
-          onReturn={() => router.push("/game/worlds")}
+          onReturn={() => router.push("/game/kingdom")}
           rewards={completion.rewards}
         />
       ) : null}

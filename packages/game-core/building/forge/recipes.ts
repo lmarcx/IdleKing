@@ -1,7 +1,15 @@
 import type { ResourceId } from "../../resources/types.js";
 import type { EquipmentSlot, ItemRarity } from "../../items/types.js";
 
-export type ForgeRecipeId = "BASIC_SWORD" | "BASIC_ARMOR" | "BASIC_CAPE" | "BASIC_ARTIFACT" | (string & {});
+export type ForgeRecipeId =
+  | "iron_sword"
+  | "iron_helmet"
+  | "copper_ring"
+  | "BASIC_SWORD"
+  | "BASIC_ARMOR"
+  | "BASIC_CAPE"
+  | "BASIC_ARTIFACT"
+  | (string & {});
 
 export type ForgeRecipe = {
   id: ForgeRecipeId;
@@ -17,6 +25,33 @@ export type ForgeRecipe = {
 };
 
 export const FORGE_RECIPES: ForgeRecipe[] = [
+  {
+    id: "iron_sword",
+    label: "Iron Sword",
+    slot: "weapon",
+    baseName: "Iron Sword",
+    rarity: "COMMON",
+    cost: { IRON: 4 },
+    staminaCostPct: 0.2,
+  },
+  {
+    id: "iron_helmet",
+    label: "Iron Helmet",
+    slot: "helmet",
+    baseName: "Iron Helmet",
+    rarity: "UNCOMMON",
+    cost: { IRON: 3 },
+    staminaCostPct: 0.2,
+  },
+  {
+    id: "copper_ring",
+    label: "Copper Ring",
+    slot: "ring",
+    baseName: "Copper Ring",
+    rarity: "COMMON",
+    cost: { COPPER: 3 },
+    staminaCostPct: 0.15,
+  },
   {
     id: "BASIC_SWORD",
     label: "Basic Sword",

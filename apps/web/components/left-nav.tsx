@@ -7,10 +7,8 @@ import { GamePanel } from "@/components/ui/game-panel";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/game/boto", label: "Boto" },
   { href: "/game/character", label: "Character" },
   { href: "/game/inventory", label: "Inventory" },
-  { href: "/game/worlds", label: "Worlds" },
   { href: "/game/kingdom", label: "Kingdom" },
   { href: "/game/skills", label: "Skills" },
   { href: "/game/settings", label: "Settings" },

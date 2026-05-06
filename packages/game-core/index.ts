@@ -12,6 +12,75 @@ export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export {
+  claimCornucopia,
+  CORNUCOPIA_MAX_CLAIM_AMOUNT,
+  getCornucopiaClaimables,
+} from "./building/cornucopiaActions.js";
+export type {
+  ClaimCornucopiaError,
+  ClaimCornucopiaResult,
+} from "./building/cornucopiaActions.js";
+export {
+  getBuildCost,
+} from "./building/buildCosts.js";
+export {
+  buildBuilding,
+} from "./game/buildingBuildActions.js";
+export type {
+  BuildBuildingOptions,
+  BuildBuildingResult,
+} from "./game/buildingBuildActions.js";
+export type {
+  BuildingId,
+} from "./building/types.js";
+export {
+  FORGE_RECIPES,
+  getForgeRecipe,
+} from "./building/forge/recipes.js";
+export type {
+  ForgeRecipe,
+  ForgeRecipeId,
+} from "./building/forge/recipes.js";
+export {
+  forgeCraft,
+} from "./game/forgeActions.js";
+export type {
+  ForgeCraftOptions,
+  ForgeCraftResult,
+} from "./game/forgeActions.js";
+export {
+  convertTempleGlobalXp,
+} from "./game/templeActions.js";
+export type {
+  TempleGlobalXpConversionOptions,
+  TempleGlobalXpConversionResult,
+  TempleXpTarget,
+} from "./game/templeActions.js";
+export {
+  applyGameXpGain,
+  applyPlayerXpGain,
+} from "./game/playerXpActions.js";
+export type {
+  AppliedGameXpGain,
+  AppliedPlayerXpGain,
+} from "./game/playerXpActions.js";
+export {
+  isEquipmentItem,
+  normalizeEquipmentItem,
+} from "./items/index.js";
+export {
+  ALL_RESOURCES,
+  getQty,
+  hasAtLeast,
+} from "./resources/types.js";
+export type {
+  ResourceId,
+  ResourceStock,
+} from "./resources/types.js";
+export {
+  xpNext,
+} from "./progression/index.js";
+export {
   BASE_CHARACTER_STATS,
   calculateEquipmentStats,
   calculateFinalCharacterStats,

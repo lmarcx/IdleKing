@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createInitialGameState } from "../game/state.js";
 import { completeChapterAction } from "../game/actions.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
-import { addQty } from "../resources/types.js";
+import { addQty, getQty } from "../resources/types.js";
 import { getBuildCost } from "../building/buildCosts.js";
 
 test("buildBuilding requires building unlocked and enough resources", () => {
@@ -64,4 +64,85 @@ test("buildBuilding works for Farm (chapter 1) with simple resources helper", ()
   const r = buildBuilding(s, "FARM");
   assert.equal(r.ok, true);
   assert.equal(r.next.buildings.farm.built, true);
+});
+
+test("buildBuilding refuses when building is locked", () => {
+  const state = createInitialGameState();
+
+  const result = buildBuilding(state, "FORGE");
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "BUILDING_LOCKED");
+});
+
+test("buildBuilding can build a normally locked building with dev override", () => {
+  const base = createInitialGameState();
+  const cost = getBuildCost("FORGE");
+  const state = {
+    ...base,
+    resources: {
+      WOOD: cost.WOOD ?? 0,
+      STONE: cost.STONE ?? 0,
+      IRON: cost.IRON ?? 0,
+    },
+  };
+
+  const result = buildBuilding(state, "FORGE", { allowLocked: true });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.next.buildings.forge.unlocked, false);
+  assert.equal(result.next.buildings.forge.built, true);
+  assert.equal(getQty(result.next.resources, "WOOD"), 0);
+  assert.equal(getQty(result.next.resources, "STONE"), 0);
+  assert.equal(getQty(result.next.resources, "IRON"), 0);
+});
+
+test("buildBuilding refuses when building is already built", () => {
+  const base = createInitialGameState();
+  const state = {
+    ...base,
+    buildings: {
+      ...base.buildings,
+      forge: {
+        ...base.buildings.forge,
+        unlocked: true,
+        built: true,
+      },
+    },
+  };
+
+  const result = buildBuilding(state, "FORGE");
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "ALREADY_BUILT");
+});
+
+test("buildBuilding consumes Forge resources and marks Forge built", () => {
+  const base = createInitialGameState();
+  const cost = getBuildCost("FORGE");
+  const state = {
+    ...base,
+    resources: {
+      WOOD: cost.WOOD ?? 0,
+      STONE: cost.STONE ?? 0,
+      IRON: cost.IRON ?? 0,
+    },
+    buildings: {
+      ...base.buildings,
+      forge: {
+        ...base.buildings.forge,
+        unlocked: true,
+        built: false,
+      },
+    },
+  };
+
+  const result = buildBuilding(state, "FORGE");
+
+  assert.equal(result.ok, true);
+  assert.equal(result.next.buildings.forge.built, true);
+  assert.equal(result.next.buildings.forge.active, true);
+  assert.equal(getQty(result.next.resources, "WOOD"), 0);
+  assert.equal(getQty(result.next.resources, "STONE"), 0);
+  assert.equal(getQty(result.next.resources, "IRON"), 0);
 });

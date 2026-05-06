@@ -11,6 +11,7 @@ import {
   getCornucopiaClaimables,
   claimCornucopia,
 } from "../building/cornucopiaActions.js";
+import { ALL_RESOURCES, getQty } from "../resources/types.js";
 
 /* ---------------------------------------------------------
    AGE MAPPING
@@ -98,52 +99,62 @@ test("mineResourcesAvailable grows with WL", () => {
    CORNUCOPIA RESPECTS PROGRESSION
 --------------------------------------------------------- */
 
-test("cornucopia claimables follow WL progression", () => {
+test("cornucopia claimables expose all known resources for dev console", () => {
   const s0 = createInitialGameState();
 
-  // WL 1
-  const s1 = {
-    ...s0,
-    progression: { ...s0.progression, worldLevel: 1 },
-  };
-
-  const claim1 = getCornucopiaClaimables(s1);
-  assert.ok(claim1.includes("WOOD"));
-  assert.ok(!claim1.includes("IRON"));
-
-  // WL 11
-  const s11 = {
-    ...s0,
-    progression: { ...s0.progression, worldLevel: 11 },
-  };
-
-  const claim11 = getCornucopiaClaimables(s11);
-  assert.ok(claim11.includes("IRON"));
-  assert.ok(!claim11.includes("PLATINUM"));
-
-  // WL 21
-  const s21 = {
-    ...s0,
-    progression: { ...s0.progression, worldLevel: 21 },
-  };
-
-  const claim21 = getCornucopiaClaimables(s21);
-  assert.ok(claim21.includes("PLATINUM"));
-  assert.ok(!claim21.includes("MITHRIL"));
+  const claimables = getCornucopiaClaimables(s0);
+  assert.deepEqual(claimables, ALL_RESOURCES);
+  assert.ok(claimables.includes("WOOD"));
+  assert.ok(claimables.includes("IRON"));
+  assert.ok(claimables.includes("XP_GLOBAL"));
 });
 
 /* ---------------------------------------------------------
    CORNUCOPIA CANNOT BYPASS PROGRESSION
 --------------------------------------------------------- */
 
-test("cornucopia refuses locked resource", () => {
+test("cornucopia claim adds the requested quantity", () => {
   const s0 = createInitialGameState();
 
-  const s1 = {
-    ...s0,
-    progression: { ...s0.progression, worldLevel: 1 },
-  };
+  const res = claimCornucopia(s0, { resourceId: "IRON", amount: 250 });
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
 
-  const res = claimCornucopia(s1, { resourceId: "IRON" });
+  assert.equal(res.resourceId, "IRON");
+  assert.equal(res.amount, 250);
+  assert.equal(getQty(res.next.resources, "IRON"), 250);
+});
+
+test("cornucopia refuses invalid quantity", () => {
+  const s0 = createInitialGameState();
+
+  const res = claimCornucopia(s0, { resourceId: "WOOD", amount: 0 });
   assert.equal(res.ok, false);
+  if (res.ok) return;
+  assert.equal(res.error, "INVALID_AMOUNT");
+});
+
+test("cornucopia clamps quantity to the dev safe maximum", () => {
+  const s0 = createInitialGameState();
+
+  const res = claimCornucopia(s0, { resourceId: "WOOD", amount: 10000000 });
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
+  assert.equal(res.amount, 999999);
+  assert.equal(getQty(res.next.resources, "WOOD"), 999999);
+});
+
+test("cornucopia claim grants the selected resource without consuming stamina", () => {
+  const s0 = createInitialGameState();
+  const beforeStamina = s0.buildings.cornucopia.stamina;
+
+  const res = claimCornucopia(s0, { resourceId: "WOOD", amount: 5 });
+  assert.equal(res.ok, true);
+  if (!res.ok) return;
+
+  assert.equal(res.resourceId, "WOOD");
+  assert.equal(res.amount, 5);
+  assert.equal(getQty(res.next.resources, "WOOD"), 5);
+  assert.equal(res.next.buildings.cornucopia.stamina, beforeStamina);
+  assert.equal(res.staminaSpent, 0);
 });

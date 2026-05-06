@@ -58,7 +58,6 @@ test("generateEquipmentItem produces valid equipment for every active slot", () 
     assert.ok(isEquipmentItem(item));
     assert.equal(item.kind, "equipment");
     assert.equal(item.slot, slot);
-    assert.notEqual(item.slot as string, "ring");
     assert.ok(totalStats(item) > 0);
   }
 });
@@ -71,12 +70,11 @@ test("generateEquipmentItem stats scale with itemLevel", () => {
   assert.ok((high.stats.power ?? 0) > (low.stats.power ?? 0));
 });
 
-test("generateEquipmentLootDrop can produce a valid non-ring equipment item", () => {
+test("generateEquipmentLootDrop can produce a valid equipment item", () => {
   const item = generateEquipmentLootDrop({ seed: 12345, worldLevel: 3, chance: 1 });
 
   assert.ok(item);
   assert.ok(isEquipmentItem(item));
-  assert.notEqual(item.slot as string, "ring");
   assert.ok(totalStats(item) > 0);
 });
 

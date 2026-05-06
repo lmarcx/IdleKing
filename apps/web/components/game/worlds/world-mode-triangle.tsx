@@ -2,7 +2,7 @@ import { WorldModeNode } from "./world-mode-node";
 
 const WORLD_MODES = [
   {
-    href: "/game/worlds",
+    href: "/game/kingdom",
     icon: "/assets/worlds/story.svg",
     label: "Story",
     position: "left-1/2 top-0 -translate-x-1/2",

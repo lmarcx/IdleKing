@@ -1,21 +1,9 @@
 import type { GameState } from "../game/state.js";
-import type { ResourceId } from "../resources/types.js";
-import { addQty } from "../resources/types.js";
+import { ALL_RESOURCES, addQty, type ResourceId } from "../resources/types.js";
 
-import {
-  farmResourcesAvailable,
-  mineResourcesAvailable,
-} from "../game/buildingActions.js";
+export const CORNUCOPIA_MAX_CLAIM_AMOUNT = 999999;
 
-import {
-  ageFromWorldLevel,
-  ageCoeffFromWorldLevel,
-} from "../progression/age.js";
-
-export type ClaimCornucopiaError =
-  | "INVALID_RESOURCE"
-  | "LOCKED_RESOURCE"
-  | "NO_STAMINA";
+export type ClaimCornucopiaError = "INVALID_AMOUNT" | "INVALID_RESOURCE";
 
 export type ClaimCornucopiaResult =
   | {
@@ -23,8 +11,8 @@ export type ClaimCornucopiaResult =
       next: GameState;
       resourceId: ResourceId;
       amount: number;
-      staminaSpent: number;
-      overdrive: boolean;
+      staminaSpent: 0;
+      overdrive: false;
     }
   | { ok: false; next: GameState; error: ClaimCornucopiaError };
 
@@ -32,112 +20,38 @@ function unique(ids: ResourceId[]): ResourceId[] {
   return Array.from(new Set(ids));
 }
 
-export function getCornucopiaClaimables(state: GameState): ResourceId[] {
-  const wl = state.progression.worldLevel;
-
-  const farm = farmResourcesAvailable(wl);
-  const mine = mineResourcesAvailable(wl);
-
-  return unique([...farm, ...mine]);
+export function getCornucopiaClaimables(_state: GameState): ResourceId[] {
+  return unique([...ALL_RESOURCES]);
 }
-
-/* ---------------------------------------------------------
-   STAMINA COST BASED ON RESOURCE AGE
---------------------------------------------------------- */
-
-function staminaCostForResource(resourceAge: number): number {
-  switch (resourceAge) {
-    case 1: return 15;
-    case 2: return 20;
-    case 3: return 25;
-    case 4: return 30;
-    case 5: return 40;
-    default: return 20;
-  }
-}
-
-/* ---------------------------------------------------------
-   AMOUNT COMPUTATION (Strategic version)
---------------------------------------------------------- */
-
-function computeCornucopiaAmount(params: {
-  worldLevel: number;
-  buildingLevel: number;
-  staminaRatio: number;
-}) {
-  const { worldLevel, buildingLevel, staminaRatio } = params;
-
-  const base = 10;
-
-  // Option 1 — scaling par Age
-  const ageMul = ageCoeffFromWorldLevel(worldLevel);
-
-  // Scaling par level bâtiment
-  const levelMul = 1 + 0.25 * Math.max(0, buildingLevel - 1);
-
-  // Option 4 — Overdrive si stamina > 80%
-  const overdrive = staminaRatio >= 0.8;
-  const overdriveMul = overdrive ? 1.3 : 1.0;
-
-  const raw = base * ageMul * levelMul * overdriveMul;
-
-  return {
-    amount: Math.max(1, Math.floor(raw)),
-    overdrive,
-  };
-}
-
-/* ---------------------------------------------------------
-   CLAIM
---------------------------------------------------------- */
 
 export function claimCornucopia(
   state: GameState,
-  input: { resourceId: ResourceId }
+  input: { resourceId: ResourceId; amount?: number },
 ): ClaimCornucopiaResult {
-  const { resourceId } = input;
+  const amount = input.amount ?? 1;
 
-  const claimables = getCornucopiaClaimables(state);
-
-  if (!claimables.includes(resourceId)) {
-    return { ok: false, next: state, error: "LOCKED_RESOURCE" };
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false, next: state, error: "INVALID_AMOUNT" };
   }
 
-  const b = state.buildings.cornucopia;
-
-  const resourceAge = ageFromWorldLevel(state.progression.worldLevel);
-  const staminaCost = staminaCostForResource(resourceAge);
-
-  if (b.stamina < staminaCost) {
-    return { ok: false, next: state, error: "NO_STAMINA" };
+  const claimAmount = Math.min(CORNUCOPIA_MAX_CLAIM_AMOUNT, Math.floor(amount));
+  if (claimAmount <= 0) {
+    return { ok: false, next: state, error: "INVALID_AMOUNT" };
   }
 
-  const staminaRatio = b.stamina / b.staminaMax;
-
-  const { amount, overdrive } = computeCornucopiaAmount({
-    worldLevel: state.progression.worldLevel,
-    buildingLevel: b.level,
-    staminaRatio,
-  });
-
-  const next: GameState = {
-    ...state,
-    resources: addQty(state.resources, resourceId, amount),
-    buildings: {
-      ...state.buildings,
-      cornucopia: {
-        ...b,
-        stamina: b.stamina - staminaCost,
-      },
-    },
-  };
+  if (!getCornucopiaClaimables(state).includes(input.resourceId)) {
+    return { ok: false, next: state, error: "INVALID_RESOURCE" };
+  }
 
   return {
     ok: true,
-    next,
-    resourceId,
-    amount,
-    staminaSpent: staminaCost,
-    overdrive,
+    next: {
+      ...state,
+      resources: addQty(state.resources, input.resourceId, claimAmount),
+    },
+    resourceId: input.resourceId,
+    amount: claimAmount,
+    staminaSpent: 0,
+    overdrive: false,
   };
 }
