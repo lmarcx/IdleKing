@@ -10,7 +10,7 @@ import { useGameStore } from "@/store/game-store";
 import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction, type StoryEventDef } from "@idleking/game-core";
 import type { ResourceStock } from "@idleking/game-core/resources/types.js";
 import { ExplorationHud, type ExplorerHudLevel, type ExplorerHudPoi } from "./exploration-hud";
-import { PixiExplorationStage, type ExplorationStagePoi } from "./pixi-exploration-stage";
+import { PixiExplorationStage, type ExplorationCombatHudState, type ExplorationStagePoi } from "./pixi-exploration-stage";
 
 type StoryLevelExplorerProps = {
   level: ExplorerHudLevel & {
@@ -125,6 +125,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
     alreadyCompleted: boolean;
     rewards: ResourceStock;
   } | null>(null);
+  const [combatHud, setCombatHud] = useState<ExplorationCombatHudState | null>(null);
 
   useEffect(() => {
     setDiscoveredPoiIds((current) => {
@@ -187,10 +188,18 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
+        onCombatHudChangeAction={setCombatHud}
         onPlayerMoveAction={setPlayerPosition}
         pointsOfInterest={pointsOfInterest}
       />
-      <CombatHud mode="story" subtitle={`Power ${level.recommendedPower}`} title={level.title} />
+      <CombatHud
+        mode="story"
+        playerEnergy={{ current: 100, max: 100 }}
+        playerHealth={combatHud?.playerHealth}
+        skillBar={combatHud?.skillBar}
+        subtitle={`Power ${level.recommendedPower}`}
+        title={level.title}
+      />
       <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
       <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
         Deplacement : WASD, ZQSD ou fleches directionnelles.

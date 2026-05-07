@@ -7,11 +7,9 @@ import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
-import { SkillBar } from "./skill-bar";
 import { isEnemyInBeam, isEnemyInCircle, isEnemyInFrontalAoe } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
-  PLAYER_MAX_HP,
   RANGED_DAMAGE_MULTIPLIER,
   calculatePlayerDamageFromStats,
   createInitialEnemies,
@@ -32,6 +30,7 @@ type PixiExplorationStageProps = {
   levelId: string;
   mapHeight: number;
   mapWidth: number;
+  onCombatHudChangeAction?: (state: ExplorationCombatHudState) => void;
   onPlayerMoveAction: (position: { x: number; y: number }) => void;
   pointsOfInterest: ExplorationStagePoi[];
 };
@@ -190,6 +189,20 @@ type LocalSkillsState = {
   combatLoadout: CharacterCombatLoadout;
   cooldowns: SkillCooldownState;
   currentTimeMs: number;
+};
+
+export type ExplorationCombatHudState = {
+  enemiesRemaining: number;
+  isDefeated: boolean;
+  playerHealth: {
+    current: number;
+    max: number;
+  };
+  skillBar: {
+    combatLoadout: CharacterCombatLoadout;
+    cooldowns: SkillCooldownState;
+    currentTimeMs: number;
+  };
 };
 
 const KEY_DIRECTIONS: Record<string, { x: number; y: number }> = {
@@ -577,17 +590,20 @@ export function PixiExplorationStage({
   levelId,
   mapHeight,
   mapWidth,
+  onCombatHudChangeAction,
   onPlayerMoveAction,
   pointsOfInterest,
 }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(inputBlocked);
+  const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
   const playerSkills = useGameStore((s) => s.state.skills);
   const combatLoadout = useMemo(
     () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
     [playerSkills]
   );
+  const playerMaxHp = Math.max(1, Math.ceil(combatLoadout.stats.hp));
   const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
     activeEffects: [],
     combatLoadout,
@@ -598,7 +614,10 @@ export function PixiExplorationStage({
   const [combatHud, setCombatHud] = useState({
     enemiesRemaining: 0,
     isDefeated: false,
-    playerHp: PLAYER_MAX_HP,
+    playerHealth: {
+      current: playerMaxHp,
+      max: playerMaxHp,
+    },
   });
 
   useEffect(() => {
@@ -615,12 +634,27 @@ export function PixiExplorationStage({
   }, [onPlayerMoveAction]);
 
   useEffect(() => {
+    onCombatHudChangeRef.current = onCombatHudChangeAction;
+  }, [onCombatHudChangeAction]);
+
+  useEffect(() => {
     inputBlockedRef.current = inputBlocked;
   }, [inputBlocked]);
 
   useEffect(() => {
     skillsStateRef.current = skillsState;
   }, [skillsState]);
+
+  useEffect(() => {
+    onCombatHudChangeRef.current?.({
+      ...combatHud,
+      skillBar: {
+        combatLoadout: skillsState.combatLoadout,
+        cooldowns: skillsState.cooldowns,
+        currentTimeMs: skillsState.currentTimeMs,
+      },
+    });
+  }, [combatHud, skillsState]);
 
   useEffect(() => {
     const nullableHostElement = hostRef.current;
@@ -677,7 +711,7 @@ export function PixiExplorationStage({
     let isPlayerDefeated = false;
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
-    let playerHp = PLAYER_MAX_HP;
+    let playerHp = playerMaxHp;
 
     function destroyPixiApp() {
       if (!initialized || destroyed) return;
@@ -1207,7 +1241,10 @@ export function PixiExplorationStage({
       setCombatHud({
         enemiesRemaining: getEnemiesRemaining(),
         isDefeated: isPlayerDefeated,
-        playerHp,
+        playerHealth: {
+          current: Math.max(0, Math.ceil(playerHp)),
+          max: playerMaxHp,
+        },
       });
     }
 
@@ -1750,7 +1787,7 @@ export function PixiExplorationStage({
       cleanupEnemies();
       destroyPixiApp();
     };
-  }, [combatLoadout, levelId, mapHeight, mapWidth, pointsOfInterest]);
+  }, [combatLoadout, levelId, mapHeight, mapWidth, playerMaxHp, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">
@@ -1764,32 +1801,9 @@ export function PixiExplorationStage({
           Debug hits
         </button>
       ) : null}
-      <div className="pointer-events-none absolute inset-x-0 bottom-4 z-20 flex justify-center px-4">
-        <SkillBar
-          combatLoadout={skillsState.combatLoadout}
-          cooldowns={skillsState.cooldowns}
-          currentTimeMs={skillsState.currentTimeMs}
-        />
-      </div>
-      <div className="pointer-events-none absolute bottom-20 right-4 z-10 rounded-lg border border-red-200/25 bg-black/70 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
-        <div className="flex items-center gap-4">
-          <div className="relative h-20 w-20 overflow-hidden rounded-full border-2 border-red-950 bg-zinc-900 shadow-[inset_0_2px_10px_rgba(0,0,0,0.8)]">
-            <div
-              className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-red-900 to-red-600 transition-all duration-500 ease-out"
-              style={{ height: `${Math.max(0, Math.min(1, combatHud.playerHp / PLAYER_MAX_HP)) * 100}%` }}
-            />
-            <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/10 to-white/20" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center font-ik-menu text-[0.65rem] font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
-              <span>{combatHud.playerHp}</span>
-              <div className="my-0.5 h-[1px] w-8 bg-white/40" />
-              <span className="opacity-70">{PLAYER_MAX_HP}</span>
-            </div>
-          </div>
-          <div className="grid gap-1">
-            <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-red-200">Combat prototype</p>
-            <span className="text-xs text-amber-50">Ennemis restants {combatHud.enemiesRemaining}</span>
-          </div>
-        </div>
+      <div className="pointer-events-none absolute bottom-24 right-4 z-10 rounded-lg border border-amber-200/20 bg-black/62 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
+        <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-amber-200/80">Combat prototype</p>
+        <span className="mt-1 block text-xs text-amber-50">Ennemis restants {combatHud.enemiesRemaining}</span>
       </div>
       {combatHud.isDefeated ? (
         <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/68 px-4 backdrop-blur-sm">

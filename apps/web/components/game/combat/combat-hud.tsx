@@ -3,14 +3,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { GameHud } from "@/components/game/hud/game-hud";
+import { GameHud, type GameHudResource } from "@/components/game/hud/game-hud";
 import { SkillBar } from "@/components/game/story-exploration/skill-bar";
 import type { CharacterCombatLoadout, combat } from "@idleking/game-core";
 
-type CombatHealth = {
-  current: number;
-  max: number;
-};
+type CombatHealth = GameHudResource;
 
 type CombatHudSkillBar = {
   combatLoadout: CharacterCombatLoadout;
@@ -53,7 +50,7 @@ export function CombatHud({
   return (
     <>
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-30">
-        <GameHud />
+        <GameHud playerEnergy={playerEnergy} playerHealth={playerHealth} />
       </div>
 
       <div className="pointer-events-none absolute left-4 top-24 z-20 max-w-sm rounded-lg border border-amber-200/20 bg-black/62 px-4 py-3 shadow-[0_12px_30px_rgba(0,0,0,0.38)] backdrop-blur-sm">
@@ -88,28 +85,6 @@ export function CombatHud({
               style={{ width: `${healthPercent(bossHealth)}%` }}
             />
           </div>
-        </div>
-      ) : null}
-
-      {playerHealth ? (
-        <div className="pointer-events-none absolute bottom-24 right-4 z-20 rounded-lg border border-red-200/25 bg-black/68 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)] backdrop-blur-sm">
-          <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.16em] text-red-200/80">Player</p>
-          <div className="mt-2 h-2 w-40 overflow-hidden rounded-full border border-red-200/20 bg-black/55">
-            <div className="h-full rounded-full bg-red-400" style={{ width: `${healthPercent(playerHealth)}%` }} />
-          </div>
-          <p className="mt-1 font-ik-menu text-xs tabular-nums text-amber-50">
-            {Math.max(0, Math.ceil(playerHealth.current))}/{playerHealth.max}
-          </p>
-          {playerEnergy ? (
-            <>
-              <div className="mt-2 h-2 w-40 overflow-hidden rounded-full border border-cyan-200/20 bg-black/55">
-                <div className="h-full rounded-full bg-cyan-300" style={{ width: `${healthPercent(playerEnergy)}%` }} />
-              </div>
-              <p className="mt-1 font-ik-menu text-xs tabular-nums text-cyan-100">
-                Energy {Math.max(0, Math.ceil(playerEnergy.current))}/{playerEnergy.max}
-              </p>
-            </>
-          ) : null}
         </div>
       ) : null}
 

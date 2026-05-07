@@ -16,10 +16,25 @@ type GameHudProps = {
   onOpenSettings?: () => void;
   onOpenSkills?: () => void;
   onOpenWorlds?: () => void;
+  playerEnergy?: GameHudResource;
+  playerHealth?: GameHudResource;
 };
 
 const hudButtonClassName =
   "rounded-md border border-amber-200/22 bg-black/45 px-2.5 py-1.5 font-ik-menu text-[0.66rem] uppercase tracking-[0.1em] text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/16 disabled:cursor-not-allowed disabled:opacity-45";
+
+export type GameHudResource = {
+  current: number;
+  max: number;
+};
+
+function normalizeHudResource(resource: GameHudResource): GameHudResource {
+  const max = Math.max(1, Math.ceil(resource.max));
+  return {
+    current: Math.min(max, Math.max(0, Math.ceil(resource.current))),
+    max,
+  };
+}
 
 function HudBar({ label, value, max, tint }: { label: string; max: number; tint: string; value: number }) {
   const percent = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
@@ -35,6 +50,24 @@ function HudBar({ label, value, max, tint }: { label: string; max: number; tint:
       <div className="h-1.5 overflow-hidden rounded-full border border-amber-200/16 bg-black/55">
         <div className={`h-full rounded-full ${tint}`} style={{ width: `${percent}%` }} />
       </div>
+    </div>
+  );
+}
+
+export function CombatResourceBars({
+  playerEnergy,
+  playerHealth,
+}: {
+  playerEnergy: GameHudResource;
+  playerHealth: GameHudResource;
+}) {
+  const health = normalizeHudResource(playerHealth);
+  const energy = normalizeHudResource(playerEnergy);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <HudBar label="HP" max={health.max} value={health.current} tint="bg-red-400" />
+      <HudBar label="Energy" max={energy.max} value={energy.current} tint="bg-cyan-300" />
     </div>
   );
 }
@@ -67,6 +100,8 @@ export function GameHud({
   onOpenSettings,
   onOpenSkills,
   onOpenWorlds,
+  playerEnergy,
+  playerHealth,
 }: GameHudProps) {
   const { openOverlay } = useGameHudOverlay();
   const state = useGameStore((store) => store.state);
@@ -83,6 +118,8 @@ export function GameHud({
     skills: onOpenSkills ?? (() => openOverlay("skills")),
     worlds: onOpenWorlds ?? (() => openOverlay("worlds")),
   };
+  const health = playerHealth ?? { current: hpMax, max: hpMax };
+  const energy = playerEnergy ?? { current: 100, max: 100 };
 
   return (
     <div
@@ -109,10 +146,7 @@ export function GameHud({
         </HudButton>
       </nav>
 
-      <div className="flex flex-wrap items-center gap-2.5">
-        <HudBar label="HP" max={hpMax} value={hpMax} tint="bg-red-400" />
-        <HudBar label="Energy" max={100} value={100} tint="bg-cyan-300" />
-      </div>
+      <CombatResourceBars playerEnergy={energy} playerHealth={health} />
 
       <div className="flex flex-wrap items-center gap-2 font-ik-body text-[0.72rem] text-amber-50">
         <HudChip>Player Lv {state.progression.playerLevel}</HudChip>
