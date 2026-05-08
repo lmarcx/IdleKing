@@ -1,49 +1,27 @@
 # 📈 Idle King — Stats System (v1)
 
----
+## 1. Vision
 
-## 🧭 Vision
+Le système de stats d’Idle King doit offrir à la fois :
 
-Le système de stats d’Idle King doit offrir :
+- une lecture simple pour le joueur
+- une vraie profondeur RPG
+- des possibilités de buildcraft
+- une extensibilité long terme
 
-```txt
-lisibilité côté joueur
-profondeur RPG
-buildcraft
-extensibilité long terme
-```
-
-Architecture :
+Il repose sur trois couches :
 
 ```txt
 stats basiques
-+
 stats avancées
-+
 stats dérivées
-```
-
-Le système doit fonctionner avec :
-
-```txt
-combat
-skills
-equipment
-forge
-enemy scaling
-boss mechanics
-future PvP
-```
+````
 
 ---
 
-# 🧱 Catégories de stats
+## 2. Stats basiques
 
----
-
-## 🟩 Stats basiques
-
-Les stats principales du joueur :
+Les stats basiques sont les stats principales du personnage.
 
 ```txt
 HP
@@ -54,9 +32,9 @@ SPEED
 
 ---
 
-## 🟦 Stats avancées
+## 3. Stats avancées
 
-Les stats spécialisées :
+Les stats avancées permettent de spécialiser les builds.
 
 ```txt
 crit chance
@@ -73,9 +51,9 @@ debuff power
 
 ---
 
-## 🟪 Stats dérivées
+## 4. Stats dérivées
 
-Calculées automatiquement :
+Les stats dérivées sont calculées automatiquement depuis les stats basiques et avancées.
 
 ```txt
 POWER
@@ -90,35 +68,21 @@ damage mitigation
 
 ---
 
-# POWER
+## 5. POWER
 
-## Définition
+POWER est un score global dérivé.
 
-POWER est :
+Il ne modifie pas directement les dégâts ou les mécaniques de combat.
 
-```txt
-un score global dérivé
-```
-
-Ce n’est PAS une stat directement utilisée dans les calculs de dégâts.
-
----
-
-## Utilisation
-
-POWER sert à :
+Il sert à :
 
 ```txt
 recommandation de contenu
-feeling progression
 comparaison de builds
 leaderboards
-UI progression
+feeling de progression
+affichage UI
 ```
-
----
-
-## Calcul
 
 POWER est calculé depuis :
 
@@ -127,19 +91,79 @@ HP
 ATK
 DEF
 SPEED
-crit
+crit chance
+crit damage
 mana
 stamina
-advanced stats
+stats avancées
 ```
 
-Formule exacte à équilibrer plus tard.
+La formule exacte sera équilibrée plus tard.
 
 ---
 
-# SPEED
+## 6. HP
 
-## Définition
+HP représente la survie du joueur.
+
+```txt
+HP = 0 → mort
+```
+
+HP est influencé par :
+
+```txt
+niveau joueur
+équipement
+sets d’équipement
+effets passifs
+```
+
+---
+
+## 7. ATK
+
+ATK représente la puissance offensive principale.
+
+Elle influence :
+
+```txt
+attaques de base
+skills offensives
+certaines mécaniques d’armes
+certains effets passifs
+```
+
+---
+
+## 8. DEF
+
+DEF représente la résistance générale aux dégâts.
+
+Elle utilise une courbe de mitigation.
+
+On évite la réduction plate :
+
+```txt
+100 dégâts - 50 DEF = 50 dégâts
+```
+
+On privilégie :
+
+```txt
+réduction progressive avec rendement décroissant
+```
+
+Objectif :
+
+```txt
+DEF reste utile à haut niveau
+sans rendre le joueur invincible
+```
+
+---
+
+## 9. SPEED
 
 SPEED est une stat primaire unique.
 
@@ -151,166 +175,82 @@ move speed
 dash cooldown
 ```
 
----
+Côté joueur, seule la stat `SPEED` est affichée.
 
-## Philosophie
-
-Côté joueur :
+Côté système, elle est transformée en plusieurs valeurs dérivées avec des coefficients différents :
 
 ```txt
-on affiche une seule stat lisible
+attackSpeed = SPEED × coefficient
+moveSpeed = SPEED × coefficient
+dashCooldownReduction = SPEED × coefficient
 ```
 
-Côté système :
+Objectif :
 
 ```txt
-plusieurs coefficients dérivés
-```
-
-Exemple conceptuel :
-
-```txt
-attackSpeed = SPEED * coeff
-moveSpeed = SPEED * coeff
-dashCDReduction = SPEED * coeff
+SPEED doit être forte
+mais ne doit pas devenir une god-stat
 ```
 
 ---
 
-# HP
+## 10. Crit
 
-HP représente :
+### Crit Chance
 
 ```txt
-survie du joueur
+cap = 100%
 ```
 
-À :
+### Crit Damage
 
 ```txt
-0 HP
-```
-
-le joueur meurt.
-
----
-
-# ATK
-
-ATK représente :
-
-```txt
-puissance offensive principale
-```
-
-Influence :
-
-```txt
-attaque de base
-skills offensives
-certaines mécaniques
-```
-
----
-
-# DEF
-
-DEF utilise une courbe de mitigation.
-
-Pas de réduction plate.
-
----
-
-## Philosophie
-
-Éviter :
-
-```txt
-100 damage - 50 DEF
-```
-
-Utiliser :
-
-```txt
-courbe scalable
+valeur par défaut = 200%
 ```
 
 Exemple :
 
 ```txt
-plus DEF augmente
-plus mitigation augmente
-avec rendement décroissant
+100 dégâts → 200 dégâts en critique
 ```
 
 ---
 
-# Crit
-
-## Crit Chance
-
-Cap :
-
-```txt
-100%
-```
-
----
-
-## Crit Damage
-
-Valeur par défaut :
-
-```txt
-200%
-```
-
-Donc :
-
-```txt
-100 damage crit = 200 damage
-```
-
----
-
-# Mana
+## 11. Mana
 
 Mana est utilisée par certaines skills.
 
----
-
-## Fonctionnement
+Fonctionnement :
 
 ```txt
 pool global
 regen passive
-regen combat
+regen en combat
 regen hors combat
+```
+
+Les builds orientés mana doivent être viables.
+
+Mana est influencée par :
+
+```txt
+équipements
+sets d’équipement
+effets passifs
+stats avancées
 ```
 
 ---
 
-## Philosophie
-
-Les builds mana-heavy doivent être viables.
-
----
-
-# Stamina
+## 12. Stamina
 
 Stamina est liée à la mobilité.
 
----
-
-## Utilisation
+Elle sert principalement au :
 
 ```txt
 sprint
 ```
-
----
-
-## Regen
 
 Fonctionnement :
 
@@ -319,59 +259,91 @@ regen passive
 léger délai après consommation
 ```
 
+Le dash ne consomme pas de stamina pour l’instant.
+
 ---
 
-# Dash
+## 13. Dash
 
-Dash utilise :
+Le dash fonctionne avec :
 
 ```txt
 cooldown
 ```
 
-Le cooldown est influencé par :
+Le cooldown du dash est réduit par :
 
 ```txt
 SPEED
 ```
 
----
-
-# Cooldown Reduction
-
-Cap :
+Le système doit pouvoir permettre plus tard :
 
 ```txt
-50%
+dash avec charges
+dash avec coût stamina
+dash offensif
+dash modifié par artifact
+dash modifié par équipement
 ```
 
 ---
 
-# Healing Power
+## 14. Cooldown Reduction
 
-Influence :
+Cooldown Reduction influence les skills.
+
+```txt
+cap = 50%
+```
+
+Elle ne remplace pas la réduction du dash liée à SPEED.
+
+---
+
+## 15. Healing Power
+
+Healing Power influence :
 
 ```txt
 self heal
 ally heal
 ```
 
+Elle peut être utilisée par :
+
+```txt
+skills
+armes support
+effets passifs
+sets d’équipement
+```
+
 ---
 
-# Buff Power
+## 16. Buff Power
 
-Influence :
+Buff Power influence :
 
 ```txt
 intensité des buffs
 durée des buffs
 ```
 
+Exemples :
+
+```txt
+augmentation dégâts
+réduction dégâts
+move speed bonus
+protection de zone
+```
+
 ---
 
-# Debuff Power
+## 17. Debuff Power
 
-Influence :
+Debuff Power influence :
 
 ```txt
 intensité des debuffs
@@ -384,17 +356,15 @@ Exemples :
 slow %
 weaken %
 silence duration
-shock vuln
+shock vulnerability
 burn potency
 ```
 
 ---
 
-# Status Effects
+## 18. Status Effects
 
----
-
-## Burn
+### Burn
 
 Effet :
 
@@ -414,14 +384,14 @@ avec caps configurables
 Objectif :
 
 ```txt
-utile sur trash
+utile sur trash mobs
 utile sur boss
 sans être broken
 ```
 
 ---
 
-## Freeze
+### Freeze
 
 Effet :
 
@@ -437,7 +407,7 @@ Debuff Power
 
 ---
 
-## Shock
+### Shock
 
 Effet :
 
@@ -455,7 +425,7 @@ Scaling possible via Debuff Power.
 
 ---
 
-## Bleed
+### Bleed
 
 Effet :
 
@@ -473,7 +443,7 @@ Scaling possible via Debuff Power.
 
 ---
 
-## Stun
+### Stun
 
 Effet :
 
@@ -483,19 +453,19 @@ contrôle temporaire
 
 ---
 
-## Silence
+### Silence
 
 Effet :
 
 ```txt
-empêche certains casts/actions
+empêche certains casts / actions
 ```
 
 ---
 
-# Damage Formula
+## 19. Damage Formula
 
-Architecture recommandée :
+La formule de dégâts doit suivre une structure claire :
 
 ```txt
 BaseDamage
@@ -507,23 +477,47 @@ BaseDamage
 × StatusModifiers
 ```
 
----
-
-## Exemple conceptuel
+Exemple conceptuel :
 
 ```txt
 ATK
 → arme
 → skill
-→ crit
-→ vuln target
+→ critique
+→ vulnérabilité cible
 → mitigation DEF
-→ damage final
+→ dégâts finaux
 ```
 
 ---
 
-# Stats affichées joueur
+## 20. Stat scaling des ennemis
+
+Les ennemis et boss scalent principalement avec :
+
+```txt
+WorldLevel
+```
+
+Le WorldLevel influence :
+
+```txt
+HP ennemis
+damage ennemis
+stats globales ennemies
+```
+
+Il ne modifie pas automatiquement :
+
+```txt
+patterns
+mécaniques
+comportements
+```
+
+---
+
+## 21. Stats affichées au joueur
 
 Le front doit pouvoir afficher :
 
@@ -545,17 +539,17 @@ buff power
 debuff power
 DPS estimé
 effective HP
-mitigation
+damage mitigation
 ```
 
 ---
 
-# Extensibilité future
+## 22. Extensibilité future
 
-Le système doit permettre :
+Le système doit permettre d’ajouter plus tard :
 
 ```txt
-armor pen
+armor penetration
 lifesteal
 thorns
 block
@@ -569,27 +563,25 @@ shield power
 summon power
 ```
 
-et d’autres.
-
 ---
 
-# PvP
+## 23. PvP
 
-## Duel PvP
+### Duel PvP
 
-Le PvP Duel utilise :
+Le Duel PvP utilisera une couche d’équilibrage séparée.
+
+Objectif :
 
 ```txt
-balance layer séparée
+éviter que les formules PvE cassent le PvP
 ```
-
-pour éviter les problèmes PvE.
 
 ---
 
-## Other PvP Modes
+### Autres modes PvP
 
-Autres modes :
+Les modes suivants pourront utiliser des systèmes de loadout ou de stats dédiés :
 
 ```txt
 Land Conquest
@@ -597,16 +589,9 @@ Spatial Conquest
 AvA
 ```
 
-pourront utiliser :
-
-```txt
-loadouts spécifiques
-stat systems dédiés
-```
-
 ---
 
-# Architecture recommandée
+## 24. Architecture recommandée
 
 ```txt
 stats/
@@ -616,21 +601,32 @@ stats/
   formulas.ts
   mitigation.ts
   status.ts
+  enemy-scaling.ts
   pvp-balance.ts
 ```
 
 ---
 
-# Philosophie finale
+## 25. Principe fondamental
 
-Le système doit être :
+Les stats doivent être :
 
 ```txt
-lisible
-profond
-scalable
-testable
-extensible
+lisibles
+profondes
+scalables
+testables
+extensibles
 ```
 
-et supporter toute la vision long terme du jeu.
+Elles doivent soutenir :
+
+```txt
+combat
+equipment
+skills
+weapons
+bosses
+enemy scaling
+PvP futur
+```
