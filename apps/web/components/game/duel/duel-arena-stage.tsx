@@ -316,13 +316,14 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
     [playerSkills]
   );
+  const playerMaxHp = Math.max(1, Math.ceil(combatLoadout.stats.hp));
   const [hudState, setHudState] = useState<DuelHudState>({
     bossDefeated: false,
     durationMs: 0,
     outcome: "fighting",
     bossHp: RESURRECTED_SCARECROW_BOSS.hp,
     rewardsApplied: false,
-    playerHp: 100,
+    playerHp: playerMaxHp,
   });
   const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
     activeEffects: [],
@@ -399,7 +400,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     let elapsedFightMs = 0;
     let lastSpecialKind: DuelBossSpecialKind | null = null;
     let bossHp: number = RESURRECTED_SCARECROW_BOSS.hp;
-    let playerHp: number = 100;
+    let playerHp: number = playerMaxHp;
     let bossHitFlashMs = 0;
     let playerHitFlashMs = 0;
     let hudSyncElapsedMs = 0;
@@ -1263,7 +1264,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       cleanupRainImpacts();
       if (initialized) destroyPixiApp();
     };
-  }, [combatLoadout, dispatch, mapHeight, mapWidth, showResourceGain]);
+  }, [combatLoadout, dispatch, mapHeight, mapWidth, playerMaxHp, showResourceGain]);
 
   return (
     <div className="relative h-full w-full">
@@ -1273,7 +1274,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         bossLabel="Epouvantail Ressuscite"
         mode="duel"
         playerEnergy={{ current: 100, max: 100 }}
-        playerHealth={{ current: hudState.playerHp, max: 100 }}
+        playerHealth={{ current: hudState.playerHp, max: playerMaxHp }}
         skillBar={{
           combatLoadout: skillsState.combatLoadout,
           cooldowns: skillsState.cooldowns,
@@ -1283,7 +1284,9 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         title="Epouvantail Ressuscite"
       />
 
-      {hudState.outcome === "victory" ? <DuelVictoryScreen durationMs={hudState.durationMs} playerHp={hudState.playerHp} /> : null}
+      {hudState.outcome === "victory" ? (
+        <DuelVictoryScreen durationMs={hudState.durationMs} playerHp={hudState.playerHp} playerMaxHp={playerMaxHp} />
+      ) : null}
       {hudState.outcome === "defeat" ? <DuelDefeatScreen /> : null}
     </div>
   );
@@ -1296,7 +1299,15 @@ function formatDuration(durationMs: number) {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
-function DuelVictoryScreen({ durationMs, playerHp }: { durationMs: number; playerHp: number }) {
+function DuelVictoryScreen({
+  durationMs,
+  playerHp,
+  playerMaxHp,
+}: {
+  durationMs: number;
+  playerHp: number;
+  playerMaxHp: number;
+}) {
   return (
     <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-xl border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
@@ -1311,7 +1322,9 @@ function DuelVictoryScreen({ durationMs, playerHp }: { durationMs: number; playe
           </div>
           <div className="flex items-center justify-between gap-3">
             <span>HP restant</span>
-            <span className="font-ik-menu text-amber-100">{Math.max(0, Math.ceil(playerHp))}/100</span>
+            <span className="font-ik-menu text-amber-100">
+              {Math.max(0, Math.ceil(playerHp))}/{playerMaxHp}
+            </span>
           </div>
           <div className="flex items-center justify-between gap-3">
             <span>Player XP</span>
