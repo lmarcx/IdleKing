@@ -1,11 +1,11 @@
 import type { GameState } from "./state.js";
 import { getQty } from "../resources/types.js";
-import { convertXpToWxp, addWorldWxp } from "../progression/worldXp.js";
+import { addWorldWxp } from "../progression/worldXp.js";
 import { applyPlayerXpGain } from "./playerXpActions.js";
 
 export type GlobalXpAllocation = {
   toPlayerXp: number;
-  toWorldXp: number; // XP_GLOBAL routed to the world channel (converted to WXP and banked)
+  toWorldXp: number; // XP_GLOBAL routed 1:1 to WXP and banked
 };
 
 /**
@@ -50,8 +50,8 @@ export function allocateGlobalXp(
     givePlayer
   );
 
-  // Convert XP_GLOBAL -> WXP, then bank it (no auto level-up).
-  const gainedWxp = convertXpToWxp(giveWorld);
+  // Convert XP_GLOBAL -> WXP at Temple's canonical 1:1 rate, then bank it (no auto level-up).
+  const gainedWxp = giveWorld;
   const wres = addWorldWxp(
     state.progression.worldLevel,
     state.progression.worldWxp,

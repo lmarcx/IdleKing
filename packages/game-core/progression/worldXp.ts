@@ -3,11 +3,11 @@ import { ageCoeffFromWorldLevel, ageFromWorldLevel } from "./age.js";
 export const WORLD_MAX_LEVEL = 50;
 
 /**
- * Converts "generic XP" into World XP (WXP).
- * Rule: WXP = floor(XP_gained * 0.10)
+ * Converts Temple XP_GLOBAL into World XP (WXP).
+ * Rule: WXP = floor(XP_GLOBAL) at a 1:1 rate.
  */
 export function convertXpToWxp(xpGained: number): number {
-  return Math.floor(Math.max(0, xpGained) * 0.10);
+  return Math.floor(Math.max(0, xpGained));
 }
 
 /**

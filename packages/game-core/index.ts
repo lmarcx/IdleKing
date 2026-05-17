@@ -2,6 +2,7 @@ export * as power from "./power/index.js";
 export * as loot from "./loot/index.js";
 export * as progression from "./progression/index.js";
 export * as economy from "./economy/index.js";
+export * as currencies from "./currencies/index.js";
 export * as world from "./world/index.js";
 export * as player from "./player/index.js";
 export * as expedition from "./expedition/index.js";
@@ -11,6 +12,20 @@ export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
+export {
+  canSpendCurrency,
+  createDefaultWalletState,
+  getCurrencyBalance,
+  grantCurrency,
+  normalizeWalletState,
+  spendCurrency,
+} from "./currencies/index.js";
+export type {
+  CurrencyDef,
+  CurrencyFamily,
+  CurrencyId,
+  WalletState,
+} from "./currencies/index.js";
 export {
   claimCornucopia,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,

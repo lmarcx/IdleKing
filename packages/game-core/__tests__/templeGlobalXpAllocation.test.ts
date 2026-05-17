@@ -53,8 +53,6 @@ test("Temple produces XP_GLOBAL then player allocates it to player/world", () =>
       allocated.progression.playerXp >= pBeforeXp
   );
 
-  // world wxp increased by floor(1 * 0.10) = 0 => so likely unchanged
-  // This assertion documents current rules.
   assert.equal(allocated.progression.worldLevel, wBeforeLvl);
-  assert.equal(allocated.progression.worldWxp, wBeforeWxp);
+  assert.equal(allocated.progression.worldWxp, wBeforeWxp + 1);
 });

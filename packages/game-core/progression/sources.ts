@@ -1,5 +1,3 @@
-import { convertXpToWxp } from "./worldXp.js";
-
 export type XpGain = {
   xp: number;
   wxp: number;
@@ -7,7 +5,7 @@ export type XpGain = {
 
 export function makeXpGain(xp: number): XpGain {
   const safeXp = Math.max(0, Math.floor(xp));
-  return { xp: safeXp, wxp: convertXpToWxp(safeXp) };
+  return { xp: safeXp, wxp: 0 };
 }
 
 // --- Histoire ---
