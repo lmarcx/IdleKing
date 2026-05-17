@@ -1,5 +1,10 @@
 import type { GameState } from "./state.js";
 import type { UnlockId } from "../story/types.js";
+import {
+  getBuildingStateKey,
+  isCanonicalBuildingId,
+  refreshCanonicalBuildingStatus,
+} from "../building/progression.js";
 
 export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
   if (unlocks.length === 0) return state;
@@ -22,40 +27,24 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
       mine: { ...state.buildings.mine },
       kitchen: { ...state.buildings.kitchen },
       forge: { ...state.buildings.forge },
+      market: { ...state.buildings.market },
+      worldGate: { ...state.buildings.worldGate },
+      bank: { ...state.buildings.bank },
     },
   };
 
   for (const id of unlocks) {
     next.story.unlocked.add(id);
 
-    // Unlock effects are mirrored into concrete building states.
-    switch (id) {
-      case "FORUM":
-        next.buildings.forum.unlocked = true;
-        break;
-
-      case "TEMPLE":
-        next.buildings.temple.unlocked = true;
-        break;
-
-      case "FARM":
-        next.buildings.farm.unlocked = true;
-        break;
-
-      case "MINE":
-        next.buildings.mine.unlocked = true;
-        break;
-
-      case "KITCHEN":
-        next.buildings.kitchen.unlocked = true;
-        break;
-
-      case "FORGE":
-        next.buildings.forge.unlocked = true;
-        break;
-
-      default:
-        break;
+    if (isCanonicalBuildingId(id)) {
+      const key = getBuildingStateKey(id);
+      (next.buildings as any)[key] = refreshCanonicalBuildingStatus(
+        {
+          ...next.buildings[key],
+          unlocked: true,
+        },
+        next.progression.worldLevel,
+      );
     }
   }
 

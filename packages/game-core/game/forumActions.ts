@@ -1,6 +1,7 @@
 import type { GameState } from "./state.js";
 import { canRankUpWorld, rankUpWorldOnce } from "../progression/worldXp.js";
 import { refillWorldResources } from "../world/worldResources.js";
+import { refreshAllBuildingStatuses } from "../building/progression.js";
 
 export type ForumRankUpWorldResult = {
   next: GameState;
@@ -35,16 +36,18 @@ export function forumRankUpWorld(state: GameState): ForumRankUpWorldResult {
     return { next: state, rankedUp: false, reason: "NOT_ENOUGH_WXP" };
   }
 
+  const next: GameState = {
+    ...state,
+    progression: {
+      ...state.progression,
+      worldLevel: r.newWorldLevel,
+      worldWxp: r.newWorldWxp,
+    },
+    world: refillWorldResources(state.world, r.newWorldLevel),
+  };
+
   return {
     rankedUp: true,
-    next: {
-      ...state,
-      progression: {
-        ...state.progression,
-        worldLevel: r.newWorldLevel,
-        worldWxp: r.newWorldWxp,
-      },
-      world: refillWorldResources(state.world, r.newWorldLevel),
-    },
+    next: refreshAllBuildingStatuses(next, r.newWorldLevel),
   };
 }

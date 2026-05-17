@@ -36,6 +36,22 @@ export type {
   ClaimCornucopiaResult,
 } from "./building/cornucopiaActions.js";
 export {
+  BUILDING_MAX_LEVEL,
+  CANONICAL_BUILDING_IDS,
+  getBuildingState,
+  getBuildingUpgradeCost,
+  getCanonicalBuildingStatus,
+  refreshAllBuildingStatuses,
+  upgradeBuilding,
+} from "./building/progression.js";
+export type {
+  BuildingStatus,
+  CanonicalBuildingId,
+  CanonicalBuildingProgress,
+  CanonicalBuildingState,
+  UpgradeBuildingResult,
+} from "./building/progression.js";
+export {
   getBuildCost,
 } from "./building/buildCosts.js";
 export {

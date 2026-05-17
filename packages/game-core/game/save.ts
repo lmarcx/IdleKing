@@ -6,6 +6,7 @@ import { normalizePlayerEquipmentState } from "../equipment/index.js";
 import { normalizeEquipmentItem, type Item } from "../items/types.js";
 import { normalizeWalletState } from "../currencies/index.js";
 import { normalizeWorldResourcesState } from "../world/worldResources.js";
+import { normalizeAllBuildingProgress } from "../building/progression.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
@@ -55,6 +56,25 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
   };
   const rawBuildings = rawState.buildings ?? defaults.buildings;
 
+  const buildings = normalizeAllBuildingProgress(
+    {
+      ...defaults.buildings,
+      ...rawBuildings,
+      forum: { ...defaults.buildings.forum, ...(rawBuildings as any).forum },
+      temple: { ...defaults.buildings.temple, ...(rawBuildings as any).temple },
+      farm: { ...defaults.buildings.farm, ...(rawBuildings as any).farm },
+      mine: { ...defaults.buildings.mine, ...(rawBuildings as any).mine },
+      kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
+      forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
+      market: { ...defaults.buildings.market, ...(rawBuildings as any).market },
+      worldGate: { ...defaults.buildings.worldGate, ...(rawBuildings as any).worldGate },
+      bank: { ...defaults.buildings.bank, ...(rawBuildings as any).bank },
+      cornucopia: { ...defaults.buildings.cornucopia, ...(rawBuildings as any).cornucopia },
+    },
+    defaults.buildings,
+    progression.worldLevel,
+  );
+
   return {
     ...defaults,
     ...state,
@@ -64,17 +84,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     skills: rawState.skills ?? createDefaultPlayerSkillsState(),
     wallet: normalizeWalletState(rawState.wallet),
     world: normalizeWorldResourcesState(rawState.world, progression.worldLevel, nowMs),
-    buildings: {
-      ...defaults.buildings,
-      ...rawBuildings,
-      forum: { ...defaults.buildings.forum, ...(rawBuildings as any).forum },
-      temple: { ...defaults.buildings.temple, ...(rawBuildings as any).temple },
-      farm: { ...defaults.buildings.farm, ...(rawBuildings as any).farm },
-      mine: { ...defaults.buildings.mine, ...(rawBuildings as any).mine },
-      kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
-      forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
-      cornucopia: { ...defaults.buildings.cornucopia, ...(rawBuildings as any).cornucopia },
-    },
+    buildings,
     story: {
       ...defaults.story,
       ...(rawState.story ?? {}),

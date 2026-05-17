@@ -26,12 +26,14 @@ import {
   convertTempleGlobalXp,
   forgeCraft,
   getBuildCost,
+  getCanonicalBuildingStatus,
   getCornucopiaClaimables,
   getQty,
   hasAtLeast,
   isEquipmentItem,
   xpNext,
   type BuildingId,
+  type BuildingStatus,
   type ForgeRecipe,
   type ResourceId,
   type TempleXpTarget,
@@ -100,16 +102,15 @@ const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
 const TEMPLE_BUILD_COST = getBuildCost("TEMPLE");
 const FORGE_BUILD_COST = getBuildCost("FORGE");
+const FARM_BUILD_COST = getBuildCost("FARM");
 
 type Vector2 = {
   x: number;
   y: number;
 };
 
-type BuildingState = "locked" | "unlocked" | "built";
-
 type BuildingModalState = {
-  state: BuildingState;
+  state: BuildingStatus;
 } | null;
 
 type PlaceholderBuildingId = "forum" | "kitchen" | "mine";
@@ -118,6 +119,9 @@ type HubOverlayId = "boto";
 type PlaceholderBuildingStatus = {
   active: boolean;
   built: boolean;
+  level: number;
+  maxLevel: number;
+  status: BuildingStatus;
   unlocked: boolean;
 };
 
@@ -494,22 +498,27 @@ function createHubSpriteVisual(options: HubSpriteOptions & { glowTexture?: PIXI.
   return createHubSprite(options);
 }
 
-function renderFarmSlot(foundation: PIXI.Graphics, sprite: PIXI.Sprite, state: BuildingState) {
+function isBuiltVisualState(state: BuildingStatus) {
+  return state === "built" || state === "upgradeable" || state === "maxed";
+}
+
+function renderFarmSlot(foundation: PIXI.Graphics, sprite: PIXI.Sprite, state: BuildingStatus) {
+  const isBuilt = isBuiltVisualState(state);
   foundation.clear();
   foundation.roundRect(-86, -60, 172, 112, 8).fill({
-    alpha: state === "built" ? 0.12 : state === "unlocked" ? 0.22 : 0.12,
+    alpha: isBuilt ? 0.12 : state === "unlocked" ? 0.22 : 0.12,
     color: state === "locked" ? 0x111111 : 0x243c30,
   });
   foundation.roundRect(-86, -60, 172, 112, 8).stroke({
-    alpha: state === "built" ? 0.34 : state === "unlocked" ? 0.58 : 0.3,
+    alpha: isBuilt ? 0.34 : state === "unlocked" ? 0.58 : 0.3,
     color: state === "locked" ? 0x5e5e5e : 0xf0c26a,
     width: 2,
   });
-  sprite.alpha = state === "built" ? 1 : state === "unlocked" ? 0.78 : 0.42;
+  sprite.alpha = isBuilt ? 1 : state === "unlocked" ? 0.78 : 0.42;
   sprite.tint = state === "locked" ? 0x777777 : 0xffffff;
 }
 
-function createFarmSlotVisual(textures: HubTextures, state: BuildingState) {
+function createFarmSlotVisual(textures: HubTextures, state: BuildingStatus) {
   const visual = createHubSprite({
     displayHeight: HUB_DISPLAY_HEIGHTS.farm,
     glowHeight: 154,
@@ -527,7 +536,7 @@ function createFarmSlotVisual(textures: HubTextures, state: BuildingState) {
   renderFarmSlot(foundation, visual.sprite, state);
   return {
     container: visual.container,
-    render: (nextState: BuildingState) => renderFarmSlot(foundation, visual.sprite, nextState),
+    render: (nextState: BuildingStatus) => renderFarmSlot(foundation, visual.sprite, nextState),
     setNear: visual.setNear,
     update: visual.update,
   };
@@ -590,10 +599,22 @@ function clampCornucopiaAmount(amount: number) {
   return clamp(Math.floor(amount), 1, CORNUCOPIA_MAX_CLAIM_AMOUNT);
 }
 
-function getBuildingStatusLabel(building: { unlocked: boolean; built: boolean }) {
-  if (!building.unlocked) return "Verrouillé";
-  if (!building.built) return "À construire";
-  return "Construit";
+function getBuildingStatusLabel(building: { unlocked: boolean; built: boolean; status?: BuildingStatus }) {
+  const status = building.status ?? (!building.unlocked ? "locked" : !building.built ? "unlocked" : "built");
+
+  switch (status) {
+    case "locked":
+      return "Verrouillé";
+    case "unlocked":
+      return "À construire";
+    case "upgradeable":
+      return "Améliorable";
+    case "maxed":
+      return "Max";
+    case "built":
+    default:
+      return "Construit";
+  }
 }
 
 function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, canBuild: boolean) {
@@ -603,17 +624,34 @@ function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, ca
   return "Construire";
 }
 
+function getBuildingLevelLabel(building: { built: boolean; level?: number; maxLevel?: number }) {
+  const level = Math.max(0, Math.floor(building.level ?? (building.built ? 1 : 0)));
+  const maxLevel = Math.max(1, Math.floor(building.maxLevel ?? 50));
+
+  return `Level ${level}/${maxLevel}`;
+}
+
 function getEffectiveBuildingState<T extends { unlocked: boolean; built: boolean; active?: boolean }>(
   building: T,
+  worldLevel: number,
   devMode = DEV_MODE,
 ): T {
   if (!devMode) return building;
 
-  return {
+  const effective = {
     ...building,
     unlocked: true,
     active: building.built ? (building.active ?? true) : false,
   };
+
+  if ("status" in effective && "level" in effective && "maxLevel" in effective) {
+    return {
+      ...effective,
+      status: getCanonicalBuildingStatus(effective as any, worldLevel),
+    };
+  }
+
+  return effective;
 }
 
 function isDevUnlocked(building: { unlocked: boolean }) {
@@ -623,8 +661,9 @@ function isDevUnlocked(building: { unlocked: boolean }) {
 function getPlaceholderBuildingState(
   buildings: Record<PlaceholderBuildingId, PlaceholderBuildingStatus>,
   buildingId: PlaceholderBuildingId,
+  worldLevel: number,
 ) {
-  return getEffectiveBuildingState(buildings[buildingId]);
+  return getEffectiveBuildingState(buildings[buildingId], worldLevel);
 }
 
 export function KingdomHubStage() {
@@ -633,8 +672,8 @@ export function KingdomHubStage() {
   const isDialogueOpenRef = useRef(false);
   const isClaimingCornucopiaRef = useRef(false);
   const nearbyInteractableIdRef = useRef<string | null>(null);
-  const farmStateRef = useRef<BuildingState>("unlocked");
-  const renderFarmSlotRef = useRef<((state: BuildingState) => void) | null>(null);
+  const farmStateRef = useRef<BuildingStatus>("unlocked");
+  const renderFarmSlotRef = useRef<((state: BuildingStatus) => void) | null>(null);
   const spawnWorldFxRef = useRef<SpawnWorldFx | null>(null);
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
@@ -645,7 +684,7 @@ export function KingdomHubStage() {
   } = useGameHudOverlay();
   const [isCornucopiaOpen, setIsCornucopiaOpen] = useState(false);
   const [activeDialogue, setActiveDialogue] = useState<{ name: string; text: string } | null>(null);
-  const [farmState, setFarmState] = useState<BuildingState>("unlocked");
+  const [farmState, setFarmState] = useState<BuildingStatus>("unlocked");
   const [farmModal, setFarmModal] = useState<BuildingModalState>(null);
   const [isTempleOpen, setIsTempleOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
@@ -667,14 +706,16 @@ export function KingdomHubStage() {
   const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
   const playerXpToNext = xpNext(state.progression.playerLevel);
   const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
-  const effectiveTemple = getEffectiveBuildingState(state.buildings.temple);
-  const effectiveForge = getEffectiveBuildingState(state.buildings.forge);
+  const effectiveTemple = getEffectiveBuildingState(state.buildings.temple, state.progression.worldLevel);
+  const effectiveForge = getEffectiveBuildingState(state.buildings.forge, state.progression.worldLevel);
+  const effectiveFarm = getEffectiveBuildingState(state.buildings.farm, state.progression.worldLevel);
   const placeholderBuilding = placeholderBuildingId ? PLACEHOLDER_BUILDINGS[placeholderBuildingId] : null;
   const placeholderBuildingState = placeholderBuildingId
-    ? getPlaceholderBuildingState(state.buildings, placeholderBuildingId)
+    ? getPlaceholderBuildingState(state.buildings, placeholderBuildingId, state.progression.worldLevel)
     : null;
   const canBuildTemple = effectiveTemple.unlocked && !effectiveTemple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
   const canBuildForge = effectiveForge.unlocked && !effectiveForge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
+  const canBuildFarm = effectiveFarm.unlocked && !effectiveFarm.built && hasAtLeast(state.resources, FARM_BUILD_COST);
 
   useEffect(() => {
     isModalOpenRef.current =
@@ -690,6 +731,10 @@ export function KingdomHubStage() {
       setIsClaimingCornucopia(false);
     }
   }, [activeOverlay, farmModal, isCornucopiaOpen, isForgeOpen, isGameHudOverlayOpen, isTempleOpen, placeholderBuildingId]);
+
+  useEffect(() => {
+    setFarmState(effectiveFarm.status);
+  }, [effectiveFarm.status]);
 
   useEffect(() => {
     farmStateRef.current = farmState;
@@ -807,13 +852,20 @@ export function KingdomHubStage() {
 
   const handleBuildFarm = useCallback(() => {
     if (farmStateRef.current !== "unlocked") return;
-    farmStateRef.current = "built";
-    renderFarmSlotRef.current?.("built");
+    const result = buildBuilding(useGameStore.getState().state, "FARM", { allowLocked: DEV_MODE });
+    if (!result.ok) {
+      toast.error(`Build failed: ${result.reason}`);
+      return;
+    }
+
+    dispatch(() => result.next);
+    farmStateRef.current = result.next.buildings.farm.status;
+    renderFarmSlotRef.current?.(result.next.buildings.farm.status);
     spawnWorldFxRef.current?.(FARM_SLOT, "Built", 0xf0c26a);
-    setFarmState("built");
+    setFarmState(result.next.buildings.farm.status);
     setFarmModal(null);
     isModalOpenRef.current = false;
-  }, []);
+  }, [dispatch]);
 
   const handleBuildCoreBuilding = useCallback(
     (buildingId: Extract<BuildingId, "TEMPLE" | "FORGE">) => {
@@ -1645,6 +1697,9 @@ export function KingdomHubStage() {
                       </span>
                     ) : null}
                   </div>
+                  <div className="mt-1 font-ik-body text-xs text-muted-foreground">
+                    {getBuildingLevelLabel(placeholderBuildingState)}
+                  </div>
                 </div>
               ) : null}
 
@@ -1797,6 +1852,9 @@ export function KingdomHubStage() {
                   </span>
                 ) : null}
               </div>
+              <div className="mt-1 font-ik-body text-xs text-muted-foreground">
+                {getBuildingLevelLabel(effectiveTemple)}
+              </div>
             </div>
             <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
               <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">XP_GLOBAL</div>
@@ -1897,6 +1955,9 @@ export function KingdomHubStage() {
                   DEV UNLOCK
                 </span>
               ) : null}
+            </div>
+            <div className="mt-1 font-ik-body text-xs text-muted-foreground">
+              {getBuildingLevelLabel(effectiveForge)}
             </div>
           </div>
 
@@ -2000,7 +2061,8 @@ export function KingdomHubStage() {
           </DialogHeader>
 
           <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-body text-sm text-muted-foreground">
-            Building type: {FARM_SLOT.buildingType}
+            Building type: {FARM_SLOT.buildingType} · {getBuildingStatusLabel(effectiveFarm)} ·{" "}
+            {getBuildingLevelLabel(effectiveFarm)}
           </div>
 
           <DialogFooter>
@@ -2013,11 +2075,12 @@ export function KingdomHubStage() {
             </button>
             {farmModal?.state === "unlocked" ? (
               <button
-                className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24"
+                className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canBuildFarm}
                 onClick={handleBuildFarm}
                 type="button"
               >
-                Build
+                {getBuildActionLabel(effectiveFarm, canBuildFarm)}
               </button>
             ) : null}
           </DialogFooter>

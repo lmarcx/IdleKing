@@ -13,6 +13,8 @@ export type UnlockId =
   | "LABORATORY"
   | "FORTRESS"
   | "MARKET"
+  | "WORLD_GATE"
+  | "BANK"
   | "ROYAL_CASTLE"
   // extensible: ajouter d'autres ids plus tard sans casser
   | (string & {});

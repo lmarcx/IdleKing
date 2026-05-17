@@ -10,7 +10,7 @@ export type Resources = {
 export type TempleState = {
   unlocked: boolean;
   built: boolean;
-  level: 1 | 2 | 3 | 4 | 5;
+  level: number;
   assignedVillagers: number;
 };
 
