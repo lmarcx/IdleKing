@@ -6,7 +6,7 @@ import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/
 import { ResourceFocusDropdown } from "@/components/game/hud/resource-focus-dropdown";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
-import { calculateFinalCharacterStats, xpNext } from "@idleking/game-core";
+import { calculateFinalCharacterStats, getCurrencyBalance, xpNext } from "@idleking/game-core";
 
 type GameHudProps = {
   className?: string;
@@ -120,6 +120,15 @@ export function GameHud({
   };
   const health = playerHealth ?? { current: hpMax, max: hpMax };
   const energy = playerEnergy ?? { current: 100, max: 100 };
+  const worldEnergy = {
+    current: Math.floor(state.world.energy.current),
+    max: Math.ceil(state.world.energy.max),
+  };
+  const worldHp = {
+    current: Math.floor(state.world.hp.current),
+    max: Math.ceil(state.world.hp.max),
+  };
+  const ecuBalance = getCurrencyBalance(state.wallet, "ECU");
 
   return (
     <div
@@ -146,7 +155,13 @@ export function GameHud({
         </HudButton>
       </nav>
 
-      <CombatResourceBars playerEnergy={energy} playerHealth={health} />
+      <div className="flex flex-wrap items-center gap-3">
+        <CombatResourceBars playerEnergy={energy} playerHealth={health} />
+        <div className="flex flex-wrap items-center gap-2.5">
+          <HudBar label="World EN" max={worldEnergy.max} value={worldEnergy.current} tint="bg-emerald-300" />
+          <HudBar label="World HP" max={worldHp.max} value={worldHp.current} tint="bg-violet-300" />
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-center gap-2 font-ik-body text-[0.72rem] text-amber-50">
         <HudChip>Player Lv {state.progression.playerLevel}</HudChip>
@@ -156,6 +171,7 @@ export function GameHud({
         </HudChip>
         <HudChip>World Lv {state.progression.worldLevel}</HudChip>
         <HudChip>WXP {state.progression.worldWxp}</HudChip>
+        <HudChip>ECU {ecuBalance}</HudChip>
         <HudChip>Villagers {villagers.length}</HudChip>
         <HudChip>Avg stamina {averageStamina}</HudChip>
         <ResourceFocusDropdown resources={state.resources} />

@@ -859,7 +859,7 @@ export function KingdomHubStage() {
           ? `Converted ${result.amount} XP_GLOBAL to Player XP${
               result.player?.leveledUp ? ` (+${result.player.levelsGained} level)` : ""
             }.`
-          : `Converted ${result.amount} XP_GLOBAL to World WXP. Rank up remains available in the Forum.`;
+          : `Converted ${result.amount} XP_GLOBAL to ${result.amount} World WXP. Rank up remains available in the Forum.`;
       setTempleFeedback(feedback);
       toast.success(feedback);
     },
@@ -1783,7 +1783,7 @@ export function KingdomHubStage() {
         <DialogContent className="border-cyan-200/25 bg-zinc-950 text-cyan-50">
           <DialogHeader>
             <DialogTitle>Temple</DialogTitle>
-            <DialogDescription>Convert XP_GLOBAL into player growth or banked World WXP.</DialogDescription>
+            <DialogDescription>Convert XP_GLOBAL into Player XP or banked World WXP at a 1:1 rate.</DialogDescription>
           </DialogHeader>
 
           <div className="mt-4 grid gap-3 font-ik-body text-sm text-muted-foreground sm:grid-cols-3">
@@ -1870,7 +1870,7 @@ export function KingdomHubStage() {
               onClick={() => handleTempleConvert("worldWxp")}
               type="button"
             >
-              Convert to World WXP
+              Convert to World WXP (1:1)
             </button>
           </DialogFooter>
         </DialogContent>

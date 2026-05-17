@@ -4,6 +4,7 @@ import { create } from "zustand";
 
 import {
   createDefaultPlayerSkillsState,
+  world as worldCore,
   equipItem as equipCoreItem,
   equipSkill,
   respecSkills,
@@ -224,6 +225,39 @@ export const useGameStore = create<GameStore>((set) => ({
 
 let initialized = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let worldRegenInitialized = false;
+let worldRegenTimer: ReturnType<typeof setInterval> | null = null;
+
+const WORLD_REGEN_INTERVAL_MS = 15_000;
+
+function stateNeedsWorldRegen(state: GameState): boolean {
+  const energyMax = worldCore.maxWorldEnergy(state.progression.worldLevel);
+  const hpMax = worldCore.maxWorldHp(state.progression.worldLevel);
+
+  return (
+    state.world.energy.max !== energyMax ||
+    state.world.hp.max !== hpMax ||
+    state.world.energy.current < energyMax ||
+    state.world.hp.current < hpMax
+  );
+}
+
+function applyRuntimeWorldRegen() {
+  const current = useGameStore.getState();
+  if (!current.hydrated) return;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+
+  useGameStore.setState((store) => {
+    if (!stateNeedsWorldRegen(store.state)) return {};
+
+    return {
+      state: {
+        ...store.state,
+        world: worldCore.applyWorldResourceRegen(store.state.world, store.state.progression.worldLevel),
+      },
+    };
+  });
+}
 
 export function initGameStoreAutosave() {
   if (initialized) return;
@@ -237,6 +271,31 @@ export function initGameStoreAutosave() {
       saveGame(useGameStore.getState().state);
     }, 500);
   });
+}
+
+export function initGameStoreWorldRegen() {
+  if (worldRegenInitialized) return () => {};
+  worldRegenInitialized = true;
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible") applyRuntimeWorldRegen();
+  };
+
+  applyRuntimeWorldRegen();
+  worldRegenTimer = setInterval(applyRuntimeWorldRegen, WORLD_REGEN_INTERVAL_MS);
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  }
+
+  return () => {
+    if (worldRegenTimer) clearInterval(worldRegenTimer);
+    worldRegenTimer = null;
+    worldRegenInitialized = false;
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    }
+  };
 }
 
 export function hasPersistedSave(): boolean {
