@@ -1,8 +1,11 @@
 import type { GameState } from "./state.js";
+import { createInitialGameState } from "./state.js";
 import { applyOfflineProgress } from "./offlineProgress.js";
 import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
 import { normalizePlayerEquipmentState } from "../equipment/index.js";
 import { normalizeEquipmentItem, type Item } from "../items/types.js";
+import { normalizeWalletState } from "../currencies/index.js";
+import { normalizeWorldResourcesState } from "../world/worldResources.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
@@ -43,17 +46,43 @@ function reviveInventory(inventory: GameState["inventory"]): GameState["inventor
   };
 }
 
-function reviveGameState(state: GameState): GameState {
+function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
+  const defaults = createInitialGameState({ nowMs });
+  const rawState = state as Partial<GameState>;
+  const progression = {
+    ...defaults.progression,
+    ...(rawState.progression ?? {}),
+  };
+  const rawBuildings = rawState.buildings ?? defaults.buildings;
+
   return {
+    ...defaults,
     ...state,
-    inventory: reviveInventory(state.inventory),
-    equipment: normalizePlayerEquipmentState(state.equipment),
-    skills: state.skills ?? createDefaultPlayerSkillsState(),
+    progression,
+    inventory: reviveInventory(rawState.inventory ?? defaults.inventory),
+    equipment: normalizePlayerEquipmentState(rawState.equipment),
+    skills: rawState.skills ?? createDefaultPlayerSkillsState(),
+    wallet: normalizeWalletState(rawState.wallet),
+    world: normalizeWorldResourcesState(rawState.world, progression.worldLevel, nowMs),
+    buildings: {
+      ...defaults.buildings,
+      ...rawBuildings,
+      forum: { ...defaults.buildings.forum, ...(rawBuildings as any).forum },
+      temple: { ...defaults.buildings.temple, ...(rawBuildings as any).temple },
+      farm: { ...defaults.buildings.farm, ...(rawBuildings as any).farm },
+      mine: { ...defaults.buildings.mine, ...(rawBuildings as any).mine },
+      kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
+      forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
+      cornucopia: { ...defaults.buildings.cornucopia, ...(rawBuildings as any).cornucopia },
+    },
     story: {
-      ...state.story,
-      completedChapters: toSet(state.story.completedChapters),
-      completedEvents: toSet(state.story.completedEvents),
-      completedLevels: toSet(state.story.completedLevels),
+      ...defaults.story,
+      ...(rawState.story ?? {}),
+      completedChapters: toSet(rawState.story?.completedChapters),
+      completedEvents: toSet(rawState.story?.completedEvents),
+      completedLevels: toSet(rawState.story?.completedLevels),
+      discoveredEvents: toSet(rawState.story?.discoveredEvents),
+      unlocked: toSet(rawState.story?.unlocked),
     },
   };
 }
@@ -87,9 +116,8 @@ export function loadGameWithReport(): LoadGameResult | null {
     const parsed = JSON.parse(raw) as PersistedSave;
 
     // Future: migrations by schemaVersion
-    const baseState = reviveGameState(parsed.state);
-
     const now = Date.now();
+    const baseState = reviveGameState(parsed.state, parsed.savedAt);
     const diffMs = now - parsed.savedAt;
     const minutesAway = Math.floor(diffMs / 60000);
 

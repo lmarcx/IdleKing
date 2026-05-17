@@ -1,4 +1,4 @@
-# 📦 Idle King — Item System (v1)
+# 📦 Idle King — Item System (v2)
 
 ## 1. Vision
 
@@ -16,6 +16,7 @@ Il doit supporter :
 
 ```txt
 équipements
+ressources
 consommables
 objets spéciaux
 progression
@@ -25,31 +26,94 @@ forge
 économie future
 ```
 
-Le système doit être conçu pour permettre l’ajout de nouveaux types d’items sans refactor massif.
+Les currencies sont un système séparé.
+
+```txt
+Items ≠ Currencies
+```
 
 ---
 
-## 2. Grandes catégories
+## 2. Différence entre Items et Currencies
 
-Le système d’items repose sur trois familles :
+### Items
+
+Les items sont des objets stockés dans l’inventaire.
+
+Ils peuvent :
+
+```txt
+être lootés
+être craftés
+être stackables
+être déplacés
+être vendus
+être stockés en banque
+être consommés
+être équipés
+```
+
+Les items utilisent :
+
+```txt
+inventory UI
+stack logic
+bank storage
+```
+
+---
+
+### Currencies
+
+Les currencies ne sont pas des items.
+
+Elles sont stockées dans un wallet dédié.
+
+Elles utilisent un affichage spécifique.
+
+Exemples :
+
+```txt
+Écu
+Duel Token
+Boss Token
+Guild Token
+Abyss Shard
+Event Currency
+```
+
+Les currencies utilisent :
+
+```txt
+wallet UI
+counters
+market exchange
+mode rewards
+economy systems
+```
+
+---
+
+## 3. Grandes catégories d’items
+
+Le système repose sur :
 
 ```txt
 Equipment
+Resources
 Consumables
 Special Items
 ```
 
 ---
 
-# 3. Equipment
+# 4. Equipment
 
-Les équipements représentent les items équipables par le joueur.
+Les équipements représentent les items équipables.
 
 ---
 
 ## Equipment Slots
-
-Slots disponibles :
 
 ```txt
 helmet
@@ -91,8 +155,6 @@ necklace
 
 ### Weapon / Offhand
 
-Gestion selon le type d’arme.
-
 #### Arme une main
 
 ```txt
@@ -122,15 +184,13 @@ Le joueur peut équiper :
 5 rings
 ```
 
-Tous les rings sont actifs simultanément.
+Tous actifs simultanément.
 
 Vision future :
 
 ```txt
-rings = modificateurs avancés de skills
+modificateurs avancés de skills
 ```
-
-Rôle endgame / buildcraft.
 
 ---
 
@@ -145,122 +205,68 @@ Le joueur peut équiper :
 Rôle :
 
 ```txt
-modifie le gameplay des armes
-```
-
-Exemples futurs :
-
-```txt
-parry perfect
-axe rebound
-dagger shadow clone
-charged pierce
-protective heal zone
+modifier le gameplay des armes
 ```
 
 ---
 
-# 4. Consumables
+# 5. Resources
 
-Les consommables représentent des items consommés à l’usage.
+Les ressources sont des items servant de matières premières.
 
----
-
-## Familles initiales
-
-### Potions
-
-Exemples :
+Utilisation :
 
 ```txt
-heal potion
-mana potion
-stamina potion
-buff potion
-cleanse potion
+Forge
+Kitchen
+Buildings
+Market
+Future progression systems
 ```
 
 ---
 
-### Food / Meals
+## Resource Types
 
-Exemples :
+Types initiaux :
 
 ```txt
-plats
-buffs temporaires
-restoration
-bonus combat
+wood
+ore
+gem
+meat
+vegetable
+monster
+boss
+```
+
+Le système doit permettre l’ajout de nouveaux types.
+
+---
+
+## Resource Rules
+
+Chaque ressource possède :
+
+```txt
+type fixe
+rareté fixe
+stack size fixe
+tradability
+```
+
+Pas de :
+
+```txt
+quality roll
+random rarity
 ```
 
 ---
 
-## Usage
+## Resource Rarity
 
-Les consommables peuvent être utilisés :
-
-```txt
-en combat
-hors combat
-n’importe quand
-```
-
----
-
-## Stack
-
-Les consommables sont :
-
-```txt
-stackables
-```
-
----
-
-# 5. Special Items
-
-Les objets spéciaux représentent une catégorie ouverte.
-
-Vision :
-
-```txt
-story items
-quest items
-keys
-boss trophies
-unlock tokens
-special currencies
-progression artifacts
-future systems
-```
-
-Ils seront détaillés plus tard avec :
-
-```txt
-PROGRESSION.md
-STORY.md
-ECONOMY.md
-```
-
----
-
-## Stack
-
-Les objets spéciaux peuvent être :
-
-```txt
-stackables
-```
-
-selon leur type.
-
----
-
-# 6. Rarity System
-
-Toutes les catégories d’items utilisent le même système de rareté.
-
-Raretés :
+Raretés possibles :
 
 ```txt
 Common
@@ -273,126 +279,125 @@ Divine
 Ancient
 ```
 
----
-
-## Impact de la rareté
-
-La rareté influence :
-
-```txt
-puissance
-nombre de paliers d’upgrade
-potentiel build
-resonance contribution
-visuel
-valeur économique
-```
-
-À définir plus précisément plus tard selon catégorie.
-
----
-
-# 7. Item Level (ilvl)
-
-Chaque item possède un :
-
-```txt
-Item Level
-```
-
----
-
-## Rôle
-
-L’ilvl influence :
-
-```txt
-stats basiques
-stats avancées
-POWER
-drop progression
-recommandation contenu
-```
-
----
-
-## Philosophie
-
-Exemple :
-
-```txt
-épée ilvl 10 common
-épée ilvl 40 common
-```
-
-Même rareté.
-
-Mais :
-
-```txt
-ilvl 40 > bien plus puissante
-```
-
----
-
-## Scaling
-
-Les stats utilisent des coefficients basés sur :
-
-```txt
-ilvl
-rareté
-upgrade level
-equipment set
-```
-
----
-
-# 8. Item Determinism (MVP)
-
 Pour le MVP :
 
 ```txt
-stats fixes
-```
-
-Un même item possède toujours les mêmes stats.
-
-Exemple :
-
-```txt
-Iron Sword ilvl 10 rare
-toujours mêmes stats
+max rarity = Mythic
 ```
 
 ---
 
-# 9. Future Quality System
+## Stack
 
-Plus tard :
+Toutes les ressources :
 
 ```txt
-quality system
-random stat rolls
-affixes
-ranges
-item perfection
+stackables
+max stack = 999
 ```
 
 Exemple :
 
 ```txt
-Iron Sword
-82% quality
-97% quality
-perfect roll
+1350 Iron
+=
+999 + 351
 ```
-
-Ce système n’est PAS MVP.
 
 ---
 
-# 10. Equipment Sets
+# 6. Consumables
+
+Les consommables sont des items consommés à l’usage.
+
+---
+
+## Familles
+
+### Potions
+
+```txt
+heal potion
+mana potion
+stamina potion
+buff potion
+cleanse potion
+```
+
+---
+
+### Food
+
+```txt
+plats
+buffs temporaires
+restoration
+combat bonuses
+```
+
+---
+
+### Future
+
+```txt
+scrolls
+utility consumables
+special combat consumables
+```
+
+---
+
+## Usage
+
+Utilisables :
+
+```txt
+en combat
+hors combat
+```
+
+---
+
+## Stack
+
+Consommables :
+
+```txt
+stackables
+max stack = 999
+```
+
+---
+
+# 7. Special Items
+
+Catégorie ouverte.
+
+Vision :
+
+```txt
+story items
+quest items
+keys
+unlock tokens
+progression artifacts
+future unique systems
+```
+
+---
+
+## Stack
+
+Selon définition :
+
+```txt
+stackable ou non
+max stack = 999 si stackable
+```
+
+---
+
+# 8. Equipment Sets
 
 Les équipements peuvent appartenir à un :
 
@@ -410,7 +415,7 @@ Docteur
 Flageleur
 ```
 
-Ces sets définissent :
+Ils définissent :
 
 ```txt
 orientation statistique
@@ -418,13 +423,7 @@ orientation statistique
 
 ---
 
-# 11. Effect Resonance
-
-Les équipements contribuent à :
-
-```txt
-Effect Resonance
-```
+# 9. Effect Resonance
 
 Slots comptés :
 
@@ -449,14 +448,87 @@ artifact
 
 ---
 
-# 12. Durability
+# 10. Rarity System
 
-Aucune durabilité.
+Toutes les catégories d’items peuvent utiliser le système de rareté.
 
 ```txt
-pas de réparation
-pas de casse
-pas d’usure
+Common
+Uncommon
+Rare
+Epic
+Legendary
+Mythic
+Divine
+Ancient
+```
+
+Mais certaines catégories peuvent limiter le spectre.
+
+Exemple :
+
+```txt
+resources MVP max = Mythic
+```
+
+---
+
+# 11. Item Level (ilvl)
+
+Tous les items n’ont PAS un ilvl.
+
+L’ilvl concerne principalement :
+
+```txt
+equipment
+certain future special items
+```
+
+Pas :
+
+```txt
+basic resources
+currencies
+most consumables
+```
+
+---
+
+## Rôle de l’ilvl
+
+Influence :
+
+```txt
+stats basiques
+stats avancées
+POWER
+drop progression
+recommended content
+```
+
+---
+
+# 12. Determinism (MVP)
+
+Pour le MVP :
+
+```txt
+stats fixes
+```
+
+Un item donné possède toujours les mêmes stats.
+
+---
+
+## Future
+
+Plus tard :
+
+```txt
+quality system
+random stat ranges
+affixes
+perfect rolls
 ```
 
 ---
@@ -470,13 +542,7 @@ n’importe quelle arme
 n’importe quel équipement
 ```
 
-Pas de système de classe.
-
-Vision :
-
-```txt
-build freedom
-```
+Pas de classes.
 
 ---
 
@@ -485,58 +551,79 @@ build freedom
 Inventory :
 
 ```txt
-infinite
+infinite slots
 ```
 
-Pas de limite d’espace.
-
-Vision :
+Mais les items stackables utilisent :
 
 ```txt
-confort joueur
-pas de friction inutile
+max stack = 999
+```
+
+Donc :
+
+```txt
+inventory management sans hard slot cap
 ```
 
 ---
 
-# 15. Binding
+# 15. Tradability
 
-Le système de binding sera défini plus tard.
-
-Possibilités futures :
+MVP :
 
 ```txt
-account bound
-character bound
-tradable
-market
-auction systems
+all items tradable
+all resources tradable
+```
+
+Future :
+
+```txt
+binding systems possible
 ```
 
 ---
 
-# 16. Architecture recommandée
+# 16. Durability
+
+Aucune durabilité.
+
+```txt
+pas de casse
+pas d’usure
+pas de réparation
+```
+
+---
+
+# 17. Architecture recommandée
 
 ```txt
 items/
   types.ts
-  registry.ts
-  rarity.ts
-  scaling.ts
-  ilvl.ts
   equipment.ts
+  resources.ts
   consumables.ts
   special.ts
-  quality.ts
+  rarity.ts
+  ilvl.ts
+  scaling.ts
+
+currencies/
+  wallet.ts
+  registry.ts
+  exchange.ts
 ```
 
 ---
 
-# 17. Modèles conceptuels
+# 18. Modèles conceptuels
 
 ```ts
 type ItemCategory =
   | "equipment"
+  | "resource"
   | "consumable"
   | "special";
 
@@ -558,30 +645,24 @@ type ItemDef = {
   name: string;
   category: ItemCategory;
   rarity: ItemRarity;
-  ilvl: number;
   stackable: boolean;
+  maxStack?: number;
+};
+
+type CurrencyDef = {
+  id: string;
+  name: string;
+  tradable: boolean;
 };
 ```
 
 ---
 
-# 18. Principe fondamental
+# 19. Principe fondamental
 
-Un item est une définition data.
+Les items sont des définitions data-driven.
 
-Jamais une logique hardcodée.
-
-Architecture :
-
-```txt
-ItemDef
-+
-ScalingRules
-+
-RarityRules
-+
-OptionalSystems
-```
+Jamais des comportements hardcodés.
 
 Objectif :
 
@@ -589,4 +670,3 @@ Objectif :
 ajouter 500 items
 sans refactor le core
 ```
-

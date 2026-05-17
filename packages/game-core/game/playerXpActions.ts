@@ -2,7 +2,6 @@ import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
 import { applyXpGain } from "../progression/applyXpGain.js";
 import { applyPlayerXp, type PlayerXpResult } from "../progression/xp.js";
 import type { XpGain } from "../progression/sources.js";
-import type { WorldWxpResult } from "../progression/worldXp.js";
 import type { GameState } from "./state.js";
 
 export type AppliedPlayerXpGain = {
@@ -14,7 +13,7 @@ export type AppliedPlayerXpGain = {
 export type AppliedGameXpGain = {
   next: GameState;
   player: PlayerXpResult;
-  world: WorldWxpResult;
+  world: ReturnType<typeof applyXpGain>["world"];
   skillPointsGained: number;
 };
 

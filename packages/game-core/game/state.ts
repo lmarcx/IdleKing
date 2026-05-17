@@ -3,6 +3,8 @@ import type { ProgressionSnapshot } from "../progression/applyXpGain.js";
 import type { TempleState } from "../building/temple.js";
 import type { ResourceStock, ResourceId } from "../resources/types.js";
 import type { Inventory } from "../items/inventory.js";
+import { createDefaultWalletState, type WalletState } from "../currencies/index.js";
+import { createDefaultWorldResourcesState, type GameWorldResourcesState } from "../world/worldResources.js";
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
 import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
 
@@ -22,6 +24,8 @@ export type GameState = {
   inventory: Inventory;
   equipment: PlayerEquipmentState;
   skills: PlayerSkillsState;
+  wallet: WalletState;
+  world: GameWorldResourcesState;
 
   buildings: {
     forum: { unlocked: boolean; built: boolean; active: boolean };
@@ -47,7 +51,9 @@ export type GameState = {
   villagers: VillagersState;
 };
 
-export function createInitialGameState(): GameState {
+export function createInitialGameState(params: { nowMs?: number } = {}): GameState {
+  const nowMs = params.nowMs ?? Date.now();
+
   return {
     progression: {
       playerLevel: 1,
@@ -66,6 +72,8 @@ export function createInitialGameState(): GameState {
     inventory: { items: [] },
     equipment: createDefaultPlayerEquipmentState(),
     skills: createDefaultPlayerSkillsState(),
+    wallet: createDefaultWalletState(),
+    world: createDefaultWorldResourcesState(1, nowMs),
     buildings: {
       forum: { unlocked: false, built: false, active: false },
       temple: { unlocked: false, built: false, level: 1, assignedVillagers: 0, active: false, allocation: { XP_GLOBAL: 0 } },

@@ -14,11 +14,11 @@ import {
   totalWxpToMax,
 } from "../progression/index.js";
 
-test("convertXpToWxp() is 10% floored", () => {
+test("convertXpToWxp() is 1:1 floored", () => {
   assert.equal(convertXpToWxp(0), 0);
-  assert.equal(convertXpToWxp(9), 0);
-  assert.equal(convertXpToWxp(10), 1);
-  assert.equal(convertXpToWxp(2500), 250);
+  assert.equal(convertXpToWxp(9), 9);
+  assert.equal(convertXpToWxp(10), 10);
+  assert.equal(convertXpToWxp(2500), 2500);
 });
 
 test("ageFromWorldLevel() and coeff mapping is correct", () => {

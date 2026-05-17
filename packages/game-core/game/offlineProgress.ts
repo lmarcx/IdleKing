@@ -2,6 +2,7 @@ import type { GameState } from "./state.js";
 import { tickAllBuildings } from "../building/tick.js";
 import type { ResourceId } from "../resources/types.js";
 import { getQty } from "../resources/types.js";
+import { applyWorldResourceRegenForElapsed } from "../world/worldResources.js";
 
 export const MAX_OFFLINE_MINUTES = 60 * 12; // 12h cap
 
@@ -66,8 +67,14 @@ export function applyOfflineProgress(state: GameState, minutesAway: number): Off
   const beforeResources = snapshotResources(before);
 
   const tickRes = tickAllBuildings(before, cappedMinutes);
-
-  const after = tickRes.next;
+  const after = {
+    ...tickRes.next,
+    world: applyWorldResourceRegenForElapsed(
+      tickRes.next.world,
+      tickRes.next.progression.worldLevel,
+      cappedMinutes * 60000,
+    ),
+  };
   const afterStamina = totalStamina(after);
 
   const resourcesGained = diffResources(

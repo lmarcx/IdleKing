@@ -1,5 +1,5 @@
 import { applyPlayerXp } from "./xp.js";
-import { applyWorldWxp } from "./worldXp.js";
+import { addWorldWxp } from "./worldXp.js";
 import type { XpGain } from "./sources.js";
 
 export type ProgressionSnapshot = {
@@ -12,7 +12,7 @@ export type ProgressionSnapshot = {
 export type AppliedXpGain = {
   next: ProgressionSnapshot;
   player: ReturnType<typeof applyPlayerXp>;
-  world: ReturnType<typeof applyWorldWxp>;
+  world: ReturnType<typeof addWorldWxp>;
 };
 
 export function applyXpGain(
@@ -20,7 +20,7 @@ export function applyXpGain(
   gain: XpGain
 ): AppliedXpGain {
   const player = applyPlayerXp(state.playerLevel, state.playerXp, gain.xp);
-  const world = applyWorldWxp(state.worldLevel, state.worldWxp, gain.wxp);
+  const world = addWorldWxp(state.worldLevel, state.worldWxp, gain.wxp);
 
   return {
     next: {
