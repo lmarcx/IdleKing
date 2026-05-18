@@ -191,6 +191,7 @@ function normalizeRunState(value: unknown): MiniGameRunState | null {
     temporaryRewards: normalizeResourceStock(raw.temporaryRewards),
     runResources: normalizeRunResources(raw.kind, raw.runResources),
     mine: raw.mine && typeof raw.mine === "object" ? raw.mine : undefined,
+    farm: raw.farm && typeof raw.farm === "object" ? raw.farm : undefined,
   };
 }
 

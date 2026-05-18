@@ -34,6 +34,7 @@ export type MiniGameRunState = {
   temporaryRewards: ResourceStock;
   runResources: MiniGameRunResources;
   mine?: unknown;
+  farm?: unknown;
 };
 
 export type MiniGameRuntimeState = {
