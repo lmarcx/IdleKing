@@ -14,9 +14,11 @@ import {
 } from "@/components/ui/dialog";
 import { DEV_MODE } from "@/lib/env";
 import { getResourceAssetPath } from "@/lib/resource-assets";
+import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { GameHud } from "@/components/game/hud/game-hud";
+import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import {
   FORGE_RECIPES,
@@ -1669,10 +1671,15 @@ export function KingdomHubStage() {
           if (!open) closePlaceholderBuildingModal();
         }}
       >
-        <DialogContent className="max-w-md border-amber-200/25 bg-zinc-950 text-amber-50">
+        <DialogContent
+          className={cn(
+            "border-amber-200/25 bg-zinc-950 text-amber-50",
+            placeholderBuildingId === "mine" ? "max-h-[92vh] max-w-5xl overflow-y-auto" : "max-w-md",
+          )}
+        >
           <DialogHeader>
             <DialogTitle>{placeholderBuilding?.label ?? "Building"}</DialogTitle>
-            <DialogDescription>Coming Soon</DialogDescription>
+            <DialogDescription>{placeholderBuildingId === "mine" ? "Active Mine run MVP" : "Coming Soon"}</DialogDescription>
           </DialogHeader>
 
           {placeholderBuilding ? (
@@ -1703,9 +1710,13 @@ export function KingdomHubStage() {
                 </div>
               ) : null}
 
-              <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-title text-lg text-amber-50">
-                Coming Soon
-              </div>
+              {placeholderBuildingId === "mine" ? (
+                <MineMiniGamePanel embedded />
+              ) : (
+                <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-title text-lg text-amber-50">
+                  Coming Soon
+                </div>
+              )}
             </div>
           ) : null}
 

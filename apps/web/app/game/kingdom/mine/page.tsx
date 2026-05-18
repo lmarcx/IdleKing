@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGameStore } from "@/store/game-store";
@@ -29,11 +30,13 @@ export default function MinePage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-ik-title text-2xl font-semibold">Mine Allocation</h1>
+      <h1 className="font-ik-title text-2xl font-semibold">Mine</h1>
+
+      <MineMiniGamePanel />
 
       <Card>
         <CardHeader>
-          <CardTitle>Editor</CardTitle>
+          <CardTitle>Passive Allocation</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
