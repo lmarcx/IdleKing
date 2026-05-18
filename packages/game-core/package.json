@@ -17,6 +17,7 @@
     "./currencies": "./dist/currencies/index.js",
     "./currencies/*": "./dist/currencies/*",
     "./minigames": "./dist/minigames/index.js",
+    "./minigames/mine": "./dist/minigames/mine/index.js",
     "./minigames/*": "./dist/minigames/*",
     "./resources/*": "./dist/resources/*",
     "./items": "./dist/items/index.js",
