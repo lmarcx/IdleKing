@@ -4,6 +4,7 @@ export * as progression from "./progression/index.js";
 export * as economy from "./economy/index.js";
 export * as currencies from "./currencies/index.js";
 export * as world from "./world/index.js";
+export * as minigames from "./minigames/index.js";
 export * as player from "./player/index.js";
 export * as expedition from "./expedition/index.js";
 export * as combat from "./combat/index.js";
@@ -108,6 +109,29 @@ export type {
   ResourceId,
   ResourceStock,
 } from "./resources/types.js";
+export {
+  abandonMiniGameRun,
+  addMiniGameTemporaryRewards,
+  canLaunchMiniGameRun,
+  createDefaultMiniGameRuntimeState,
+  createDefaultMiniGameRunResources,
+  failMiniGameRun,
+  finishMiniGameRun,
+  getMiniGameWorldEnergyCost,
+  launchMiniGameRun,
+  normalizeMiniGameRuntimeState,
+  succeedMiniGameRun,
+} from "./minigames/index.js";
+export type {
+  FinishMiniGameRunResult,
+  LaunchMiniGameRunResult,
+  MiniGameConsumedCosts,
+  MiniGameKind,
+  MiniGameRunResources,
+  MiniGameRunState,
+  MiniGameRunStatus,
+  MiniGameRuntimeState,
+} from "./minigames/index.js";
 export {
   xpNext,
 } from "./progression/index.js";

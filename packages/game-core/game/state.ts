@@ -8,6 +8,7 @@ import { createDefaultWalletState, type WalletState } from "../currencies/index.
 import { createDefaultWorldResourcesState, type GameWorldResourcesState } from "../world/worldResources.js";
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
 import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
+import { createDefaultMiniGameRuntimeState, type MiniGameRuntimeState } from "../minigames/index.js";
 
 export type Villager = {
   id: string;
@@ -27,6 +28,7 @@ export type GameState = {
   skills: PlayerSkillsState;
   wallet: WalletState;
   world: GameWorldResourcesState;
+  miniGames: MiniGameRuntimeState;
 
   buildings: {
     forum: CanonicalBuildingState;
@@ -93,6 +95,7 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     skills: createDefaultPlayerSkillsState(),
     wallet: createDefaultWalletState(),
     world: createDefaultWorldResourcesState(1, nowMs),
+    miniGames: createDefaultMiniGameRuntimeState(),
     buildings: {
       forum: { ...lockedBuilding },
       temple: { ...lockedBuilding, assignedVillagers: 0, allocation: { XP_GLOBAL: 0 } },

@@ -16,6 +16,8 @@
     "./building/*": "./dist/building/*",
     "./currencies": "./dist/currencies/index.js",
     "./currencies/*": "./dist/currencies/*",
+    "./minigames": "./dist/minigames/index.js",
+    "./minigames/*": "./dist/minigames/*",
     "./resources/*": "./dist/resources/*",
     "./items": "./dist/items/index.js",
     "./story": "./dist/story/index.js",

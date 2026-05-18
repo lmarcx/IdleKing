@@ -7,6 +7,7 @@ import { normalizeEquipmentItem, type Item } from "../items/types.js";
 import { normalizeWalletState } from "../currencies/index.js";
 import { normalizeWorldResourcesState } from "../world/worldResources.js";
 import { normalizeAllBuildingProgress } from "../building/progression.js";
+import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 1;
@@ -84,6 +85,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     skills: rawState.skills ?? createDefaultPlayerSkillsState(),
     wallet: normalizeWalletState(rawState.wallet),
     world: normalizeWorldResourcesState(rawState.world, progression.worldLevel, nowMs),
+    miniGames: normalizeMiniGameRuntimeState(rawState.miniGames),
     buildings,
     story: {
       ...defaults.story,
