@@ -19,6 +19,7 @@ import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { GameHud } from "@/components/game/hud/game-hud";
 import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-panel";
+import { KitchenMiniGamePanel } from "@/components/game/kingdom/kitchen-mini-game-panel";
 import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import {
@@ -1675,12 +1676,20 @@ export function KingdomHubStage() {
         <DialogContent
           className={cn(
             "border-amber-200/25 bg-zinc-950 text-amber-50",
-            placeholderBuildingId === "mine" ? "max-h-[92vh] max-w-5xl overflow-y-auto" : "max-w-md",
+            placeholderBuildingId === "mine" || placeholderBuildingId === "kitchen"
+              ? "max-h-[92vh] max-w-5xl overflow-y-auto"
+              : "max-w-md",
           )}
         >
           <DialogHeader>
             <DialogTitle>{placeholderBuilding?.label ?? "Building"}</DialogTitle>
-            <DialogDescription>{placeholderBuildingId === "mine" ? "Active Mine run MVP" : "Coming Soon"}</DialogDescription>
+            <DialogDescription>
+              {placeholderBuildingId === "mine"
+                ? "Active Mine run MVP"
+                : placeholderBuildingId === "kitchen"
+                  ? "Active Kitchen run MVP"
+                  : "Coming Soon"}
+            </DialogDescription>
           </DialogHeader>
 
           {placeholderBuilding ? (
@@ -1713,6 +1722,8 @@ export function KingdomHubStage() {
 
               {placeholderBuildingId === "mine" ? (
                 <MineMiniGamePanel embedded />
+              ) : placeholderBuildingId === "kitchen" ? (
+                <KitchenMiniGamePanel embedded />
               ) : (
                 <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-title text-lg text-amber-50">
                   Coming Soon

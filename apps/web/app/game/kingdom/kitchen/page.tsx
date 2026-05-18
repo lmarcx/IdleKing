@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { KitchenMiniGamePanel } from "@/components/game/kingdom/kitchen-mini-game-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGameStore } from "@/store/game-store";
-import { KITCHEN_RECIPES } from "@idleking/game-core/building/kitchen/recipes.js";
+import { KITCHEN_RECIPES as PASSIVE_KITCHEN_RECIPES } from "@idleking/game-core/building/kitchen/recipes.js";
 import { cookDish } from "@idleking/game-core/game/kitchenActions.js";
 
 export default function KitchenPage() {
@@ -17,6 +18,8 @@ export default function KitchenPage() {
   return (
     <div className="space-y-4">
       <h1 className="font-ik-title text-2xl font-semibold">Kitchen</h1>
+
+      <KitchenMiniGamePanel />
 
       <label className="text-sm">
         <span className="mb-1 block text-muted-foreground">Worker</span>
@@ -34,7 +37,7 @@ export default function KitchenPage() {
       </label>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {KITCHEN_RECIPES.map((recipe) => (
+        {PASSIVE_KITCHEN_RECIPES.map((recipe) => (
           <Card key={recipe.id}>
             <CardHeader>
               <CardTitle>{recipe.label}</CardTitle>
