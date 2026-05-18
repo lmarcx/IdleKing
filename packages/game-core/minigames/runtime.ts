@@ -7,6 +7,7 @@ import type {
   MiniGameRunState,
   MiniGameRunStatus,
   MiniGameRuntimeState,
+  MiniGameTemporaryItemReward,
 } from "./types.js";
 
 const DEFAULT_WORLD_ENERGY_COST_BY_KIND: Record<MiniGameKind, number> = {
@@ -52,6 +53,7 @@ export type FinishMiniGameRunResult =
       run: MiniGameRunState;
       outcome: "success" | "failed";
       rewardsCommitted: ResourceStock;
+      itemRewardsCommitted: MiniGameTemporaryItemReward[];
       consumedCosts: MiniGameConsumedCosts;
     }
   | { ok: false; next: GameState; reason: "NO_ACTIVE_RUN" | "RUN_ID_MISMATCH" };
@@ -80,6 +82,35 @@ function normalizeResourceStock(value: unknown): ResourceStock {
     }
   }
   return next;
+}
+
+function normalizeTemporaryItemReward(value: unknown): MiniGameTemporaryItemReward | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<MiniGameTemporaryItemReward>;
+  if (typeof raw.id !== "string" || raw.id.length === 0) return null;
+  if (typeof raw.name !== "string" || raw.name.length === 0) return null;
+  if (raw.kind !== "consumable") return null;
+
+  const quantity = normalizeAmount(raw.quantity ?? 1);
+  const quality = Math.min(100, normalizeAmount(raw.quality));
+  if (quantity <= 0 || quality <= 0) return null;
+
+  return {
+    id: raw.id,
+    kind: "consumable",
+    name: raw.name,
+    quantity,
+    quality,
+    value: raw.value === undefined ? quality : normalizeAmount(raw.value),
+  };
+}
+
+function normalizeTemporaryItemRewards(value: unknown): MiniGameTemporaryItemReward[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const reward = normalizeTemporaryItemReward(entry);
+    return reward ? [reward] : [];
+  });
 }
 
 function addResourceStock(stock: ResourceStock, rewards: ResourceStock): ResourceStock {
@@ -189,9 +220,11 @@ function normalizeRunState(value: unknown): MiniGameRunState | null {
       resources: normalizeResourceStock(raw.consumedCosts?.resources),
     },
     temporaryRewards: normalizeResourceStock(raw.temporaryRewards),
+    temporaryItemRewards: normalizeTemporaryItemRewards(raw.temporaryItemRewards),
     runResources: normalizeRunResources(raw.kind, raw.runResources),
     mine: raw.mine && typeof raw.mine === "object" ? raw.mine : undefined,
     farm: raw.farm && typeof raw.farm === "object" ? raw.farm : undefined,
+    kitchen: raw.kitchen && typeof raw.kitchen === "object" ? raw.kitchen : undefined,
   };
 }
 
@@ -242,6 +275,7 @@ export function launchMiniGameRun(
       resources: resourceCosts,
     },
     temporaryRewards: {},
+    temporaryItemRewards: [],
     runResources: normalizeRunResources(kind, options.runResources),
   };
 
@@ -308,16 +342,22 @@ export function finishMiniGameRun(
     finishedAt: normalizeAmount(options.nowMs ?? Date.now()),
   };
   const rewardsCommitted = status === "success" ? activeRun.temporaryRewards : {};
+  const itemRewardsCommitted = status === "success" ? activeRun.temporaryItemRewards ?? [] : [];
 
   return {
     ok: true,
     run: finishedRun,
     outcome: status === "success" ? "success" : "failed",
     rewardsCommitted,
+    itemRewardsCommitted,
     consumedCosts: finishedRun.consumedCosts,
     next: {
       ...state,
       resources: status === "success" ? addResourceStock(state.resources, activeRun.temporaryRewards) : state.resources,
+      inventory:
+        status === "success" && itemRewardsCommitted.length > 0
+          ? { items: [...state.inventory.items, ...itemRewardsCommitted] }
+          : state.inventory,
       miniGames: {
         activeRun: null,
         lastRun: finishedRun,

@@ -23,6 +23,15 @@ export type MiniGameConsumedCosts = {
   resources: ResourceStock;
 };
 
+export type MiniGameTemporaryItemReward = {
+  id: string;
+  name: string;
+  kind: "consumable";
+  quantity: number;
+  quality: number;
+  value?: number;
+};
+
 export type MiniGameRunState = {
   id: string;
   kind: MiniGameKind;
@@ -32,9 +41,11 @@ export type MiniGameRunState = {
   worldEnergyCost: number;
   consumedCosts: MiniGameConsumedCosts;
   temporaryRewards: ResourceStock;
+  temporaryItemRewards?: MiniGameTemporaryItemReward[];
   runResources: MiniGameRunResources;
   mine?: unknown;
   farm?: unknown;
+  kitchen?: unknown;
 };
 
 export type MiniGameRuntimeState = {

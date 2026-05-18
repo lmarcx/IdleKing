@@ -63,6 +63,7 @@ export type NonEquipmentItem = {
   kind: "material" | "resource" | "consumable" | "misc";
   name: string;
   quantity?: number;
+  quality?: number;
   value?: number;
 };
 
