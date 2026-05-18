@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGameStore } from "@/store/game-store";
@@ -29,12 +30,13 @@ export default function FarmPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-ik-title text-2xl font-semibold">Farm Allocation</h1>
-      <p className="font-ik-body text-sm text-muted-foreground">Set villagers per resource and apply normalized allocation.</p>
+      <h1 className="font-ik-title text-2xl font-semibold">Farm</h1>
+
+      <FarmMiniGamePanel />
 
       <Card>
         <CardHeader>
-          <CardTitle>Editor</CardTitle>
+          <CardTitle>Passive Allocation</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

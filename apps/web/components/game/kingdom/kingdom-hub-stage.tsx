@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { GameHud } from "@/components/game/hud/game-hud";
+import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-panel";
 import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import {
@@ -2063,11 +2064,16 @@ export function KingdomHubStage() {
           if (!open) closeFarmModal();
         }}
       >
-        <DialogContent className="border-amber-200/25 bg-zinc-950 text-amber-50">
+        <DialogContent
+          className={cn(
+            "border-amber-200/25 bg-zinc-950 text-amber-50",
+            farmModal?.state === "built" ? "max-h-[92vh] max-w-5xl overflow-y-auto" : "max-w-lg",
+          )}
+        >
           <DialogHeader>
             <DialogTitle>Farm</DialogTitle>
             <DialogDescription>
-              {farmModal?.state === "built" ? "Building ready (placeholder)" : "Construct this building?"}
+              {farmModal?.state === "built" ? "Active Farm run MVP" : "Construct this building?"}
             </DialogDescription>
           </DialogHeader>
 
@@ -2075,6 +2081,12 @@ export function KingdomHubStage() {
             Building type: {FARM_SLOT.buildingType} · {getBuildingStatusLabel(effectiveFarm)} ·{" "}
             {getBuildingLevelLabel(effectiveFarm)}
           </div>
+
+          {farmModal?.state === "built" ? (
+            <div className="mt-4">
+              <FarmMiniGamePanel embedded />
+            </div>
+          ) : null}
 
           <DialogFooter>
             <button
