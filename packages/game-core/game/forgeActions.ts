@@ -1,5 +1,5 @@
 import type { GameState } from "./state.js";
-import { getForgeRecipe, type ForgeRecipeId } from "../building/forge/recipes.js";
+import { getForgeRecipe, getForgeRecipeLockReason, type ForgeRecipeId } from "../building/forge/recipes.js";
 import {
   canForgeUpgrade,
   createPreciousStoneItem,
@@ -42,6 +42,8 @@ export type ForgeCraftResult = {
     | "FORGE_LOCKED"
     | "FORGE_NOT_BUILT"
     | "RECIPE_NOT_FOUND"
+    | "FORGE_LEVEL_TOO_LOW"
+    | "WORLD_LEVEL_TOO_LOW"
     | "NOT_ENOUGH_RESOURCES";
 };
 
@@ -67,6 +69,9 @@ export function forgeCraft(
 
   const recipe = getForgeRecipe(recipeId);
   if (!recipe) return { next: state, ok: false, reason: "RECIPE_NOT_FOUND" };
+
+  const lockReason = getForgeRecipeLockReason(state, recipe);
+  if (lockReason) return { next: state, ok: false, reason: lockReason };
 
   if (!hasAtLeast(state.resources, recipe.cost)) {
     return { next: state, ok: false, reason: "NOT_ENOUGH_RESOURCES" };

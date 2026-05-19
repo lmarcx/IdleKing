@@ -26,3 +26,31 @@ precious_stone_mythic
 precious_stone_divine
 precious_stone_ancient
 ```
+
+## Forge Recipe Unlocks
+
+Recipe costs and unlocks are PLACEHOLDER values.
+
+Recipe metadata:
+
+```txt
+requiredForgeLevel
+requiredWorldLevel optional
+requiredQuestIds placeholder only
+requiredBossIds placeholder only
+```
+
+Weapon unlock ladder:
+
+```txt
+Forge Level 1  -> sword
+Forge Level 2  -> dagger
+Forge Level 3  -> axe
+Forge Level 4  -> greatsword
+Forge Level 5  -> pistol
+Forge Level 6  -> bow
+Forge Level 7  -> shield
+Forge Level 8  -> spear
+Forge Level 9  -> grimoire
+Forge Level 10 -> staff
+```

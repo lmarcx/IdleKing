@@ -35,6 +35,7 @@ import {
   getQty,
   hasAtLeast,
   isEquipmentItem,
+  isForgeRecipeAvailable,
   xpNext,
   type BuildingId,
   type BuildingStatus,
@@ -2006,10 +2007,13 @@ export function KingdomHubStage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {FORGE_MVP_RECIPES.map((recipe) => {
                 const hasRecipeResources = hasAtLeast(state.resources, recipe.cost);
-                const canCraft = hasRecipeResources;
+                const isRecipeAvailable = isForgeRecipeAvailable(state, recipe);
+                const canCraft = hasRecipeResources && isRecipeAvailable;
                 const craftLabel = canCraft
                   ? "Forge"
-                  : !hasRecipeResources
+                  : !isRecipeAvailable
+                    ? `Forge lvl ${recipe.requiredForgeLevel}`
+                    : !hasRecipeResources
                     ? "Ressources insuffisantes"
                     : "Verrouillé";
 

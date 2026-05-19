@@ -67,11 +67,16 @@ export type {
 } from "./building/types.js";
 export {
   FORGE_RECIPES,
+  getAvailableForgeRecipes,
+  getEffectiveForgeLevel,
   getForgeRecipe,
+  getForgeRecipeLockReason,
+  isForgeRecipeAvailable,
 } from "./building/forge/recipes.js";
 export type {
   ForgeRecipe,
   ForgeRecipeId,
+  ForgeRecipeLockReason,
 } from "./building/forge/recipes.js";
 export {
   canForgeUpgrade,

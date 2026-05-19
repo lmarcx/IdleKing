@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGameStore } from "@/store/game-store";
-import { FORGE_RECIPES } from "@idleking/game-core/building/forge/recipes.js";
+import {
+  FORGE_RECIPES,
+  getAvailableForgeRecipes,
+  getForgeRecipeLockReason,
+} from "@idleking/game-core/building/forge/recipes.js";
 import {
   FORGE_PRECIOUS_STONE_DROP_CHANCE,
   getForgeRecycleEcuRefund,
@@ -38,6 +42,7 @@ export default function ForgePage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
   const equipmentItems = state.inventory.items.filter(isEquipmentItem);
+  const availableRecipeIds = new Set(getAvailableForgeRecipes(state).map((recipe) => recipe.id));
 
   return (
     <div className="space-y-4">
@@ -51,32 +56,51 @@ export default function ForgePage() {
 
         <TabsContent value="craft">
           <div className="grid gap-4 lg:grid-cols-2">
-            {FORGE_RECIPES.map((recipe) => (
-              <Card key={recipe.id}>
-                <CardHeader>
-                  <CardTitle>{recipe.label}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p>
-                    {recipe.slot} | {recipe.rarity}
-                  </p>
-                  <p>Cost: {JSON.stringify(recipe.cost)}</p>
-                  <Button
-                    onClick={() => {
-                      const res = forgeCraft(state, recipe.id);
-                      if (!res.ok) {
-                        toast.error(`Craft failed: ${res.reason}`);
-                        return;
-                      }
-                      dispatch(() => res.next);
-                      toast.success(`Crafted ${recipe.label}`);
-                    }}
-                  >
-                    Craft
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+            {FORGE_RECIPES.map((recipe) => {
+              const lockReason = getForgeRecipeLockReason(state, recipe);
+              const isAvailable = availableRecipeIds.has(recipe.id);
+              const lockLabel =
+                lockReason === "FORGE_NOT_BUILT"
+                  ? "Build Forge"
+                  : lockReason === "FORGE_LEVEL_TOO_LOW"
+                    ? `Requires Forge level ${recipe.requiredForgeLevel}`
+                    : lockReason === "WORLD_LEVEL_TOO_LOW"
+                      ? `Requires World level ${recipe.requiredWorldLevel}`
+                      : null;
+
+              return (
+                <Card key={recipe.id}>
+                  <CardHeader>
+                    <CardTitle>{recipe.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm">
+                    <p>
+                      {recipe.slot} | {recipe.rarity}
+                    </p>
+                    <p>Cost: {JSON.stringify(recipe.cost)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Forge level {recipe.requiredForgeLevel}
+                      {recipe.requiredWorldLevel ? ` | World level ${recipe.requiredWorldLevel}` : ""}
+                    </p>
+                    {lockLabel ? <p className="text-xs text-muted-foreground">{lockLabel}</p> : null}
+                    <Button
+                      disabled={!isAvailable}
+                      onClick={() => {
+                        const res = forgeCraft(state, recipe.id);
+                        if (!res.ok) {
+                          toast.error(`Craft failed: ${res.reason}`);
+                          return;
+                        }
+                        dispatch(() => res.next);
+                        toast.success(`Crafted ${recipe.label}`);
+                      }}
+                    >
+                      {isAvailable ? "Craft" : "Locked"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </TabsContent>
 

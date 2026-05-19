@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { FORGE_RECIPES } from "../building/forge/recipes.js";
+import {
+  FORGE_RECIPES,
+  getAvailableForgeRecipes,
+  getForgeRecipe,
+  getForgeRecipeLockReason,
+} from "../building/forge/recipes.js";
 import {
   didReachForgeUpgradeBreakpoint,
   getForgeRecycleEcuRefund,
@@ -34,6 +39,23 @@ function progressToChapter4AndBuildForge(s: ReturnType<typeof createInitialGameS
     buildings: {
       ...s.buildings,
       forge: { ...s.buildings.forge, built: true, active: true },
+    },
+  };
+}
+
+function withForgeLevel(state: GameState, level: number): GameState {
+  return {
+    ...state,
+    buildings: {
+      ...state.buildings,
+      forge: {
+        ...state.buildings.forge,
+        active: true,
+        built: true,
+        level,
+        status: "built",
+        unlocked: true,
+      },
     },
   };
 }
@@ -194,6 +216,77 @@ test("Forge crafted itemLevel depends on worldLevel", () => {
   assert.ok(isEquipmentItem(item));
   assert.equal(item.slot, "ring");
   assert.equal(item.itemLevel, expectedIlvl(7));
+});
+
+test("Forge recipe is locked below required Forge level and unlocked at that level", () => {
+  const recipe = getForgeRecipe("weapon_dagger");
+  assert.ok(recipe);
+
+  let s = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 1);
+  assert.equal(getForgeRecipeLockReason(s, recipe), "FORGE_LEVEL_TOO_LOW");
+
+  s = withForgeLevel(s, 2);
+  assert.equal(getForgeRecipeLockReason(s, recipe), null);
+});
+
+test("forgeCraft refuses recipes locked by Forge level", () => {
+  let s = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 1);
+  s = {
+    ...s,
+    resources: addQty(addQty(s.resources, "COPPER", 10), "IRON", 10),
+  };
+
+  const result = forgeCraft(s, "weapon_dagger");
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "FORGE_LEVEL_TOO_LOW");
+  assert.equal(result.next.inventory.items.length, 0);
+});
+
+test("getAvailableForgeRecipes filters by Forge level", () => {
+  const level1 = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 1);
+  const level2 = withForgeLevel(level1, 2);
+
+  const level1Ids = getAvailableForgeRecipes(level1).map((recipe) => recipe.id);
+  const level2Ids = getAvailableForgeRecipes(level2).map((recipe) => recipe.id);
+
+  assert.ok(level1Ids.includes("weapon_sword"));
+  assert.equal(level1Ids.includes("weapon_dagger"), false);
+  assert.ok(level2Ids.includes("weapon_dagger"));
+});
+
+test("Forge optional WorldLevel requirement locks recipes until met", () => {
+  const recipe = getForgeRecipe("weapon_grimoire");
+  assert.ok(recipe);
+
+  const belowWorld = withForgeLevel({
+    ...progressToChapter4AndBuildForge(createInitialGameState()),
+    progression: { playerLevel: 1, playerXp: 0, worldLevel: 4, worldWxp: 0 },
+  }, 9);
+  const atWorld = {
+    ...belowWorld,
+    progression: { ...belowWorld.progression, worldLevel: 5 },
+  };
+
+  assert.equal(getForgeRecipeLockReason(belowWorld, recipe), "WORLD_LEVEL_TOO_LOW");
+  assert.equal(getForgeRecipeLockReason(atWorld, recipe), null);
+});
+
+test("Forge craft works for weapon progression recipes once unlocked", () => {
+  let s = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 2);
+  s = {
+    ...s,
+    resources: addQty(addQty(s.resources, "COPPER", 2), "IRON", 1),
+  };
+
+  const result = forgeCraft(s, "weapon_dagger");
+
+  assert.equal(result.ok, true);
+  const item = result.next.inventory.items[0];
+  assert.ok(isEquipmentItem(item));
+  assert.equal(item.name, "Dagger");
+  assert.equal(item.slot, "weapon");
 });
 
 test("Forge upgrade increments upgradeLevel, increases stats, and preserves item identity and ilvl", () => {

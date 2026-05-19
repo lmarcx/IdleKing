@@ -83,6 +83,21 @@ fixes
 débloquées par conditions
 ```
 
+Phase 8C ajoute des unlocks de recette par niveau de Forge.
+
+```txt
+Forge Level 1  -> sword
+Forge Level 2  -> dagger
+Forge Level 3  -> axe
+Forge Level 4  -> greatsword
+Forge Level 5  -> pistol
+Forge Level 6  -> bow
+Forge Level 7  -> shield
+Forge Level 8  -> spear
+Forge Level 9  -> grimoire
+Forge Level 10 -> staff
+```
+
 Conditions possibles :
 
 ```txt
