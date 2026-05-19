@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -8,33 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useGameStore } from "@/store/game-store";
 import { FORGE_RECIPES } from "@idleking/game-core/building/forge/recipes.js";
+import {
+  FORGE_PRECIOUS_STONE_DROP_CHANCE,
+  getForgeRecycleEcuRefund,
+  getForgeUpgradeCost,
+  getForgeUpgradeMaxLevel,
+} from "@idleking/game-core/building/forge/rules.js";
 import { forgeCraft, forgeRecycle, forgeUpgrade } from "@idleking/game-core/game/forgeActions.js";
 import { isEquipmentItem } from "@idleking/game-core/items";
 
 export default function ForgePage() {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
-  const [villagerId, setVillagerId] = useState(state.villagers.list[0]?.id ?? "");
   const equipmentItems = state.inventory.items.filter(isEquipmentItem);
 
   return (
     <div className="space-y-4">
       <h1 className="font-ik-title text-2xl font-semibold">Forge</h1>
-
-      <label className="text-sm">
-        <span className="mb-1 block text-muted-foreground">Worker</span>
-        <select
-          className="w-full max-w-xs rounded border bg-background px-2 py-1"
-          value={villagerId}
-          onChange={(event) => setVillagerId(event.target.value)}
-        >
-          {state.villagers.list.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.id} (stamina {v.stamina})
-            </option>
-          ))}
-        </select>
-      </label>
 
       <Tabs defaultValue="craft" className="space-y-3">
         <TabsList>
@@ -54,10 +43,9 @@ export default function ForgePage() {
                     {recipe.slot} | {recipe.rarity}
                   </p>
                   <p>Cost: {JSON.stringify(recipe.cost)}</p>
-                  <p>Stamina cost: {Math.round(recipe.staminaCostPct * 100)}%</p>
                   <Button
                     onClick={() => {
-                      const res = forgeCraft(state, recipe.id, villagerId);
+                      const res = forgeCraft(state, recipe.id);
                       if (!res.ok) {
                         toast.error(`Craft failed: ${res.reason}`);
                         return;
@@ -88,16 +76,24 @@ export default function ForgePage() {
                     <li key={item.id} className="rounded border p-2">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <span>
-                          {item.name} ({item.slot}) ilvl {item.itemLevel ?? item.ilvl ?? 1}
+                          {item.name} ({item.slot}) ilvl {item.itemLevel ?? item.ilvl ?? 1} +{item.upgradeLevel ?? 0}
                         </span>
                         <span className="text-muted-foreground">{item.rarity}</span>
+                      </div>
+                      <div className="mb-2 text-xs text-muted-foreground">
+                        Upgrade cap +{getForgeUpgradeMaxLevel(item.rarity ?? "COMMON")} | Upgrade cost{" "}
+                        {JSON.stringify(getForgeUpgradeCost(item))}
+                      </div>
+                      <div className="mb-2 text-xs text-muted-foreground">
+                        Recycle: {getForgeRecycleEcuRefund(item)} ECU, {Math.round(FORGE_PRECIOUS_STONE_DROP_CHANCE * 100)}%
+                        chance for Precious Stone {item.rarity ?? "COMMON"}.
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant="secondary"
                           onClick={() => {
-                            const res = forgeUpgrade(state, item.id, villagerId);
+                            const res = forgeUpgrade(state, item.id);
                             if (!res.ok) {
                               toast.error(`Upgrade failed: ${res.reason}`);
                               return;

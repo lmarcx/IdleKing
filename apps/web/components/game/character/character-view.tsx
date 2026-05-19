@@ -29,6 +29,9 @@ const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipment["rarity"], ItemRarity>
   rare: "RARE",
   epic: "EPIC",
   legendary: "LEGENDARY",
+  mythic: "MYTHIC",
+  divine: "DIVINE",
+  ancient: "ANCIENT",
 };
 
 const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]> = {
@@ -37,6 +40,9 @@ const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]>
   RARE: "rare",
   EPIC: "epic",
   LEGENDARY: "legendary",
+  MYTHIC: "mythic",
+  DIVINE: "divine",
+  ANCIENT: "ancient",
 };
 
 function getFixturePower(item: CharacterEquipment): number | undefined {
@@ -60,6 +66,7 @@ const DEV_EQUIPMENT_FIXTURES: Array<EquipmentItem & EquipmentMetadata> = FAKE_EQ
   name: item.name,
   rarity: CHARACTER_TO_CORE_RARITY[item.rarity],
   slot: item.slot,
+  upgradeLevel: 0,
   stats: {
     hp: item.stats.hp,
     attack: item.stats.atk,

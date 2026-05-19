@@ -38,6 +38,9 @@ const RARITY_MULTIPLIER: Record<ItemRarity, number> = {
   RARE: 1.18,
   EPIC: 1.42,
   LEGENDARY: 1.8,
+  MYTHIC: 2.15,
+  DIVINE: 2.55,
+  ANCIENT: 3,
 };
 
 function slug(value: string): string {
@@ -135,6 +138,7 @@ export function generateEquipmentItem(params: GenerateEquipmentItemParams): Equi
     itemLevel,
     ilvl: itemLevel,
     rarity,
+    upgradeLevel: 0,
     stats: buildStats(params.slot, itemLevel, rarity),
   };
 }

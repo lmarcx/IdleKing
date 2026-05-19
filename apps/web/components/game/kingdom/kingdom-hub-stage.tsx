@@ -709,7 +709,6 @@ export function KingdomHubStage() {
   const selectedResourceQuantity = selectedResource ? getQty(state.resources, selectedResource) : 0;
   const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
   const playerXpToNext = xpNext(state.progression.playerLevel);
-  const forgeVillagerId = state.villagers.list.find((villager) => villager.stamina > 0)?.id ?? state.villagers.list[0]?.id ?? "";
   const effectiveTemple = getEffectiveBuildingState(state.buildings.temple, state.progression.worldLevel);
   const effectiveForge = getEffectiveBuildingState(state.buildings.forge, state.progression.worldLevel);
   const effectiveFarm = getEffectiveBuildingState(state.buildings.farm, state.progression.worldLevel);
@@ -930,13 +929,7 @@ export function KingdomHubStage() {
       }
 
       const currentState = useGameStore.getState().state;
-      const villagerId = currentState.villagers.list.find((villager) => villager.stamina > 0)?.id ?? currentState.villagers.list[0]?.id;
-      if (!villagerId) {
-        toast.error("No villager available");
-        return;
-      }
-
-      const result = forgeCraft(currentState, recipe.id, villagerId, { allowLocked: DEV_MODE });
+      const result = forgeCraft(currentState, recipe.id, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Forge failed: ${result.reason}`);
         return;
@@ -2013,7 +2006,7 @@ export function KingdomHubStage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {FORGE_MVP_RECIPES.map((recipe) => {
                 const hasRecipeResources = hasAtLeast(state.resources, recipe.cost);
-                const canCraft = hasRecipeResources && forgeVillagerId.length > 0;
+                const canCraft = hasRecipeResources;
                 const craftLabel = canCraft
                   ? "Forge"
                   : !hasRecipeResources

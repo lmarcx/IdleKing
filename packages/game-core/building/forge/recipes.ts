@@ -20,8 +20,6 @@ export type ForgeRecipe = {
   rarity: ItemRarity;
 
   cost: Partial<Record<ResourceId, number>>;
-
-  staminaCostPct: number; // 0..1
 };
 
 export const FORGE_RECIPES: ForgeRecipe[] = [
@@ -32,7 +30,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Iron Sword",
     rarity: "COMMON",
     cost: { IRON: 4 },
-    staminaCostPct: 0.2,
   },
   {
     id: "iron_helmet",
@@ -41,7 +38,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Iron Helmet",
     rarity: "UNCOMMON",
     cost: { IRON: 3 },
-    staminaCostPct: 0.2,
   },
   {
     id: "copper_ring",
@@ -50,7 +46,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Copper Ring",
     rarity: "COMMON",
     cost: { COPPER: 3 },
-    staminaCostPct: 0.15,
   },
   {
     id: "BASIC_SWORD",
@@ -59,7 +54,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Sword",
     rarity: "COMMON",
     cost: { COPPER: 3 },
-    staminaCostPct: 0.25,
   },
   {
     id: "BASIC_ARMOR",
@@ -68,7 +62,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Armor",
     rarity: "COMMON",
     cost: { COPPER: 2, STONE: 2 },
-    staminaCostPct: 0.25,
   },
   {
     id: "BASIC_CAPE",
@@ -77,7 +70,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Cape",
     rarity: "COMMON",
     cost: { WOOD: 2, COPPER: 1 },
-    staminaCostPct: 0.2,
   },
   {
     id: "BASIC_ARTIFACT",
@@ -86,7 +78,6 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Relic",
     rarity: "COMMON",
     cost: { STONE: 3, GOLD: 1 },
-    staminaCostPct: 0.3,
   },
 ];
 

@@ -74,11 +74,31 @@ export type {
   ForgeRecipeId,
 } from "./building/forge/recipes.js";
 export {
+  canForgeUpgrade,
+  didReachForgeUpgradeBreakpoint,
+  FORGE_PRECIOUS_STONE_DROP_CHANCE,
+  FORGE_RARITY_UPGRADE_CAP,
+  FORGE_UPGRADE_BREAKPOINTS,
+  getForgeRecycleEcuRefund,
+  getForgeUpgradeBreakpointsReached,
+  getForgeUpgradeCost,
+  getForgeUpgradeMaxLevel,
+  getPreciousStoneId,
+} from "./building/forge/rules.js";
+export type {
+  ForgeUpgradeCost,
+} from "./building/forge/rules.js";
+export {
   forgeCraft,
+  forgeRecycle,
+  forgeUpgrade,
 } from "./game/forgeActions.js";
 export type {
   ForgeCraftOptions,
   ForgeCraftResult,
+  ForgeRecycleOptions,
+  ForgeRecycleResult,
+  ForgeUpgradeResult,
 } from "./game/forgeActions.js";
 export {
   convertTempleGlobalXp,

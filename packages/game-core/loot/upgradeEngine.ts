@@ -24,9 +24,13 @@ export const DEFAULT_UPGRADE_CONFIG: UpgradeConfig = {
 
 const RARITY_FACTOR: Record<GeneratedItem["rarity"], number> = {
   COMMON: 1.0,
+  UNCOMMON: 1.2,
   RARE: 1.5,
   EPIC: 2.4,
   LEGENDARY: 4.0,
+  MYTHIC: 6.0,
+  DIVINE: 8.5,
+  ANCIENT: 12.0,
 };
 
 const TIER_FACTOR = [1, 2, 4, 7, 12] as const;

@@ -22,6 +22,7 @@ function equipmentItem(overrides: Partial<EquipmentItem> & Pick<EquipmentItem, "
   return {
     kind: "equipment",
     stats: {},
+    upgradeLevel: 0,
     ...overrides,
   };
 }

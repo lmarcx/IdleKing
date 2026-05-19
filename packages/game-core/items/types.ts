@@ -1,4 +1,23 @@
-export type ItemRarity = "COMMON" | "UNCOMMON" | "RARE" | "EPIC" | "LEGENDARY";
+export type ItemRarity =
+  | "COMMON"
+  | "UNCOMMON"
+  | "RARE"
+  | "EPIC"
+  | "LEGENDARY"
+  | "MYTHIC"
+  | "DIVINE"
+  | "ANCIENT";
+
+export const ITEM_RARITIES: readonly ItemRarity[] = [
+  "COMMON",
+  "UNCOMMON",
+  "RARE",
+  "EPIC",
+  "LEGENDARY",
+  "MYTHIC",
+  "DIVINE",
+  "ANCIENT",
+] as const;
 
 export type EquipmentSlot =
   | "weapon"
@@ -56,6 +75,8 @@ export type EquipmentItem = {
   itemLevel?: number;
   ilvl?: number; // legacy forge/display alias for itemLevel
   rarity?: ItemRarity;
+  upgradeLevel: number;
+  value?: number;
 };
 
 export type NonEquipmentItem = {
@@ -81,10 +102,19 @@ export function isEquipmentSlot(slot: unknown): slot is EquipmentSlot {
   return typeof slot === "string" && (EQUIPMENT_SLOTS as readonly string[]).includes(slot);
 }
 
+export function isItemRarity(rarity: unknown): rarity is ItemRarity {
+  return typeof rarity === "string" && (ITEM_RARITIES as readonly string[]).includes(rarity);
+}
+
 export function normalizeEquipmentSlot(slot: unknown): EquipmentSlot | null {
   if (isEquipmentSlot(slot)) return slot;
   if (typeof slot !== "string") return null;
   return LEGACY_ITEM_SLOT_MAP[slot as LegacyItemSlot] ?? null;
+}
+
+function normalizeUpgradeLevel(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
 }
 
 export function isEquipmentItem(item: unknown): item is EquipmentItem {
@@ -107,5 +137,7 @@ export function normalizeEquipmentItem(item: unknown): EquipmentItem | null {
     name: candidate.name,
     slot,
     stats: candidate.stats ?? {},
+    rarity: isItemRarity(candidate.rarity) ? candidate.rarity : "COMMON",
+    upgradeLevel: normalizeUpgradeLevel(candidate.upgradeLevel),
   };
 }

@@ -292,20 +292,25 @@ limitations
 
 ## 11. Recycle
 
-Recycle détruit un item pour récupérer :
+Recycle détruit un item et ne rembourse pas les ressources de recette.
 
-```txt
-50% des ressources nécessaires à son craft
-```
-
-Règles :
+Règles Phase 8A :
 
 ```txt
 item détruit définitivement
-ressources rendues selon recette de craft
+50% de la valeur PLACEHOLDER de l'item rendue en ECU
+chance PLACEHOLDER de recevoir une Precious Stone de la même rareté
 ```
 
-Si un item n’a pas de recette directe, une table de conversion devra être définie dans :
+Exemple :
+
+```txt
+Legendary item recyclé
+-> ECU refund
+-> chance de Precious Stone Legendary
+```
+
+Les valeurs et tables de conversion complètes seront définies dans :
 
 ```txt
 RECIPES.md
