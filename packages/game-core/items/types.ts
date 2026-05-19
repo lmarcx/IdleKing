@@ -82,7 +82,7 @@ export type EquipmentItem = {
 
 export type NonEquipmentItem = {
   id: ItemId;
-  kind: "material" | "resource" | "consumable" | "misc";
+  kind: "material" | "resource" | "consumable" | "misc" | "special" | "quest";
   name: string;
   quantity?: number;
   quality?: number;

@@ -9,6 +9,7 @@ export * as player from "./player/index.js";
 export * as expedition from "./expedition/index.js";
 export * as combat from "./combat/index.js";
 export * as building from "./building/index.js";
+export * as bank from "./bank/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
@@ -62,6 +63,25 @@ export type {
   BuildBuildingOptions,
   BuildBuildingResult,
 } from "./game/buildingBuildActions.js";
+export {
+  BANK_STACK_MAX,
+  createDefaultBankState,
+  depositAllToBank,
+  depositItemToBank,
+  depositStackToBank,
+  normalizeBankState,
+  withdrawAllFromBank,
+  withdrawItemFromBank,
+  withdrawStackFromBank,
+} from "./bank/index.js";
+export type {
+  BankBulkCategory,
+  BankItemCategory,
+  BankStack,
+  BankState,
+  BankTransferReason,
+  BankTransferResult,
+} from "./bank/index.js";
 export type {
   BuildingId,
 } from "./building/types.js";

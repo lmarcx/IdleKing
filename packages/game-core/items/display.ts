@@ -79,6 +79,8 @@ function getInventoryItemCategory(item: GameState["inventory"]["items"][number])
   if (item.kind === "material") return "materials";
   if (item.kind === "resource") return "resources";
   if (item.kind === "consumable") return "consumables";
+  if (item.kind === "special") return "unique";
+  if (item.kind === "quest") return "unique";
   return "unique";
 }
 

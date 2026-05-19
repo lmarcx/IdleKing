@@ -4,6 +4,7 @@ import type { TempleState } from "../building/temple.js";
 import type { CanonicalBuildingState } from "../building/types.js";
 import type { ResourceStock, ResourceId } from "../resources/types.js";
 import type { Inventory } from "../items/inventory.js";
+import { createDefaultBankState, type BankState } from "../bank/index.js";
 import { createDefaultWalletState, type WalletState } from "../currencies/index.js";
 import { createDefaultWorldResourcesState, type GameWorldResourcesState } from "../world/worldResources.js";
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
@@ -24,6 +25,7 @@ export type GameState = {
   story: StoryState;
   resources: ResourceStock;
   inventory: Inventory;
+  bank: BankState;
   equipment: PlayerEquipmentState;
   skills: PlayerSkillsState;
   wallet: WalletState;
@@ -91,6 +93,7 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     },
     resources: {},
     inventory: { items: [] },
+    bank: createDefaultBankState(),
     equipment: createDefaultPlayerEquipmentState(),
     skills: createDefaultPlayerSkillsState(),
     wallet: createDefaultWalletState(),
