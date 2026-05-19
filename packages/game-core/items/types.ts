@@ -71,6 +71,7 @@ export type EquipmentItem = {
   slot: EquipmentSlot;
 
   stats: EquipmentStats;
+  baseStats?: EquipmentStats;
 
   itemLevel?: number;
   ilvl?: number; // legacy forge/display alias for itemLevel
@@ -129,6 +130,7 @@ export function normalizeEquipmentItem(item: unknown): EquipmentItem | null {
   const candidate = item as Partial<EquipmentItem> & { slot?: unknown };
   const slot = normalizeEquipmentSlot(candidate.slot);
   if (!slot || typeof candidate.id !== "string" || typeof candidate.name !== "string") return null;
+  const stats = candidate.stats ?? {};
 
   return {
     ...candidate,
@@ -136,7 +138,8 @@ export function normalizeEquipmentItem(item: unknown): EquipmentItem | null {
     kind: "equipment",
     name: candidate.name,
     slot,
-    stats: candidate.stats ?? {},
+    stats,
+    baseStats: candidate.baseStats ?? stats,
     rarity: isItemRarity(candidate.rarity) ? candidate.rarity : "COMMON",
     upgradeLevel: normalizeUpgradeLevel(candidate.upgradeLevel),
   };

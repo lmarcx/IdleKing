@@ -129,6 +129,7 @@ export function generateEquipmentItem(params: GenerateEquipmentItemParams): Equi
   const rarity = params.rarity ?? "COMMON";
   const name = params.name ?? `${SLOT_BASE_NAMES[params.slot]} ${itemLevel}`;
   const id = params.id ?? `eq_${slug(String(params.seed ?? `${params.slot}-${itemLevel}-${rarity}`))}`;
+  const stats = buildStats(params.slot, itemLevel, rarity);
 
   return {
     id,
@@ -139,7 +140,8 @@ export function generateEquipmentItem(params: GenerateEquipmentItemParams): Equi
     ilvl: itemLevel,
     rarity,
     upgradeLevel: 0,
-    stats: buildStats(params.slot, itemLevel, rarity),
+    baseStats: stats,
+    stats,
   };
 }
 

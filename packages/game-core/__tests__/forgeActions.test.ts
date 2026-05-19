@@ -8,10 +8,12 @@ import {
   getForgeUpgradeBreakpointsReached,
   getForgeUpgradeCost,
   getForgeUpgradeMaxLevel,
+  getNextForgeUpgradeBreakpoint,
+  getUpgradedEquipmentStats,
 } from "../building/forge/rules.js";
 import { getBuildCost } from "../building/buildCosts.js";
 import { getCurrencyBalance, grantCurrency } from "../currencies/index.js";
-import { generateEquipmentItem } from "../equipment/index.js";
+import { calculateFinalCharacterStats, equipItem, generateEquipmentItem } from "../equipment/index.js";
 import { completeChapterAction } from "../game/actions.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
 import { forgeCraft, forgeRecycle, forgeUpgrade } from "../game/forgeActions.js";
@@ -45,6 +47,12 @@ function fundUpgradeCosts(state: GameState, itemId: string): GameState {
     resources: addQty(state.resources, "GOLD", cost.resources.GOLD ?? 0),
     wallet: grantCurrency(state.wallet, "ECU", cost.currencies.ECU ?? 0),
   };
+}
+
+function getEquipmentOrFail(state: GameState, itemId: string) {
+  const item = state.inventory.items.find((entry) => entry.id === itemId);
+  assert.ok(item && isEquipmentItem(item));
+  return item;
 }
 
 function withLocalStorageSave(payload: unknown, run: () => void) {
@@ -188,7 +196,7 @@ test("Forge crafted itemLevel depends on worldLevel", () => {
   assert.equal(item.itemLevel, expectedIlvl(7));
 });
 
-test("Forge upgrade increments upgradeLevel and preserves item identity and ilvl", () => {
+test("Forge upgrade increments upgradeLevel, increases stats, and preserves item identity and ilvl", () => {
   let s = progressToChapter4AndBuildForge(createInitialGameState());
   s = {
     ...s,
@@ -218,11 +226,72 @@ test("Forge upgrade increments upgradeLevel and preserves item identity and ilvl
   assert.equal(upgraded.rarity, craftedItem.rarity);
   assert.equal(upgraded.ilvl ?? upgraded.itemLevel, ilvlBefore);
   assert.equal(upgraded.itemLevel, craftedItem.itemLevel);
-  assert.deepEqual(upgraded.stats, craftedItem.stats);
+  assert.ok((upgraded.stats.attack ?? 0) > (craftedItem.stats.attack ?? 0));
+  assert.ok((upgraded.stats.power ?? 0) > (craftedItem.stats.power ?? 0));
+  assert.deepEqual(upgraded.baseStats, craftedItem.baseStats);
   assert.equal(upgraded.upgradeLevel, 1);
   assert.equal(upgradedResult.next.villagers.list.length, 0);
   assert.equal(getQty(upgradedResult.next.resources, "GOLD"), goldBefore);
   assert.equal(getCurrencyBalance(upgradedResult.next.wallet, "ECU"), ecuBefore - 1);
+});
+
+test("Forge repeated upgrades scale deterministically from base stats", () => {
+  let s = progressToChapter4AndBuildForge(createInitialGameState());
+  const item = generateEquipmentItem({
+    id: "deterministic_upgrade",
+    slot: "weapon",
+    itemLevel: 80,
+    rarity: "EPIC",
+    seed: "deterministic",
+  });
+  s = { ...s, inventory: addItem(s.inventory, item) };
+
+  s = fundUpgradeCosts(s, item.id);
+  const first = forgeUpgrade(s, item.id);
+  assert.equal(first.ok, true);
+
+  let upgraded = getEquipmentOrFail(first.next, item.id);
+  assert.deepEqual(
+    upgraded.stats,
+    getUpgradedEquipmentStats(item.baseStats ?? item.stats, "EPIC", item.itemLevel ?? item.ilvl ?? 1, 1),
+  );
+
+  s = fundUpgradeCosts(first.next, item.id);
+  const second = forgeUpgrade(s, item.id);
+  assert.equal(second.ok, true);
+
+  upgraded = getEquipmentOrFail(second.next, item.id);
+  assert.equal(upgraded.upgradeLevel, 2);
+  assert.deepEqual(
+    upgraded.stats,
+    getUpgradedEquipmentStats(item.baseStats ?? item.stats, "EPIC", item.itemLevel ?? item.ilvl ?? 1, 2),
+  );
+});
+
+test("Equipped upgraded item affects final character stats", () => {
+  let s = progressToChapter4AndBuildForge(createInitialGameState());
+  const item = generateEquipmentItem({
+    id: "equipped_upgrade",
+    slot: "weapon",
+    itemLevel: 60,
+    rarity: "RARE",
+    seed: "equipped",
+  });
+  s = { ...s, inventory: addItem(s.inventory, item) };
+
+  const equipped = equipItem(s, item.id);
+  assert.equal(equipped.ok, true);
+  if (!equipped.ok) return;
+
+  const before = calculateFinalCharacterStats(equipped.state);
+  const funded = fundUpgradeCosts(equipped.state, item.id);
+  const upgraded = forgeUpgrade(funded, item.id);
+  assert.equal(upgraded.ok, true);
+  const after = calculateFinalCharacterStats(upgraded.next);
+
+  assert.ok(after.attack > before.attack);
+  assert.ok(after.power > before.power);
+  assert.equal(upgraded.next.equipment.equipped.weapon, item.id);
 });
 
 test("Forge upgrade respects rarity max caps", () => {
@@ -246,10 +315,13 @@ test("Forge upgrade respects rarity max caps", () => {
   assert.equal(result.reason, "MAX_UPGRADE_LEVEL");
 });
 
-test("Forge upgrade breakpoint helpers detect reached levels", () => {
+test("Forge upgrade breakpoint helpers detect reached and next levels", () => {
   assert.deepEqual(getForgeUpgradeBreakpointsReached(2), []);
   assert.deepEqual(getForgeUpgradeBreakpointsReached(3), [3]);
   assert.deepEqual(getForgeUpgradeBreakpointsReached(21), [3, 6, 9, 12, 15, 18, 21]);
+  assert.equal(getNextForgeUpgradeBreakpoint(2, "COMMON"), 3);
+  assert.equal(getNextForgeUpgradeBreakpoint(6, "COMMON"), null);
+  assert.equal(getNextForgeUpgradeBreakpoint(12, "MYTHIC"), 15);
   assert.equal(didReachForgeUpgradeBreakpoint(2, 3), true);
   assert.equal(didReachForgeUpgradeBreakpoint(3, 4), false);
 });

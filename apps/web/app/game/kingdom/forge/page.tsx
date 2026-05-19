@@ -10,11 +10,29 @@ import { FORGE_RECIPES } from "@idleking/game-core/building/forge/recipes.js";
 import {
   FORGE_PRECIOUS_STONE_DROP_CHANCE,
   getForgeRecycleEcuRefund,
+  getForgeUpgradeBreakpointsReached,
   getForgeUpgradeCost,
   getForgeUpgradeMaxLevel,
+  getNextForgeUpgradeBreakpoint,
+  getUpgradedEquipmentStats,
 } from "@idleking/game-core/building/forge/rules.js";
 import { forgeCraft, forgeRecycle, forgeUpgrade } from "@idleking/game-core/game/forgeActions.js";
-import { isEquipmentItem } from "@idleking/game-core/items";
+import { isEquipmentItem, type EquipmentStats } from "@idleking/game-core/items";
+
+function formatStatPreview(current: EquipmentStats, next: EquipmentStats): string {
+  const parts = [
+    ["HP", current.hp, next.hp],
+    ["ATK", current.attack, next.attack],
+    ["DEF", current.defense, next.defense],
+    ["POWER", current.power, next.power],
+  ].flatMap(([label, currentValue, nextValue]) => {
+    if (typeof currentValue !== "number" || typeof nextValue !== "number") return [];
+    const delta = nextValue - currentValue;
+    return delta > 0 ? [`${label} +${delta}`] : [];
+  });
+
+  return parts.length > 0 ? parts.join(" | ") : "No stat change";
+}
 
 export default function ForgePage() {
   const state = useGameStore((s) => s.state);
@@ -72,56 +90,73 @@ export default function ForgePage() {
                 <p className="font-ik-body text-sm text-muted-foreground">No items yet.</p>
               ) : (
                 <ul className="space-y-2 text-sm">
-                  {equipmentItems.map((item) => (
-                    <li key={item.id} className="rounded border p-2">
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <span>
-                          {item.name} ({item.slot}) ilvl {item.itemLevel ?? item.ilvl ?? 1} +{item.upgradeLevel ?? 0}
-                        </span>
-                        <span className="text-muted-foreground">{item.rarity}</span>
-                      </div>
-                      <div className="mb-2 text-xs text-muted-foreground">
-                        Upgrade cap +{getForgeUpgradeMaxLevel(item.rarity ?? "COMMON")} | Upgrade cost{" "}
-                        {JSON.stringify(getForgeUpgradeCost(item))}
-                      </div>
-                      <div className="mb-2 text-xs text-muted-foreground">
-                        Recycle: {getForgeRecycleEcuRefund(item)} ECU, {Math.round(FORGE_PRECIOUS_STONE_DROP_CHANCE * 100)}%
-                        chance for Precious Stone {item.rarity ?? "COMMON"}.
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            const res = forgeUpgrade(state, item.id);
-                            if (!res.ok) {
-                              toast.error(`Upgrade failed: ${res.reason}`);
-                              return;
-                            }
-                            dispatch(() => res.next);
-                            toast.success("Item upgraded");
-                          }}
-                        >
-                          Upgrade
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const res = forgeRecycle(state, item.id);
-                            if (!res.ok) {
-                              toast.error(`Recycle failed: ${res.reason}`);
-                              return;
-                            }
-                            dispatch(() => res.next);
-                            toast.success("Item recycled");
-                          }}
-                        >
-                          Recycle
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
+                  {equipmentItems.map((item) => {
+                    const rarity = item.rarity ?? "COMMON";
+                    const upgradeLevel = item.upgradeLevel ?? 0;
+                    const maxUpgradeLevel = getForgeUpgradeMaxLevel(rarity);
+                    const nextBreakpoint = getNextForgeUpgradeBreakpoint(upgradeLevel, rarity);
+                    const nextStats = getUpgradedEquipmentStats(
+                      item.baseStats ?? item.stats,
+                      rarity,
+                      item.itemLevel ?? item.ilvl ?? 1,
+                      Math.min(upgradeLevel + 1, maxUpgradeLevel),
+                    );
+
+                    return (
+                      <li key={item.id} className="rounded border p-2">
+                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                          <span>
+                            {item.name} ({item.slot}) ilvl {item.itemLevel ?? item.ilvl ?? 1} +{upgradeLevel}
+                          </span>
+                          <span className="text-muted-foreground">{rarity}</span>
+                        </div>
+                        <div className="mb-2 text-xs text-muted-foreground">
+                          Upgrade cap +{maxUpgradeLevel} | Next breakpoint {nextBreakpoint ? `+${nextBreakpoint}` : "none"} |
+                          Reached {getForgeUpgradeBreakpointsReached(upgradeLevel).map((level) => `+${level}`).join(", ") || "none"}
+                        </div>
+                        <div className="mb-2 text-xs text-muted-foreground">
+                          Upgrade cost {JSON.stringify(getForgeUpgradeCost(item))} | Preview{" "}
+                          {formatStatPreview(item.stats, nextStats)}
+                        </div>
+                        <div className="mb-2 text-xs text-muted-foreground">
+                          Recycle: {getForgeRecycleEcuRefund(item)} ECU, {Math.round(FORGE_PRECIOUS_STONE_DROP_CHANCE * 100)}%
+                          chance for Precious Stone {rarity}.
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              const res = forgeUpgrade(state, item.id);
+                              if (!res.ok) {
+                                toast.error(`Upgrade failed: ${res.reason}`);
+                                return;
+                              }
+                              dispatch(() => res.next);
+                              toast.success("Item upgraded");
+                            }}
+                          >
+                            Upgrade
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const res = forgeRecycle(state, item.id);
+                              if (!res.ok) {
+                                toast.error(`Recycle failed: ${res.reason}`);
+                                return;
+                              }
+                              dispatch(() => res.next);
+                              toast.success("Item recycled");
+                            }}
+                          >
+                            Recycle
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>

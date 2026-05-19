@@ -83,7 +83,10 @@ export {
   getForgeUpgradeBreakpointsReached,
   getForgeUpgradeCost,
   getForgeUpgradeMaxLevel,
+  getForgeUpgradeStatMultiplier,
+  getNextForgeUpgradeBreakpoint,
   getPreciousStoneId,
+  getUpgradedEquipmentStats,
 } from "./building/forge/rules.js";
 export type {
   ForgeUpgradeCost,

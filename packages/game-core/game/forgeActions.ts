@@ -7,6 +7,7 @@ import {
   getForgeRecycleEcuRefund,
   getForgeUpgradeCost,
   getForgeUpgradeLevel,
+  getUpgradedEquipmentStats,
 } from "../building/forge/rules.js";
 import { grantCurrency, spendCurrency } from "../currencies/index.js";
 import { generateEquipmentItem } from "../equipment/index.js";
@@ -127,9 +128,18 @@ export function forgeUpgrade(
   }
 
   const nextResources = spend(state.resources, cost.resources);
+  const baseStats = normalizedItem.baseStats ?? normalizedItem.stats;
+  const nextUpgradeLevel = normalizedItem.upgradeLevel + 1;
   const upgraded = {
     ...normalizedItem,
-    upgradeLevel: normalizedItem.upgradeLevel + 1,
+    baseStats,
+    stats: getUpgradedEquipmentStats(
+      baseStats,
+      normalizedItem.rarity,
+      normalizedItem.itemLevel ?? normalizedItem.ilvl ?? 1,
+      nextUpgradeLevel,
+    ),
+    upgradeLevel: nextUpgradeLevel,
   };
   const nextItems = state.inventory.items.map((it) => (it.id === itemId ? upgraded : it));
 

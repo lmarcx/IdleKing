@@ -119,6 +119,17 @@ Chaque niveau d’upgrade augmente :
 stats basiques
 ```
 
+Phase 8B applique ces stats basiques depuis les stats de base de l'item :
+
+```txt
+HP
+ATK / attack
+DEF / defense
+POWER si stocke pour compatibilite
+```
+
+L'ilvl reste fixe et l'item n'est pas regenere.
+
 Certains paliers augmentent ou débloquent :
 
 ```txt
