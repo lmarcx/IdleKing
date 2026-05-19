@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DEV_MODE } from "@/lib/env";
 import { useGameStore } from "@/store/game-store";
+import { grantCurrency } from "@idleking/game-core";
 import {
   FORGE_RECIPES,
   getAvailableForgeRecipes,
@@ -22,6 +24,7 @@ import {
 } from "@idleking/game-core/building/forge/rules.js";
 import { forgeCraft, forgeRecycle, forgeUpgrade } from "@idleking/game-core/game/forgeActions.js";
 import { isEquipmentItem, type EquipmentStats } from "@idleking/game-core/items";
+import { addQty } from "@idleking/game-core/resources/types.js";
 
 function formatStatPreview(current: EquipmentStats, next: EquipmentStats): string {
   const parts = [
@@ -44,9 +47,54 @@ export default function ForgePage() {
   const equipmentItems = state.inventory.items.filter(isEquipmentItem);
   const availableRecipeIds = new Set(getAvailableForgeRecipes(state).map((recipe) => recipe.id));
 
+  function grantDevForgeSmokeSetup() {
+    if (!DEV_MODE) return;
+
+    dispatch((current) => {
+      let resources = current.resources;
+      for (const [resourceId, amount] of [
+        ["COPPER", 25],
+        ["IRON", 25],
+        ["STONE", 10],
+        ["WOOD", 10],
+        ["GOLD", 25],
+        ["PAPER", 5],
+        ["INK", 5],
+        ["RUNES", 5],
+      ] as const) {
+        resources = addQty(resources, resourceId, amount);
+      }
+
+      return {
+        ...current,
+        buildings: {
+          ...current.buildings,
+          forge: {
+            ...current.buildings.forge,
+            active: true,
+            built: true,
+            level: Math.max(1, current.buildings.forge.level),
+            status: "built",
+            unlocked: true,
+          },
+        },
+        resources,
+        wallet: grantCurrency(current.wallet, "ECU", 25),
+      };
+    });
+    toast.success("DEV Forge smoke setup granted");
+  }
+
   return (
     <div className="space-y-4">
-      <h1 className="font-ik-title text-2xl font-semibold">Forge</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-ik-title text-2xl font-semibold">Forge</h1>
+        {DEV_MODE ? (
+          <Button onClick={grantDevForgeSmokeSetup} size="sm" type="button" variant="outline">
+            DEV: Forge Smoke Setup
+          </Button>
+        ) : null}
+      </div>
 
       <Tabs defaultValue="craft" className="space-y-3">
         <TabsList>
