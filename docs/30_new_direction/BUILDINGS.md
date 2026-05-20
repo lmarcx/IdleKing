@@ -866,7 +866,19 @@ Il permet :
 achat
 vente
 special vendors
-currency exchange
+```
+
+MVP Phase 9B :
+
+```txt
+ECU uniquement
+stock vendeur infini
+prix fixes PLACEHOLDER
+achat / vente de ressources
+achat / vente de consommables
+achat / vente d'équipements basiques explicitement listés
+pas d'échange currency-to-currency
+pas de player trading
 ```
 
 ---

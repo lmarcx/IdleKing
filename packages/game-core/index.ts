@@ -10,6 +10,7 @@ export * as expedition from "./expedition/index.js";
 export * as combat from "./combat/index.js";
 export * as building from "./building/index.js";
 export * as bank from "./bank/index.js";
+export * as market from "./market/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
@@ -85,6 +86,31 @@ export type {
 export type {
   BuildingId,
 } from "./building/types.js";
+export {
+  getMarketBuyEntries,
+  getMarketBuyPrice,
+  getMarketEntry,
+  getMarketSellPrice,
+  getResourceMarketSellPrice,
+  marketBuy,
+  marketSell,
+  MARKET_CATALOG,
+  MARKET_CONSUMABLE_ENTRIES,
+  MARKET_EQUIPMENT_ENTRIES,
+  MARKET_RESOURCE_ENTRIES,
+  MARKET_RESOURCE_PLACEHOLDER_VALUES,
+  MARKET_STACK_MAX,
+} from "./market/index.js";
+export type {
+  MarketActionReason,
+  MarketActionResult,
+  MarketCatalogEntry,
+  MarketCategory,
+  MarketConsumableEntry,
+  MarketEquipmentEntry,
+  MarketPrice,
+  MarketResourceEntry,
+} from "./market/index.js";
 export {
   FORGE_RECIPES,
   getAvailableForgeRecipes,

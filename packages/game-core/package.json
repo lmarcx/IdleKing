@@ -16,6 +16,8 @@
     "./building/*": "./dist/building/*",
     "./bank": "./dist/bank/index.js",
     "./bank/*": "./dist/bank/*",
+    "./market": "./dist/market/index.js",
+    "./market/*": "./dist/market/*",
     "./currencies": "./dist/currencies/index.js",
     "./currencies/*": "./dist/currencies/*",
     "./minigames": "./dist/minigames/index.js",
