@@ -72,6 +72,8 @@ const TEMPLE_POSITION = { x: MAP_WIDTH / 2 + 330, y: MAP_HEIGHT / 2 - 210 };
 const MINE_POSITION = { x: MAP_WIDTH / 2 - 350, y: MAP_HEIGHT / 2 - 160 };
 const KITCHEN_POSITION = { x: MAP_WIDTH / 2 - 70, y: MAP_HEIGHT / 2 + 270 };
 const FORGE_POSITION = { x: MAP_WIDTH / 2 + 350, y: MAP_HEIGHT / 2 + 220 };
+const BANK_POSITION = { x: MAP_WIDTH / 2 + 520, y: MAP_HEIGHT / 2 - 40 };
+const MARKET_POSITION = { x: MAP_WIDTH / 2 - 540, y: MAP_HEIGHT / 2 + 85 };
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 245, y: MAP_HEIGHT / 2 + 15 };
 const PORTAL_POSITION = { x: MAP_WIDTH / 2 - 455, y: MAP_HEIGHT / 2 + 375 };
 const HUB_DISPLAY_HEIGHTS = {
@@ -107,6 +109,8 @@ const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
 const TEMPLE_BUILD_COST = getBuildCost("TEMPLE");
 const FORGE_BUILD_COST = getBuildCost("FORGE");
+const BANK_BUILD_COST = getBuildCost("BANK");
+const MARKET_BUILD_COST = getBuildCost("MARKET");
 const FARM_BUILD_COST = getBuildCost("FARM");
 
 type Vector2 = {
@@ -551,6 +555,77 @@ function createBuildingSprite(options: HubSpriteOptions & { glowTexture?: PIXI.T
   return createHubSpriteVisual(options);
 }
 
+function createServiceBuildingVisual({
+  accent,
+  label,
+  position,
+  variant,
+}: {
+  accent: number;
+  label: string;
+  position: Vector2;
+  variant: "bank" | "market";
+}): PoiVisual {
+  const container = new PIXI.Container();
+  const shadow = createHubShadow(118, 25, 0.45);
+  const building = new PIXI.Container();
+  const hint = createInteractionHint(-122);
+  let isNear = false;
+
+  shadow.position.set(0, 24);
+
+  if (variant === "bank") {
+    const base = new PIXI.Graphics();
+    base.roundRect(-76, -78, 152, 118, 8).fill(0x182033).stroke({ color: accent, alpha: 0.7, width: 3 });
+    base.rect(-88, -86, 176, 20).fill(0x283247).stroke({ color: accent, alpha: 0.48, width: 2 });
+    base.rect(-48, -40, 96, 80).fill(0x111722).stroke({ color: 0x8392ad, alpha: 0.6, width: 2 });
+    base.circle(0, 0, 15).fill(0x0a0e15).stroke({ color: accent, alpha: 0.72, width: 3 });
+    base.rect(-62, -58, 24, 18).fill(0x24304a);
+    base.rect(38, -58, 24, 18).fill(0x24304a);
+    building.addChild(base);
+  } else {
+    const stall = new PIXI.Graphics();
+    stall.roundRect(-82, -56, 164, 96, 8).fill(0x241b16).stroke({ color: accent, alpha: 0.68, width: 3 });
+    stall.rect(-92, -86, 184, 32).fill(0x5c2530).stroke({ color: accent, alpha: 0.55, width: 2 });
+    for (let index = 0; index < 5; index++) {
+      stall.rect(-88 + index * 36, -84, 30, 28).fill(index % 2 === 0 ? 0xf0c26a : 0x8f2d3b);
+    }
+    stall.rect(-54, -30, 38, 70).fill(0x130f0c);
+    stall.rect(18, -20, 52, 34).fill(0x3b2a18).stroke({ color: 0xf0c26a, alpha: 0.42, width: 2 });
+    building.addChild(stall);
+  }
+
+  const sign = new PIXI.Text({
+    text: label,
+    style: {
+      fill: 0xfff3c4,
+      fontFamily: "serif",
+      fontSize: 18,
+      fontWeight: "700",
+    },
+  });
+  sign.anchor.set(0.5);
+  sign.position.set(0, -104);
+
+  container.addChild(shadow, building, sign, hint);
+  container.position.set(position.x, position.y);
+  container.zIndex = position.y;
+
+  return {
+    container,
+    setNear: (near: boolean) => {
+      isNear = near;
+      hint.visible = near;
+    },
+    update: (elapsedSeconds: number) => {
+      const hover = isNear ? 1.06 : 1;
+      building.scale.set(hover);
+      sign.alpha = (isNear ? 1 : 0.82) + Math.sin(elapsedSeconds * 2.1) * 0.02;
+      hint.alpha = isNear ? 1 : 0;
+    },
+  };
+}
+
 function createPortalVisual(textures: HubTextures): PoiVisual {
   const container = new PIXI.Container();
   const glow = createGlowSprite(textures.softGlow, 190, 0x83f7ff, 0.24);
@@ -693,6 +768,8 @@ export function KingdomHubStage() {
   const [farmModal, setFarmModal] = useState<BuildingModalState>(null);
   const [isTempleOpen, setIsTempleOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
+  const [isBankOpen, setIsBankOpen] = useState(false);
+  const [isMarketOpen, setIsMarketOpen] = useState(false);
   const [placeholderBuildingId, setPlaceholderBuildingId] = useState<PlaceholderBuildingId | null>(null);
   const [activeOverlay, setActiveOverlay] = useState<HubOverlayId | null>(null);
   const [mountedOverlays, setMountedOverlays] = useState<Record<HubOverlayId, boolean>>({
@@ -713,6 +790,8 @@ export function KingdomHubStage() {
   const effectiveTemple = getEffectiveBuildingState(state.buildings.temple, state.progression.worldLevel);
   const effectiveForge = getEffectiveBuildingState(state.buildings.forge, state.progression.worldLevel);
   const effectiveFarm = getEffectiveBuildingState(state.buildings.farm, state.progression.worldLevel);
+  const effectiveBank = getEffectiveBuildingState(state.buildings.bank, state.progression.worldLevel);
+  const effectiveMarket = getEffectiveBuildingState(state.buildings.market, state.progression.worldLevel);
   const placeholderBuilding = placeholderBuildingId ? PLACEHOLDER_BUILDINGS[placeholderBuildingId] : null;
   const placeholderBuildingState = placeholderBuildingId
     ? getPlaceholderBuildingState(state.buildings, placeholderBuildingId, state.progression.worldLevel)
@@ -720,6 +799,8 @@ export function KingdomHubStage() {
   const canBuildTemple = effectiveTemple.unlocked && !effectiveTemple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
   const canBuildForge = effectiveForge.unlocked && !effectiveForge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
   const canBuildFarm = effectiveFarm.unlocked && !effectiveFarm.built && hasAtLeast(state.resources, FARM_BUILD_COST);
+  const canBuildBank = effectiveBank.unlocked && !effectiveBank.built && hasAtLeast(state.resources, BANK_BUILD_COST);
+  const canBuildMarket = effectiveMarket.unlocked && !effectiveMarket.built && hasAtLeast(state.resources, MARKET_BUILD_COST);
 
   useEffect(() => {
     isModalOpenRef.current =
@@ -727,6 +808,8 @@ export function KingdomHubStage() {
       farmModal !== null ||
       isTempleOpen ||
       isForgeOpen ||
+      isBankOpen ||
+      isMarketOpen ||
       placeholderBuildingId !== null ||
       activeOverlay !== null ||
       isGameHudOverlayOpen;
@@ -734,7 +817,17 @@ export function KingdomHubStage() {
       isClaimingCornucopiaRef.current = false;
       setIsClaimingCornucopia(false);
     }
-  }, [activeOverlay, farmModal, isCornucopiaOpen, isForgeOpen, isGameHudOverlayOpen, isTempleOpen, placeholderBuildingId]);
+  }, [
+    activeOverlay,
+    farmModal,
+    isBankOpen,
+    isCornucopiaOpen,
+    isForgeOpen,
+    isGameHudOverlayOpen,
+    isMarketOpen,
+    isTempleOpen,
+    placeholderBuildingId,
+  ]);
 
   useEffect(() => {
     setFarmState(effectiveFarm.status);
@@ -785,6 +878,16 @@ export function KingdomHubStage() {
   const closeForgeModal = useCallback(() => {
     isModalOpenRef.current = false;
     setIsForgeOpen(false);
+  }, []);
+
+  const closeBankModal = useCallback(() => {
+    isModalOpenRef.current = false;
+    setIsBankOpen(false);
+  }, []);
+
+  const closeMarketModal = useCallback(() => {
+    isModalOpenRef.current = false;
+    setIsMarketOpen(false);
   }, []);
 
   const closePlaceholderBuildingModal = useCallback(() => {
@@ -840,6 +943,20 @@ export function KingdomHubStage() {
     setIsForgeOpen(true);
   }, []);
 
+  const openBank = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(BANK_POSITION, undefined, 0x9fb7ff);
+    isModalOpenRef.current = true;
+    setIsBankOpen(true);
+  }, []);
+
+  const openMarket = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(MARKET_POSITION, undefined, 0xf0c26a);
+    isModalOpenRef.current = true;
+    setIsMarketOpen(true);
+  }, []);
+
   const openFarmSlot = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
 
@@ -872,7 +989,7 @@ export function KingdomHubStage() {
   }, [dispatch]);
 
   const handleBuildCoreBuilding = useCallback(
-    (buildingId: Extract<BuildingId, "TEMPLE" | "FORGE">) => {
+    (buildingId: Extract<BuildingId, "TEMPLE" | "FORGE" | "BANK" | "MARKET">) => {
       const result = buildBuilding(useGameStore.getState().state, buildingId, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Build failed: ${result.reason}`);
@@ -880,13 +997,27 @@ export function KingdomHubStage() {
       }
 
       dispatch(() => result.next);
-      const position = buildingId === "TEMPLE" ? TEMPLE_POSITION : FORGE_POSITION;
-      const label = buildingId === "TEMPLE" ? "Temple built" : "Forge built";
-      spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" ? 0x83f7ff : 0xf0c26a);
+      const position =
+        buildingId === "TEMPLE"
+          ? TEMPLE_POSITION
+          : buildingId === "FORGE"
+            ? FORGE_POSITION
+            : buildingId === "BANK"
+              ? BANK_POSITION
+              : MARKET_POSITION;
+      const label =
+        buildingId === "TEMPLE"
+          ? "Temple built"
+          : buildingId === "FORGE"
+            ? "Forge built"
+            : buildingId === "BANK"
+              ? "Bank built"
+              : "Market built";
+      spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" || buildingId === "BANK" ? 0x83f7ff : 0xf0c26a);
 
       if (buildingId === "TEMPLE") {
         setTempleFeedback(label);
-      } else {
+      } else if (buildingId === "FORGE") {
         setForgeFeedback(label);
       }
       toast.success(label);
@@ -1062,6 +1193,24 @@ export function KingdomHubStage() {
         y: FORGE_POSITION.y,
         radius: 112,
         onInteract: openForge,
+      },
+      {
+        id: "bank",
+        label: "Bank",
+        type: "building",
+        x: BANK_POSITION.x,
+        y: BANK_POSITION.y,
+        radius: 104,
+        onInteract: openBank,
+      },
+      {
+        id: "market",
+        label: "Market",
+        type: "building",
+        x: MARKET_POSITION.x,
+        y: MARKET_POSITION.y,
+        radius: 112,
+        onInteract: openMarket,
       },
       {
         id: "mine",
@@ -1353,6 +1502,20 @@ export function KingdomHubStage() {
           texture: textures.forge,
           widthRatio: 0.7,
         }),
+        {
+          height: 58,
+          id: "bank",
+          width: 118,
+          x: BANK_POSITION.x - 59,
+          y: BANK_POSITION.y - 18,
+        },
+        {
+          height: 54,
+          id: "market",
+          width: 130,
+          x: MARKET_POSITION.x - 65,
+          y: MARKET_POSITION.y - 12,
+        },
         createGroundCollider({
           displayHeight: HUB_DISPLAY_HEIGHTS.farm,
           heightRatio: 0.3,
@@ -1444,6 +1607,30 @@ export function KingdomHubStage() {
       });
       poiVisuals.set("forge", forgeVisual);
       entityLayer.addChild(forgeVisual.container);
+
+      const bankVisual = createServiceBuildingVisual({
+        accent: 0x9fb7ff,
+        label: "Bank",
+        position: BANK_POSITION,
+        variant: "bank",
+      });
+      bankVisual.container.eventMode = "static";
+      bankVisual.container.cursor = "pointer";
+      bankVisual.container.on("pointertap", openBank);
+      poiVisuals.set("bank", bankVisual);
+      entityLayer.addChild(bankVisual.container);
+
+      const marketVisual = createServiceBuildingVisual({
+        accent: 0xf0c26a,
+        label: "Market",
+        position: MARKET_POSITION,
+        variant: "market",
+      });
+      marketVisual.container.eventMode = "static";
+      marketVisual.container.cursor = "pointer";
+      marketVisual.container.on("pointertap", openMarket);
+      poiVisuals.set("market", marketVisual);
+      entityLayer.addChild(marketVisual.container);
 
       const cornucopiaVisual = createHubSpriteVisual({
         displayHeight: HUB_DISPLAY_HEIGHTS.cornucopia,
@@ -1583,12 +1770,14 @@ export function KingdomHubStage() {
       }
     };
   }, [
+    openBank,
     closeDialogue,
     openCornucopia,
     openFarmSlot,
     openForge,
     openGlobalHudOverlay,
     openHubOverlay,
+    openMarket,
     openPlaceholderBuilding,
     openTemple,
     openVillagerDialogue,
@@ -1613,6 +1802,25 @@ export function KingdomHubStage() {
           Press F
         </div>
       ) : null}
+
+      <div className="absolute bottom-3 right-3 z-20 flex flex-wrap gap-2 rounded-md border border-amber-200/20 bg-black/70 p-2 shadow-[0_0_24px_rgba(240,194,106,0.12)]">
+        <button
+          className="rounded border border-blue-200/35 bg-blue-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.12em] text-blue-50 transition hover:border-blue-200 hover:bg-blue-500/20"
+          data-testid="kingdom-access-bank"
+          onClick={openBank}
+          type="button"
+        >
+          Bank
+        </button>
+        <button
+          className="rounded border border-amber-200/35 bg-amber-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.12em] text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/20"
+          data-testid="kingdom-access-market"
+          onClick={openMarket}
+          type="button"
+        >
+          Market
+        </button>
+      </div>
 
       {activeDialogue ? (
         <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />
@@ -2062,6 +2270,162 @@ export function KingdomHubStage() {
             >
               Close
             </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isBankOpen}
+        onOpenChange={(open) => {
+          if (!open) closeBankModal();
+        }}
+      >
+        <DialogContent className="max-w-md border-blue-200/25 bg-zinc-950 text-blue-50" data-testid="kingdom-bank-dialog">
+          <DialogHeader>
+            <DialogTitle>Bank</DialogTitle>
+            <DialogDescription>Store resources, consumables, and special non-quest items.</DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 rounded-md border border-blue-200/15 bg-black/35 p-3">
+            <div className="text-xs uppercase tracking-[0.14em] text-blue-100/70">Status</div>
+            <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-blue-50">
+              {getBuildingStatusLabel(effectiveBank)}
+              {isDevUnlocked(state.buildings.bank) ? (
+                <span className="rounded border border-blue-200/20 bg-blue-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-blue-100">
+                  DEV UNLOCK
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 font-ik-body text-xs text-muted-foreground">
+              {getBuildingLevelLabel(effectiveBank)}
+            </div>
+          </div>
+
+          {!effectiveBank.built ? (
+            <div className="mt-3 rounded-md border border-blue-200/20 bg-black/35 p-3">
+              <div className="font-ik-title text-sm text-blue-50">Construction</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(Object.entries(BANK_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                  <span
+                    className="inline-flex items-center gap-1 rounded border border-blue-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-blue-50"
+                    key={resourceId}
+                  >
+                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                    {formatResourceLabel(resourceId)} {amount}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="mt-3 rounded-md border border-blue-300/45 bg-blue-500/14 px-4 py-2 font-ik-menu text-sm text-blue-50 transition hover:border-blue-200 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canBuildBank}
+                onClick={() => handleBuildCoreBuilding("BANK")}
+                type="button"
+              >
+                {getBuildActionLabel(effectiveBank, canBuildBank)}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-md border border-blue-200/20 bg-blue-400/10 p-3 font-ik-body text-sm text-blue-50">
+              Bank storage is available from the dedicated Kingdom Bank page.
+            </div>
+          )}
+
+          <DialogFooter>
+            <button
+              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
+              onClick={closeBankModal}
+              type="button"
+            >
+              Close
+            </button>
+            <a
+              className={cn(
+                "rounded-md border border-blue-300/45 bg-blue-500/14 px-4 py-2 font-ik-menu text-sm text-blue-50 transition hover:border-blue-200 hover:bg-blue-500/20",
+                !effectiveBank.built && "pointer-events-none opacity-50",
+              )}
+              data-testid="kingdom-open-bank-page"
+              href="/game/kingdom/bank"
+            >
+              Open Bank
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isMarketOpen}
+        onOpenChange={(open) => {
+          if (!open) closeMarketModal();
+        }}
+      >
+        <DialogContent className="max-w-md border-amber-200/25 bg-zinc-950 text-amber-50" data-testid="kingdom-market-dialog">
+          <DialogHeader>
+            <DialogTitle>Market</DialogTitle>
+            <DialogDescription>Buy and sell MVP goods with ECU.</DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3">
+            <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
+            <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-amber-50">
+              {getBuildingStatusLabel(effectiveMarket)}
+              {isDevUnlocked(state.buildings.market) ? (
+                <span className="rounded border border-amber-200/20 bg-amber-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-amber-100">
+                  DEV UNLOCK
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 font-ik-body text-xs text-muted-foreground">
+              {getBuildingLevelLabel(effectiveMarket)}
+            </div>
+          </div>
+
+          {!effectiveMarket.built ? (
+            <div className="mt-3 rounded-md border border-amber-200/20 bg-black/35 p-3">
+              <div className="font-ik-title text-sm text-amber-50">Construction</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(Object.entries(MARKET_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                  <span
+                    className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
+                    key={resourceId}
+                  >
+                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                    {formatResourceLabel(resourceId)} {amount}
+                  </span>
+                ))}
+              </div>
+              <button
+                className="mt-3 rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!canBuildMarket}
+                onClick={() => handleBuildCoreBuilding("MARKET")}
+                type="button"
+              >
+                {getBuildActionLabel(effectiveMarket, canBuildMarket)}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">
+              Market trading is available from the dedicated Kingdom Market page.
+            </div>
+          )}
+
+          <DialogFooter>
+            <button
+              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
+              onClick={closeMarketModal}
+              type="button"
+            >
+              Close
+            </button>
+            <a
+              className={cn(
+                "rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24",
+                !effectiveMarket.built && "pointer-events-none opacity-50",
+              )}
+              data-testid="kingdom-open-market-page"
+              href="/game/kingdom/market"
+            >
+              Open Market
+            </a>
           </DialogFooter>
         </DialogContent>
       </Dialog>
