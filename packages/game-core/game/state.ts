@@ -2,7 +2,7 @@ import type { StoryState } from "../story/state.js";
 import type { ProgressionSnapshot } from "../progression/applyXpGain.js";
 import type { TempleState } from "../building/temple.js";
 import type { CanonicalBuildingState } from "../building/types.js";
-import type { ResourceStock, ResourceId } from "../resources/types.js";
+import type { ResourceStock } from "../resources/types.js";
 import type { Inventory } from "../items/inventory.js";
 import { createDefaultBankState, type BankState } from "../bank/index.js";
 import { createDefaultWalletState, type WalletState } from "../currencies/index.js";
@@ -34,9 +34,9 @@ export type GameState = {
 
   buildings: {
     forum: CanonicalBuildingState;
-    temple: TempleState & CanonicalBuildingState & { allocation: { XP_GLOBAL: number } };
-    farm: CanonicalBuildingState & { allocation: Partial<Record<ResourceId, number>> };
-    mine: CanonicalBuildingState & { allocation: Partial<Record<ResourceId, number>> };
+    temple: TempleState & CanonicalBuildingState;
+    farm: CanonicalBuildingState;
+    mine: CanonicalBuildingState;
     kitchen: CanonicalBuildingState;
     forge: CanonicalBuildingState;
     market: CanonicalBuildingState;
@@ -101,9 +101,9 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     miniGames: createDefaultMiniGameRuntimeState(),
     buildings: {
       forum: { ...lockedBuilding },
-      temple: { ...lockedBuilding, assignedVillagers: 0, allocation: { XP_GLOBAL: 0 } },
-      farm: { ...lockedBuilding, allocation: {} },
-      mine: { ...lockedBuilding, allocation: {} },
+      temple: { ...lockedBuilding, assignedVillagers: 0 },
+      farm: { ...lockedBuilding },
+      mine: { ...lockedBuilding },
       kitchen: { ...lockedBuilding },
       forge: { ...lockedBuilding },
       market: { ...unlockedBuilding },

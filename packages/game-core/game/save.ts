@@ -11,7 +11,7 @@ import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
 import { normalizeBankState } from "../bank/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 type PersistedSave = {
   schemaVersion: number;
@@ -49,6 +49,12 @@ function reviveInventory(inventory: GameState["inventory"]): GameState["inventor
   };
 }
 
+function omitLegacyAllocation<T extends Record<string, unknown> | undefined>(building: T): T {
+  if (!building || typeof building !== "object") return building;
+  const { allocation: _allocation, ...rest } = building;
+  return rest as T;
+}
+
 function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
   const defaults = createInitialGameState({ nowMs });
   const rawState = state as Partial<GameState>;
@@ -63,9 +69,9 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
       ...defaults.buildings,
       ...rawBuildings,
       forum: { ...defaults.buildings.forum, ...(rawBuildings as any).forum },
-      temple: { ...defaults.buildings.temple, ...(rawBuildings as any).temple },
-      farm: { ...defaults.buildings.farm, ...(rawBuildings as any).farm },
-      mine: { ...defaults.buildings.mine, ...(rawBuildings as any).mine },
+      temple: { ...defaults.buildings.temple, ...omitLegacyAllocation((rawBuildings as any).temple) },
+      farm: { ...defaults.buildings.farm, ...omitLegacyAllocation((rawBuildings as any).farm) },
+      mine: { ...defaults.buildings.mine, ...omitLegacyAllocation((rawBuildings as any).mine) },
       kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
       forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
       market: { ...defaults.buildings.market, ...(rawBuildings as any).market },

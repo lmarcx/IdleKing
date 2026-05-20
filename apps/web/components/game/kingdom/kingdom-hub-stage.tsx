@@ -22,6 +22,8 @@ import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-pane
 import { KitchenMiniGamePanel } from "@/components/game/kingdom/kitchen-mini-game-panel";
 import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
+import { forumRankUpWorld } from "@idleking/game-core/game/forumActions.js";
+import { wxpNext } from "@idleking/game-core/progression";
 import {
   FORGE_RECIPES,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,
@@ -112,6 +114,7 @@ const FORGE_BUILD_COST = getBuildCost("FORGE");
 const BANK_BUILD_COST = getBuildCost("BANK");
 const MARKET_BUILD_COST = getBuildCost("MARKET");
 const FARM_BUILD_COST = getBuildCost("FARM");
+const FORUM_BUILD_COST = getBuildCost("FORUM");
 
 type Vector2 = {
   x: number;
@@ -777,6 +780,7 @@ export function KingdomHubStage() {
   });
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
+  const [forumFeedback, setForumFeedback] = useState<string | null>(null);
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
   const [cornucopiaClaimAmount, setCornucopiaClaimAmount] = useState(100);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
@@ -790,6 +794,7 @@ export function KingdomHubStage() {
   const effectiveTemple = getEffectiveBuildingState(state.buildings.temple, state.progression.worldLevel);
   const effectiveForge = getEffectiveBuildingState(state.buildings.forge, state.progression.worldLevel);
   const effectiveFarm = getEffectiveBuildingState(state.buildings.farm, state.progression.worldLevel);
+  const effectiveForum = getEffectiveBuildingState(state.buildings.forum, state.progression.worldLevel);
   const effectiveBank = getEffectiveBuildingState(state.buildings.bank, state.progression.worldLevel);
   const effectiveMarket = getEffectiveBuildingState(state.buildings.market, state.progression.worldLevel);
   const placeholderBuilding = placeholderBuildingId ? PLACEHOLDER_BUILDINGS[placeholderBuildingId] : null;
@@ -799,8 +804,12 @@ export function KingdomHubStage() {
   const canBuildTemple = effectiveTemple.unlocked && !effectiveTemple.built && hasAtLeast(state.resources, TEMPLE_BUILD_COST);
   const canBuildForge = effectiveForge.unlocked && !effectiveForge.built && hasAtLeast(state.resources, FORGE_BUILD_COST);
   const canBuildFarm = effectiveFarm.unlocked && !effectiveFarm.built && hasAtLeast(state.resources, FARM_BUILD_COST);
+  const canBuildForum = effectiveForum.unlocked && !effectiveForum.built && hasAtLeast(state.resources, FORUM_BUILD_COST);
   const canBuildBank = effectiveBank.unlocked && !effectiveBank.built && hasAtLeast(state.resources, BANK_BUILD_COST);
   const canBuildMarket = effectiveMarket.unlocked && !effectiveMarket.built && hasAtLeast(state.resources, MARKET_BUILD_COST);
+  const forumRequiredWxp = wxpNext(state.progression.worldLevel);
+  const canRankUpForum =
+    effectiveForum.built && forumRequiredWxp > 0 && state.progression.worldWxp >= forumRequiredWxp;
 
   useEffect(() => {
     isModalOpenRef.current =
@@ -989,7 +998,7 @@ export function KingdomHubStage() {
   }, [dispatch]);
 
   const handleBuildCoreBuilding = useCallback(
-    (buildingId: Extract<BuildingId, "TEMPLE" | "FORGE" | "BANK" | "MARKET">) => {
+    (buildingId: Extract<BuildingId, "FORUM" | "TEMPLE" | "FORGE" | "BANK" | "MARKET">) => {
       const result = buildBuilding(useGameStore.getState().state, buildingId, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Build failed: ${result.reason}`);
@@ -998,7 +1007,9 @@ export function KingdomHubStage() {
 
       dispatch(() => result.next);
       const position =
-        buildingId === "TEMPLE"
+        buildingId === "FORUM"
+          ? FORUM_POSITION
+          : buildingId === "TEMPLE"
           ? TEMPLE_POSITION
           : buildingId === "FORGE"
             ? FORGE_POSITION
@@ -1006,7 +1017,9 @@ export function KingdomHubStage() {
               ? BANK_POSITION
               : MARKET_POSITION;
       const label =
-        buildingId === "TEMPLE"
+        buildingId === "FORUM"
+          ? "Forum built"
+          : buildingId === "TEMPLE"
           ? "Temple built"
           : buildingId === "FORGE"
             ? "Forge built"
@@ -1015,7 +1028,9 @@ export function KingdomHubStage() {
               : "Market built";
       spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" || buildingId === "BANK" ? 0x83f7ff : 0xf0c26a);
 
-      if (buildingId === "TEMPLE") {
+      if (buildingId === "FORUM") {
+        setForumFeedback(label);
+      } else if (buildingId === "TEMPLE") {
         setTempleFeedback(label);
       } else if (buildingId === "FORGE") {
         setForgeFeedback(label);
@@ -1024,6 +1039,20 @@ export function KingdomHubStage() {
     },
     [dispatch],
   );
+
+  const handleForumRankUpWorld = useCallback(() => {
+    const result = forumRankUpWorld(useGameStore.getState().state);
+    if (!result.rankedUp) {
+      toast.error(`World rank up failed: ${result.reason}`);
+      return;
+    }
+
+    dispatch(() => result.next);
+    spawnWorldFxRef.current?.(FORUM_POSITION, "Rank up", 0xf0c26a);
+    const feedback = `World level increased to ${result.next.progression.worldLevel}.`;
+    setForumFeedback(feedback);
+    toast.success(feedback);
+  }, [dispatch]);
 
   const handleTempleConvert = useCallback(
     (target: TempleXpTarget) => {
@@ -1890,7 +1919,7 @@ export function KingdomHubStage() {
                 ? "Active Mine run MVP"
                 : placeholderBuildingId === "kitchen"
                   ? "Active Kitchen run MVP"
-                  : "Coming Soon"}
+                  : "Manual World rank-up"}
             </DialogDescription>
           </DialogHeader>
 
@@ -1926,6 +1955,62 @@ export function KingdomHubStage() {
                 <MineMiniGamePanel embedded />
               ) : placeholderBuildingId === "kitchen" ? (
                 <KitchenMiniGamePanel embedded />
+              ) : placeholderBuildingId === "forum" ? (
+                <div className="space-y-3">
+                  {!effectiveForum.built ? (
+                    <div className="rounded-md border border-amber-200/20 bg-black/35 p-3">
+                      <div className="font-ik-title text-sm text-amber-50">Construction</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {(Object.entries(FORUM_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                          <span
+                            className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
+                            key={resourceId}
+                          >
+                            <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
+                            {formatResourceLabel(resourceId)} {amount}
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        className="mt-3 rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={!canBuildForum}
+                        onClick={() => handleBuildCoreBuilding("FORUM")}
+                        type="button"
+                      >
+                        {getBuildActionLabel(effectiveForum, canBuildForum)}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-md border border-amber-200/15 bg-black/35 p-3">
+                      <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">World Level</div>
+                      <div className="mt-1 font-ik-menu text-lg text-amber-50">{state.progression.worldLevel}</div>
+                    </div>
+                    <div className="rounded-md border border-amber-200/15 bg-black/35 p-3">
+                      <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">WXP</div>
+                      <div className="mt-1 font-ik-menu text-lg text-amber-50">
+                        {state.progression.worldWxp}
+                        {forumRequiredWxp > 0 ? `/${forumRequiredWxp}` : ""}
+                      </div>
+                    </div>
+                  </div>
+
+                  {forumFeedback ? (
+                    <div className="rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">
+                      {forumFeedback}
+                    </div>
+                  ) : null}
+
+                  <button
+                    className="w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!canRankUpForum}
+                    onClick={handleForumRankUpWorld}
+                    type="button"
+                  >
+                    {forumRequiredWxp > 0 ? "Rank Up World" : "World Level Max"}
+                  </button>
+                </div>
               ) : (
                 <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-title text-lg text-amber-50">
                   Coming Soon
