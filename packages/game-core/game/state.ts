@@ -1,12 +1,15 @@
 import type { StoryState } from "../story/state.js";
 import type { ProgressionSnapshot } from "../progression/applyXpGain.js";
 import type { TempleState } from "../building/temple.js";
-import type { ResourceStock, ResourceId } from "../resources/types.js";
+import type { CanonicalBuildingState } from "../building/types.js";
+import type { ResourceStock } from "../resources/types.js";
 import type { Inventory } from "../items/inventory.js";
+import { createDefaultBankState, type BankState } from "../bank/index.js";
 import { createDefaultWalletState, type WalletState } from "../currencies/index.js";
 import { createDefaultWorldResourcesState, type GameWorldResourcesState } from "../world/worldResources.js";
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
 import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
+import { createDefaultMiniGameRuntimeState, type MiniGameRuntimeState } from "../minigames/index.js";
 
 export type Villager = {
   id: string;
@@ -22,25 +25,32 @@ export type GameState = {
   story: StoryState;
   resources: ResourceStock;
   inventory: Inventory;
+  bank: BankState;
   equipment: PlayerEquipmentState;
   skills: PlayerSkillsState;
   wallet: WalletState;
   world: GameWorldResourcesState;
+  miniGames: MiniGameRuntimeState;
 
   buildings: {
-    forum: { unlocked: boolean; built: boolean; active: boolean };
-    temple: TempleState & { active: boolean; allocation: { XP_GLOBAL: number } };
-    farm: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
-    mine: { unlocked: boolean; built: boolean; active: boolean; allocation: Partial<Record<ResourceId, number>> };
-    kitchen: { unlocked: boolean; built: boolean; active: boolean };
-    forge: { unlocked: boolean; built: boolean; active: boolean };
+    forum: CanonicalBuildingState;
+    temple: TempleState & CanonicalBuildingState;
+    farm: CanonicalBuildingState;
+    mine: CanonicalBuildingState;
+    kitchen: CanonicalBuildingState;
+    forge: CanonicalBuildingState;
+    market: CanonicalBuildingState;
+    worldGate: CanonicalBuildingState;
+    bank: CanonicalBuildingState;
 
     // Corne d'Abondance: toujours disponible dès le départ
     cornucopia: {
       unlocked: boolean;
       built: boolean;
       active: boolean;
+      status: "built";
       level: number;
+      maxLevel: number;
 
       // endurance propre à la corne
       stamina: number; // 0..staminaMax
@@ -53,6 +63,19 @@ export type GameState = {
 
 export function createInitialGameState(params: { nowMs?: number } = {}): GameState {
   const nowMs = params.nowMs ?? Date.now();
+  const lockedBuilding: CanonicalBuildingState = {
+    active: false,
+    built: false,
+    level: 0,
+    maxLevel: 50,
+    status: "locked",
+    unlocked: false,
+  };
+  const unlockedBuilding: CanonicalBuildingState = {
+    ...lockedBuilding,
+    status: "unlocked",
+    unlocked: true,
+  };
 
   return {
     progression: {
@@ -70,24 +93,31 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     },
     resources: {},
     inventory: { items: [] },
+    bank: createDefaultBankState(),
     equipment: createDefaultPlayerEquipmentState(),
     skills: createDefaultPlayerSkillsState(),
     wallet: createDefaultWalletState(),
     world: createDefaultWorldResourcesState(1, nowMs),
+    miniGames: createDefaultMiniGameRuntimeState(),
     buildings: {
-      forum: { unlocked: false, built: false, active: false },
-      temple: { unlocked: false, built: false, level: 1, assignedVillagers: 0, active: false, allocation: { XP_GLOBAL: 0 } },
-      farm: { unlocked: false, built: false, active: false, allocation: {} },
-      mine: { unlocked: false, built: false, active: false, allocation: {} },
-      kitchen: { unlocked: false, built: false, active: false },
-      forge: { unlocked: false, built: false, active: false },
+      forum: { ...lockedBuilding },
+      temple: { ...lockedBuilding, assignedVillagers: 0 },
+      farm: { ...lockedBuilding },
+      mine: { ...lockedBuilding },
+      kitchen: { ...lockedBuilding },
+      forge: { ...lockedBuilding },
+      market: { ...unlockedBuilding },
+      worldGate: { ...unlockedBuilding },
+      bank: { ...unlockedBuilding },
 
       // Toujours accessible (pas de build/unlock/activate requis)
       cornucopia: {
         unlocked: true,
         built: true,
         active: true,
+        status: "built",
         level: 1,
+        maxLevel: 1,
         stamina: 100,
         staminaMax: 100,
       },

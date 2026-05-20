@@ -83,6 +83,21 @@ fixes
 débloquées par conditions
 ```
 
+Phase 8C ajoute des unlocks de recette par niveau de Forge.
+
+```txt
+Forge Level 1  -> sword
+Forge Level 2  -> dagger
+Forge Level 3  -> axe
+Forge Level 4  -> greatsword
+Forge Level 5  -> pistol
+Forge Level 6  -> bow
+Forge Level 7  -> shield
+Forge Level 8  -> spear
+Forge Level 9  -> grimoire
+Forge Level 10 -> staff
+```
+
 Conditions possibles :
 
 ```txt
@@ -118,6 +133,17 @@ Chaque niveau d’upgrade augmente :
 ```txt
 stats basiques
 ```
+
+Phase 8B applique ces stats basiques depuis les stats de base de l'item :
+
+```txt
+HP
+ATK / attack
+DEF / defense
+POWER si stocke pour compatibilite
+```
+
+L'ilvl reste fixe et l'item n'est pas regenere.
 
 Certains paliers augmentent ou débloquent :
 
@@ -292,20 +318,25 @@ limitations
 
 ## 11. Recycle
 
-Recycle détruit un item pour récupérer :
+Recycle détruit un item et ne rembourse pas les ressources de recette.
 
-```txt
-50% des ressources nécessaires à son craft
-```
-
-Règles :
+Règles Phase 8A :
 
 ```txt
 item détruit définitivement
-ressources rendues selon recette de craft
+50% de la valeur PLACEHOLDER de l'item rendue en ECU
+chance PLACEHOLDER de recevoir une Precious Stone de la même rareté
 ```
 
-Si un item n’a pas de recette directe, une table de conversion devra être définie dans :
+Exemple :
+
+```txt
+Legendary item recyclé
+-> ECU refund
+-> chance de Precious Stone Legendary
+```
+
+Les valeurs et tables de conversion complètes seront définies dans :
 
 ```txt
 RECIPES.md

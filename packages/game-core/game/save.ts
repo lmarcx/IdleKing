@@ -6,9 +6,12 @@ import { normalizePlayerEquipmentState } from "../equipment/index.js";
 import { normalizeEquipmentItem, type Item } from "../items/types.js";
 import { normalizeWalletState } from "../currencies/index.js";
 import { normalizeWorldResourcesState } from "../world/worldResources.js";
+import { normalizeAllBuildingProgress } from "../building/progression.js";
+import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
+import { normalizeBankState } from "../bank/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 type PersistedSave = {
   schemaVersion: number;
@@ -46,6 +49,12 @@ function reviveInventory(inventory: GameState["inventory"]): GameState["inventor
   };
 }
 
+function omitLegacyAllocation<T extends Record<string, unknown> | undefined>(building: T): T {
+  if (!building || typeof building !== "object") return building;
+  const { allocation: _allocation, ...rest } = building;
+  return rest as T;
+}
+
 function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
   const defaults = createInitialGameState({ nowMs });
   const rawState = state as Partial<GameState>;
@@ -55,26 +64,37 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
   };
   const rawBuildings = rawState.buildings ?? defaults.buildings;
 
+  const buildings = normalizeAllBuildingProgress(
+    {
+      ...defaults.buildings,
+      ...rawBuildings,
+      forum: { ...defaults.buildings.forum, ...(rawBuildings as any).forum },
+      temple: { ...defaults.buildings.temple, ...omitLegacyAllocation((rawBuildings as any).temple) },
+      farm: { ...defaults.buildings.farm, ...omitLegacyAllocation((rawBuildings as any).farm) },
+      mine: { ...defaults.buildings.mine, ...omitLegacyAllocation((rawBuildings as any).mine) },
+      kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
+      forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
+      market: { ...defaults.buildings.market, ...(rawBuildings as any).market },
+      worldGate: { ...defaults.buildings.worldGate, ...(rawBuildings as any).worldGate },
+      bank: { ...defaults.buildings.bank, ...(rawBuildings as any).bank },
+      cornucopia: { ...defaults.buildings.cornucopia, ...(rawBuildings as any).cornucopia },
+    },
+    defaults.buildings,
+    progression.worldLevel,
+  );
+
   return {
     ...defaults,
     ...state,
     progression,
     inventory: reviveInventory(rawState.inventory ?? defaults.inventory),
+    bank: normalizeBankState(rawState.bank),
     equipment: normalizePlayerEquipmentState(rawState.equipment),
     skills: rawState.skills ?? createDefaultPlayerSkillsState(),
     wallet: normalizeWalletState(rawState.wallet),
     world: normalizeWorldResourcesState(rawState.world, progression.worldLevel, nowMs),
-    buildings: {
-      ...defaults.buildings,
-      ...rawBuildings,
-      forum: { ...defaults.buildings.forum, ...(rawBuildings as any).forum },
-      temple: { ...defaults.buildings.temple, ...(rawBuildings as any).temple },
-      farm: { ...defaults.buildings.farm, ...(rawBuildings as any).farm },
-      mine: { ...defaults.buildings.mine, ...(rawBuildings as any).mine },
-      kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
-      forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
-      cornucopia: { ...defaults.buildings.cornucopia, ...(rawBuildings as any).cornucopia },
-    },
+    miniGames: normalizeMiniGameRuntimeState(rawState.miniGames),
+    buildings,
     story: {
       ...defaults.story,
       ...(rawState.story ?? {}),

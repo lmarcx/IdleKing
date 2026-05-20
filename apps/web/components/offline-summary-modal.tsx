@@ -27,6 +27,10 @@ export function OfflineSummaryModal() {
       .slice(0, 5);
   }, [offlineReport]);
 
+  const hasVisibleProgress = topGains.length > 0 || (offlineReport?.diff.staminaSpent ?? 0) > 0;
+
+  if (offlineReport && !hasVisibleProgress) return null;
+
   return (
     <Dialog open={Boolean(offlineReport)} onOpenChange={(open) => !open && dismiss()}>
       <DialogContent>

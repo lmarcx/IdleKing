@@ -866,7 +866,19 @@ Il permet :
 achat
 vente
 special vendors
-currency exchange
+```
+
+MVP Phase 9B :
+
+```txt
+ECU uniquement
+stock vendeur infini
+prix fixes PLACEHOLDER
+achat / vente de ressources
+achat / vente de consommables
+achat / vente d'équipements basiques explicitement listés
+pas d'échange currency-to-currency
+pas de player trading
 ```
 
 ---
@@ -944,11 +956,21 @@ AvA
 La Bank stocke :
 
 ```txt
-équipements
-ressources basiques
-ressources rares
-ressources mobs
-ressources boss
+ressources
+consommables
+objets spéciaux non-quête
+```
+
+MVP Phase 9A :
+
+```txt
+accès via le bâtiment / page Bank du Kingdom
+capacité infinie
+stack max = 999
+pas d'équipements en banque
+pas de currencies en banque
+pas d'objets de quête en banque
+transferts atomiques inventory/resource stock <-> bank
 ```
 
 ---

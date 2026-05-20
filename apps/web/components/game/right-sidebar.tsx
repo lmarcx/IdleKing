@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useGameStore } from "@/store/game-store";
+import { ProgressionPanel } from "@/components/game/progression-panel";
 import { ResourcePanel } from "@/components/game/resource-panel";
 
 export function RightSidebar() {
@@ -11,6 +12,8 @@ export function RightSidebar() {
 
   return (
     <aside className="space-y-3">
+      <ProgressionPanel />
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle>Villagers</CardTitle>

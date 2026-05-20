@@ -1,5 +1,6 @@
 import type { ResourceId } from "../../resources/types.js";
 import type { EquipmentSlot, ItemRarity } from "../../items/types.js";
+import type { GameState } from "../../game/state.js";
 
 export type ForgeRecipeId =
   | "iron_sword"
@@ -9,7 +10,19 @@ export type ForgeRecipeId =
   | "BASIC_ARMOR"
   | "BASIC_CAPE"
   | "BASIC_ARTIFACT"
+  | "weapon_sword"
+  | "weapon_dagger"
+  | "weapon_axe"
+  | "weapon_greatsword"
+  | "weapon_pistol"
+  | "weapon_bow"
+  | "weapon_shield"
+  | "weapon_spear"
+  | "weapon_grimoire"
+  | "weapon_staff"
   | (string & {});
+
+export type ForgeRecipeLockReason = "FORGE_NOT_BUILT" | "FORGE_LEVEL_TOO_LOW" | "WORLD_LEVEL_TOO_LOW";
 
 export type ForgeRecipe = {
   id: ForgeRecipeId;
@@ -21,7 +34,10 @@ export type ForgeRecipe = {
 
   cost: Partial<Record<ResourceId, number>>;
 
-  staminaCostPct: number; // 0..1
+  requiredForgeLevel: number;
+  requiredWorldLevel?: number;
+  requiredQuestIds?: string[];
+  requiredBossIds?: string[];
 };
 
 export const FORGE_RECIPES: ForgeRecipe[] = [
@@ -32,7 +48,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Iron Sword",
     rarity: "COMMON",
     cost: { IRON: 4 },
-    staminaCostPct: 0.2,
+    requiredForgeLevel: 1,
   },
   {
     id: "iron_helmet",
@@ -41,7 +57,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Iron Helmet",
     rarity: "UNCOMMON",
     cost: { IRON: 3 },
-    staminaCostPct: 0.2,
+    requiredForgeLevel: 1,
   },
   {
     id: "copper_ring",
@@ -50,7 +66,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Copper Ring",
     rarity: "COMMON",
     cost: { COPPER: 3 },
-    staminaCostPct: 0.15,
+    requiredForgeLevel: 1,
   },
   {
     id: "BASIC_SWORD",
@@ -59,7 +75,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Sword",
     rarity: "COMMON",
     cost: { COPPER: 3 },
-    staminaCostPct: 0.25,
+    requiredForgeLevel: 1,
   },
   {
     id: "BASIC_ARMOR",
@@ -68,7 +84,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Armor",
     rarity: "COMMON",
     cost: { COPPER: 2, STONE: 2 },
-    staminaCostPct: 0.25,
+    requiredForgeLevel: 1,
   },
   {
     id: "BASIC_CAPE",
@@ -77,7 +93,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Cape",
     rarity: "COMMON",
     cost: { WOOD: 2, COPPER: 1 },
-    staminaCostPct: 0.2,
+    requiredForgeLevel: 1,
   },
   {
     id: "BASIC_ARTIFACT",
@@ -86,10 +102,127 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
     baseName: "Relic",
     rarity: "COMMON",
     cost: { STONE: 3, GOLD: 1 },
-    staminaCostPct: 0.3,
+    requiredForgeLevel: 1,
+  },
+  {
+    id: "weapon_sword",
+    label: "Sword",
+    slot: "weapon",
+    baseName: "Sword",
+    rarity: "COMMON",
+    cost: { COPPER: 3 },
+    requiredForgeLevel: 1,
+  },
+  {
+    id: "weapon_dagger",
+    label: "Dagger",
+    slot: "weapon",
+    baseName: "Dagger",
+    rarity: "COMMON",
+    cost: { COPPER: 2, IRON: 1 },
+    requiredForgeLevel: 2,
+  },
+  {
+    id: "weapon_axe",
+    label: "Axe",
+    slot: "weapon",
+    baseName: "Axe",
+    rarity: "COMMON",
+    cost: { IRON: 3, WOOD: 1 },
+    requiredForgeLevel: 3,
+  },
+  {
+    id: "weapon_greatsword",
+    label: "Greatsword",
+    slot: "weapon",
+    baseName: "Greatsword",
+    rarity: "COMMON",
+    cost: { IRON: 5 },
+    requiredForgeLevel: 4,
+  },
+  {
+    id: "weapon_pistol",
+    label: "Pistol",
+    slot: "weapon",
+    baseName: "Pistol",
+    rarity: "COMMON",
+    cost: { IRON: 4, COPPER: 2 },
+    requiredForgeLevel: 5,
+  },
+  {
+    id: "weapon_bow",
+    label: "Bow",
+    slot: "weapon",
+    baseName: "Bow",
+    rarity: "COMMON",
+    cost: { WOOD: 5, IRON: 1 },
+    requiredForgeLevel: 6,
+  },
+  {
+    id: "weapon_shield",
+    label: "Shield",
+    slot: "offhand",
+    baseName: "Shield",
+    rarity: "COMMON",
+    cost: { IRON: 4, WOOD: 2 },
+    requiredForgeLevel: 7,
+  },
+  {
+    id: "weapon_spear",
+    label: "Spear",
+    slot: "weapon",
+    baseName: "Spear",
+    rarity: "COMMON",
+    cost: { WOOD: 3, IRON: 3 },
+    requiredForgeLevel: 8,
+  },
+  {
+    id: "weapon_grimoire",
+    label: "Grimoire",
+    slot: "weapon",
+    baseName: "Grimoire",
+    rarity: "COMMON",
+    cost: { PAPER: 2, INK: 1 },
+    requiredForgeLevel: 9,
+    requiredWorldLevel: 5,
+    requiredQuestIds: [],
+    requiredBossIds: [],
+  },
+  {
+    id: "weapon_staff",
+    label: "Staff",
+    slot: "weapon",
+    baseName: "Staff",
+    rarity: "COMMON",
+    cost: { WOOD: 4, RUNES: 1 },
+    requiredForgeLevel: 10,
+    requiredQuestIds: [],
+    requiredBossIds: [],
   },
 ];
 
 export function getForgeRecipe(id: ForgeRecipeId): ForgeRecipe | undefined {
   return FORGE_RECIPES.find((r) => r.id === id);
+}
+
+export function getEffectiveForgeLevel(state: GameState): number {
+  if (!state.buildings.forge.built) return 0;
+  return Math.max(1, Math.floor(state.buildings.forge.level ?? 0));
+}
+
+export function getForgeRecipeLockReason(state: GameState, recipe: ForgeRecipe): ForgeRecipeLockReason | null {
+  if (!state.buildings.forge.built) return "FORGE_NOT_BUILT";
+  if (getEffectiveForgeLevel(state) < recipe.requiredForgeLevel) return "FORGE_LEVEL_TOO_LOW";
+  if (recipe.requiredWorldLevel !== undefined && state.progression.worldLevel < recipe.requiredWorldLevel) {
+    return "WORLD_LEVEL_TOO_LOW";
+  }
+  return null;
+}
+
+export function isForgeRecipeAvailable(state: GameState, recipe: ForgeRecipe): boolean {
+  return getForgeRecipeLockReason(state, recipe) === null;
+}
+
+export function getAvailableForgeRecipes(state: GameState): ForgeRecipe[] {
+  return FORGE_RECIPES.filter((recipe) => isForgeRecipeAvailable(state, recipe));
 }

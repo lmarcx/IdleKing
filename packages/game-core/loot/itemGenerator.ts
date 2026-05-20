@@ -158,9 +158,13 @@ function makeId(seed: number, ilvl: number, slot: ItemSlot, element: Element) {
 function defaultName(slot: ItemSlot, rarity: Rarity, element: Element): string {
   const rarityLabel: Record<Rarity, string> = {
     COMMON: "Commun",
+    UNCOMMON: "Inhabituel",
     RARE: "Rare",
     EPIC: "Épique",
     LEGENDARY: "Légendaire",
+    MYTHIC: "Mythique",
+    DIVINE: "Divin",
+    ANCIENT: "Ancien",
   };
 
   const slotLabel: Record<ItemSlot, string> = {
