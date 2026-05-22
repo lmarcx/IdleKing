@@ -3,25 +3,38 @@
 ## Contexte mythologique
 
 Au Commencement, Créa et Naan étaient seuls.
-Créa créait.  
-Naan détruisait.  
-Et dans ce cycle, tout recommençait.
+L'un venait des ténèbres l'autre de la lumière, un de la vie l'autre du néant. 
+Ils étaient seuls au monde et ils passaient leur temps à jouer ensemble, tandis que l'un construisait, l'autre détruisait. 
 
-Puis Naan aima Créa.
-Il cessa de détruire.
-Alors vint l’Expansion.
-Des créations naquirent en nombre, trop nombreuses, trop libres, trop bruyantes. Au milieu de cette abondance naquit Amal, fruit involontaire des pouvoirs de Naan mêlés aux créations de Créa. Capable de créer et de détruire, mais privé de l’amour qu’il pensait lui être dû, Amal conçut la chute de Naan.
+Naan était émerveillé par tout ce que Créa pouvait fabriquer, il jalousait même certaines de ses créations trouvant qu'elle leur accordait plus d'attention qu'à lui. Il finit par tomber amoureux de Créa.
 
-Il créa quatre Tourments : Cachemir, Dubi, Nostal et Ango.
-Naan chuta.
-En utilisant son propre pouvoir contre lui-même, il ouvrit le Puits Abyssal, un gouffre infini formé par sa conscience fracturée. Depuis, il chute encore.
-De cette chute naquit Chaos, miroir d’Amal, né des créations de Créa perdues dans le pouvoir de Naan.
-Nostal accompagna Naan dans sa chute. De leurs larmes naquit Rêves, qui façonna un monde pour apaiser Naan.
-Un monde rêvé.
+Pour cet amour, il décida d'arrêter de détruire les créations de Créa, non au lieu de cela il insufflait une partie de son pouvoir en elles. La combinaison de leur pouvoir déclencha l'apparition des émotions chez les créations ce qui fascina Créa.  
+Certaines des créations périmèrent, d'autres furent oubliées.
+Elles finissaient par se rassembler, emprunt d'émotions négatives elles fusionnèrent. 
+Et de ça, naquit Amal.
+Amal est un enfant non désiré, qui recherche l'amour de sa mère. Mais elle, elle ne le voyait pas, trop occupé à créer toujours plus, toujours mieux. Elle avait délaissé ses premières ébauches depuis longtemps. 
+Amal apprit à contrôler ses émotions, et puis à les manipuler. Il comprit qu'il pouvait aussi agir sur les émotions des autres. De cela, il eut une idée. 
+Un plan pour séparer Créa de Naan afin d'avoir son attention, son amour. Pour cela il créa à partir d'anciennes créations les 4 Tourments qui s'en prendront à Naan pour lui laisser le champ libre. Cachemir, Dubi, Nostal et Ango. Ces derniers tourmentèrent insidieusement Naan. Manipulant ses propres émotions, il finit par ne plus avoir envie de vivre. Il décida alors d'utiliser son propre pouvoir sur lui. En créant un vide en lui, cela forma un puit abyssal. 
+Il finit par plonger dans son propre gouffre et se perdit dans les abysses de sa conscience. 
+À travers sa chute il put explorer de nombreux monde, et dans chacun d’eux, il la retrouvait. 
+Il l’oubliait, il la retrouvait, il l’aimait et il la quittait jusqu’à la rencontrer à nouveau. 
 
-Mais dans le Puits, Waqt étendit son influence. Créature issue de Chaos, maître de la stagnation et des Ombres, il figea le Fleuve de Vie pour empêcher les créations de Créa d’atteindre Naan.
+Créa quant à elle, suit un tout autre parcours en parallèle de la chute de Naan. 
+Lorsque ce dernier plongea dans ses abîmes, l’équilibre fut rompu. Et toutes choses existantes, c’est à dire chacune de ses créations, étaient absorbées par le trou noir laissait par Naan. Toute la vie qui jaillissait de Créa finissait par s’engouffrer dans le puit abyssale et tout ce qu’elle souhaitait c’est que cette vie puisse accompagner son partenaire pour l’aider à se rappeler, et à se relever, pour la rejoindre.
+Ango terrifié par la tournure des événements s'était caché dans un recoin de l'esprit de Créa, et ainsi échappa à l'aspiration des Abysses.
+C'est ainsi qu'on nomma le flux de création se déversant dans le vide : le Fleuve de Vie. 
+Les règles dans ce nouvel espace était différentes et on ne savait pas encore très bien qui les régissait. Au départ, le temps et l'espace s'écoulait sous le poids de la propre chute de Naan. Et de cette chute émergea Chaos, fruit du désordre des créations de Créa qui se déversaient dans le pouvoir de Naan.
+Chaos était la folie, la destruction et la corruption incarnée. Soif de liberté, il se précipita à la surface du puits pour s'en extraire. 
+Amal terrifié, rappela ses Tourments et barrèrent la route à Chaos. S'en suivit un combat, pendant ce temps, Naan chutait toujours.
+Nostal rongé par les remords s'enfuit de ce combat pour rattraper Naan et l'accompagner dans sa chute. Il l'enlaça, et ils pleurèrent.
+De leurs larmes naquit Rêves, qui façonna un monde pour apaiser leur tristesse. 
+C'est ainsi que Naan et Nostal plongèrent dans le Monde Rêvé. 
+Amal avait suivi Nostal et réussit à s'immiscer dans le rêve juste à temps.
+Cachemir épuisé par la longueur du combat qui s'éternisait usa de la ruse pour manipuler Chaos. Si le fleuve atteignait le rêve, Naan serait sauver et retournerait dans son monde. Mettant à terme au puits, ce monde où le Chaos était né et où il pouvait vivre. 
+Pensant à sa survie Chaos morcela son âme pour façonner Waqt, un être capable de manipuler le temps. Il lui ordonna de figer la coulée du fleuve et de rattraper Naan dans le rêve. En figeant le fleuve, le désordre se stabilisa. Et Chaos fut réduit à un insecte de la taille d'un insecte. 
+Waqt enivré par cette nouvelle perspective et sa puissance changea son objectif. Il voulait boucher l'entrée de puit en figeant le déversement des créations à sa source. Et il voulait la mort de Naan pour avoir le contrôle total sur cet espace. Où il en ferait son royaume.
+Alors qu'il avait atteint le Monde Rêvé, il se rendit compte que son pouvoir n'avait que peu d'influence ici. 
 À travers les Ères du monde rêvé, Waqt corrompit des êtres puissants, les transformant en Commandants. Depuis l’Isolation, ils observent, complotent et exécutent les plans de leur maître silencieux.
-
 Mais dans ce rêve, un vieux roi s’éveille.
 Il ne sait pas qui il est.
 Il ignore qu’il est l’incarnation rêvée de Naan.
@@ -63,7 +76,7 @@ Le vieux roi reprend sa route, accompagné de Billy.
 Au loin, parmi les ruines, une ancienne place royale semble attendre qu’on lui rende un nom.
 Le Kingdom est découvert.
 
----
+
 
 # Chapitre I — L’Ère Funèbre
 
