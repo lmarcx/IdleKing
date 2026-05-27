@@ -1,54 +1,48 @@
-# RECIPES DATABASE — IdleKing
+# RECIPES DATABASE — IdleKing (V2)
 
 ## Purpose
 
-This document defines crafting recipes, food recipes, story catalyst recipes, and upgrade economy rules for IdleKing.
+This document defines the canonical crafting ecosystem of IdleKing.
 
-This is a V1 source of truth.
+It covers:
+- forge recipes
+- kitchen recipes
+- story catalysts
+- upgrade economy
+- boss material usage
+- item economic value foundations
 
 Scope:
 - Prologue
-- Chapter I
-- Chapter II
-
-Future chapters will extend this database.
+- Chapter I — Era Funèbre
+- Chapter II — Era Glaciaire
 
 ---
 
-# 1. Recipe Philosophy
+# 1. Crafting Philosophy
 
-Recipes define:
+Crafting is a core progression pillar.
 
-- deterministic progression
-- item economic value
-- crafting identity
-- building utility
-- story progression gates
-- economy balancing
+Players are expected to:
+- farm enemies
+- replay dungeons
+- replay bosses
+- gather resources
+- mine
+- farm
+- trade
+- recycle gear
 
-Recipes are derived from resource values.
-
-Core formula:
-
-```txt
-item_value = sum(resource_value * quantity)
-```
-
-Derived formulas:
-
-```txt
-market_sell = floor(item_value * 0.75)
-market_buy = ceil(item_value * 1.5)
-recycle = floor(item_value * 0.5)
-```
-
-These are placeholder coefficients.
+Crafting is intentionally:
+- grind-oriented
+- replay-oriented
+- economy-driven
 
 ---
 
-# 2. Recipe Types
+# 2. Recipe Categories
 
-Canonical recipe families:
+Canonical recipe types:
 
 ```txt
 forge_weapon
@@ -63,25 +57,102 @@ Future:
 - enchant
 - evolve
 - fusion
-- artifact crafting
+- relic crafting
 
 ---
 
-# 3. Forge Craft Philosophy
+# 3. Economic Formula
+
+## Resource Value
+
+Defined in:
+
+```txt
+RESOURCES_DATABASE.md
+```
+
+---
+
+## Item Value Formula
+
+Canonical placeholder:
+
+```txt
+item_value =
+sum(resource_value × quantity)
+```
+
+---
+
+## Derived Economy
+
+```txt
+market_sell = floor(item_value × 0.75)
+market_buy = ceil(item_value × 1.5)
+recycle = floor(item_value × 0.5)
+```
+
+Placeholder only.
+
+---
+
+# 4. Multi-Rarity Crafting
+
+Every craftable equipment may roll:
+
+```txt
+Common
+Uncommon
+Rare
+Epic
+Legendary
+```
+
+---
+
+## Important Rule
+
+Recipes craft:
+- a base item
+- with a generated rarity roll
+
+Example:
+
+```txt
+Craft → Rusted Sword
+Result → Legendary Rusted Sword
+```
+
+---
+
+## Rarity Probabilities
+
+Placeholder philosophy:
+
+```txt
+Common     → very frequent
+Uncommon   → frequent
+Rare       → uncommon
+Epic       → rare
+Legendary  → extremely rare
+```
+
+Bosses and higher difficulties may improve odds.
+
+---
+
+# 5. Forge Philosophy
 
 ---
 
 ## Generic Equipment
 
-Always craftable once unlocked.
-
-Purpose:
-baseline progression
+Always available once unlocked.
 
 Examples:
 - Rusted Sword
-- Broken Axe
-- Traveler gear
+- Bone Knife
+- Hunter Bow
 
 ---
 
@@ -90,134 +161,89 @@ Examples:
 Acquisition:
 
 ```txt
-direct boss drop
+rare direct drop
 OR
-craft unlock after boss defeat
+recipe unlock after boss defeat
 ```
 
-Boss crafting uses boss materials.
-
-Examples:
-- Funeral Blade
-- Ashen Spear
-- Frostfang Dagger
-- Arathas Staff
-- Frozen Crown
+Boss materials are mandatory.
 
 ---
 
-## Ultra Rare Future Recipes
+## Future Ultra Rare Recipes
 
-Reserved for future chapters.
-
-Characteristics:
-- multiple rare materials
-- cross-era ingredients
-- boss materials
-- high forge requirements
+Reserved for:
+- cross-era gear
+- hybrid materials
+- endgame crafting
 
 Not MVP.
 
 ---
 
-# 4. Forge Weapon Recipes
+# 6. Weapon Recipes
+
+---
+
+# 6.1 Sword Recipes
 
 ---
 
 ## Rusted Sword
 
-Type:
-forge_weapon
-
 Unlock:
 Forge Level 1
 
 Ingredients:
 
 ```txt
-3x Iron Ore
-2x Old Wood
+30x Iron Ore
+15x Old Wood
 ```
 
-Estimated value:
-
-```txt
-3x2 + 2x2 = 10 ECU
-```
-
----
-
-## Broken Axe
-
-Type:
-forge_weapon
-
-Unlock:
-Forge Level 1
-
-Ingredients:
-
-```txt
-4x Iron Ore
-1x Old Wood
-```
-
-Estimated value:
-
-```txt
-10 ECU
-```
+Possible rarities:
+Common → Legendary
 
 ---
 
 ## Funeral Blade
 
-Type:
-forge_weapon
-
 Unlock:
-Chapter I boss progression
+Seigneur de la Pluie Déchu defeated
 
 Ingredients:
 
 ```txt
-4x Iron Ore
-2x Ashwood
-3x Shadow Residue
-1x Fallen Rain Pearl
+45x Iron Ore
+25x Ashwood
+18x Shadow Residue
+2x Fallen Rain Pearl
 ```
 
 Theme:
-Funèbre / shadow / water corruption
+Funèbre shadow corruption
 
 ---
 
-## Ashen Spear
-
-Type:
-forge_weapon
+## Royal Saber
 
 Unlock:
-Ombre du Dragon defeated
+Kingdom progression
 
 Ingredients:
 
 ```txt
-5x Iron Ore
-3x Ashwood
-3x Spectral Dust
-1x Dragon Ash Core
+60x Iron Ore
+20x Silver Ore
+12x Quartz
 ```
 
 Theme:
-dragon ash / ruin
+royal balanced sword
 
 ---
 
-## Frostfang Dagger
-
-Type:
-forge_weapon
+## Frostbound Longsword
 
 Unlock:
 Chapter II progression
@@ -225,10 +251,103 @@ Chapter II progression
 Ingredients:
 
 ```txt
-4x Cold Iron
-2x Sapphire
-2x Frozen Echo
-1x Frost Amalgam Core
+55x Cold Iron
+20x Sapphire
+18x Frozen Echo
+2x Frost Amalgam Core
+```
+
+Theme:
+glacial warfare
+
+---
+
+# 6.2 Axe Recipes
+
+---
+
+## Broken Axe
+
+Unlock:
+Forge Level 1
+
+Ingredients:
+
+```txt
+40x Iron Ore
+10x Old Wood
+```
+
+---
+
+## Ashen Axe
+
+Unlock:
+Ombre du Dragon defeated
+
+Ingredients:
+
+```txt
+65x Iron Ore
+25x Ashwood
+22x Spectral Dust
+3x Dragon Ash Core
+```
+
+Theme:
+dragon ash execution
+
+---
+
+## Frostsplitter
+
+Unlock:
+Chapter II progression
+
+Ingredients:
+
+```txt
+60x Cold Iron
+25x Frozen Echo
+10x Sapphire
+```
+
+Theme:
+glacial execution
+
+---
+
+# 6.3 Dagger Recipes
+
+---
+
+## Bone Knife
+
+Unlock:
+Forge Level 1
+
+Ingredients:
+
+```txt
+15x Iron Ore
+10x Tough Meat
+5x Old Wood
+```
+
+---
+
+## Frostfang Dagger
+
+Unlock:
+Amalgame du Givre defeated
+
+Ingredients:
+
+```txt
+40x Cold Iron
+15x Sapphire
+15x Frozen Echo
+2x Frost Amalgam Core
 ```
 
 Theme:
@@ -236,10 +355,187 @@ frost assassin
 
 ---
 
-## Arathas Staff
+## Spectral Shiv
 
-Type:
-forge_weapon
+Unlock:
+Chapter I progression
+
+Ingredients:
+
+```txt
+30x Iron Ore
+20x Spectral Dust
+10x Shadow Residue
+```
+
+Theme:
+spectral corruption
+
+---
+
+# 6.4 Greatsword Recipes
+
+---
+
+## Tomb Greatsword
+
+Unlock:
+Chapter I progression
+
+Ingredients:
+
+```txt
+70x Iron Ore
+35x Ashwood
+20x Spectral Dust
+```
+
+---
+
+## Dragonbone Greatsword
+
+Unlock:
+Ombre du Dragon defeated
+
+Ingredients:
+
+```txt
+90x Iron Ore
+45x Ashwood
+25x Spectral Dust
+5x Dragon Ash Core
+```
+
+Theme:
+dragon remains
+
+---
+
+# 6.5 Spear Recipes
+
+---
+
+## Ashen Spear
+
+Unlock:
+Ombre du Dragon defeated
+
+Ingredients:
+
+```txt
+50x Iron Ore
+30x Ashwood
+20x Spectral Dust
+3x Dragon Ash Core
+```
+
+---
+
+## Frostpiercer
+
+Unlock:
+Chapter II progression
+
+Ingredients:
+
+```txt
+55x Cold Iron
+20x Sapphire
+18x Frozen Echo
+```
+
+---
+
+# 6.6 Bow Recipes
+
+---
+
+## Hunter Bow
+
+Unlock:
+Forge Level 1
+
+Ingredients:
+
+```txt
+20x Old Wood
+10x Tough Meat
+```
+
+---
+
+## Funeral Longbow
+
+Unlock:
+Chapter I progression
+
+Ingredients:
+
+```txt
+40x Ashwood
+15x Spectral Dust
+10x Shadow Residue
+```
+
+---
+
+## White Frost Bow
+
+Unlock:
+Chapter II progression
+
+Ingredients:
+
+```txt
+45x Frostpine
+18x Frozen Echo
+12x Sapphire
+```
+
+---
+
+# 6.7 Pistol Recipes
+
+---
+
+## Rusted Pistol
+
+Unlock:
+Forge Level 5
+
+Ingredients:
+
+```txt
+35x Iron Ore
+20x Silver Ore
+10x Quartz
+```
+
+---
+
+## Frostfire Pistol
+
+Unlock:
+Chapter II progression
+
+Ingredients:
+
+```txt
+55x Cold Iron
+25x Sapphire
+15x Frozen Echo
+```
+
+Theme:
+frost combustion
+
+---
+
+# 6.8 Staff Recipes
+
+---
+
+## Arathas Staff
 
 Unlock:
 Archimage defeated
@@ -247,102 +543,64 @@ Archimage defeated
 Ingredients:
 
 ```txt
-3x Silver Ore
-2x Sapphire
-4x Frozen Echo
-1x Archmage Sigil
+35x Silver Ore
+25x Sapphire
+22x Frozen Echo
+3x Archmage Sigil
 ```
 
-Theme:
-arcane frost
-
 ---
 
-# 5. Forge Armor Recipes
-
----
-
-## Spectral Hood
-
-Type:
-forge_armor
+## Frostcaller Staff
 
 Unlock:
-Chapter I
+Chapter II progression
 
 Ingredients:
 
 ```txt
-3x Ashwood
-4x Spectral Dust
+40x Frostpine
+20x Sapphire
+18x Frozen Echo
 ```
 
 ---
 
-## Mourning Cape
+# 7. Offhand Recipes
 
-Type:
-forge_armor
+---
 
-Unlock:
-Chapter I
+# 7.1 Shield Recipes
+
+---
+
+## Rusted Shield
 
 Ingredients:
 
 ```txt
-2x Ashwood
-5x Spectral Dust
+35x Iron Ore
+15x Old Wood
 ```
 
 ---
 
-## Frozen Crown
-
-Type:
-forge_armor
+## Dragon Ash Shield
 
 Unlock:
-Allaeva defeated
+Ombre du Dragon defeated
 
 Ingredients:
 
 ```txt
-2x Pale Diamond
-3x Cold Iron
-4x Frozen Echo
-1x Frozen Queen Tear
-```
-
-Theme:
-royal frost legendary
-
----
-
-# 6. Forge Accessories
-
----
-
-## Gravekeeper Ring
-
-Type:
-forge_accessory
-
-Unlock:
-Chapter I
-
-Ingredients:
-
-```txt
-2x Quartz
-3x Spectral Dust
+65x Iron Ore
+30x Ashwood
+5x Dragon Ash Core
 ```
 
 ---
 
-## Queen’s Tear Necklace
-
-Type:
-forge_accessory
+## Frozen Royal Shield
 
 Unlock:
 Allaeva defeated
@@ -350,177 +608,403 @@ Allaeva defeated
 Ingredients:
 
 ```txt
-1x Pale Diamond
-2x Sapphire
-1x Frozen Queen Tear
+70x Cold Iron
+25x Sapphire
+3x Frozen Queen Tear
 ```
 
-Theme:
-royal legendary accessory
+---
+
+# 7.2 Grimoire Recipes
 
 ---
 
 ## Icebound Grimoire
 
-Type:
-forge_accessory / offhand
-
 Unlock:
-Chapter II
+Chapter II progression
 
 Ingredients:
 
 ```txt
-2x Sapphire
-3x Frozen Echo
-1x Archmage Sigil
+25x Sapphire
+20x Frozen Echo
+2x Archmage Sigil
 ```
-
-Theme:
-frost corruption caster
 
 ---
 
-# 7. Kitchen Recipes
+## Hollow Scripture
+
+Unlock:
+Chapter I progression
+
+Ingredients:
+
+```txt
+18x Spectral Dust
+15x Shadow Residue
+```
+
+---
+
+# 8. Armor Recipes
+
+Each set contains:
+
+```txt
+helmet
+chest
+cape
+gloves
+belt
+boots
+```
+
+Armor pieces share similar recipe structures.
+
+---
+
+# 8.1 Maraudeur Set
+
+Theme:
+survival / scavenger
+
+Example piece recipe:
+
+```txt
+25x Old Wood
+20x Tough Meat
+10x Iron Ore
+```
+
+---
+
+# 8.2 Vagabond Set
+
+Theme:
+mobility / exploration
+
+Example piece recipe:
+
+```txt
+18x Old Wood
+15x Tough Meat
+12x Quartz
+```
+
+---
+
+# 8.3 Pleureur Set
+
+Theme:
+spectral sustain
+
+Example piece recipe:
+
+```txt
+35x Ashwood
+25x Spectral Dust
+15x Shadow Residue
+```
+
+---
+
+# 8.4 Flageleur Set
+
+Theme:
+execution / aggression
+
+Example piece recipe:
+
+```txt
+40x Iron Ore
+22x Spectral Dust
+15x Shadow Residue
+```
+
+---
+
+# 8.5 Gardien des Cendres Set
+
+Theme:
+dragon ash defense
+
+Example piece recipe:
+
+```txt
+45x Iron Ore
+30x Ashwood
+5x Dragon Ash Core
+```
+
+---
+
+# 8.6 Docteur Set
+
+Theme:
+academy support
+
+Example piece recipe:
+
+```txt
+30x Silver Ore
+18x Sapphire
+15x Frozen Echo
+```
+
+---
+
+# 8.7 Voltigeur Set
+
+Theme:
+frost mobility
+
+Example piece recipe:
+
+```txt
+35x Cold Iron
+20x Frozen Echo
+18x Sapphire
+```
+
+---
+
+# 8.8 Reine Blanche Set
+
+Theme:
+legendary frost royalty
+
+Example piece recipe:
+
+```txt
+50x Cold Iron
+25x Sapphire
+3x Frozen Queen Tear
+```
+
+---
+
+# 9. Jewelry Recipes
+
+---
+
+# 9.1 Ring Recipes
+
+---
+
+## Royal Beam Ring
+
+Ingredients:
+
+```txt
+10x Quartz
+8x Silver Ore
+5x Spectral Dust
+```
+
+Effect:
+beam width increase
+
+---
+
+## King Aura Ring
+
+Ingredients:
+
+```txt
+12x Quartz
+10x Sapphire
+5x Frozen Echo
+```
+
+Effect:
+aura radius increase
+
+---
+
+## War Cry Ring
+
+Ingredients:
+
+```txt
+15x Iron Ore
+8x Tough Meat
+```
+
+Effect:
+buff duration increase
+
+---
+
+## Frost Ritual Ring
+
+Ingredients:
+
+```txt
+10x Sapphire
+8x Frozen Echo
+```
+
+Effect:
+frost buildup
+
+---
+
+# 9.2 Necklace Recipes
+
+---
+
+## Queen’s Tear Necklace
+
+Unlock:
+Allaeva defeated
+
+Ingredients:
+
+```txt
+20x Sapphire
+10x Pale Diamond
+2x Frozen Queen Tear
+```
+
+---
+
+## Ashen Relic Necklace
+
+Unlock:
+Ombre du Dragon defeated
+
+Ingredients:
+
+```txt
+25x Ashwood
+15x Spectral Dust
+2x Dragon Ash Core
+```
+
+---
+
+# 10. Kitchen Recipes
 
 ---
 
 ## Hearty Stew
 
-Type:
-kitchen_food
-
 Ingredients:
 
 ```txt
-2x Tough Meat
-1x Tomato
-1x Carrot
+8x Tough Meat
+4x Tomato
+4x Carrot
 ```
 
 Effect:
-temporary HP + attack
+HP + ATK
 
 ---
 
 ## Fresh Salad
 
-Type:
-kitchen_food
-
 Ingredients:
 
 ```txt
-1x Tomato
-1x Carrot
+5x Tomato
+5x Carrot
 ```
 
 Effect:
-temporary movement + energy recovery
+movement + energy
 
 ---
 
 ## Frozen Fish Soup
 
-Type:
-kitchen_food
-
 Unlock:
-Chapter II
+Chapter II progression
 
 Ingredients:
 
 ```txt
-2x Frozen Fish
-1x Frostroot
+8x Frozen Fish
+5x Frostroot
 ```
 
 Effect:
-frost resistance + sustain
+frost resistance
 
 ---
 
 ## Frostroot Broth
 
-Type:
-kitchen_food
-
 Unlock:
-Chapter II
+Chapter II progression
 
 Ingredients:
 
 ```txt
-2x Frostroot
-1x Tough Meat
+10x Frostroot
+6x Tough Meat
 ```
 
 Effect:
-survivability / resistance
+survivability
 
 ---
 
-# 8. Story Catalyst Recipes
+# 11. Story Catalyst Recipes
 
 ---
 
 ## Kaléidoscope — Era Glaciaire Unlock
 
-Type:
-story_catalyst
-
 Unlock:
-end Chapter I
+End Chapter I
 
 Requirements:
 
 ```txt
-World Level minimum required
+minimum WLVL required
 ```
 
 Ingredients:
 
 ```txt
 1x Dragon Ash Core
-2x Quartz
-5x Spectral Dust
+15x Quartz
+25x Spectral Dust
 ```
 
 Purpose:
-unlock Era Glaciaire access
+unlock Era Glaciaire
 
 ---
 
 ## Kaléidoscope — Era Déluge Unlock
 
-Type:
-story_catalyst
-
 Unlock:
-end Chapter II
+End Chapter II
 
 Requirements:
 
 ```txt
-World Level minimum required
+minimum WLVL required
 ```
 
 Ingredients:
 
 ```txt
 1x Frozen Queen Tear
-2x Pale Diamond
-6x Frozen Echo
+10x Pale Diamond
+35x Frozen Echo
 ```
 
 Purpose:
-unlock Era Déluge access
+unlock Era Déluge
 
 ---
 
-# 9. Upgrade Economy
-
-Upgrades are recipe-like progression sinks.
+# 12. Upgrade Economy
 
 ---
 
@@ -529,10 +1013,14 @@ Upgrades are recipe-like progression sinks.
 Placeholder:
 
 ```txt
-upgrade_cost = item_value percentage + material cost
+upgrade_cost =
+item_value percentage
++ material costs
 ```
 
-Example:
+---
+
+## Example Scaling
 
 ```txt
 +1 = 20%
@@ -542,96 +1030,60 @@ Example:
 +5 = 100%
 ```
 
-Future scaling:
-rarity multiplier
-
 ---
 
-## Material Types
+## Upgrade Materials
 
-Upgrade may consume:
+Possible materials:
 
 ```txt
 ore
 gem
 forge_special
 ecu
+boss materials
 ```
+
+---
+
+## Forge Special Usage
 
 Examples:
 
 ```txt
-Copper
-Iron
-Silver
-Quartz
-Sapphire
-Precious Stones
+Precious Stone Common
+Precious Stone Rare
+Precious Stone Epic
+Precious Stone Legendary
 ```
 
----
-
-## Boss Equipment Upgrades
-
-Boss gear may require:
-
-```txt
-boss materials
-forge_special
-higher ECU
-```
+Obtained through:
+- recycle
+- rare boss drops
 
 ---
 
-# 10. Future Systems
+# 13. Future Systems
 
-Deferred:
-
----
-
-## Enchant Recipes
-
-Future:
-element / modifier enhancement
-
----
-
-## Evolve Recipes
-
-Future:
-rarity progression
+Reserved:
+- enchant
+- evolve
+- fusion
+- set bonuses
+- cross-era recipes
+- artifact crafting
+- mythic/divine/ancient crafting
 
 ---
 
-## Fusion Recipes
+# 14. Open Questions
 
-Future:
-equipment merging
-
----
-
-## Artifact Recipes
-
-Future:
-late-game progression
-
----
-
-## Cross-Era Recipes
-
-Future:
-rare hybrid recipes requiring multiple eras
-
----
-
-# 11. Open Questions
-
-Later balancing:
-
-- exact coefficients
-- exact forge level gates
-- exact market margins
-- exact upgrade formulas
-- exact food buff durations
-- exact drop unlock conditions
-- exact ultra rare recipe design
+Future balancing:
+- rarity probabilities
+- recipe scaling
+- upgrade scaling
+- boss drop rates
+- market balancing
+- endgame sinks
+- legendary frequency
+- future rarity economy
