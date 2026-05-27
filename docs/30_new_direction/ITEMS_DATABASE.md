@@ -1,176 +1,144 @@
-# ITEMS DATABASE — IdleKing
+# ITEMS DATABASE — IdleKing (V2)
 
 ## Purpose
 
-This document defines the item philosophy, categories, equipment structure, acquisition rules, and MVP item scope for IdleKing.
+This document defines the canonical itemization structure for IdleKing.
 
-This is a V1 source of truth.
+This is the primary source of truth for:
 
-Balancing values remain placeholder until:
-- RESOURCES_DATABASE
-- RECIPES_DATABASE
-- ENEMIES_DATABASE
-- BOSS_DATABASE balancing pass
-
----
-
-# 1. Item Philosophy
-
-Items are a major progression pillar.
-
-They support:
-
-- combat progression
+- equipment progression
+- rarity scaling
 - build identity
-- crafting loops
-- exploration rewards
-- dungeon rewards
-- economy loops
-- story progression
-- replayability
+- crafting
+- economy balancing
+- loot generation
+- future enchant/evolve/fusion systems
 
-Itemization must feel rewarding but understandable.
+Scope:
+- Prologue
+- Chapter I — Era Funèbre
+- Chapter II — Era Glaciaire
 
-MVP prioritizes clarity over excessive complexity.
-
----
-
-# 2. Item Categories
-
-## 2.1 Equipment
-
-Combat gear.
-
-Purpose:
-- stat progression
-- build customization
-- combat identity
-
-Subcategories:
-- weapons
-- armor
-- accessories
-- offhand
-- artifacts (future)
+Future chapters will expand this database.
 
 ---
 
-## 2.2 Consumables
+# 1. Itemization Philosophy
 
-Single-use items.
+IdleKing uses a:
 
-Purpose:
-- sustain
-- temporary buffs
-- utility
-- narrative interactions
+```txt
+free-form build action RPG system
+```
 
----
+The player is not bound to classes.
 
-## 2.3 Resources
-
-Crafting materials.
-
-Defined in:
-RESOURCES_DATABASE.md
-
----
-
-## 2.4 Quest Items
-
-Narrative progression items.
-
-Rules:
-- non sellable
-- non recyclable
-- non bankable
-- non craftable
-- narrative locked
-
----
-
-## 2.5 Special Items
-
-Narrative / progression relics.
-
-Examples:
-- Gouttes
-- Kaléidoscope fragments
-- Era catalysts
-- story relics
-
-Rules:
-special handling only
-
----
-
-# 3. Equipment System
-
----
-
-# 3.1 Equipment Slots
-
-Canonical slots:
-
-- Helmet
-- Chest
-- Cape
-- Gloves
-- Belt
-- Boots
-- Weapon
-- Offhand
-- Necklace
-- Ring 1
-- Ring 2
-- Artifact (future)
-
----
-
-# 3.2 Equipment Core Data Model
-
-Equipment contains:
-
-- id
-- name
-- slot
+Build identity is determined through:
+- weapon combinations
+- offhand combinations
+- armor sets
+- rings
 - rarity
-- ilvl
-- itemLevel
-- baseStats
-- stats
-- upgradeLevel
+- upgrades
+- future enchant systems
 
-Future-ready fields:
-- setTag
-- elementTag
-- enchantSlots
-
-Not MVP:
-- affixes
-- sockets
+The system favors:
+- horizontal progression
+- replayability
+- build experimentation
+- long-term farming
 
 ---
 
-# 3.3 Rarity Ladder
+# 2. Canon Rarity Model
 
-Canonical rarity progression:
+MVP rarity scope:
 
-- Common
-- Uncommon
-- Rare
-- Epic
-- Legendary
-- Mythic
-- Divine
-- Ancient
+```txt
+Common
+Uncommon
+Rare
+Epic
+Legendary
+```
 
-MVP scope:
+Future rarities:
 
-Common → Legendary
+```txt
+Mythic
+Divine
+Ancient
+```
 
-Future:
-Mythic / Divine / Ancient
+---
+
+## Important Rule
+
+Every equipment base may exist in every rarity tier.
+
+Example:
+
+```txt
+Rusted Sword Common
+Rusted Sword Epic
+Rusted Sword Legendary
+```
+
+Rarity does NOT define chapter progression.
+
+Progression scales mainly through:
+- item level
+- ilvl
+- upgrades
+- recipes
+- build synergy
+
+---
+
+# 3. Equipment Slots
+
+## Weapons
+
+```txt
+main_hand
+off_hand
+```
+
+---
+
+## Armor
+
+```txt
+helmet
+chest
+cape
+gloves
+belt
+boots
+```
+
+---
+
+## Jewelry
+
+```txt
+5x rings
+1x necklace
+```
+
+---
+
+## Special
+
+```txt
+artifact
+```
+
+Reserved for:
+- Kaléidoscope
+- Era relics
+- Soul fragments
+- future systems
 
 ---
 
@@ -178,582 +146,1009 @@ Mythic / Divine / Ancient
 
 ---
 
-## Sword
+# 4.1 Sword
 
-Role:
-balanced melee weapon
+Balanced melee weapon.
 
 Identity:
-- reliable
-- flexible
-- generalist
+- versatility
+- combo chaining
+- hybrid builds
+
+Possible combinations:
+- Sword + Sword
+- Sword + Axe
+- Sword + Dagger
+- Sword + Shield
 
 ---
 
-## Dagger
+## Weapon Bases
 
-Role:
-aggressive precision melee
+### Rusted Sword
 
-Identity:
-- speed
-- crit
-- mobility
+Theme:
+ruined kingdom
 
----
-
-## Axe
-
-Role:
-burst melee
-
-Identity:
-- heavy strikes
-- slower attacks
-- raw damage
+Gameplay:
+balanced early weapon
 
 ---
 
-## Greatsword
+### Funeral Blade
 
-Role:
-heavy AoE melee
+Theme:
+funerary corruption
+
+Gameplay:
+shadow-oriented melee
+
+---
+
+### Royal Saber
+
+Theme:
+old royalty
+
+Gameplay:
+precision / balance
+
+---
+
+### Frostbound Longsword
+
+Theme:
+glacial warfare
+
+Gameplay:
+frost melee
+
+---
+
+### Hollowfang Blade
+
+Theme:
+spectral corruption
+
+Gameplay:
+aggressive sustain
+
+---
+
+# 4.2 Axe
+
+Heavy burst melee.
 
 Identity:
 - stagger
-- cleave
-- high commitment
+- burst
+- slower attacks
+
+Possible combinations:
+- Axe + Axe
+- Axe + Sword
+- Axe + Dagger
+- Axe + Shield
 
 ---
 
-## Spear
+## Weapon Bases
 
-Role:
-reach / control
+### Broken Axe
+
+Theme:
+survival
+
+Gameplay:
+heavy early burst
+
+---
+
+### Ashen Axe
+
+Theme:
+dragon ash
+
+Gameplay:
+fire remnants
+
+---
+
+### Frostsplitter
+
+Theme:
+ice execution
+
+Gameplay:
+high stagger
+
+---
+
+### Royal Executioner Axe
+
+Theme:
+kingdom punishment
+
+Gameplay:
+slow massive hits
+
+---
+
+### Tomb Cleaver
+
+Theme:
+grave executioner
+
+Gameplay:
+bleed / execution
+
+---
+
+# 4.3 Dagger
+
+Fast melee weapon.
+
+Identity:
+- mobility
+- crit
+- utility
+
+Possible combinations:
+- Dagger + Dagger
+- Sword + Dagger
+- Axe + Dagger
+
+---
+
+## Weapon Bases
+
+### Bone Knife
+
+Theme:
+survival
+
+Gameplay:
+fast strikes
+
+---
+
+### Frostfang Dagger
+
+Theme:
+glacial assassin
+
+Gameplay:
+mobility burst
+
+---
+
+### Spectral Shiv
+
+Theme:
+spectral corruption
+
+Gameplay:
+DoT / sustain
+
+---
+
+### Mourning Fang
+
+Theme:
+funeral rites
+
+Gameplay:
+precision crit
+
+---
+
+### Assassin Fang
+
+Theme:
+rogue hunter
+
+Gameplay:
+mobility crit
+
+---
+
+# 4.4 Greatsword
+
+Massive AoE melee.
+
+Identity:
+- cleave
+- heavy recovery
+- crowd control
+
+---
+
+## Weapon Bases
+
+### Tomb Greatsword
+
+Theme:
+ancient graves
+
+Gameplay:
+AoE cleave
+
+---
+
+### Dragonbone Greatsword
+
+Theme:
+dragon remains
+
+Gameplay:
+heavy stagger
+
+---
+
+### Glacier Splitter
+
+Theme:
+frozen execution
+
+Gameplay:
+ice cleave
+
+---
+
+# 4.5 Spear
+
+Precision reach weapon.
 
 Identity:
 - spacing
-- thrust combat
-- safer melee
+- poke
+- safe melee
 
 ---
 
-## Bow
+## Weapon Bases
 
-Role:
-ranged sustained DPS
+### Ashen Spear
+
+Theme:
+dragon ash
+
+Gameplay:
+range melee
+
+---
+
+### Frostpiercer
+
+Theme:
+glacial hunter
+
+Gameplay:
+precision frost
+
+---
+
+### Royal Halberd
+
+Theme:
+royal guard
+
+Gameplay:
+balanced reach
+
+---
+
+# 4.6 Bow
+
+Ranged sustained DPS.
 
 Identity:
-- distance pressure
 - precision
-- consistency
+- mobility
+- sustained pressure
 
 ---
 
-## Pistol
+## Weapon Bases
 
-Role:
-burst ranged precision
+### Hunter Bow
 
-Identity:
-- shorter ranged burst
-- timing
-- quick punishment
+Theme:
+survival hunter
 
----
-
-## Staff
-
-Role:
-elemental casting weapon
-
-Identity:
-- magic scaling
-- ranged spellcasting
-- AoE potential
+Gameplay:
+basic ranged
 
 ---
 
-## Grimoire
+### Funeral Longbow
 
-Role:
-dark caster / utility
+Theme:
+spectral hunt
+
+Gameplay:
+shadow arrows
+
+---
+
+### White Frost Bow
+
+Theme:
+glacial elite
+
+Gameplay:
+frost pressure
+
+---
+
+# 4.7 Pistol
+
+Burst ranged weapon.
 
 Identity:
-- corruption
-- DoT
-- summon potential
+- mobility
+- aggressive ranged burst
+
+---
+
+## Weapon Bases
+
+### Rusted Pistol
+
+Theme:
+ruined technology
+
+Gameplay:
+quick shots
+
+---
+
+### Frostfire Pistol
+
+Theme:
+frozen combustion
+
+Gameplay:
+burst hybrid
+
+---
+
+### Royal Duelist Pistol
+
+Theme:
+elite duelist
+
+Gameplay:
+mobility burst
+
+---
+
+# 4.8 Staff
+
+Magic control weapon.
+
+Identity:
+- scaling
 - utility
+- control
 
 ---
 
-## Shield
+## Weapon Bases
 
-Role:
-defensive offhand
-
-Identity:
-- mitigation
-- counters
-- survivability
-
----
-
-# 5. Element Tags
-
-MVP canonical elements:
-
-- Neutral
-- Shadow
-- Frost
-- Water
-- Fire
-- Electricity
-- Ground
-- Light
-
-Purpose:
-future interactions:
-- elemental gear identity
-- resistances
-- boss mechanics
-- enchant systems
-
-MVP:
-mostly thematic metadata
-
----
-
-# 6. Acquisition Philosophy
-
-Hybrid progression model.
-
----
-
-## 6.1 Trash Enemies
-
-Drop:
-materials only
-
-Purpose:
-resource economy
-
-No direct gear drops.
-
----
-
-## 6.2 Bosses
-
-May drop:
-- materials
-- direct equipment (low chance)
-- themed gear pools
-
-Purpose:
-high dopamine reward spikes
-
----
-
-## 6.3 Forge
-
-Primary deterministic progression path.
-
-Purpose:
-player agency
-build targeting
-
----
-
-## 6.4 Market
-
-Support acquisition path.
-
-Purpose:
-economy smoothing
-
----
-
-## 6.5 Story Rewards
-
-May grant:
-- gear
-- special items
-- progression relics
-
----
-
-# 7. Equipment Sets (MVP)
-
-Initial MVP thematic sets.
-
-Balancing TBD.
-
----
-
-## Maraudeur
-
-Identity:
-frontline physical aggressor
+### Arathas Staff
 
 Theme:
-brutality / offense
+academy magic
 
-Likely stats:
-- attack
-- hp
-- crit
-
----
-
-## Flageleur
-
-Identity:
-punisher / risk-reward fighter
-
-Theme:
-pain / retaliation
-
-Likely stats:
-- attack
-- lifesteal
-- crit
-- aggression scaling
-
----
-
-## Voltigeur
-
-Identity:
-agile skirmisher
-
-Theme:
-mobility / speed
-
-Likely stats:
-- attack speed
-- dodge
-- crit
-- movement
-
----
-
-## Pleureur
-
-Identity:
-shadow / corruption caster
-
-Theme:
-sorrow / darkness
-
-Likely stats:
-- power
-- shadow scaling
-- mana/energy
-- DoT support
-
----
-
-## Docteur
-
-Identity:
-utility / sustain specialist
-
-Theme:
-medicine / resilience
-
-Likely stats:
-- healing
-- survivability
-- utility
-- regeneration
-
----
-
-# 8. MVP Equipment Pools
-
----
-
-# 8.1 General Early Gear
-
-Common / Uncommon
-
-Examples:
-- Rusted Sword
-- Broken Axe
-- Traveler Hood
-- Worn Gloves
-- Reinforced Boots
-- Tarnished Ring
-- Old Necklace
-
----
-
-# 8.2 Chapter I Gear
-
-Rare / Epic unlock potential
-
-Themes:
-- funeral
-- ash
-- spectral
-- ruined royalty
-
-Examples:
-- Funeral Blade
-- Ashen Spear
-- Spectral Hood
-- Mourning Cape
-- Gravekeeper Ring
-
----
-
-# 8.3 Chapter II Gear
-
-Epic / Legendary unlock potential
-
-Themes:
-- frost
-- arcane
-- glacial nobility
-- ancient academy
-
-Examples:
-- Frostfang Dagger
-- Arathas Staff
-- Frozen Crown
-- Icebound Gloves
-- Queen’s Ring
-
----
-
-# 9. Boss Themed Pools
-
----
-
-## Amalgame des Ténèbres
-
-Theme:
-shadow corruption
-
-Possible element:
-Shadow
-
-Possible drops:
-- corrupted cloth gear
-- shadow melee gear
-- cursed accessories
-
----
-
-## Seigneur de la Pluie Déchu
-
-Theme:
-water / fallen nobility
-
-Possible element:
-Water
-
-Possible drops:
-- water-themed armor
-- ceremonial weapons
-- aquatic accessories
-
----
-
-## Ombre du Dragon
-
-Theme:
-ash / fire / ruin
-
-Possible elements:
-Fire / Ground
-
-Possible drops:
-- dragon-themed weapons
-- ember armor
-- scorched accessories
-
----
-
-## Amalgame du Givre
-
-Theme:
-frost corruption
-
-Possible elements:
-Frost / Shadow
-
-Possible drops:
-- cursed frost gear
-- frozen accessories
-
----
-
-## Archimage
-
-Theme:
+Gameplay:
 arcane frost
 
-Possible elements:
-Frost / Light
-
-Possible drops:
-- mage weapons
-- academy gear
-- arcane jewelry
-
 ---
 
-## Allaeva
+### Frostcaller Staff
 
 Theme:
-royal frost
+ritual frost
 
-Possible elements:
-Frost / Light
-
-Possible drops:
-- queen-themed armor
-- elegant weapons
-- frost royal accessories
+Gameplay:
+AoE control
 
 ---
 
-# 10. Consumables
+### White Ritual Staff
+
+Theme:
+royal ritualism
+
+Gameplay:
+support scaling
 
 ---
 
-## Healing
+# 5. Offhand Families
+
+---
+
+# 5.1 Sword Offhands
+
+### Short Sword
+### Funeral Sideblade
+### Hollowfang Sideblade
+
+---
+
+# 5.2 Axe Offhands
+
+### Hand Axe
+### Frost Hatchet
+### Ashen Splitter
+
+---
+
+# 5.3 Dagger Offhands
+
+### Spectral Dagger
+### Assassin Fang
+### Ice Shiv
+
+---
+
+# 5.4 Shields
+
+Tank utility.
+
+---
+
+## Shield Bases
+
+### Rusted Shield
+
+Theme:
+ruined kingdom
+
+Gameplay:
+basic defense
+
+---
+
+### Dragon Ash Shield
+
+Theme:
+dragon remnants
+
+Gameplay:
+anti-shadow defense
+
+---
+
+### Frozen Royal Shield
+
+Theme:
+Allaeva royalty
+
+Gameplay:
+frost aura defense
+
+---
+
+# 5.5 Grimoires
+
+Caster offhand.
+
+---
+
+## Grimoire Bases
+
+### Icebound Grimoire
+
+Theme:
+frozen corruption
+
+Gameplay:
+frost curse
+
+---
+
+### Hollow Scripture
+
+Theme:
+spectral rituals
+
+Gameplay:
+shadow sustain
+
+---
+
+### White Archive
+
+Theme:
+royal academy
+
+Gameplay:
+arcane utility
+
+---
+
+# 6. Armor Sets
+
+---
+
+# 6.1 Kingdom / Prologue
+
+---
+
+## Maraudeur Set
+
+Identity:
+- balanced
+- survival
+- adaptability
+
+Theme:
+survivor / scavenger
+
+### Pieces
+
+```txt
+Maraudeur Hood
+Maraudeur Coat
+Maraudeur Cape
+Maraudeur Gloves
+Maraudeur Belt
+Maraudeur Boots
+```
+
+---
+
+## Vagabond Set
+
+Identity:
+- mobility
+- stamina
+- exploration
+
+Theme:
+wanderer / exile
+
+### Pieces
+
+```txt
+Vagabond Hood
+Vagabond Jacket
+Vagabond Cloak
+Vagabond Gloves
+Vagabond Belt
+Vagabond Boots
+```
+
+---
+
+# 6.2 Era Funèbre
+
+---
+
+## Pleureur Set
+
+Identity:
+- sustain
+- spectral scaling
+- shadow affinity
+
+Theme:
+mourning / spectres
+
+### Pieces
+
+```txt
+Pleureur Hood
+Pleureur Robe
+Pleureur Cape
+Pleureur Gloves
+Pleureur Belt
+Pleureur Boots
+```
+
+---
+
+## Flageleur Set
+
+Identity:
+- aggression
+- execution
+- risk/reward
+
+Theme:
+punishment / torment
+
+### Pieces
+
+```txt
+Flageleur Mask
+Flageleur Armor
+Flageleur Mantle
+Flageleur Gloves
+Flageleur Belt
+Flageleur Boots
+```
+
+---
+
+## Gardien des Cendres Set
+
+Identity:
+- defense
+- dragon resistance
+- anti-shadow
+
+Theme:
+ash guardians
+
+### Pieces
+
+```txt
+Ash Guardian Helm
+Ash Guardian Armor
+Ash Guardian Cape
+Ash Guardian Gloves
+Ash Guardian Belt
+Ash Guardian Boots
+```
+
+---
+
+# 6.3 Era Glaciaire
+
+---
+
+## Docteur Set
+
+Identity:
+- support
+- arcane scaling
+- utility
+
+Theme:
+academy / medicine
+
+### Pieces
+
+```txt
+Docteur Hood
+Docteur Coat
+Docteur Mantle
+Docteur Gloves
+Docteur Belt
+Docteur Boots
+```
+
+---
+
+## Voltigeur Set
+
+Identity:
+- mobility
+- burst
+- frost precision
+
+Theme:
+elite glacial hunters
+
+### Pieces
+
+```txt
+Voltigeur Hood
+Voltigeur Armor
+Voltigeur Cape
+Voltigeur Gloves
+Voltigeur Belt
+Voltigeur Boots
+```
+
+---
+
+## Reine Blanche Set
+
+Identity:
+- legendary frost
+- aura scaling
+- royal corruption
+
+Theme:
+Allaeva
+
+### Pieces
+
+```txt
+Frozen Crown
+White Queen Dress
+White Queen Mantle
+White Queen Gloves
+White Queen Belt
+White Queen Boots
+```
+
+---
+
+# 7. Jewelry
+
+---
+
+# 7.1 Rings
+
+Players may equip:
+
+```txt
+5 rings
+```
+
+One ring slot per equipped skill.
+
+---
+
+## Ring Philosophy
+
+Rings specialize builds.
+
+Examples:
+- cooldown reduction
+- aura radius
+- beam width
+- sustain
+- crit chance
+- mobility
+- elemental scaling
+
+---
+
+## Example Rings
+
+### Royal Beam Ring
+
+Effect:
+beam width increase
+
+---
+
+### King Aura Ring
+
+Effect:
+aura radius increase
+
+---
+
+### War Cry Ring
+
+Effect:
+buff duration increase
+
+---
+
+### Frost Ritual Ring
+
+Effect:
+frost buildup
+
+---
+
+### Spectral Ring
+
+Effect:
+shadow sustain
+
+---
+
+# 7.2 Necklaces
+
+Players may equip:
+
+```txt
+1 necklace
+```
+
+---
+
+## Necklace Philosophy
+
+Necklaces provide:
+- broader stat identity
+- scaling
+- defensive utility
+
+---
+
+## Example Necklaces
+
+### Queen’s Tear Necklace
+
+Theme:
+Allaeva
+
+Gameplay:
+frost aura scaling
+
+---
+
+### Ashen Relic Necklace
+
+Theme:
+dragon ash
+
+Gameplay:
+anti-shadow utility
+
+---
+
+### Hollow Prayer Necklace
+
+Theme:
+spectral rites
+
+Gameplay:
+sustain scaling
+
+---
+
+# 8. Artifacts
+
+Reserved for:
+- Kaléidoscope
+- Era relics
+- soul fragments
+- future systems
+
+MVP artifacts remain limited.
+
+---
+
+## Example Artifacts
+
+### Kaléidoscope Fragment
 
 Purpose:
-restore HP
-
-Examples:
-- Minor Healing Potion
-- Greater Healing Potion
+Era travel
 
 ---
 
-## Energy
+### Dragon Ash Relic
 
 Purpose:
-restore combat energy
-
-Examples:
-- Energy Draught
-- Focus Elixir
+future progression
 
 ---
 
-## Buff Foods
+### Frozen Era Catalyst
 
 Purpose:
-temporary bonuses
+Era unlock
+
+---
+
+# 9. Multi-Rarity Scaling
+
+Every equipment may roll:
+
+```txt
+Common
+Uncommon
+Rare
+Epic
+Legendary
+```
+
+Example:
+
+```txt
+Legendary Rusted Sword
+Rare Funeral Blade
+Epic Frostfang Dagger
+```
+
+---
+
+# 10. Item Scaling Formula
+
+Placeholder formula:
+
+```txt
+final_power =
+base_item_identity
+× rarity_multiplier
+× ilvl
+× upgrade_level
+```
+
+---
+
+# 11. Passive Effects
+
+MVP supports:
+- light utility effects
+- light gameplay modifiers
 
 Examples:
-- Stew
-- Salad
-- roasted meals
-- future recipes
+- dash increase
+- beam width
+- aura radius
+- stamina regen
+- frost resistance
+- crit chance
+
+Large gameplay-changing effects are future scope.
 
 ---
 
-## Utility Consumables
+# 12. Crafting Philosophy
 
-Purpose:
-temporary utility
+Crafting is central to progression.
 
-Examples:
-- resistance potions
-- movement boosts
-- XP boosts
+Players:
+- gather resources
+- replay dungeons
+- farm enemies
+- replay bosses
+- upgrade equipment
+- recycle equipment
 
----
-
-## Story Consumables
-
-Rare narrative-only items.
-
-Special use cases.
+Recipe costs are intentionally high.
 
 ---
 
-# 11. Accessories Rules
+# 13. Boss Gear Philosophy
+
+Boss gear acquisition:
+
+```txt
+rare direct drop
+OR
+boss-unlocked recipes
+```
+
+Boss materials are central to crafting progression.
 
 ---
 
-## Rings
+## Example Boss Materials
 
-MVP:
-simple stat gear
-
-No skill modifier systems yet.
-
----
-
-## Necklace
-
-General stat support slot.
-
----
-
-## Artifact
-
-Reserved for future progression systems.
-
-Not MVP.
-
----
-
-# 12. Quest Items
-
-Rules:
-- non sellable
-- non recyclable
-- non bankable
-- story controlled
-
-Examples:
-- sealed keys
-- ritual objects
-- chapter progression relics
-
----
-
-# 13. Special Items
-
-Narrative progression relics.
-
-Examples:
-- Goutte des Ténèbres
-- stolen frost goutte
-- Kaléidoscope catalysts
-- temporal fragments
-- era progression relics
+```txt
+Dragon Ash Core
+Frozen Queen Tear
+Archmage Sigil
+Dark Amalgam Core
+Frost Amalgam Core
+```
 
 ---
 
 # 14. Future Systems
 
-Deferred intentionally:
-
-- named handcrafted uniques
-- affix systems
-- sockets
-- advanced enchantments
+Reserved:
+- enchant
+- evolve
+- fusion
 - set bonuses
-- artifact progression
-- mythic/divine/ancient itemization
-- legendary identity loot
+- relic crafting
+- cross-era crafting
+- advanced passives
+- Mythic rarity
+- Divine rarity
+- Ancient rarity
 
 ---
 
 # 15. Open Questions
 
-Later refinement:
-- exact stat formulas
-- exact drop pools
-- direct boss gear rates
-- enchant design
-- artifact system
-- set bonus system
+Future balancing:
+- rarity probabilities
+- dual wield penalties
+- stamina scaling
+- attack speed scaling
+- passive caps
+- set bonuses
+- drop rates
+- recipe balancing
+- market economy
+- enchant balance
+- evolve balance
+- fusion balance
+- endgame build diversity
