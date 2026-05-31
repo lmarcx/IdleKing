@@ -4,76 +4,28 @@
 
 Foundation V2 — MVP Scope
 
-This document defines the skill system used during:
-
-* Prologue
-* Chapter I
-* Chapter II
-
-Future chapters may introduce:
-
-* Passive Skills
-* Ultimate Skills
-* Advanced Power Stones
-* Multi-element Skills
-* Skill Trees
-
----
-
-# 1. Skill Philosophy
-
-IdleKing does not use traditional classes.
-
-The player's combat style is determined by:
+This document defines the active skill database for:
 
 ```txt
-Weapons
-+
-Rings
-+
-Equipment
-```
-
-Weapons define:
-
-```txt
-Basic Attacks
-Combat Feel
-Combat Rhythm
-```
-
-Rings define:
-
-```txt
-Active Skills
-```
-
-A player's build is therefore determined by the combination of:
-
-```txt
-Weapon Loadout
-+
-5 Equipped Rings
+Prologue
+Chapter I — Era Funèbre
+Chapter II — Era Glaciaire
 ```
 
 ---
 
-# 2. Ring Skill System
+# 1. Core Rules
 
-## Core Rule
+## Skill Carrier
 
 ```txt
 1 Ring = 1 Active Skill
 ```
 
----
-
-## Skill Slots
-
-Players may equip:
+The player has:
 
 ```txt
-5 Rings
+5 Ring Slots
 ```
 
 Therefore:
@@ -84,120 +36,93 @@ Therefore:
 
 ---
 
-## Duplicate Restriction
+## Duplicate Rule
 
-Players cannot equip:
+The player cannot equip two rings with the same Skill ID.
 
-```txt
-2 identical skills
-```
-
-Example:
+Example forbidden:
 
 ```txt
-Flame Burst
-Flame Burst
+SK-002 Flame Burst
+SK-002 Flame Burst
 ```
-
-Not allowed.
 
 ---
 
-# 3. Skill Acquisition
+# 2. Resource Model
 
-Skills are obtained through Ring acquisition.
+## HP
 
-Sources:
+Used for:
 
 ```txt
-Loot
-Boss Rewards
-Dungeon Rewards
-Quest Rewards
+Survival
+Incoming damage
+Future HP-cost mechanics
 ```
 
-Future:
+---
+
+## Mana
+
+Used for:
 
 ```txt
-Merchants
-Crafting
-Events
+Active Skills
+Summons
+Defensive Skills
+Utility Skills
+```
+
+All MVP Skills consume Mana.
+
+---
+
+## Stamina
+
+Used for:
+
+```txt
+Sprint
+Dash
+Movement defense
+```
+
+Stamina is separate from Mana so that mobility does not directly compete with skill usage.
+
+---
+
+# 3. Skill Scaling
+
+Skills do not have independent levels in the MVP.
+
+Skill power is derived from the ring:
+
+```txt
+Ring Rarity
+Ring Item Level
+Ring Upgrade Level
+Ring Affixes
+Future Power Stones
 ```
 
 ---
 
 # 4. Skill Categories
 
-## Attack
-
-Direct offensive abilities.
-
-Examples:
-
 ```txt
-Flame Burst
-Frost Lance
-Arcane Bolt
-```
-
----
-
-## Movement
-
-Mobility abilities.
-
-Examples:
-
-```txt
-Shadow Step
-Wind Leap
-```
-
----
-
-## Defense
-
-Protection abilities.
-
-Examples:
-
-```txt
-Ice Barrier
-Light Ward
-```
-
----
-
-## Utility
-
-Support abilities.
-
-Examples:
-
-```txt
-War Cry
-Focus Field
-Soul Mark
-```
-
----
-
-## Summon
-
-Temporary creature abilities.
-
-Examples:
-
-```txt
-Spectral Hound
-Frozen Wisp
+Attack
+Movement
+Defense
+Utility
+Summon
 ```
 
 ---
 
 # 5. Elements
 
-Current MVP Elements:
+MVP Elements:
 
 ```txt
 Neutral
@@ -211,102 +136,71 @@ Light
 Dark
 ```
 
----
-
-## MVP Rule
+MVP Rule:
 
 ```txt
-1 Skill
-=
-1 Element Maximum
+1 Skill = 1 Element
 ```
 
-Future Power Stones may allow:
+Future:
 
 ```txt
-Multi Element Skills
+Power Stones may enable multi-element behavior.
 ```
 
 ---
 
-# 6. Skill Scaling
+# 6. Skill Data Model
 
-Skills scale through Ring progression.
+```ts
+type SkillCategory =
+  | "attack"
+  | "movement"
+  | "defense"
+  | "utility"
+  | "summon";
 
-There is no independent skill leveling.
+type SkillElement =
+  | "neutral"
+  | "fire"
+  | "water"
+  | "ice"
+  | "wind"
+  | "electricity"
+  | "ground"
+  | "light"
+  | "dark";
 
-Power comes from:
+type SkillTargeting =
+  | "free_aim"
+  | "ground_target"
+  | "cone"
+  | "line"
+  | "aoe"
+  | "self_cast"
+  | "enemy_cast"
+  | "auto_target";
 
-```txt
-Item Level
-Rarity
-Upgrade Level
-Affixes
-Power Stones
+type Skill = {
+  id: string;
+  name: string;
+  category: SkillCategory;
+  element: SkillElement;
+  targeting: SkillTargeting;
+  manaCost: number;
+  cooldownSeconds: number;
+  basePower: number;
+  description: string;
+};
 ```
 
 ---
 
-# 7. Power Stones
-
-Status:
-
-Future System
+# 7. MVP Skill List
 
 ---
 
-## Purpose
-
-Modify existing skills.
-
-Power Stones are socketed into Rings.
-
----
-
-## MVP Rules
-
-Reserved.
-
-No implementation required.
-
----
-
-## Future Examples
-
-```txt
-Additional Projectile
-Element Conversion
-Cooldown Reduction
-Larger Area
-Longer Duration
-Additional Summon
-```
-
----
-
-# 8. Skill Data Structure
-
-Each skill contains:
-
-```txt
-Skill ID
-Name
-Category
-Element
-Cooldown
-Resource Cost
-Base Power
-Scaling Type
-Description
-```
-
----
-
-# 9. MVP Skill List
-
-## SK-001
-
-### Shadow Slash
+## SK-001 — Shadow Slash
 
 Category:
 
@@ -320,10 +214,16 @@ Element:
 Dark
 ```
 
-Description:
+Targeting:
 
 ```txt
-Quick shadow-infused melee strike.
+Cone
+```
+
+Mana Cost:
+
+```txt
+20
 ```
 
 Cooldown:
@@ -332,11 +232,15 @@ Cooldown:
 4s
 ```
 
+Description:
+
+```txt
+Quick shadow-infused melee arc in front of the player.
+```
+
 ---
 
-## SK-002
-
-### Flame Burst
+## SK-002 — Flame Burst
 
 Category:
 
@@ -350,10 +254,16 @@ Element:
 Fire
 ```
 
-Description:
+Targeting:
 
 ```txt
-Explosive burst of fire around target area.
+Ground Target
+```
+
+Mana Cost:
+
+```txt
+35
 ```
 
 Cooldown:
@@ -362,11 +272,15 @@ Cooldown:
 6s
 ```
 
+Description:
+
+```txt
+Explosive burst of fire at the target area.
+```
+
 ---
 
-## SK-003
-
-### Frost Lance
+## SK-003 — Frost Lance
 
 Category:
 
@@ -380,10 +294,16 @@ Element:
 Ice
 ```
 
-Description:
+Targeting:
 
 ```txt
-Launches a piercing ice projectile.
+Line
+```
+
+Mana Cost:
+
+```txt
+30
 ```
 
 Cooldown:
@@ -392,11 +312,15 @@ Cooldown:
 5s
 ```
 
+Description:
+
+```txt
+Launches a piercing ice projectile.
+```
+
 ---
 
-## SK-004
-
-### Arcane Bolt
+## SK-004 — Arcane Bolt
 
 Category:
 
@@ -410,10 +334,16 @@ Element:
 Neutral
 ```
 
-Description:
+Targeting:
 
 ```txt
-Fast magical projectile.
+Free Aim
+```
+
+Mana Cost:
+
+```txt
+15
 ```
 
 Cooldown:
@@ -422,11 +352,15 @@ Cooldown:
 3s
 ```
 
+Description:
+
+```txt
+Fast magical projectile.
+```
+
 ---
 
-## SK-005
-
-### Water Surge
+## SK-005 — Water Surge
 
 Category:
 
@@ -440,10 +374,16 @@ Element:
 Water
 ```
 
-Description:
+Targeting:
 
 ```txt
-Wave of water damaging enemies in front.
+Line
+```
+
+Mana Cost:
+
+```txt
+35
 ```
 
 Cooldown:
@@ -452,11 +392,15 @@ Cooldown:
 6s
 ```
 
+Description:
+
+```txt
+Wave of water damaging enemies in front.
+```
+
 ---
 
-## SK-006
-
-### Shadow Step
+## SK-006 — Shadow Step
 
 Category:
 
@@ -470,10 +414,16 @@ Element:
 Dark
 ```
 
-Description:
+Targeting:
 
 ```txt
-Short range teleport.
+Free Aim
+```
+
+Mana Cost:
+
+```txt
+30
 ```
 
 Cooldown:
@@ -482,11 +432,15 @@ Cooldown:
 8s
 ```
 
+Description:
+
+```txt
+Short-range teleport toward target direction.
+```
+
 ---
 
-## SK-007
-
-### Wind Leap
+## SK-007 — Wind Leap
 
 Category:
 
@@ -500,10 +454,16 @@ Element:
 Wind
 ```
 
-Description:
+Targeting:
 
 ```txt
-Quick leap toward target direction.
+Free Aim
+```
+
+Mana Cost:
+
+```txt
+25
 ```
 
 Cooldown:
@@ -512,11 +472,15 @@ Cooldown:
 7s
 ```
 
+Description:
+
+```txt
+Quick leap toward target direction.
+```
+
 ---
 
-## SK-008
-
-### Frost Dash
+## SK-008 — Frost Dash
 
 Category:
 
@@ -530,10 +494,16 @@ Element:
 Ice
 ```
 
-Description:
+Targeting:
 
 ```txt
-Dash forward leaving frozen traces.
+Free Aim
+```
+
+Mana Cost:
+
+```txt
+25
 ```
 
 Cooldown:
@@ -542,11 +512,22 @@ Cooldown:
 7s
 ```
 
+Description:
+
+```txt
+Magical dash leaving frozen traces behind.
+```
+
+Note:
+
+```txt
+This is a Skill and consumes Mana.
+The basic Dash remains a movement action and consumes Stamina.
+```
+
 ---
 
-## SK-009
-
-### Ice Barrier
+## SK-009 — Ice Barrier
 
 Category:
 
@@ -560,10 +541,16 @@ Element:
 Ice
 ```
 
-Description:
+Targeting:
 
 ```txt
-Temporary protective shield.
+Self Cast
+```
+
+Mana Cost:
+
+```txt
+45
 ```
 
 Cooldown:
@@ -572,11 +559,15 @@ Cooldown:
 15s
 ```
 
+Description:
+
+```txt
+Creates a temporary protective ice shield.
+```
+
 ---
 
-## SK-010
-
-### Light Ward
+## SK-010 — Light Ward
 
 Category:
 
@@ -590,10 +581,16 @@ Element:
 Light
 ```
 
-Description:
+Targeting:
 
 ```txt
-Protective aura reducing incoming damage.
+Self Cast
+```
+
+Mana Cost:
+
+```txt
+50
 ```
 
 Cooldown:
@@ -602,11 +599,15 @@ Cooldown:
 18s
 ```
 
+Description:
+
+```txt
+Protective aura reducing incoming damage.
+```
+
 ---
 
-## SK-011
-
-### Guard Pulse
+## SK-011 — Guard Pulse
 
 Category:
 
@@ -620,10 +621,16 @@ Element:
 Ground
 ```
 
-Description:
+Targeting:
 
 ```txt
-Creates a defensive shockwave.
+AoE
+```
+
+Mana Cost:
+
+```txt
+40
 ```
 
 Cooldown:
@@ -632,11 +639,15 @@ Cooldown:
 14s
 ```
 
+Description:
+
+```txt
+Creates a defensive shockwave around the player.
+```
+
 ---
 
-## SK-012
-
-### War Cry
+## SK-012 — War Cry
 
 Category:
 
@@ -650,10 +661,16 @@ Element:
 Neutral
 ```
 
-Description:
+Targeting:
 
 ```txt
-Increases offensive power temporarily.
+Self Cast
+```
+
+Mana Cost:
+
+```txt
+35
 ```
 
 Cooldown:
@@ -662,11 +679,15 @@ Cooldown:
 20s
 ```
 
+Description:
+
+```txt
+Temporarily increases offensive power.
+```
+
 ---
 
-## SK-013
-
-### Focus Field
+## SK-013 — Focus Field
 
 Category:
 
@@ -680,10 +701,16 @@ Element:
 Light
 ```
 
-Description:
+Targeting:
 
 ```txt
-Improves resource regeneration.
+AoE
+```
+
+Mana Cost:
+
+```txt
+40
 ```
 
 Cooldown:
@@ -692,11 +719,15 @@ Cooldown:
 18s
 ```
 
+Description:
+
+```txt
+Creates a field improving Mana regeneration.
+```
+
 ---
 
-## SK-014
-
-### Soul Mark
+## SK-014 — Soul Mark
 
 Category:
 
@@ -710,10 +741,16 @@ Element:
 Dark
 ```
 
-Description:
+Targeting:
 
 ```txt
-Marks a target, increasing damage taken.
+Enemy Cast
+```
+
+Mana Cost:
+
+```txt
+30
 ```
 
 Cooldown:
@@ -722,11 +759,15 @@ Cooldown:
 12s
 ```
 
+Description:
+
+```txt
+Marks a target, increasing damage taken.
+```
+
 ---
 
-## SK-015
-
-### Spectral Hound
+## SK-015 — Spectral Hound
 
 Category:
 
@@ -740,10 +781,16 @@ Element:
 Dark
 ```
 
-Description:
+Targeting:
 
 ```txt
-Summons a spectral hound.
+Self Cast
+```
+
+Mana Cost:
+
+```txt
+60
 ```
 
 Cooldown:
@@ -752,11 +799,15 @@ Cooldown:
 30s
 ```
 
+Description:
+
+```txt
+Summons a temporary spectral hound.
+```
+
 ---
 
-## SK-016
-
-### Frozen Wisp
+## SK-016 — Frozen Wisp
 
 Category:
 
@@ -770,10 +821,16 @@ Element:
 Ice
 ```
 
-Description:
+Targeting:
 
 ```txt
-Summons a frost spirit.
+Self Cast
+```
+
+Mana Cost:
+
+```txt
+55
 ```
 
 Cooldown:
@@ -782,17 +839,24 @@ Cooldown:
 25s
 ```
 
+Description:
+
+```txt
+Summons a temporary frost spirit.
+```
+
 ---
 
-# 10. Future Systems
+# 8. Future Systems
 
 Reserved:
 
 ```txt
 Passive Skills
 Ultimate Skills
-Multi Element Skills
+Skill Trees
 Advanced Power Stones
+Multi-element Skills
 Skill Fusion
 Legendary Skill Effects
 Mythic Skill Effects

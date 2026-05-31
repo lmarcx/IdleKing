@@ -4,7 +4,7 @@
 
 # 🧭 Vision
 
-Les Skills constituent l'un des piliers centraux du gameplay d'IdleKing.
+Les Skills constituent l’un des piliers centraux du gameplay d’IdleKing.
 
 Le gameplay repose sur :
 
@@ -49,13 +49,12 @@ Choix de build significatifs
 
 ---
 
-# 💍 Philosophie Fondamentale
+# 💍 Principe Fondamental
 
 Dans IdleKing :
 
 ```txt
 Weapon = Combat Actions
-
 Ring = Active Skill
 ```
 
@@ -65,6 +64,7 @@ Les armes définissent :
 Attaques de base
 Portée
 Vitesse
+Rythme
 Style de combat
 ```
 
@@ -95,7 +95,7 @@ Le joueur possède :
 Chaque anneau possède :
 
 ```txt
-1 compétence active
+1 Active Skill
 ```
 
 Donc :
@@ -111,80 +111,85 @@ Donc :
 Le joueur ne peut pas équiper :
 
 ```txt
-Deux anneaux
+2 Rings
 portant la même compétence
 ```
 
-Exemple :
+Exemple interdit :
 
 ```txt
 Flame Burst
 Flame Burst
 ```
-
-Interdit.
-
----
-
-# 🟩 Passifs
-
-Pas de système de passifs dédié dans le MVP.
-
-Les bonus passifs proviennent de :
-
-```txt
-Equipment
-Affixes
-Set Bonuses
-Future Artifacts
-```
-
-Les Passive Skills pourront être introduites plus tard.
 
 ---
 
 # 🔋 Ressources
 
----
+## ❤️ HP
 
-## 🟦 Energy
-
-Toutes les compétences utilisent :
+Utilisé pour :
 
 ```txt
-Energy
-```
-
-Le MVP ne possède pas :
-
-```txt
-Mana
-Rage
-Focus
-Life Cost
+Survie
+Dégâts reçus
+Future HP-cost mechanics
 ```
 
 ---
 
-## 🟨 Cooldowns
+## 🟦 Mana
 
-Toutes les compétences utilisent :
+Utilisée pour :
 
 ```txt
-Cooldowns
+Skills
+Summons
+Utility Skills
+Defense Skills
+```
+
+Toutes les compétences actives consomment de la Mana dans le MVP.
+
+---
+
+## 🟨 Stamina
+
+Utilisée pour :
+
+```txt
+Sprint
+Dash
+Future dodge / movement mechanics
+```
+
+La Stamina ne doit pas concurrencer directement les Skills.
+
+Elle sert à préserver la mobilité défensive du joueur.
+
+---
+
+## 🟪 Cooldowns
+
+Toutes les Skills utilisent :
+
+```txt
+Cooldown
 ```
 
 ---
 
-## 🟪 Charges
+## 🟣 Charges
 
-Le système doit supporter :
+Le système doit supporter les charges, mais elles restent optionnelles dans le MVP.
+
+Exemples futurs :
 
 ```txt
-Charges
+2 charges de Dash modifié
+3 charges de projectile
+Recharge progressive
 ```
-
-mais leur utilisation reste optionnelle pour le MVP.
 
 ---
 
@@ -193,7 +198,7 @@ mais leur utilisation reste optionnelle pour le MVP.
 Le gameplay de base inclut :
 
 ```txt
-Déplacement Libre
+Déplacement libre
 Sprint
 Dash
 ```
@@ -203,8 +208,8 @@ Dash
 ## ⚡ Sprint
 
 ```txt
-Augmente la vitesse
-Consomme de l'énergie
+Augmente la vitesse de déplacement
+Consomme de la Stamina
 ```
 
 ---
@@ -216,8 +221,10 @@ Utilisé pour :
 ```txt
 Esquive
 Repositionnement
-Évitement des patterns
+Évitement de patterns
 ```
+
+Le Dash consomme de la Stamina.
 
 ---
 
@@ -230,6 +237,7 @@ IFrames
 Dash offensifs
 Dash modifiés par équipement
 Dash modifiés par Power Stones
+Dash modifiés par passifs futurs
 ```
 
 ---
@@ -250,6 +258,8 @@ Summon
 
 ## Attack
 
+Compétences offensives.
+
 Exemples :
 
 ```txt
@@ -264,6 +274,8 @@ Water Surge
 
 ## Movement
 
+Compétences de mobilité consommant de la Mana, distinctes du Dash de base.
+
 Exemples :
 
 ```txt
@@ -275,6 +287,8 @@ Frost Dash
 ---
 
 ## Defense
+
+Compétences défensives.
 
 Exemples :
 
@@ -288,6 +302,8 @@ Light Ward
 
 ## Utility
 
+Compétences de soutien.
+
 Exemples :
 
 ```txt
@@ -299,6 +315,8 @@ Soul Mark
 ---
 
 ## Summon
+
+Compétences d’invocation.
 
 Exemples :
 
@@ -326,18 +344,6 @@ Auto Target
 
 ---
 
-# 🧠 Philosophie de ciblage
-
-Certaines compétences doivent récompenser :
-
-```txt
-Précision
-Positionnement
-Timing
-```
-
----
-
 # 🌈 Éléments
 
 Éléments MVP :
@@ -354,21 +360,13 @@ Light
 Dark
 ```
 
----
-
-## Règle MVP
+Règle MVP :
 
 ```txt
-1 Skill
-=
-1 Élément Maximum
+1 Skill = 1 Élément
 ```
 
----
-
-## Futur
-
-Les Power Stones pourront permettre :
+Les Power Stones pourront permettre plus tard :
 
 ```txt
 Multi Elements
@@ -380,15 +378,11 @@ Effets Hybrides
 
 # 🔥 Status Effects
 
----
-
 ## Burn
 
 ```txt
 Damage Over Time
 ```
-
----
 
 ## Freeze
 
@@ -396,23 +390,17 @@ Damage Over Time
 Slow
 ```
 
----
-
 ## Shock
 
 ```txt
 Damage Amplification
 ```
 
----
-
 ## Bleed
 
 ```txt
 Weaken
 ```
-
----
 
 ## Future Status
 
@@ -434,6 +422,7 @@ Skills
 Equipment
 Status Effects
 Affixes
+Power Stones
 ```
 
 Exemples :
@@ -451,21 +440,20 @@ Bleed + Fast Attacks
 
 Les compétences ne possèdent pas de niveau indépendant.
 
-Leur puissance dépend de :
+Leur puissance dépend de l’anneau qui les porte :
 
 ```txt
 Ring Item Level
 Ring Rarity
 Ring Upgrade Level
 Ring Affixes
+Future Power Stones
 ```
 
 Donc :
 
 ```txt
-Upgrade Ring
-=
-Upgrade Skill
+Upgrade Ring = Upgrade Skill
 ```
 
 ---
@@ -478,32 +466,25 @@ Statut :
 Future System
 ```
 
----
-
-## Principe
-
 Les Power Stones sont insérées dans les anneaux.
 
 Elles modifient la compétence associée.
 
----
-
-## MVP
-
-Non implémenté.
-
-Le système doit simplement être anticipé.
-
----
-
-## Exemples Futurs
+MVP :
 
 ```txt
-Projectile Supplémentaire
-Réduction Cooldown
+Non implémenté
+```
+
+Exemples futurs :
+
+```txt
+Projectile supplémentaire
+Réduction cooldown
 Augmentation AoE
-Élément Secondaire
-Invocation Supplémentaire
+Élément secondaire
+Invocation supplémentaire
+Conversion élémentaire
 ```
 
 ---
@@ -542,21 +523,9 @@ Summon
 AoE
 Status Application
 Resource Interaction
-```
-
----
-
-# 🔮 Extensibilité
-
-Le système doit facilement permettre :
-
-```txt
-Nouveaux comportements
-Nouveaux statuts
-Nouvelles ressources
-Nouveaux ciblages
-Nouveaux modules
-Nouvelles synergies
+Mana Cost
+Cooldown
+Charges
 ```
 
 ---
@@ -582,9 +551,8 @@ Equipment
 Affixes
 Status Effects
 Combat Mechanics
+Mana
+Stamina
 ```
 
-pour former le cœur du gameplay d'IdleKing.
-
-```
-```
+pour former le cœur du gameplay d’IdleKing.
