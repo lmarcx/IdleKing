@@ -1,29 +1,29 @@
-# ✨ Idle King — Skills System (v1)
+# ✨ Idle King — Skills System (v2)
 
 ---
 
 # 🧭 Vision
 
-Les skills constituent l’un des piliers centraux du gameplay de *Idle King*.
+Les Skills constituent l’un des piliers centraux du gameplay d’IdleKing.
 
 Le gameplay repose sur :
 
-```txt id="jtwjwp"
-- armes
-- skills
-- mouvement
-- build
-- positioning
+```txt
+Weapons
+Skills
+Movement
+Builds
+Positioning
 ```
 
-Les skills doivent permettre :
+Les Skills doivent permettre :
 
-```txt id="jpnv7y"
-- gameplay nerveux
-- profondeur stratégique
-- synergies de builds
-- modularité
-- extensibilité long terme
+```txt
+Gameplay nerveux
+Profondeur stratégique
+Synergies de builds
+Modularité
+Extensibilité long terme
 ```
 
 ---
@@ -32,96 +32,163 @@ Les skills doivent permettre :
 
 Le système vise un gameplay :
 
-```txt id="r0o9kk"
+```txt
 Hades-like
-hack & slash rapide
-skill-based
+Hack & Slash rapide
+Skill-based
 ```
 
 avec :
 
-```txt id="1y5u4h"
-- spam rapide
-- mobilité importante
-- patterns à esquiver
-- gameplay dynamique
+```txt
+Mobilité importante
+Patterns à esquiver
+Fenêtres de burst
+Choix de build significatifs
 ```
 
 ---
 
-# 🧱 Structure des skills
+# 💍 Principe Fondamental
+
+Dans IdleKing :
+
+```txt
+Weapon = Combat Actions
+Ring = Active Skill
+```
+
+Les armes définissent :
+
+```txt
+Attaques de base
+Portée
+Vitesse
+Rythme
+Style de combat
+```
+
+Les anneaux définissent :
+
+```txt
+Compétences actives
+```
+
+Le build du joueur est donc principalement défini par :
+
+```txt
+Weapon Loadout
++
+5 Equipped Rings
+```
 
 ---
 
-## 🎯 Slots de skills
+# 🎯 Skill Slots
 
 Le joueur possède :
 
-```txt id="dbx5ws"
-5 skills actives équipables
+```txt
+5 Ring Slots
 ```
 
-Pas d’ultimate dédié.
+Chaque anneau possède :
+
+```txt
+1 Active Skill
+```
+
+Donc :
+
+```txt
+5 Active Skills Maximum
+```
 
 ---
 
-## 🟩 Passifs
+# 🚫 Duplicate Restriction
 
-Les passifs proviennent principalement de :
+Le joueur ne peut pas équiper :
 
-```txt id="e9h0ly"
-- effect sets
-- équipements
-- artifacts
-- certains skills
+```txt
+2 Rings
+portant la même compétence
+```
+
+Exemple interdit :
+
+```txt
+Flame Burst
+Flame Burst
 ```
 
 ---
 
 # 🔋 Ressources
 
+## ❤️ HP
+
+Utilisé pour :
+
+```txt
+Survie
+Dégâts reçus
+Future HP-cost mechanics
+```
+
 ---
 
 ## 🟦 Mana
 
-Certaines skills consomment :
+Utilisée pour :
 
-```txt id="y8h7lp"
-mana
+```txt
+Skills
+Summons
+Utility Skills
+Defense Skills
+```
+
+Toutes les compétences actives consomment de la Mana dans le MVP.
+
+---
+
+## 🟨 Stamina
+
+Utilisée pour :
+
+```txt
+Sprint
+Dash
+Future dodge / movement mechanics
+```
+
+La Stamina ne doit pas concurrencer directement les Skills.
+
+Elle sert à préserver la mobilité défensive du joueur.
+
+---
+
+## 🟪 Cooldowns
+
+Toutes les Skills utilisent :
+
+```txt
+Cooldown
 ```
 
 ---
 
-## 🟨 Cooldowns
+## 🟣 Charges
 
-Toutes les skills utilisent :
+Le système doit supporter les charges, mais elles restent optionnelles dans le MVP.
 
-```txt id="yv6fo1"
-cooldown
-```
+Exemples futurs :
 
----
-
-## 🟪 Charges
-
-Certaines skills peuvent utiliser :
-
-```txt id="5e8znj"
-charges
-```
-
----
-
-## 🔮 Extensibilité
-
-Le système doit permettre plus tard :
-
-```txt id="l3j0lg"
-- génération mana
-- consommation HP
-- interaction stamina
-- reset cooldown
-- refund ressources
+```txt
+2 charges de Dash modifié
+3 charges de projectile
+Recharge progressive
 ```
 
 ---
@@ -130,192 +197,218 @@ Le système doit permettre plus tard :
 
 Le gameplay de base inclut :
 
-```txt id="srd4ng"
-- déplacement libre
-- sprint
-- dash
+```txt
+Déplacement libre
+Sprint
+Dash
 ```
 
 ---
 
 ## ⚡ Sprint
 
-```txt id="u4n8bf"
-- augmente move speed
-- consomme stamina
+```txt
+Augmente la vitesse de déplacement
+Consomme de la Stamina
 ```
 
 ---
 
 ## 💨 Dash
 
-Le dash sert principalement :
+Utilisé pour :
 
-```txt id="1q97nf"
-- esquive
-- repositionnement
-- évitement de patterns
+```txt
+Esquive
+Repositionnement
+Évitement de patterns
+```
+
+Le Dash consomme de la Stamina.
+
+---
+
+## 🔮 Évolutions Futures
+
+Le système doit supporter :
+
+```txt
+IFrames
+Dash offensifs
+Dash modifiés par équipement
+Dash modifiés par Power Stones
+Dash modifiés par passifs futurs
 ```
 
 ---
 
-## 🔮 Évolutions futures
+# 🧱 Catégories de Skills
 
-Le système doit supporter :
+Le système MVP supporte :
 
-```txt id="cc7ahg"
-- iframe
-- dash offensif
-- dash modifié par équipement
-- dash modifié par effects
+```txt
+Attack
+Movement
+Defense
+Utility
+Summon
 ```
 
 ---
 
-# 🧱 Types de skills
+## Attack
 
-Le système doit supporter :
+Compétences offensives.
 
-```txt id="l6h8k8"
-projectile
-aoe
-melee
-directional
-auto-target
-buff
-debuff
-heal
-shield
-channeling
-aura
-mark
-zone control
-teleport
-summon léger
+Exemples :
+
+```txt
+Shadow Slash
+Flame Burst
+Frost Lance
+Arcane Bolt
+Water Surge
+```
+
+---
+
+## Movement
+
+Compétences de mobilité consommant de la Mana, distinctes du Dash de base.
+
+Exemples :
+
+```txt
+Shadow Step
+Wind Leap
+Frost Dash
+```
+
+---
+
+## Defense
+
+Compétences défensives.
+
+Exemples :
+
+```txt
+Ice Barrier
+Guard Pulse
+Light Ward
+```
+
+---
+
+## Utility
+
+Compétences de soutien.
+
+Exemples :
+
+```txt
+War Cry
+Focus Field
+Soul Mark
+```
+
+---
+
+## Summon
+
+Compétences d’invocation.
+
+Exemples :
+
+```txt
+Spectral Hound
+Frozen Wisp
 ```
 
 ---
 
 # 🎯 Targeting
 
-Les skills doivent pouvoir utiliser :
+Le système doit supporter :
 
-```txt id="m1c2gt"
-free aim
-ground target
-cone
-line
-aoe
-self cast
-ally cast
-enemy cast
-auto target
+```txt
+Free Aim
+Ground Target
+Cone
+Line
+AoE
+Self Cast
+Enemy Cast
+Auto Target
 ```
 
 ---
 
-# 🧠 Philosophie de ciblage
+# 🌈 Éléments
 
-Certaines skills doivent demander :
+Éléments MVP :
 
-```txt id="zfr7sx"
-précision
-positionnement
-timing
+```txt
+Neutral
+Fire
+Water
+Ice
+Wind
+Electricity
+Ground
+Light
+Dark
 ```
 
----
+Règle MVP :
 
-# ⚔️ Relation armes ↔ skills
-
-Les skills sont :
-
-```txt id="79rlyw"
-indépendantes des armes
+```txt
+1 Skill = 1 Élément
 ```
 
-Exemple :
+Les Power Stones pourront permettre plus tard :
 
-```txt id="e8cys7"
-Royal Beam fonctionne avec toutes les armes.
-```
-
----
-
-# 🧱 Builds
-
-Le build d’un joueur repose sur :
-
-```txt id="kofp5k"
-skills équipées
-+
-equipment sets
-+
-effect sets
-+
-stats avancées
-```
-
----
-
-# 🧠 Types de builds supportés
-
-```txt id="q0aj1w"
-tank
-glass cannon
-balanced
-crit
-burn
-heal
-debuff
-ranged
-melee
-speed
+```txt
+Multi Elements
+Conversions Élémentaires
+Effets Hybrides
 ```
 
 ---
 
 # 🔥 Status Effects
 
----
+## Burn
 
-## 🔥 Burn
-
-```txt id="h66gv9"
-damage over time
+```txt
+Damage Over Time
 ```
 
----
+## Freeze
 
-## ❄️ Freeze
-
-```txt id="4jlwmx"
-slow
+```txt
+Slow
 ```
 
----
+## Shock
 
-## ⚡ Shock
-
-```txt id="f98l04"
-vulnerability
+```txt
+Damage Amplification
 ```
 
----
+## Bleed
 
-## 🩸 Bleed
-
-```txt id="mow5sl"
-weaken
+```txt
+Weaken
 ```
 
----
+## Future Status
 
-## 💫 Other Status
-
-```txt id="o0ugnd"
-stun
-silence
+```txt
+Stun
+Silence
+Root
+Fear
 ```
 
 ---
@@ -324,152 +417,142 @@ silence
 
 Le système doit permettre des synergies entre :
 
-```txt id="14w8pn"
-skills
-effects
-equipment
-status
+```txt
+Skills
+Equipment
+Status Effects
+Affixes
+Power Stones
 ```
 
 Exemples :
 
-```txt id="0kjy4q"
-burn + crit
-burn + tank
-freeze + heal
-shock + burst
+```txt
+Burn + Crit
+Freeze + Burst
+Shock + AoE
+Bleed + Fast Attacks
 ```
 
 ---
 
-# 📈 Progression des skills
+# 📈 Progression des Skills
 
----
+Les compétences ne possèdent pas de niveau indépendant.
 
-## 🟩 Skill Levels
+Leur puissance dépend de l’anneau qui les porte :
 
-Les skills progressent via :
-
-```txt id="1v7m13"
-skill points
+```txt
+Ring Item Level
+Ring Rarity
+Ring Upgrade Level
+Ring Affixes
+Future Power Stones
 ```
 
-obtenus par :
+Donc :
 
-```txt id="k4jrwa"
-- level up
-- quêtes
+```txt
+Upgrade Ring = Upgrade Skill
 ```
 
 ---
 
-## 🟦 Upgrade Structure
+# 💎 Power Stones
 
-Pour le MVP :
+Statut :
 
-```txt id="sz8e1j"
-upgrade linéaire
+```txt
+Future System
 ```
 
-Pas de branches complexes pour l’instant.
+Les Power Stones sont insérées dans les anneaux.
+
+Elles modifient la compétence associée.
+
+MVP :
+
+```txt
+Non implémenté
+```
+
+Exemples futurs :
+
+```txt
+Projectile supplémentaire
+Réduction cooldown
+Augmentation AoE
+Élément secondaire
+Invocation supplémentaire
+Conversion élémentaire
+```
 
 ---
 
-# 🧱 Architecture Technique
+# ⚙️ Architecture Technique
 
----
+Les compétences ne doivent jamais être codées comme :
 
-# ⚠️ Principe Fondamental
-
-Les skills ne doivent PAS être codées comme :
-
-```txt id="whw6f9"
-scripts uniques rigides
+```txt
+Scripts rigides uniques
 ```
 
 Le système doit être :
 
-```txt id="86bdf8"
-modulaire
-composable
-extensible
+```txt
+Modulaire
+Composable
+Extensible
+Data Driven
 ```
 
 ---
 
-# 🧩 Architecture modulaire recommandée
+# 🧩 Modules Potentiels
 
-Une skill doit être construite via des composants.
-
-Exemple :
-
-```txt id="dkrhr0"
-projectile
-+
-explode on impact
-+
-apply burn
-+
-spawn aoe
-```
-
----
-
-# 🧱 Modules potentiels
-
-```txt id="cq13m5"
-cast
-projectile
-movement
-damage
-heal
-shield
-buff
-debuff
-summon
-channel
-aoe
-status application
-resource interaction
-```
-
----
-
-# 🔮 Extensibilité
-
-Le système doit permettre facilement :
-
-```txt id="e98e4v"
-- nouveaux comportements
-- nouveaux status
-- nouvelles ressources
-- nouveaux types de targeting
-- nouveaux modules
-- nouvelles synergies
+```txt
+Cast
+Projectile
+Movement
+Damage
+Heal
+Shield
+Buff
+Debuff
+Summon
+AoE
+Status Application
+Resource Interaction
+Mana Cost
+Cooldown
+Charges
 ```
 
 ---
 
 # 📌 Philosophie Finale
 
-Le système de skills doit permettre :
+Le système de compétences doit permettre :
 
-```txt id="x6p7bo"
-- gameplay nerveux
-- expression du skill joueur
-- theorycraft
-- diversité des builds
-- évolution long terme
+```txt
+Gameplay nerveux
+Expression du skill joueur
+Theorycraft
+Diversité des builds
+Évolution long terme
 ```
 
-Les skills sont conçues pour fonctionner avec :
+Les Skills fonctionnent en synergie avec :
 
-```txt id="7hfd68"
-weapons
-movement
-equipment
-effect sets
-combat mechanics
+```txt
+Weapons
+Movement
+Equipment
+Affixes
+Status Effects
+Combat Mechanics
+Mana
+Stamina
 ```
 
-et former ensemble le cœur du gameplay d’Idle King.
+pour former le cœur du gameplay d’IdleKing.

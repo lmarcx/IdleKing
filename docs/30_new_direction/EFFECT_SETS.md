@@ -1,5 +1,8 @@
 # ✨ Idle King — Effect Sets (v1)
 
+> ⚠️ **SUPERSEDED par `EFFECT_SETS_AND_RESONANCE_SYSTEM_V2.md`.** Document conservé pour référence.
+> Pour le MVP, la source of truth est la V2 + `DESIGN_FREEZE_V1.md` §8.
+
 ## 1. Vision
 
 Les Effect Sets représentent les effets passifs majeurs du build.

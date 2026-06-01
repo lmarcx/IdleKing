@@ -348,7 +348,7 @@ Forge
 Buildings
 Quests
 Story
-World Gate
+Time Gate
 Online systems
 Events
 Future premium systems
