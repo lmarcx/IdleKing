@@ -23,6 +23,7 @@
 | `(narratif)` | Lore, script, cosmologie. |
 | `(stub)` | Placeholder / notes d'implémentation temporaires. |
 | `(review)` | Audit / critique de balance. **Non normatif.** |
+| `(proposal)` | Proposition de direction (UI / assets / production). **Non normatif.** |
 
 ### Règles de priorité (résolution de conflit)
 
@@ -158,6 +159,7 @@ Il ne suit donc pas les règles de génération d'équipement, ni les règles d'
 05 · Enemies & Bosses
 06 · Content & Level Design
 07 · Balance & Review
+08 · UI & Assets
 ```
 
 ### Arbre documentaire
@@ -211,8 +213,12 @@ docs / 30_new_direction
 │   ├── DUNGEON_DATABASE.md ................. [DB]
 │   └── QUEST_DATABASE.md ................... [DB]
 │
-└── 07 · BALANCE & REVIEW
-    └── BUILDS_VIGILANCE.md ................. (review — non normatif)
+├── 07 · BALANCE & REVIEW
+│   └── BUILDS_VIGILANCE.md ................. (review — non normatif)
+│
+└── 08 · UI & ASSETS
+    ├── UI_AND_ASSETS_PROPOSAL.md .......... (proposal — non normatif)
+    └── mockups/ .......................... maquettes HTML autonomes (index.html)
 ```
 
 ---
@@ -330,6 +336,8 @@ STORY_CHAPTERS ──► QUEST_DATABASE ──► DUNGEON_DATABASE
 | `STORY_CHAPTERS.md` | narratif | — | Active (canon lore) | Narratif |
 | `SCRIPTS.md` | narratif | — | Active | Narratif |
 | `BUILDS_VIGILANCE.md` | review | — | Non normatif | Balance |
+| `UI_AND_ASSETS_PROPOSAL.md` | proposal | V1 | Active (non normatif) | UI / Assets |
+| `mockups/` (HTML) | proposal | V1 | Active (non normatif) | UI / Assets — maquettes visuelles (`mockups/index.html`) |
 
 ---
 

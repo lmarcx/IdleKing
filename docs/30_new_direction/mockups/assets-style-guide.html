@@ -1,0 +1,111 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IdleKing — Assets Style Guide</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body{padding:28px}
+  .wrap{max-width:1040px;margin:0 auto}
+  h1{font-size:1.9rem;color:#e8ddc0;margin-bottom:4px}
+  section{margin-top:26px}
+  section>h2{font-size:.82rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ik-text-1);margin-bottom:12px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:6px}
+  .row{display:flex;flex-wrap:wrap;gap:14px}
+  /* rarity frames */
+  .frame{width:96px;height:96px;border-radius:12px;display:grid;place-items:center;font-size:1.8rem;position:relative;background:rgba(0,0,0,.4)}
+  .frame .cap{position:absolute;bottom:-20px;left:0;right:0;text-align:center;font-size:.62rem}
+  .fr-common{border:2px solid var(--r-common)} .fr-common .cap{color:var(--r-common)}
+  .fr-uncommon{border:2px solid var(--r-uncommon);box-shadow:0 0 14px rgba(70,196,106,.25)} .fr-uncommon .cap{color:var(--r-uncommon)}
+  .fr-rare{border:2px solid var(--r-rare);box-shadow:0 0 16px rgba(45,168,255,.3)} .fr-rare .cap{color:var(--r-rare)}
+  .fr-epic{border:2px solid var(--r-epic);box-shadow:0 0 18px rgba(154,92,255,.35)} .fr-epic .cap{color:var(--r-epic)}
+  .fr-legendary{border:2px solid var(--r-legendary);box-shadow:0 0 22px rgba(227,169,58,.4)} .fr-legendary .cap{color:var(--r-legendary)}
+  .frames-wrap{display:flex;gap:30px;flex-wrap:wrap;padding-bottom:24px}
+  /* swatch */
+  .sw{width:120px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+  .sw .chip{height:54px}
+  .sw .lab{padding:6px 8px;font-size:.64rem;color:var(--ik-text-1);background:rgba(0,0,0,.3)}
+  .sw .lab b{display:block;color:var(--ik-text-0);font-size:.7rem}
+  /* era cards */
+  .era{flex:1;min-width:260px;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
+  .era .band{height:90px;position:relative}
+  .era .meta{padding:12px}
+  .era .meta .nm{font-family:var(--font-title);font-size:1rem}
+  .era .meta .d{font-size:.68rem;color:var(--ik-text-2);margin-top:4px;line-height:1.6}
+  .funebre .band{background:radial-gradient(circle at 50% 10%,rgba(255,138,43,.25),transparent 45%),linear-gradient(180deg,#1a120c,#0d0a08)}
+  .funebre .band::after{content:"";position:absolute;top:14px;left:50%;transform:translateX(-50%);width:46px;height:46px;border-radius:50%;background:radial-gradient(circle,#0a0a0a 52%,rgba(255,140,40,.6) 56%,transparent 72%)}
+  .glaciaire .band{background:radial-gradient(circle at 50% 30%,rgba(0,231,255,.22),transparent 55%),linear-gradient(180deg,#0a1822,#04101a)}
+  /* telegraph */
+  .tele{width:90px;height:90px;border-radius:50%;display:grid;place-items:center;font-size:.6rem;text-align:center;color:#fff}
+  .t-damage{border:3px dashed var(--tele-damage);background:radial-gradient(circle,rgba(255,138,43,.16),transparent 70%)}
+  .t-lethal{border:3px solid var(--tele-lethal);background:radial-gradient(circle,rgba(255,59,59,.18),transparent 70%)}
+  .t-stun{border:3px solid var(--tele-stun);background:radial-gradient(circle,rgba(255,210,59,.16),transparent 70%)}
+  .t-debuff{border:3px solid var(--tele-debuff);background:radial-gradient(circle,rgba(59,123,255,.16),transparent 70%)}
+  .t-safe{border:3px solid var(--tele-safe);background:radial-gradient(circle,rgba(70,196,106,.16),transparent 70%)}
+  /* icon placeholders */
+  .ico{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;font-size:1.6rem;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.1)}
+  .ico .cap{font-size:.56rem}
+  .iwrap{display:grid;justify-items:center;gap:4px;font-size:.6rem;color:var(--ik-text-2)}
+</style></head>
+<body><div class="wrap">
+  <div class="eyebrow">Direction artistique — référence assets</div>
+  <h1>Assets Style Guide</h1>
+
+  <section>
+    <h2>Cadres de rareté (équipement / items)</h2>
+    <div class="frames-wrap">
+      <div class="frame fr-common">⚔️<span class="cap">Common · 0 affixe</span></div>
+      <div class="frame fr-uncommon">⚔️<span class="cap">Uncommon · 0 affixe</span></div>
+      <div class="frame fr-rare">⚔️<span class="cap">Rare · 1 affixe</span></div>
+      <div class="frame fr-epic">⚔️<span class="cap">Epic · 1 affixe</span></div>
+      <div class="frame fr-legendary">⚔️<span class="cap">Legendary · 2 affixes</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Palette de marque (tokens existants)</h2>
+    <div class="row">
+      <div class="sw"><div class="chip" style="background:var(--ik-gold)"></div><div class="lab"><b>Royal Gold</b>#c6a85b · Fantasy</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ik-cyan)"></div><div class="lab"><b>Cosmic Cyan</b>#00e7ff · Rêve/Tobo</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ik-violet)"></div><div class="lab"><b>Dream Violet</b>#8a5cff · Visions</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ik-xp)"></div><div class="lab"><b>XP</b>#1aff7a</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ik-wxp)"></div><div class="lab"><b>WXP</b>#2da8ff</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ik-danger)"></div><div class="lab"><b>Danger</b>#b83232</div></div>
+      <div class="sw"><div class="chip" style="background:var(--ik-bg-1)"></div><div class="lab"><b>Panel</b>#141a22</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Teintes d'Ère (MVP — 2 thèmes)</h2>
+    <div class="row">
+      <div class="era funebre"><div class="band"></div><div class="meta"><div class="nm">Ère Funèbre</div>
+        <div class="d">Prologue (Terres Désolées) + Chapitre I. Cendre + braise, ciel éclipsé, brume grise.</div></div></div>
+      <div class="era glaciaire"><div class="band"></div><div class="meta"><div class="nm">Ère Glaciaire</div>
+        <div class="d">Chapitre II. Cyan glacé + blanc bleuté ; le cyan cosmic devient diégétique.</div></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Télégraphes combat (code couleur — COMBAT.md §18)</h2>
+    <div class="row">
+      <div class="tele t-damage">Orange<br>dégâts</div>
+      <div class="tele t-lethal">Rouge<br>mortel</div>
+      <div class="tele t-stun">Jaune<br>stun</div>
+      <div class="tele t-debuff">Bleu<br>debuff</div>
+      <div class="tele t-safe">Vert<br>safe</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Familles d'icônes à produire (placeholders)</h2>
+    <div class="row">
+      <div class="iwrap"><div class="ico">⛏️</div>Minerais</div>
+      <div class="iwrap"><div class="ico">🪵</div>Bois</div>
+      <div class="iwrap"><div class="ico">💎</div>Gemmes</div>
+      <div class="iwrap"><div class="ico">🥕</div>Farm</div>
+      <div class="iwrap"><div class="ico">🍖</div>Viande</div>
+      <div class="iwrap"><div class="ico">🌑</div>Matériaux thèmes</div>
+      <div class="iwrap"><div class="ico">🔮</div>Cores boss</div>
+      <div class="iwrap"><div class="ico">💍</div>Rings/Skills</div>
+      <div class="iwrap"><div class="ico">⏳</div>Fragment du Temps</div>
+      <div class="iwrap"><div class="ico">🔷</div>Kaléidoscope</div>
+    </div>
+  </section>
+</div></body></html>

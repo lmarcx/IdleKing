@@ -1,0 +1,128 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IdleKing — Résonance & Effect Sets</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body{padding:28px}
+  .wrap{max-width:1080px;margin:0 auto}
+  .head{margin-bottom:20px}
+  .head h1{font-size:1.9rem;color:#e8ddc0}
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:22px}
+  .box{border-radius:var(--r-xl);padding:18px;border:1px solid rgba(58,66,79,.85);background:var(--ik-bg-1)}
+  /* resonance meter */
+  .meter{display:flex;align-items:center;gap:18px;margin-bottom:16px;padding:14px;border-radius:14px;
+    background:linear-gradient(180deg,rgba(0,231,255,.06),transparent);border:1px solid rgba(0,231,255,.25)}
+  .meter .total{font-family:var(--font-title);font-size:2.6rem;color:var(--ik-cyan);text-shadow:0 0 18px rgba(0,231,255,.3);line-height:1}
+  .meter .calc{font-size:.72rem;color:var(--ik-text-2);line-height:1.7}
+  .meter .calc b{color:var(--ik-text-0)}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .slot{border-radius:12px;padding:10px;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.08);position:relative}
+  .slot .nm{font-size:.66rem;color:var(--ik-text-2);text-transform:uppercase;letter-spacing:.08em}
+  .slot .rar{font-size:.82rem;font-weight:700;margin-top:3px}
+  .slot .pts{position:absolute;top:8px;right:10px;font-family:var(--font-title);font-size:.95rem}
+  .common .rar,.common .pts{color:var(--r-common)} .common{border-color:rgba(154,164,178,.4)}
+  .uncommon .rar,.uncommon .pts{color:var(--r-uncommon)} .uncommon{border-color:rgba(70,196,106,.4)}
+  .rare .rar,.rare .pts{color:var(--r-rare)} .rare{border-color:rgba(45,168,255,.45)}
+  .epic .rar,.epic .pts{color:var(--r-epic)} .epic{border-color:rgba(154,92,255,.45)}
+  .legendary .rar,.legendary .pts{color:var(--r-legendary)} .legendary{border-color:rgba(227,169,58,.5)}
+  .excl{margin-top:14px;font-size:.66rem;color:var(--ik-text-2);border-top:1px dashed rgba(255,255,255,.1);padding-top:10px}
+  /* effect slots + sets */
+  .effslots{display:flex;gap:10px;margin-bottom:16px}
+  .eff{flex:1;aspect-ratio:1;border-radius:12px;display:grid;place-items:center;text-align:center;font-size:.62rem;padding:6px;
+    border:1px dashed rgba(0,231,255,.4);background:rgba(0,231,255,.04);color:var(--ik-text-1)}
+  .eff.filled{border-style:solid;background:rgba(0,231,255,.1);box-shadow:0 0 16px rgba(0,231,255,.14)}
+  .eff.empty{opacity:.5}
+  .setlist{display:grid;gap:10px}
+  .set{display:flex;align-items:center;gap:12px;padding:11px;border-radius:12px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08)}
+  .set .ic{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-size:1.2rem;flex:none}
+  .set .body{flex:1;min-width:0}
+  .set .nm{font-weight:700;font-size:.86rem}
+  .set .fx{font-size:.68rem;color:var(--ik-text-2);margin-top:2px}
+  .set .src{font-size:.6rem;color:var(--ik-text-2);margin-top:2px;font-style:italic}
+  .set.slotted{border-color:rgba(0,231,255,.5);box-shadow:0 0 16px rgba(0,231,255,.12)}
+  .set.slotted .ic{background:rgba(0,231,255,.12)}
+  .set.locked{opacity:.55}
+  .set .act{font-size:.62rem}
+</style></head>
+<body><div class="wrap">
+  <div class="head">
+    <div class="eyebrow">Layer 4 du build — système passif</div>
+    <h1>Résonance & Effect Sets</h1>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT : resonance from 9 slots -->
+    <div class="box">
+      <div class="meter">
+        <div class="total">27</div>
+        <div class="calc">
+          <div>Résonance totale (9 slots équipés)</div>
+          <div><b>Effect Slots = floor(27 / 9) = 3</b></div>
+          <div>Rings &amp; Artifact <b>exclus</b> du calcul.</div>
+        </div>
+      </div>
+
+      <div class="slots">
+        <div class="slot legendary"><div class="nm">Casque</div><div class="rar">Legendary</div><div class="pts">4</div></div>
+        <div class="slot epic"><div class="nm">Torse</div><div class="rar">Epic</div><div class="pts">3</div></div>
+        <div class="slot epic"><div class="nm">Cape</div><div class="rar">Epic</div><div class="pts">3</div></div>
+        <div class="slot rare"><div class="nm">Gants</div><div class="rar">Rare</div><div class="pts">2</div></div>
+        <div class="slot legendary"><div class="nm">Ceinture</div><div class="rar">Legendary</div><div class="pts">4</div></div>
+        <div class="slot rare"><div class="nm">Bottes</div><div class="rar">Rare</div><div class="pts">2</div></div>
+        <div class="slot epic"><div class="nm">Arme</div><div class="rar">Epic</div><div class="pts">3</div></div>
+        <div class="slot rare"><div class="nm">Off-hand</div><div class="rar">Rare</div><div class="pts">2</div></div>
+        <div class="slot legendary"><div class="nm">Collier</div><div class="rar">Legendary</div><div class="pts">4</div></div>
+      </div>
+      <div class="excl">Valeurs : Common 0 · Uncommon 1 · Rare 2 · Epic 3 · Legendary 4 &nbsp;(DESIGN_FREEZE §8)</div>
+    </div>
+
+    <!-- RIGHT : effect slots + sets -->
+    <div class="box">
+      <div class="eyebrow" style="margin-bottom:8px">3 Effect Slots disponibles</div>
+      <div class="effslots">
+        <div class="eff filled">🌑<br>Shadow Veil</div>
+        <div class="eff filled">🔥<br>Lordflame</div>
+        <div class="eff empty">＋<br>Slot libre</div>
+      </div>
+
+      <div class="eyebrow" style="margin:14px 0 8px">Effect Sets acquis (acquisition narrative)</div>
+      <div class="setlist">
+        <div class="set slotted">
+          <div class="ic">🌑</div>
+          <div class="body"><div class="nm">Shadow Veil</div>
+            <div class="fx">Crit chance · dégâts Dark · sustain léger</div>
+            <div class="src">Amalgame des Ténèbres — Prologue</div></div>
+          <button class="btn act">Retirer</button>
+        </div>
+        <div class="set slotted">
+          <div class="ic">🔥</div>
+          <div class="body"><div class="nm">Lordflame</div>
+            <div class="fx">Applique Burn · bonus dégâts vs cibles Burn</div>
+            <div class="src">Ombre du Dragon — Ch I</div></div>
+          <button class="btn act">Retirer</button>
+        </div>
+        <div class="set">
+          <div class="ic">🛡️</div>
+          <div class="body"><div class="nm">Motherstone</div>
+            <div class="fx">DEF · HP · réduction de dégâts</div>
+            <div class="src">Fleuve de Vie — Ch I</div></div>
+          <button class="btn btn--cosmic act">Équiper</button>
+        </div>
+        <div class="set locked">
+          <div class="ic">❄️</div>
+          <div class="body"><div class="nm">Kingfrost</div>
+            <div class="fx">Applique Freeze · bonus vs cibles gelées</div>
+            <div class="src">Archimage — Ch II (non acquis)</div></div>
+          <span class="tag tag--locked act">Verrouillé</span>
+        </div>
+        <div class="set locked">
+          <div class="ic">🌧️</div>
+          <div class="body"><div class="nm">Rainmaker</div>
+            <div class="fx">Mana regen · applique Drench · bonus vs Drench</div>
+            <div class="src">Seigneur de la Pluie Déchu — Ch II (non acquis)</div></div>
+          <span class="tag tag--locked act">Verrouillé</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></body></html>
