@@ -163,9 +163,6 @@ function defaultName(slot: ItemSlot, rarity: Rarity, element: Element): string {
     RARE: "Rare",
     EPIC: "Épique",
     LEGENDARY: "Légendaire",
-    MYTHIC: "Mythique",
-    DIVINE: "Divin",
-    ANCIENT: "Ancien",
   };
 
   const slotLabel: Record<ItemSlot, string> = {
@@ -197,7 +194,7 @@ export function generateItem(params: GenerateItemParams): GeneratedItem {
   const element = rollElement(rng, params.biome);
 
   const budget = budgetFinal(ilvl, rarity, tier);
-  const rolledStats = allocateStats({ kind, budget, element });
+  const rolledStats = slot === "ARTIFACT" ? {} : allocateStats({ kind, budget, element });
 
   const itemPower = computeItemPowerFromStats(toCombatStats(rolledStats), tier);
 

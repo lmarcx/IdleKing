@@ -7,13 +7,18 @@ export type {
   GenerateEquipmentItemParams,
   GenerateEquipmentLootDropParams,
 } from "./generation.js";
+export * from "./rules.js";
 import {
   EQUIPMENT_SLOTS,
   isEquipmentItem,
   isEquipmentSlot,
+  normalizeEquipmentSlot,
   normalizeEquipmentItem,
+  type EquipmentAffix,
+  type EquipmentInstance,
   type EquipmentItem,
   type EquipmentSlot,
+  type ItemRarity,
   type ResolvedEquipmentStats,
 } from "../items/types.js";
 
@@ -63,8 +68,9 @@ export function normalizePlayerEquipmentState(value: unknown): PlayerEquipmentSt
   if (!equipped || typeof equipped !== "object") return base;
 
   for (const [slot, itemId] of Object.entries(equipped)) {
-    if (!isEquipmentSlot(slot)) continue;
-    base.equipped[slot] = typeof itemId === "string" ? itemId : null;
+    const normalizedSlot = normalizeEquipmentSlot(slot);
+    if (!normalizedSlot) continue;
+    base.equipped[normalizedSlot] = typeof itemId === "string" ? itemId : null;
   }
 
   return base;
@@ -153,6 +159,7 @@ export function unequipItem(gameState: GameState, slot: EquipmentSlot): UnequipI
 }
 
 function addEquipmentStats(target: ResolvedEquipmentStats, item: EquipmentItem) {
+  if (item.slot === "artifact") return;
   target.hp += item.stats.hp ?? 0;
   target.attack += item.stats.attack ?? 0;
   target.defense += item.stats.defense ?? 0;
@@ -183,6 +190,9 @@ export function calculateFinalCharacterStats(gameState: GameState): ResolvedEqui
 
 export type {
   EquipmentItem,
+  EquipmentAffix,
+  EquipmentInstance,
   EquipmentSlot,
+  ItemRarity,
   ResolvedEquipmentStats,
 };

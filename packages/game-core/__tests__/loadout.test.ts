@@ -61,3 +61,27 @@ test("legacy ring loadout slots are ignored", () => {
   assert.equal(loadout.NECKLACE, "necklace-item");
   assert.equal((loadout as any).RING, undefined);
 });
+
+test("legacy artifact loadout slot is accepted but contributes no combat stats", () => {
+  let inv = createInventory();
+  const generated = generateItem({
+    seed: 22,
+    worldLevel: 30,
+    biome: "VOLCANIC",
+    ilvl: 600,
+  });
+  const artifact = {
+    ...generated,
+    id: "legacy-artifact",
+    kind: "JEWELRY" as const,
+    slot: "ARTIFACT" as const,
+    stats: { attack: 999, hp: 999 },
+  };
+  inv = addItem(inv, artifact);
+
+  const { loadout } = equipItem({ inventory: inv, loadout: {}, itemId: artifact.id });
+  const computed = computeLoadoutComputed(inv, loadout);
+
+  assert.equal(computed.equippedItems.length, 1);
+  assert.equal(hasAnyContribution(computed.loadoutStats), false);
+});

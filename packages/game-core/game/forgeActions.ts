@@ -133,13 +133,14 @@ export function forgeUpgrade(
   }
 
   const nextResources = spend(state.resources, cost.resources);
-  const baseStats = normalizedItem.baseStats ?? normalizedItem.stats;
+  const rolledStats = normalizedItem.rolledStats ?? normalizedItem.baseStats ?? normalizedItem.stats;
   const nextUpgradeLevel = normalizedItem.upgradeLevel + 1;
   const upgraded = {
     ...normalizedItem,
-    baseStats,
+    baseStats: normalizedItem.baseStats ?? rolledStats,
+    rolledStats,
     stats: getUpgradedEquipmentStats(
-      baseStats,
+      rolledStats,
       normalizedItem.rarity,
       normalizedItem.itemLevel ?? normalizedItem.ilvl ?? 1,
       nextUpgradeLevel,

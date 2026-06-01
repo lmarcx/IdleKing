@@ -19,11 +19,18 @@ import { loadGame } from "../game/save.js";
 import { EQUIPMENT_SLOTS, isEquipmentItem, type EquipmentItem, type NonEquipmentItem } from "../items/types.js";
 
 function equipmentItem(overrides: Partial<EquipmentItem> & Pick<EquipmentItem, "id" | "name" | "slot">): EquipmentItem {
+  const stats = overrides.stats ?? {};
   return {
-    kind: "equipment",
-    stats: {},
-    upgradeLevel: 0,
     ...overrides,
+    affixes: overrides.affixes ?? [],
+    baseItemId: overrides.baseItemId ?? overrides.id,
+    ilvl: overrides.ilvl ?? 1,
+    instanceId: overrides.instanceId ?? overrides.id,
+    kind: "equipment",
+    rarity: overrides.rarity ?? "COMMON",
+    rolledStats: overrides.rolledStats ?? stats,
+    stats,
+    upgradeLevel: overrides.upgradeLevel ?? 0,
   };
 }
 
@@ -59,13 +66,13 @@ test("generateEquipmentItem produces valid equipment for every active slot", () 
     assert.ok(isEquipmentItem(item));
     assert.equal(item.kind, "equipment");
     assert.equal(item.slot, slot);
-    assert.ok(totalStats(item) > 0);
+    assert.equal(totalStats(item) > 0, slot !== "artifact");
   }
 });
 
 test("generateEquipmentItem stats scale with itemLevel", () => {
-  const low = generateEquipmentItem({ slot: "weapon", itemLevel: 5, seed: "weapon-low" });
-  const high = generateEquipmentItem({ slot: "weapon", itemLevel: 50, seed: "weapon-high" });
+  const low = generateEquipmentItem({ slot: "main_hand", itemLevel: 5, seed: "weapon-low" });
+  const high = generateEquipmentItem({ slot: "main_hand", itemLevel: 50, seed: "weapon-high" });
 
   assert.ok((high.stats.attack ?? 0) > (low.stats.attack ?? 0));
   assert.ok((high.stats.power ?? 0) > (low.stats.power ?? 0));
@@ -80,11 +87,11 @@ test("generateEquipmentLootDrop can produce a valid equipment item", () => {
 });
 
 test("generated equipment can live in inventory, equip, and affect final stats", () => {
-  const weapon = generateEquipmentItem({ slot: "weapon", itemLevel: 20, seed: "generated-weapon" });
+  const weapon = generateEquipmentItem({ slot: "main_hand", itemLevel: 20, seed: "generated-weapon" });
   const equipped = equipItem(stateWithItems([weapon]), weapon.id);
   assertEquipOk(equipped);
 
-  assert.equal(equipped.state.equipment.equipped.weapon, weapon.id);
+  assert.equal(equipped.state.equipment.equipped.main_hand, weapon.id);
   assert.deepEqual(equipped.state.inventory.items, [weapon]);
 
   const finalStats = calculateFinalCharacterStats(equipped.state);
@@ -133,7 +140,7 @@ test("old save without equipment revives with default equipment state", () => {
 });
 
 test("equipItem equips weapon and chest items from inventory", () => {
-  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "weapon", stats: { attack: 3 } });
+  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "main_hand", stats: { attack: 3 } });
   const chest = equipmentItem({ id: "chest-1", name: "Training Plate", slot: "chest", stats: { hp: 20, defense: 2 } });
   let state = stateWithItems([weapon, chest]);
 
@@ -144,7 +151,7 @@ test("equipItem equips weapon and chest items from inventory", () => {
   const chestResult = equipItem(state, chest.id);
   assertEquipOk(chestResult);
 
-  assert.equal(chestResult.state.equipment.equipped.weapon, weapon.id);
+  assert.equal(chestResult.state.equipment.equipped.main_hand, weapon.id);
   assert.equal(chestResult.state.equipment.equipped.chest, chest.id);
   assert.deepEqual(
     getEquippedItems(chestResult.state).map((item) => item.id),
@@ -153,8 +160,8 @@ test("equipItem equips weapon and chest items from inventory", () => {
 });
 
 test("equipping another item in the same slot replaces the previous item", () => {
-  const oldWeapon = equipmentItem({ id: "weapon-old", name: "Old Sword", slot: "weapon", stats: { attack: 1 } });
-  const newWeapon = equipmentItem({ id: "weapon-new", name: "New Sword", slot: "weapon", stats: { attack: 5 } });
+  const oldWeapon = equipmentItem({ id: "weapon-old", name: "Old Sword", slot: "main_hand", stats: { attack: 1 } });
+  const newWeapon = equipmentItem({ id: "weapon-new", name: "New Sword", slot: "main_hand", stats: { attack: 5 } });
   let state = stateWithItems([oldWeapon, newWeapon]);
 
   const first = equipItem(state, oldWeapon.id);
@@ -165,21 +172,21 @@ test("equipping another item in the same slot replaces the previous item", () =>
   assertEquipOk(second);
 
   assert.equal(second.replacedItemId, oldWeapon.id);
-  assert.equal(second.state.equipment.equipped.weapon, newWeapon.id);
+  assert.equal(second.state.equipment.equipped.main_hand, newWeapon.id);
 });
 
 test("unequipItem clears an equipped slot and empty slots succeed neutrally", () => {
-  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "weapon", stats: { attack: 3 } });
+  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "main_hand", stats: { attack: 3 } });
   const equipped = equipItem(stateWithItems([weapon]), weapon.id);
   assertEquipOk(equipped);
 
-  const unequipped = unequipItem(equipped.state, "weapon");
+  const unequipped = unequipItem(equipped.state, "main_hand");
   assert.equal(unequipped.removedItemId, weapon.id);
-  assert.equal(unequipped.state.equipment.equipped.weapon, null);
+  assert.equal(unequipped.state.equipment.equipped.main_hand, null);
 
-  const emptyUnequip = unequipItem(unequipped.state, "weapon");
+  const emptyUnequip = unequipItem(unequipped.state, "main_hand");
   assert.equal(emptyUnequip.removedItemId, null);
-  assert.equal(emptyUnequip.state.equipment.equipped.weapon, null);
+  assert.equal(emptyUnequip.state.equipment.equipped.main_hand, null);
 });
 
 test("equipItem rejects missing and non-equipment items", () => {
@@ -198,7 +205,7 @@ test("equipItem rejects missing and non-equipment items", () => {
 });
 
 test("calculateEquipmentStats sums hp attack defense and power", () => {
-  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "weapon", stats: { attack: 4, power: 7 } });
+  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "main_hand", stats: { attack: 4, power: 7 } });
   const cape = equipmentItem({ id: "cape-1", name: "Training Cape", slot: "cape", stats: { hp: 15, defense: 3 } });
   let state = stateWithItems([weapon, cape]);
 
@@ -218,7 +225,7 @@ test("calculateEquipmentStats sums hp attack defense and power", () => {
 });
 
 test("calculateFinalCharacterStats combines base stats and equipment stats", () => {
-  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "weapon", stats: { attack: 4, power: 7 } });
+  const weapon = equipmentItem({ id: "weapon-1", name: "Training Sword", slot: "main_hand", stats: { attack: 4, power: 7 } });
   const equipped = equipItem(stateWithItems([weapon]), weapon.id);
   assertEquipOk(equipped);
 
@@ -246,7 +253,7 @@ test("buildCharacterCombatLoadout uses final character stats", () => {
 });
 
 test("buildCharacterCombatLoadout includes equipped weapon attack", () => {
-  const weapon = equipmentItem({ id: "weapon-attack-10", name: "Sharp Sword", slot: "weapon", stats: { attack: 10 } });
+  const weapon = equipmentItem({ id: "weapon-attack-10", name: "Sharp Sword", slot: "main_hand", stats: { attack: 10 } });
   const equipped = equipItem(stateWithItems([weapon]), weapon.id);
   assertEquipOk(equipped);
 

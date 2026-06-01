@@ -44,6 +44,7 @@ function addElementMap(
 }
 
 function addItemStats(stats: ReturnType<typeof emptyCombatStats>, item: GeneratedItem) {
+  if (item.slot === "ARTIFACT") return stats;
   const s = item.stats;
 
   stats.hp += Math.round(s.hp ?? 0);

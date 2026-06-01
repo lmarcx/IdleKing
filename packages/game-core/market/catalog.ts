@@ -113,7 +113,7 @@ export const MARKET_EQUIPMENT_ENTRIES: MarketEquipmentEntry[] = [
     equipment: {
       idPrefix: "market_basic_sword",
       name: "Basic Sword",
-      slot: "weapon",
+      slot: "main_hand",
       itemLevel: 1,
       rarity: "COMMON",
       value: 24,

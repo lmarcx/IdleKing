@@ -8,9 +8,6 @@ export const RARITY_MULTIPLIER: Record<Rarity, number> = {
   RARE: 1.35,
   EPIC: 1.8,
   LEGENDARY: 2.5,
-  MYTHIC: 3.4,
-  DIVINE: 4.5,
-  ANCIENT: 6.0,
 };
 
 /**
@@ -29,10 +26,7 @@ export function rarityFromIlvl(ilvl: number): { rarity: Rarity; local: number; s
   else if (local <= 40) rarity = "UNCOMMON";
   else if (local <= 55) rarity = "RARE";
   else if (local <= 70) rarity = "EPIC";
-  else if (local <= 82) rarity = "LEGENDARY";
-  else if (local <= 92) rarity = "MYTHIC";
-  else if (local <= 98) rarity = "DIVINE";
-  else rarity = "ANCIENT";
+  else rarity = "LEGENDARY";
 
   return { rarity, local, segment };
 }
