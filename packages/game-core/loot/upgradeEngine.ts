@@ -2,6 +2,7 @@ import type { GeneratedItem } from "./itemGenerator.js";
 import type { Element, CombatStats } from "../power/types.js";
 import { computeItemPowerFromStats, emptyCombatStats } from "../power/itemScore.js";
 import { tierFromWorldLevel } from "./budget.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 
 export type UpgradeCost = {
   kingamas: number;
@@ -81,7 +82,7 @@ function toCombatStats(itemStats: GeneratedItem["stats"]): CombatStats {
     resists: { ...base.resists, ...(itemStats.resists ?? {}) },
     elemental: { ...base.elemental, ...(itemStats.elemental ?? {}) },
     critChance: itemStats.critChance ?? 0,
-    critDmg: 1.5 + (itemStats.critDmg ?? 0),
+    critDmg: CRIT_DAMAGE_DEFAULT + (itemStats.critDmg ?? 0),
     speedRating: Math.round(itemStats.speedRating ?? 0),
     pierceRating: Math.round(itemStats.pierceRating ?? 0),
   };

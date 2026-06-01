@@ -1,4 +1,5 @@
 import type { CombatStats, Element } from "./types.js";
+import { CRIT_DAMAGE_DEFAULT } from "./constants.js";
 
 export function emptyCombatStats(): CombatStats {
   return {
@@ -8,7 +9,7 @@ export function emptyCombatStats(): CombatStats {
     resists: { FIRE: 0, ICE: 0, LIGHTNING: 0, VOID: 0 },
     elemental: { FIRE: 0, ICE: 0, LIGHTNING: 0, VOID: 0 },
     critChance: 0,
-    critDmg: 1.5,
+    critDmg: CRIT_DAMAGE_DEFAULT,
     speedRating: 0,
     pierceRating: 0,
   };
@@ -35,7 +36,7 @@ export function sumStats(a: CombatStats, b: CombatStats): CombatStats {
   out.armor += b.armor;
 
   out.critChance += b.critChance;
-  out.critDmg += (b.critDmg - 1.5); // keep baseline 1.5 consistent (optional choice)
+  out.critDmg += (b.critDmg - CRIT_DAMAGE_DEFAULT);
   if (out.critDmg < 1.0) out.critDmg = 1.0;
 
   out.speedRating += b.speedRating;

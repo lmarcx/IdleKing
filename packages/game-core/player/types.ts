@@ -1,4 +1,5 @@
 import type { CombatStats, Element } from "../power/types.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 import type { GeneratedItem } from "../loot/itemGenerator.js";
 import type { ItemSlot } from "../loot/budget.js";
 
@@ -32,7 +33,7 @@ export function emptyCombatStats(): CombatStats {
     resists,
     elemental,
     critChance: 0,
-    critDmg: 1.5,
+    critDmg: CRIT_DAMAGE_DEFAULT,
     speedRating: 0,
     pierceRating: 0,
   };

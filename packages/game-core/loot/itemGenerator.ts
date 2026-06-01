@@ -4,6 +4,7 @@ import type { ItemSlot, ItemKind, ItemStats } from "./budget.js";
 import { SLOT_KIND, allocateStats, tierFromWorldLevel, budgetFinal } from "./budget.js";
 import type { Rarity } from "./rarity.js";
 import { rarityFromIlvl } from "./rarity.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 
 /**
  * Biomes (MVP): 4 biomes -> 4 elements
@@ -145,7 +146,7 @@ function toCombatStats(itemStats: ItemStats): CombatStats {
     resists: { ...base.resists, ...(itemStats.resists ?? {}) },
     elemental: { ...base.elemental, ...(itemStats.elemental ?? {}) },
     critChance: itemStats.critChance ?? 0,
-    critDmg: 1.5 + (itemStats.critDmg ?? 0),
+    critDmg: CRIT_DAMAGE_DEFAULT + (itemStats.critDmg ?? 0),
     speedRating: Math.round(itemStats.speedRating ?? 0),
     pierceRating: Math.round(itemStats.pierceRating ?? 0),
   };

@@ -1,13 +1,21 @@
 import type { CombatStats, Element } from "./types.js";
 import {
-  K_ARMOR_REF,
   K_RESIST_REF,
   K_ELEMENTAL_REF,
   BASE_ATTACK_INTERVAL,
   MIN_ATTACK_INTERVAL,
+  CRIT_DAMAGE_DEFAULT,
+  ITEM_POWER_EXPONENT,
+  ITEM_SCORE_DEFENSE_EXPONENT,
+  ITEM_SCORE_DEFENSE_WEIGHT,
+  ITEM_SCORE_OFFENSE_EXPONENT,
+  ITEM_SCORE_OFFENSE_WEIGHT,
+  PIERCE_POWER_WEIGHT,
+  PIERCE_RATING_REF,
 } from "./constants.js";
 import { computeCritMultiplier } from "./crit.js";
 import { TIER_MULTIPLIERS } from "./constants.js";
+import { computeDefenseMitigation } from "./statsModel.js";
 
 export type ItemScoreBreakdown = {
   offense: number;
@@ -31,7 +39,7 @@ function computeAttackInterval(speedRating: number) {
 }
 
 function computePierce(pierceRating: number) {
-  return pierceRating / (pierceRating + 180);
+  return pierceRating / (pierceRating + PIERCE_RATING_REF);
 }
 
 function elementalTotal(stats: CombatStats) {
@@ -51,7 +59,7 @@ export function computeItemScore(stats: CombatStats): ItemScoreBreakdown {
   const speedFactor = 1 / attackInterval;
 
   const pierce = computePierce(stats.pierceRating);
-  const pierceFactor = 1 + 0.6 * pierce;
+  const pierceFactor = 1 + PIERCE_POWER_WEIGHT * pierce;
 
   const critFactor = computeCritMultiplier(stats.critChance, stats.critDmg);
 
@@ -68,14 +76,14 @@ export function computeItemScore(stats: CombatStats): ItemScoreBreakdown {
   // DEFENSE
   const defense =
     Math.max(0, stats.hp) *
-    (1 + stats.armor / (stats.armor + K_ARMOR_REF)) *
+    (1 + computeDefenseMitigation(stats.armor)) *
     resistFactorAvg(stats);
 
   // Weighted sum (so one side can be 0 without killing the total)
   // Defaults: offense 70%, defense 30%
   const total =
-    Math.pow(offense, 0.70) * 0.70 +
-    Math.pow(defense, 0.60) * 0.30;
+    Math.pow(offense, ITEM_SCORE_OFFENSE_EXPONENT) * ITEM_SCORE_OFFENSE_WEIGHT +
+    Math.pow(defense, ITEM_SCORE_DEFENSE_EXPONENT) * ITEM_SCORE_DEFENSE_WEIGHT;
 
   return { offense, defense, total };
 }
@@ -86,7 +94,7 @@ export function computeItemPowerFromStats(stats: CombatStats, tier: number) {
   const tierMultiplier = TIER_MULTIPLIERS[Math.max(0, tier - 1)] ?? 1;
 
   // Slightly gentler exponent than player power
-  const power = Math.round(Math.pow(total * tierMultiplier, 1.06));
+  const power = Math.round(Math.pow(total * tierMultiplier, ITEM_POWER_EXPONENT));
 
   return power;
 }
@@ -115,7 +123,7 @@ export function emptyCombatStats(): CombatStats {
     resists,
     elemental,
     critChance: 0,
-    critDmg: 1.5,
+    critDmg: CRIT_DAMAGE_DEFAULT,
     speedRating: 0,
     pierceRating: 0,
   };

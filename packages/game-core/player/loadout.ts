@@ -3,6 +3,7 @@ import type { ItemSlot } from "../loot/budget.js";
 import type { Inventory, Loadout, LoadoutComputed } from "./types.js";
 import { emptyCombatStats } from "./types.js";
 import type { Element } from "../power/types.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 
 const ACTIVE_ITEM_SLOTS: readonly ItemSlot[] = [
   "HELM",
@@ -51,7 +52,7 @@ function addItemStats(stats: ReturnType<typeof emptyCombatStats>, item: Generate
 
   stats.critChance += s.critChance ?? 0;
 
-  // We keep base critDmg = 1.5 at the end; items don't roll it in MVP.
+  // We keep the locked MVP base crit damage at the end; items don't roll it yet.
   // If later items roll bonus critDmg, we'll decide how to apply it.
   // stats.critDmg += s.critDmg ?? 0;
 
@@ -108,8 +109,8 @@ export function computeLoadoutComputed(inventory: Inventory, loadout: Loadout): 
     addItemStats(stats, item);
   }
 
-  // Enforce base critDmg in MVP (uncapped critChance handled in combat model).
-  stats.critDmg = 1.5;
+  // Enforce locked MVP defaults after aggregation.
+  stats.critDmg = CRIT_DAMAGE_DEFAULT;
 
   return { loadoutStats: stats, equippedItems: equipped };
 }

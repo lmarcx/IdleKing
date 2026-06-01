@@ -1,6 +1,7 @@
 // progression/baseStats.ts
 import type { Element } from "../power/types.js";
 import type { CombatStats } from "../power/types.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 
 // Bonus Level (secondaire endgame)
 // BaseStatsMultiplier(L) = 1 + (L-1) * 0.008
@@ -41,7 +42,7 @@ export function baseStats(level: number): CombatStats {
     resists,
     elemental,
     critChance: 0.05,
-    critDmg: 1.5,
+    critDmg: CRIT_DAMAGE_DEFAULT,
     speedRating: 0,
     pierceRating: 0,
   };

@@ -1,15 +1,11 @@
-import { OVERFLOW_RATE } from "./constants.js";
+import { CRIT_DAMAGE_DEFAULT } from "./constants.js";
+import { capCritChance, getCritDamage } from "./statsModel.js";
 
 export function computeCritMultiplier(
   critChance: number,
-  critDmgBase: number
+  critDmgBase = CRIT_DAMAGE_DEFAULT
 ) {
-  if (critChance < 1) {
-    return 1 + critChance * (critDmgBase - 1);
-  }
-
-  const overflow = critChance - 1;
-  const critDmgEffective = critDmgBase + overflow * OVERFLOW_RATE;
-
-  return critDmgEffective;
+  const cappedCritChance = capCritChance(critChance);
+  const critDamage = getCritDamage(critDmgBase);
+  return 1 + cappedCritChance * (critDamage - 1);
 }
