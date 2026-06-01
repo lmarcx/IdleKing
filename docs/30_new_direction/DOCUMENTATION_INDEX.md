@@ -8,6 +8,7 @@
 > 🧊 **Document maître du MVP : [`DESIGN_FREEZE_V1.md`](DESIGN_FREEZE_V1.md)** — fait autorité sur tout (règle de priorité 0).
 > 🛠️ **Ordre d'implémentation : [`IMPLEMENTATION_BIBLE.md`](IMPLEMENTATION_BIBLE.md)** — traduit le Freeze en phases/prompts d'exécution (subordonné au Freeze).
 > 🗃️ **Modèle métier : [`DATA_MODEL.md`](DATA_MODEL.md)** — entités, relations, save model (subordonné au Freeze).
+> 🗺️ **Roadmap de production : [`MVP_ROADMAP.md`](MVP_ROADMAP.md)** — phases, jalons, exit criteria (subordonné au Freeze & à la Bible).
 
 ---
 
@@ -136,7 +137,7 @@ Il ne suit donc pas les règles de génération d'équipement, ni les règles d'
 
 ### 🤖 2.3 IA (Claude / Codex / GPT) — ordre déterministe orienté autorité
 
-1. **`DOCUMENTATION_INDEX.md`** (ce fichier) puis **`DESIGN_FREEZE_V1.md`** (document maître MVP) puis **`IMPLEMENTATION_BIBLE.md`** (ordre d'exécution) puis **`DATA_MODEL.md`** (modèle métier) — toujours en premier.
+1. **`DOCUMENTATION_INDEX.md`** (ce fichier) puis **`DESIGN_FREEZE_V1.md`** (document maître MVP) puis **`IMPLEMENTATION_BIBLE.md`** (ordre d'exécution) puis **`DATA_MODEL.md`** (modèle métier) puis **`MVP_ROADMAP.md`** (roadmap de production) — toujours en premier.
 2. **Toutes les bases canoniques `[DB]` d'abord :**
    `ITEMS_DATABASE` → `RESOURCES_DATABASE` → `SKILL_DATABASE` → `RINGS_SKILLS_MAP` → `EQUIPMENT_GENERATION_DATABASE` → `RECIPES_DATABASE` → `LOOT_TABLES_DATABASE` → `ENEMIES_DATABASE_V2` → `BOSS_DATABASE` → `DUNGEON_DATABASE` → `QUEST_DATABASE` → `CHARACTER_DATABASE`
 3. **Puis les concepts comme contexte :**
