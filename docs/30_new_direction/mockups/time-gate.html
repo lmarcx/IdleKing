@@ -1,0 +1,113 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IdleKing — Time Gate</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body{padding:28px}
+  .wrap{max-width:1080px;margin:0 auto}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px}
+  .head h1{font-size:2rem;color:#cfefff;text-shadow:0 0 22px rgba(0,231,255,.3)}
+  .grid{display:grid;grid-template-columns:1fr 320px;gap:22px}
+  /* portal */
+  .portal{position:relative;overflow:hidden;border-radius:var(--r-xl);min-height:520px;padding:26px;
+    border:1px solid rgba(0,231,255,.42);
+    background:
+      radial-gradient(circle at 50% 42%, rgba(0,231,255,.18), transparent 46%),
+      radial-gradient(circle at 50% 78%, rgba(138,92,255,.16), transparent 55%),
+      linear-gradient(180deg,#06121a,#04060c)}
+  .ring{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);border-radius:50%;border:1px solid rgba(0,231,255,.25)}
+  .ring.r1{width:300px;height:300px;box-shadow:0 0 60px rgba(0,231,255,.18) inset}
+  .ring.r2{width:220px;height:220px;border-color:rgba(138,92,255,.35)}
+  .ring.r3{width:140px;height:140px;border-color:rgba(0,231,255,.55);box-shadow:0 0 40px rgba(0,231,255,.3)}
+  .stars{position:absolute;inset:0;background:
+    radial-gradient(1px 1px at 30% 20%,#9fe9ff,transparent),
+    radial-gradient(1px 1px at 70% 35%,#c9b6ff,transparent),
+    radial-gradient(1px 1px at 55% 70%,#9fe9ff,transparent),
+    radial-gradient(1px 1px at 22% 65%,#c9b6ff,transparent);opacity:.6}
+  .portal h2{position:relative;font-size:.8rem;letter-spacing:.2em;text-transform:uppercase;color:rgba(180,240,255,.7)}
+  /* era selector */
+  .eras{position:absolute;left:0;right:0;bottom:24px;display:flex;gap:14px;justify-content:center;padding:0 24px}
+  .era{flex:1;max-width:230px;border-radius:14px;padding:14px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.1);position:relative}
+  .era .nm{font-family:var(--font-title);font-size:.95rem}
+  .era .st{font-size:.66rem;margin-top:4px;letter-spacing:.08em}
+  .era.active{border-color:rgba(0,231,255,.6);box-shadow:0 0 22px rgba(0,231,255,.18)}
+  .era.active .st{color:var(--ik-cyan)}
+  .era.current{border-color:rgba(198,168,91,.6);box-shadow:0 0 18px rgba(198,168,91,.15)}
+  .era.current .st{color:var(--ik-gold)}
+  .era.locked{opacity:.6}
+  .era.locked .st{color:var(--ik-text-2)}
+  .era .req{margin-top:8px;font-size:.62rem;color:rgba(255,180,120,.8)}
+  /* side */
+  .side{display:grid;gap:18px;align-content:start}
+  .card{border-radius:var(--r-xl);padding:16px;border:1px solid rgba(0,231,255,.3);background:rgba(0,0,0,.55)}
+  .kaleido{display:grid;place-items:center;gap:10px;text-align:center}
+  .kaleido .gem{width:96px;height:96px;border-radius:18px;transform:rotate(45deg);
+    background:conic-gradient(from 0deg,#00e7ff,#8a5cff,#1aff7a,#00e7ff);
+    box-shadow:0 0 40px rgba(0,231,255,.35)}
+  .frag{display:flex;align-items:center;justify-content:space-between}
+  .frag .v{font-family:var(--font-title);font-size:1.4rem;color:var(--ik-cyan)}
+  .note{font-size:.66rem;color:var(--ik-text-2);line-height:1.6}
+  .cta{margin-top:6px}
+  .cta .btn{width:100%}
+</style></head>
+<body><div class="wrap">
+  <div class="head">
+    <div>
+      <div class="eyebrow">Bâtiment — point d'accès aux Ères</div>
+      <h1>Time Gate</h1>
+    </div>
+    <div class="tag">Kaléidoscope requis pour les pleins pouvoirs</div>
+  </div>
+
+  <div class="grid">
+    <div class="portal scan">
+      <div class="stars"></div>
+      <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+      <h2>Faille temporelle</h2>
+
+      <div class="eras">
+        <div class="era current">
+          <div class="nm">Ère Funèbre</div>
+          <div class="st">EN COURS · Prologue + Ch I</div>
+        </div>
+        <div class="era active">
+          <div class="nm">Ère Glaciaire</div>
+          <div class="st">PRÊTE À OUVRIR · Ch II</div>
+          <div class="req">Consomme 1× Fragment du Temps</div>
+        </div>
+        <div class="era locked">
+          <div class="nm">Ère du Déluge</div>
+          <div class="st">VERROUILLÉE · hors MVP</div>
+          <div class="req">Terminer le Chapitre II</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card kaleido">
+        <div class="gem"></div>
+        <div>
+          <div class="eyebrow" style="color:var(--ik-cyan)">Special World Item</div>
+          <div style="font-family:var(--font-title);font-size:1.05rem;margin-top:2px">Kaléidoscope</div>
+        </div>
+        <div class="note">Obtenu une seule fois via la story. Débloque les pleins pouvoirs de la Time Gate.</div>
+      </div>
+
+      <div class="card">
+        <div class="frag">
+          <div>
+            <div class="eyebrow">Fragment du Temps</div>
+            <div class="note">Loot des boss de fin de chapitre.</div>
+          </div>
+          <div class="v">×1</div>
+        </div>
+      </div>
+
+      <div class="card cta">
+        <div class="eyebrow" style="margin-bottom:10px">Action</div>
+        <button class="btn btn--cosmic">⟳ Ouvrir l'Ère Glaciaire</button>
+        <div class="note" style="margin-top:10px">Consommera 1× Fragment du Temps et débloquera le Chapitre II.</div>
+      </div>
+    </div>
+  </div>
+</div></body></html>

@@ -166,7 +166,7 @@ test("sell rejects quest items", () => {
 test("sell rejects unsellable equipment", () => {
   const equipment = generateEquipmentItem({
     id: "expedition_unique_sword",
-    slot: "weapon",
+    slot: "main_hand",
     itemLevel: 10,
     rarity: "RARE",
   });

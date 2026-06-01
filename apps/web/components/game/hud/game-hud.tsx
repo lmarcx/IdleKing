@@ -18,6 +18,8 @@ type GameHudProps = {
   onOpenWorlds?: () => void;
   playerEnergy?: GameHudResource;
   playerHealth?: GameHudResource;
+  playerMana?: GameHudResource;
+  playerStamina?: GameHudResource;
 };
 
 const hudButtonClassName =
@@ -57,17 +59,25 @@ function HudBar({ label, value, max, tint }: { label: string; max: number; tint:
 export function CombatResourceBars({
   playerEnergy,
   playerHealth,
+  playerMana,
+  playerStamina,
 }: {
-  playerEnergy: GameHudResource;
+  playerEnergy?: GameHudResource;
   playerHealth: GameHudResource;
+  playerMana?: GameHudResource;
+  playerStamina?: GameHudResource;
 }) {
   const health = normalizeHudResource(playerHealth);
-  const energy = normalizeHudResource(playerEnergy);
+  const energy = playerEnergy ? normalizeHudResource(playerEnergy) : undefined;
+  const mana = playerMana ? normalizeHudResource(playerMana) : undefined;
+  const stamina = playerStamina ? normalizeHudResource(playerStamina) : undefined;
 
   return (
     <div className="flex flex-wrap items-center gap-2.5">
       <HudBar label="HP" max={health.max} value={health.current} tint="bg-red-400" />
-      <HudBar label="Energy" max={energy.max} value={energy.current} tint="bg-cyan-300" />
+      {energy ? <HudBar label="Energy" max={energy.max} value={energy.current} tint="bg-cyan-300" /> : null}
+      {mana ? <HudBar label="Mana" max={mana.max} value={mana.current} tint="bg-blue-300" /> : null}
+      {stamina ? <HudBar label="Stamina" max={stamina.max} value={stamina.current} tint="bg-emerald-300" /> : null}
     </div>
   );
 }
@@ -102,6 +112,8 @@ export function GameHud({
   onOpenWorlds,
   playerEnergy,
   playerHealth,
+  playerMana,
+  playerStamina,
 }: GameHudProps) {
   const { openOverlay } = useGameHudOverlay();
   const state = useGameStore((store) => store.state);
@@ -119,7 +131,7 @@ export function GameHud({
     worlds: onOpenWorlds ?? (() => openOverlay("worlds")),
   };
   const health = playerHealth ?? { current: hpMax, max: hpMax };
-  const energy = playerEnergy ?? { current: 100, max: 100 };
+  const energy = playerEnergy ?? (playerMana || playerStamina ? undefined : { current: 100, max: 100 });
   const worldEnergy = {
     current: Math.floor(state.world.energy.current),
     max: Math.ceil(state.world.energy.max),
@@ -156,7 +168,12 @@ export function GameHud({
       </nav>
 
       <div className="flex flex-wrap items-center gap-3">
-        <CombatResourceBars playerEnergy={energy} playerHealth={health} />
+        <CombatResourceBars
+          playerEnergy={energy}
+          playerHealth={health}
+          playerMana={playerMana}
+          playerStamina={playerStamina}
+        />
         <div className="flex flex-wrap items-center gap-2.5">
           <HudBar label="World EN" max={worldEnergy.max} value={worldEnergy.current} tint="bg-emerald-300" />
           <HudBar label="World HP" max={worldHp.max} value={worldHp.current} tint="bg-violet-300" />

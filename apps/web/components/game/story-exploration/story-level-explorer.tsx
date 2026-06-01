@@ -194,15 +194,16 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
       />
       <CombatHud
         mode="story"
-        playerEnergy={{ current: 100, max: 100 }}
         playerHealth={combatHud?.playerHealth}
+        playerMana={combatHud?.playerMana}
+        playerStamina={combatHud?.playerStamina}
         skillBar={combatHud?.skillBar}
         subtitle={`Power ${level.recommendedPower}`}
         title={level.title}
       />
       <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
       <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
-        Deplacement : WASD, ZQSD ou fleches directionnelles.
+        Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace.
       </div>
       {completion ? (
         <CompletionPanel

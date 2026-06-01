@@ -21,9 +21,15 @@ type CombatHudProps = {
   children?: ReactNode;
   exitHref?: string;
   exitLabel?: string;
+  /**
+   * MVP scope: "story" | "dungeon". "duel" | "expedition" are reserved labels for
+   * future modes (out of MVP, DESIGN_FREEZE_V1 §19) and carry no combat logic here.
+   */
   mode: "story" | "duel" | "dungeon" | "expedition";
   playerEnergy?: CombatHealth;
   playerHealth?: CombatHealth;
+  playerMana?: CombatHealth;
+  playerStamina?: CombatHealth;
   skillBar?: CombatHudSkillBar;
   subtitle?: string;
   title: string;
@@ -43,6 +49,8 @@ export function CombatHud({
   mode,
   playerEnergy,
   playerHealth,
+  playerMana,
+  playerStamina,
   skillBar,
   subtitle,
   title,
@@ -50,7 +58,12 @@ export function CombatHud({
   return (
     <>
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-30">
-        <GameHud playerEnergy={playerEnergy} playerHealth={playerHealth} />
+        <GameHud
+          playerEnergy={playerEnergy}
+          playerHealth={playerHealth}
+          playerMana={playerMana}
+          playerStamina={playerStamina}
+        />
       </div>
 
       <div className="pointer-events-none absolute left-4 top-24 z-20 max-w-sm rounded-lg border border-amber-200/20 bg-black/62 px-4 py-3 shadow-[0_12px_30px_rgba(0,0,0,0.38)] backdrop-blur-sm">

@@ -44,7 +44,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "iron_sword",
     label: "Iron Sword",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Iron Sword",
     rarity: "COMMON",
     cost: { IRON: 4 },
@@ -71,7 +71,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "BASIC_SWORD",
     label: "Basic Sword",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Sword",
     rarity: "COMMON",
     cost: { COPPER: 3 },
@@ -107,7 +107,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_sword",
     label: "Sword",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Sword",
     rarity: "COMMON",
     cost: { COPPER: 3 },
@@ -116,7 +116,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_dagger",
     label: "Dagger",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Dagger",
     rarity: "COMMON",
     cost: { COPPER: 2, IRON: 1 },
@@ -125,7 +125,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_axe",
     label: "Axe",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Axe",
     rarity: "COMMON",
     cost: { IRON: 3, WOOD: 1 },
@@ -134,7 +134,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_greatsword",
     label: "Greatsword",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Greatsword",
     rarity: "COMMON",
     cost: { IRON: 5 },
@@ -143,7 +143,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_pistol",
     label: "Pistol",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Pistol",
     rarity: "COMMON",
     cost: { IRON: 4, COPPER: 2 },
@@ -152,7 +152,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_bow",
     label: "Bow",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Bow",
     rarity: "COMMON",
     cost: { WOOD: 5, IRON: 1 },
@@ -161,7 +161,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_shield",
     label: "Shield",
-    slot: "offhand",
+    slot: "off_hand",
     baseName: "Shield",
     rarity: "COMMON",
     cost: { IRON: 4, WOOD: 2 },
@@ -170,7 +170,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_spear",
     label: "Spear",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Spear",
     rarity: "COMMON",
     cost: { WOOD: 3, IRON: 3 },
@@ -179,7 +179,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_grimoire",
     label: "Grimoire",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Grimoire",
     rarity: "COMMON",
     cost: { PAPER: 2, INK: 1 },
@@ -191,7 +191,7 @@ export const FORGE_RECIPES: ForgeRecipe[] = [
   {
     id: "weapon_staff",
     label: "Staff",
-    slot: "weapon",
+    slot: "main_hand",
     baseName: "Staff",
     rarity: "COMMON",
     cost: { WOOD: 4, RUNES: 1 },

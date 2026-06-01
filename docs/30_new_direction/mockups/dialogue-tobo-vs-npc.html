@@ -1,0 +1,93 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IdleKing — Dialogue Tobo vs NPC</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body{padding:28px}
+  .wrap{max-width:1080px;margin:0 auto}
+  .head{margin-bottom:8px}
+  .head h1{font-size:1.8rem;color:#e8ddc0}
+  .sub{font-size:.74rem;color:var(--ik-text-2);margin-bottom:22px;max-width:760px;line-height:1.6}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+  .col h2{font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;margin-bottom:10px}
+  /* common dialogue layout (one pattern, two skins) */
+  .dlg{position:relative;overflow:hidden;border-radius:var(--r-xl);padding:18px}
+  .dlg .top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .portrait{width:54px;height:54px;border-radius:12px;flex:none;display:grid;place-items:center;font-size:1.5rem}
+  .who .name{font-family:var(--font-title);font-size:1.05rem}
+  .who .role{font-size:.64rem;letter-spacing:.1em;text-transform:uppercase}
+  .line{padding:12px 14px;border-radius:12px;margin-bottom:12px;line-height:1.6;font-size:.92rem}
+  .choices{display:grid;gap:8px}
+  .choice{text-align:left;width:100%}
+  .actions{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+  /* ---- TOBO : cosmic skin ---- */
+  .tobo{border:1px solid rgba(0,231,255,.42);background:radial-gradient(circle at 80% 0%,rgba(0,231,255,.08),transparent 45%),rgba(0,5,8,.85)}
+  .tobo .portrait{background:radial-gradient(circle at 40% 25%,rgba(0,231,255,.35),rgba(138,92,255,.25));border:1px solid rgba(0,231,255,.5);box-shadow:0 0 18px rgba(0,231,255,.25)}
+  .tobo .who .name{color:#cfefff;text-shadow:0 0 14px rgba(0,231,255,.35)}
+  .tobo .who .role{color:var(--ik-cyan)}
+  .tobo .line{background:rgba(0,231,255,.05);border:1px solid rgba(0,231,255,.18);font-family:var(--font-mono);color:rgba(180,245,255,.92);text-shadow:0 0 8px rgba(0,231,255,.15)}
+  .tobo .choice{border-color:rgba(0,231,255,.4);background:rgba(0,231,255,.05)}
+  .tobo .badge{border-color:rgba(0,231,255,.45);color:var(--ik-cyan);background:rgba(0,231,255,.07)}
+  /* ---- NPC : fantasy/gold skin ---- */
+  .npc{border:1px solid rgba(198,168,91,.5);background:radial-gradient(circle at 15% 0%,rgba(198,168,91,.08),transparent 40%),var(--ik-bg-1);box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 18px rgba(198,168,91,.08)}
+  .npc .portrait{background:radial-gradient(circle at 40% 25%,rgba(198,168,91,.35),rgba(40,30,10,.6));border:1px solid rgba(198,168,91,.5)}
+  .npc .who .name{color:#f0e4c4}
+  .npc .who .role{color:var(--ik-gold)}
+  .npc .line{background:rgba(0,0,0,.3);border:1px solid rgba(198,168,91,.18);font-family:var(--font-title);color:rgba(255,248,230,.9)}
+  .npc .choice{border-color:rgba(198,168,91,.4)}
+  .badge{font-size:.64rem;padding:4px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.15)}
+  .badge.quest{border-color:rgba(255,210,59,.5);color:#ffd23b;background:rgba(255,210,59,.08)}
+  .badge.unlock{border-color:rgba(26,255,122,.5);color:var(--ik-xp);background:rgba(26,255,122,.08)}
+  .badge.item{border-color:rgba(154,92,255,.5);color:#b48cff;background:rgba(154,92,255,.08)}
+  .note{font-size:.66rem;color:var(--ik-text-2);margin-top:10px;line-height:1.6}
+</style></head>
+<body><div class="wrap">
+  <div class="head"><div class="eyebrow">Correction C-01 — un seul pattern, deux skins</div>
+  <h1>Dialogue : Tobo vs NPC</h1></div>
+  <div class="sub">Tobo redevient un <b>Main NPC</b> (quêtes, dialogues, unlocks, dons d'items). Plus de console plein écran :
+  on garde <b>uniquement le skin cosmic</b> pour distinguer sa boîte de dialogue de celle des autres NPC, qui utilisent le skin fantasy/gold.</div>
+
+  <div class="grid">
+    <!-- TOBO -->
+    <div class="col">
+      <h2 style="color:var(--ik-cyan)">◈ Tobo — skin cosmic (Main NPC)</h2>
+      <div class="dlg tobo scan">
+        <div class="top">
+          <div class="portrait">◈</div>
+          <div class="who"><div class="name">Tobo</div><div class="role">Guide · Fragment de Créa</div></div>
+        </div>
+        <div class="line">Le Fleuve de Vie est gelé, vieux roi… mais une faille subsiste. Rapporte-moi un Fragment du Temps, et la Time Gate s'ouvrira.</div>
+        <div class="actions">
+          <span class="badge quest">＋ Quête : Au-delà du givre</span>
+          <span class="badge unlock">⟳ Débloque : Time Gate</span>
+          <span class="badge item">🎁 Reçu : Kaléidoscope</span>
+        </div>
+        <div class="choices" style="margin-top:12px">
+          <button class="btn choice">« Comment trouver ce Fragment ? »</button>
+          <button class="btn btn--cosmic choice">« Accepter la quête »</button>
+        </div>
+        <div class="note">Skin cosmic = scanlines + glow cyan + texte mono (recyclé de l'ancien terminal Boto, sans plein écran).</div>
+      </div>
+    </div>
+
+    <!-- NPC -->
+    <div class="col">
+      <h2 style="color:var(--ik-gold)">⚜ NPC humain — skin fantasy/gold</h2>
+      <div class="dlg npc">
+        <div class="top">
+          <div class="portrait">⚜</div>
+          <div class="who"><div class="name">Erix</div><div class="role">Survivant · Refuge des âmes</div></div>
+        </div>
+        <div class="line">Peu de vivants franchissent encore ces ruines. Si tu cherches le Mausolée, prends garde aux Ombres… elles n'oublient jamais un visage.</div>
+        <div class="actions">
+          <span class="badge quest">＋ Quête : Le refuge oublié</span>
+        </div>
+        <div class="choices" style="margin-top:12px">
+          <button class="btn choice">« Qui es-tu ? »</button>
+          <button class="btn btn--gold choice">« Parle-moi du Mausolée »</button>
+        </div>
+        <div class="note">Skin fantasy = bordure gold + titres serif. Même structure (portrait / réplique / badges / choix) que Tobo.</div>
+      </div>
+    </div>
+  </div>
+</div></body></html>

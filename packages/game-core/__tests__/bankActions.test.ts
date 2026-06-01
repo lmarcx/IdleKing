@@ -128,7 +128,7 @@ test("withdraw cannot exceed bank quantity", () => {
 test("equipment deposit is rejected", () => {
   const equipment = generateEquipmentItem({
     id: "test_sword",
-    slot: "weapon",
+    slot: "main_hand",
     itemLevel: 1,
   });
   const state = withInventoryItems(createInitialGameState(), [equipment]);

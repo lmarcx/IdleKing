@@ -1,7 +1,8 @@
 import { computeCombatScore } from "./combatScore.js";
-import { TIER_MULTIPLIERS } from "./constants.js";
+import { POWER_EXPONENT, TIER_MULTIPLIERS } from "./constants.js";
 import { CombatStats, PowerBreakdown } from "./types.js";
 
+// POWER is a display/recommendation score only. Never use it as a strict gameplay gate.
 export function computePowerFromStats(
   stats: CombatStats,
   tier: number
@@ -13,7 +14,7 @@ export function computePowerFromStats(
 
   const totalScore = combatScore * tierMultiplier;
 
-  const power = Math.round(Math.pow(totalScore, 1.08));
+  const power = Math.round(Math.pow(totalScore, POWER_EXPONENT));
 
   return {
     combatScore,
@@ -36,12 +37,12 @@ export function computeTotalPower(
   const totalScore =
     (worldScore + loadoutScore) * tierMultiplier;
 
-  const power = Math.round(Math.pow(totalScore, 1.08));
+  const power = Math.round(Math.pow(totalScore, POWER_EXPONENT));
 
   return {
-    worldPower: Math.round(Math.pow(worldScore * tierMultiplier, 1.08)),
+    worldPower: Math.round(Math.pow(worldScore * tierMultiplier, POWER_EXPONENT)),
     loadoutPower: Math.round(
-      Math.pow(loadoutScore * tierMultiplier, 1.08)
+      Math.pow(loadoutScore * tierMultiplier, POWER_EXPONENT)
     ),
     totalPower: power,
   };

@@ -121,7 +121,7 @@ test("Forge craft no longer needs a villager and spends recipe resources", () =>
 
   const item = result.next.inventory.items[0];
   assert.ok(isEquipmentItem(item));
-  assert.equal(item.slot, "weapon");
+  assert.equal(item.slot, "main_hand");
   assert.equal(item.upgradeLevel, 0);
   assert.equal(item.ilvl, expectedIlvl(s.progression.worldLevel));
 });
@@ -286,7 +286,7 @@ test("Forge craft works for weapon progression recipes once unlocked", () => {
   const item = result.next.inventory.items[0];
   assert.ok(isEquipmentItem(item));
   assert.equal(item.name, "Dagger");
-  assert.equal(item.slot, "weapon");
+  assert.equal(item.slot, "main_hand");
 });
 
 test("Forge upgrade increments upgradeLevel, increases stats, and preserves item identity and ilvl", () => {
@@ -332,7 +332,7 @@ test("Forge repeated upgrades scale deterministically from base stats", () => {
   let s = progressToChapter4AndBuildForge(createInitialGameState());
   const item = generateEquipmentItem({
     id: "deterministic_upgrade",
-    slot: "weapon",
+    slot: "main_hand",
     itemLevel: 80,
     rarity: "EPIC",
     seed: "deterministic",
@@ -346,7 +346,7 @@ test("Forge repeated upgrades scale deterministically from base stats", () => {
   let upgraded = getEquipmentOrFail(first.next, item.id);
   assert.deepEqual(
     upgraded.stats,
-    getUpgradedEquipmentStats(item.baseStats ?? item.stats, "EPIC", item.itemLevel ?? item.ilvl ?? 1, 1),
+    getUpgradedEquipmentStats(item.rolledStats, "EPIC", item.itemLevel ?? item.ilvl ?? 1, 1),
   );
 
   s = fundUpgradeCosts(first.next, item.id);
@@ -357,7 +357,7 @@ test("Forge repeated upgrades scale deterministically from base stats", () => {
   assert.equal(upgraded.upgradeLevel, 2);
   assert.deepEqual(
     upgraded.stats,
-    getUpgradedEquipmentStats(item.baseStats ?? item.stats, "EPIC", item.itemLevel ?? item.ilvl ?? 1, 2),
+    getUpgradedEquipmentStats(item.rolledStats, "EPIC", item.itemLevel ?? item.ilvl ?? 1, 2),
   );
 });
 
@@ -365,7 +365,7 @@ test("Equipped upgraded item affects final character stats", () => {
   let s = progressToChapter4AndBuildForge(createInitialGameState());
   const item = generateEquipmentItem({
     id: "equipped_upgrade",
-    slot: "weapon",
+    slot: "main_hand",
     itemLevel: 60,
     rarity: "RARE",
     seed: "equipped",
@@ -384,13 +384,13 @@ test("Equipped upgraded item affects final character stats", () => {
 
   assert.ok(after.attack > before.attack);
   assert.ok(after.power > before.power);
-  assert.equal(upgraded.next.equipment.equipped.weapon, item.id);
+  assert.equal(upgraded.next.equipment.equipped.main_hand, item.id);
 });
 
 test("Forge upgrade respects rarity max caps", () => {
   const capped = generateEquipmentItem({
     id: "capped_common",
-    slot: "weapon",
+    slot: "main_hand",
     itemLevel: 20,
     rarity: "COMMON",
     seed: "capped",
@@ -411,10 +411,10 @@ test("Forge upgrade respects rarity max caps", () => {
 test("Forge upgrade breakpoint helpers detect reached and next levels", () => {
   assert.deepEqual(getForgeUpgradeBreakpointsReached(2), []);
   assert.deepEqual(getForgeUpgradeBreakpointsReached(3), [3]);
-  assert.deepEqual(getForgeUpgradeBreakpointsReached(21), [3, 6, 9, 12, 15, 18, 21]);
+  assert.deepEqual(getForgeUpgradeBreakpointsReached(21), [3, 6, 9, 12]);
   assert.equal(getNextForgeUpgradeBreakpoint(2, "COMMON"), 3);
   assert.equal(getNextForgeUpgradeBreakpoint(6, "COMMON"), null);
-  assert.equal(getNextForgeUpgradeBreakpoint(12, "MYTHIC"), 15);
+  assert.equal(getNextForgeUpgradeBreakpoint(12, "LEGENDARY"), null);
   assert.equal(didReachForgeUpgradeBreakpoint(2, 3), true);
   assert.equal(didReachForgeUpgradeBreakpoint(3, 4), false);
 });
@@ -469,7 +469,7 @@ test("Legacy save equipment items missing upgradeLevel migrate to 0", () => {
     id: "legacy_weapon",
     kind: "equipment",
     name: "Legacy Sword",
-    slot: "weapon",
+    slot: "main_hand",
     itemLevel: 20,
     ilvl: 20,
     rarity: "RARE",

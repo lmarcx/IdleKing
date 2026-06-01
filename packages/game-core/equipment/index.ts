@@ -7,15 +7,25 @@ export type {
   GenerateEquipmentItemParams,
   GenerateEquipmentLootDropParams,
 } from "./generation.js";
+export * from "./rules.js";
+export * from "./sets.js";
 import {
   EQUIPMENT_SLOTS,
   isEquipmentItem,
   isEquipmentSlot,
+  normalizeEquipmentSlot,
   normalizeEquipmentItem,
+  type EquipmentAffix,
+  type EquipmentInstance,
   type EquipmentItem,
   type EquipmentSlot,
+  type ItemRarity,
   type ResolvedEquipmentStats,
 } from "../items/types.js";
+import {
+  calculateEquipmentSetModifiersFromItems,
+} from "./sets.js";
+import type { StatsModifiers } from "../power/statsModel.js";
 
 export type PlayerEquipmentState = {
   equipped: Record<EquipmentSlot, string | null>;
@@ -63,8 +73,9 @@ export function normalizePlayerEquipmentState(value: unknown): PlayerEquipmentSt
   if (!equipped || typeof equipped !== "object") return base;
 
   for (const [slot, itemId] of Object.entries(equipped)) {
-    if (!isEquipmentSlot(slot)) continue;
-    base.equipped[slot] = typeof itemId === "string" ? itemId : null;
+    const normalizedSlot = normalizeEquipmentSlot(slot);
+    if (!normalizedSlot) continue;
+    base.equipped[normalizedSlot] = typeof itemId === "string" ? itemId : null;
   }
 
   return base;
@@ -153,6 +164,7 @@ export function unequipItem(gameState: GameState, slot: EquipmentSlot): UnequipI
 }
 
 function addEquipmentStats(target: ResolvedEquipmentStats, item: EquipmentItem) {
+  if (item.slot === "artifact") return;
   target.hp += item.stats.hp ?? 0;
   target.attack += item.stats.attack ?? 0;
   target.defense += item.stats.defense ?? 0;
@@ -161,12 +173,22 @@ function addEquipmentStats(target: ResolvedEquipmentStats, item: EquipmentItem) 
 
 export function calculateEquipmentStats(gameState: GameState): ResolvedEquipmentStats {
   const stats: ResolvedEquipmentStats = { hp: 0, attack: 0, defense: 0, power: 0 };
+  const items = getEquippedItems(gameState);
 
-  for (const item of getEquippedItems(gameState)) {
+  for (const item of items) {
     addEquipmentStats(stats, item);
   }
 
+  const setModifiers = calculateEquipmentSetModifiersFromItems(items);
+  stats.hp += setModifiers.base?.hp ?? 0;
+  stats.attack += setModifiers.base?.atk ?? 0;
+  stats.defense += setModifiers.base?.def ?? 0;
+
   return stats;
+}
+
+export function calculateEquipmentSetModifiers(gameState: GameState): StatsModifiers {
+  return calculateEquipmentSetModifiersFromItems(getEquippedItems(gameState));
 }
 
 export function calculateFinalCharacterStats(gameState: GameState): ResolvedEquipmentStats {
@@ -183,6 +205,9 @@ export function calculateFinalCharacterStats(gameState: GameState): ResolvedEqui
 
 export type {
   EquipmentItem,
+  EquipmentAffix,
+  EquipmentInstance,
   EquipmentSlot,
+  ItemRarity,
   ResolvedEquipmentStats,
 };

@@ -1,12 +1,16 @@
 import {
-  K_ARMOR_REF,
   K_RESIST_REF,
   K_ELEMENTAL_REF,
   BASE_ATTACK_INTERVAL,
   MIN_ATTACK_INTERVAL,
+  COMBAT_SCORE_DPS_EXPONENT,
+  COMBAT_SCORE_EHP_EXPONENT,
+  PIERCE_POWER_WEIGHT,
+  PIERCE_RATING_REF,
 } from "./constants.js";
 import { CombatStats } from "./types.js";
 import { computeCritMultiplier } from "./crit.js";
+import { computeDefenseMitigation } from "./statsModel.js";
 
 function computeAttackInterval(speedRating: number) {
   const interval =
@@ -16,7 +20,7 @@ function computeAttackInterval(speedRating: number) {
 }
 
 function computePierce(pierceRating: number) {
-  return pierceRating / (pierceRating + 180);
+  return pierceRating / (pierceRating + PIERCE_RATING_REF);
 }
 
 function computeElementalTotal(stats: CombatStats) {
@@ -38,7 +42,7 @@ export function computeCombatScore(stats: CombatStats) {
   const speedFactor = 1 / attackInterval;
 
   const pierce = computePierce(stats.pierceRating);
-  const pierceFactor = 1 + 0.6 * pierce;
+  const pierceFactor = 1 + PIERCE_POWER_WEIGHT * pierce;
 
   const critFactor = computeCritMultiplier(
     stats.critChance,
@@ -52,7 +56,7 @@ export function computeCombatScore(stats: CombatStats) {
 
   const ehp =
     stats.hp *
-    (1 + stats.armor / (stats.armor + K_ARMOR_REF)) *
+    (1 + computeDefenseMitigation(stats.armor)) *
     resistFactor;
 
   const dps =
@@ -62,5 +66,5 @@ export function computeCombatScore(stats: CombatStats) {
     critFactor *
     pierceFactor;
 
-  return Math.pow(ehp, 0.45) * Math.pow(dps, 0.65);
+  return Math.pow(ehp, COMBAT_SCORE_EHP_EXPONENT) * Math.pow(dps, COMBAT_SCORE_DPS_EXPONENT);
 }

@@ -12,8 +12,11 @@ import {
 test("LOSE removes risked items and clears expedition loadout", () => {
   let inv = createInventory();
 
-  const a = generateItem({ seed: 1, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "NECKLACE" });
-  const b = generateItem({ seed: 2, worldLevel: 20, biome: "VOLCANIC", ilvl: 400, biasSlot: "ARTIFACT" });
+  const a = generateItem({ seed: 1, worldLevel: 20, biome: "VOLCANIC", ilvl: 400 });
+  const b = Array.from({ length: 100 }, (_, index) =>
+    generateItem({ seed: index + 2, worldLevel: 20, biome: "VOLCANIC", ilvl: 400 }),
+  ).find((item) => item.slot !== a.slot);
+  assert.ok(b, "fixture should find a second random item with another slot");
 
   inv = addItem(inv, a);
   inv = addItem(inv, b);

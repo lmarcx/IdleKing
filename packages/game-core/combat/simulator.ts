@@ -11,6 +11,7 @@ import type {
 } from "./types.js";
 import type { CombatStats, Element } from "../power/types.js";
 import { computeCritMultiplier } from "../power/crit.js";
+import { computeDefenseMitigation } from "../power/statsModel.js";
 import { SKILLS } from "./skills.js";
 
 const EPS = 1e-9;
@@ -29,7 +30,7 @@ function copyEntity(name: string, stats: CombatStats): CombatEntity {
 }
 
 function armorMitigation(armor: number) {
-  return armor / (armor + 180);
+  return computeDefenseMitigation(armor);
 }
 
 function resistMitigation(resist: number) {

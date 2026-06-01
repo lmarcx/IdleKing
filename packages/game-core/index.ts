@@ -15,6 +15,8 @@ export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
+export * as random from "./random/index.js";
+export * as registry from "./registry/index.js";
 export {
   canSpendCurrency,
   createDefaultWalletState,
@@ -288,22 +290,40 @@ export {
 } from "./progression/index.js";
 export {
   BASE_CHARACTER_STATS,
+  calculateEquipmentSetModifiers,
   calculateEquipmentStats,
+  calculateEquipmentSetModifiersFromItems,
   calculateFinalCharacterStats,
   createDefaultPlayerEquipmentState,
+  canUpgradeEquipment,
+  getAffixCountForRarity,
+  getEquipmentSetDefinition,
+  getEquipmentSetDefinitionOrThrow,
+  getUpgradeCapForRarity,
+  EQUIPMENT_SETS,
+  EQUIPMENT_SET_BIAS_PLACEHOLDERS,
   equipItem,
   generateEquipmentItem,
   generateEquipmentLootDrop,
   getEquippedItemIds,
   getEquippedItems,
   normalizePlayerEquipmentState,
+  upgradeEquipment,
+  validateAffixCount,
   unequipItem,
 } from "./equipment/index.js";
 export type {
   EquipmentActionError,
+  EquipmentAffix,
+  EquipmentInstance,
+  EquipmentSetAvailability,
+  EquipmentSetDefinition,
+  EquipmentSetId,
+  EquipmentSetStatus,
   EquipItemResult,
   EquipmentItem,
   EquipmentSlot,
+  ItemRarity,
   GenerateEquipmentItemParams,
   GenerateEquipmentLootDropParams,
   PlayerEquipmentState,

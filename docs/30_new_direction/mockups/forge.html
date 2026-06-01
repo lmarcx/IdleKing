@@ -1,0 +1,103 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IdleKing — Forge</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body{padding:28px}
+  .wrap{max-width:1000px;margin:0 auto}
+  .head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+  .head h1{font-size:1.9rem;color:#e8ddc0}
+  .tabs{display:flex;gap:8px;margin-bottom:18px}
+  .tab{padding:9px 18px;border-radius:10px;border:1px solid rgba(58,66,79,.85);background:rgba(0,0,0,.3);font-size:.82rem;cursor:pointer}
+  .tab.on{border-color:rgba(198,168,91,.6);background:rgba(198,168,91,.1);color:var(--ik-gold)}
+  .tab.off{color:var(--ik-text-2)}
+  .body{display:grid;grid-template-columns:1fr 320px;gap:20px}
+  .box{border-radius:var(--r-xl);padding:18px;border:1px solid rgba(58,66,79,.85);background:var(--ik-bg-1)}
+  /* weapon unlock ladder */
+  .ladder{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:18px}
+  .fg{border-radius:10px;padding:8px;text-align:center;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);font-size:.62rem}
+  .fg .lv{color:var(--ik-text-2)}
+  .fg .w{font-size:1.2rem;margin:3px 0}
+  .fg.unlocked{border-color:rgba(198,168,91,.45)}
+  .fg.unlocked .nm{color:var(--ik-gold)}
+  .fg.locked{opacity:.5}
+  /* rarity roll table */
+  .roll{display:grid;gap:6px}
+  .rr{display:grid;grid-template-columns:90px 1fr 44px;align-items:center;gap:8px;font-size:.74rem}
+  .rr .track{height:10px;border-radius:6px;background:rgba(0,0,0,.45);overflow:hidden}
+  .rr .fill{height:100%}
+  .c .fill{width:42%;background:var(--r-common)} .c .nm{color:var(--r-common)}
+  .u .fill{width:27%;background:var(--r-uncommon)} .u .nm{color:var(--r-uncommon)}
+  .r .fill{width:18%;background:var(--r-rare)} .r .nm{color:var(--r-rare)}
+  .e .fill{width:9%;background:var(--r-epic)} .e .nm{color:var(--r-epic)}
+  .l .fill{width:4%;background:var(--r-legendary)} .l .nm{color:var(--r-legendary)}
+  .hint{font-size:.66rem;color:var(--ik-text-2);margin-top:10px;line-height:1.6}
+  /* side: cost + preview */
+  .cost{display:grid;gap:8px}
+  .ci{display:flex;justify-content:space-between;font-size:.78rem;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+  .ci .ok{color:var(--ik-xp)} .ci .no{color:var(--ik-danger)}
+  .preview{margin-top:14px;border-radius:12px;padding:14px;text-align:center;border:1px solid rgba(227,169,58,.4);background:radial-gradient(circle at 50% 0%,rgba(227,169,58,.1),transparent 60%)}
+  .preview .ic{font-size:2.2rem}
+  .preview .nm{font-family:var(--font-title);color:var(--r-legendary);margin-top:4px}
+  .preview .af{font-size:.66rem;color:var(--ik-text-1);margin-top:6px;line-height:1.6}
+  .cta{width:100%;margin-top:14px}
+  .forgelvl{font-size:.7rem;color:var(--ik-text-1)}
+</style></head>
+<body><div class="wrap">
+  <div class="head">
+    <div><div class="eyebrow">Bâtiment — progression d'équipement</div><h1>Forge</h1></div>
+    <div class="forgelvl">Forge Level <b style="color:var(--ik-gold)">5</b> / 10 · <span class="tag tag--gold">Pistolet débloqué</span></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on">⚒️ Craft</div>
+    <div class="tab off">⬆️ Upgrade</div>
+    <div class="tab off">♻️ Recycle</div>
+  </div>
+
+  <div class="body">
+    <div class="box">
+      <div class="eyebrow" style="margin-bottom:8px">Armes débloquées par Forge Level (1 type / niveau)</div>
+      <div class="ladder">
+        <div class="fg unlocked"><div class="lv">Fg1</div><div class="w">⚔️</div><div class="nm">Épée</div></div>
+        <div class="fg unlocked"><div class="lv">Fg2</div><div class="w">🗡️</div><div class="nm">Dague</div></div>
+        <div class="fg unlocked"><div class="lv">Fg3</div><div class="w">🪓</div><div class="nm">Hache</div></div>
+        <div class="fg unlocked"><div class="lv">Fg4</div><div class="w">🗡️</div><div class="nm">Espadon</div></div>
+        <div class="fg unlocked"><div class="lv">Fg5</div><div class="w">🔫</div><div class="nm">Pistolet</div></div>
+        <div class="fg locked"><div class="lv">Fg6</div><div class="w">🏹</div><div class="nm">Arc</div></div>
+        <div class="fg locked"><div class="lv">Fg7</div><div class="w">🛡️</div><div class="nm">Bouclier</div></div>
+        <div class="fg locked"><div class="lv">Fg8</div><div class="w">🔱</div><div class="nm">Lance</div></div>
+        <div class="fg locked"><div class="lv">Fg9</div><div class="w">📕</div><div class="nm">Grimoire</div></div>
+        <div class="fg locked"><div class="lv">Fg10</div><div class="w">🪄</div><div class="nm">Bâton</div></div>
+      </div>
+
+      <div class="eyebrow" style="margin-bottom:8px">Rareté — roll pondéré (influencé par le Forge Level)</div>
+      <div class="roll">
+        <div class="rr c"><span class="nm">Common</span><div class="track"><div class="fill"></div></div><span>42%</span></div>
+        <div class="rr u"><span class="nm">Uncommon</span><div class="track"><div class="fill"></div></div><span>27%</span></div>
+        <div class="rr r"><span class="nm">Rare</span><div class="track"><div class="fill"></div></div><span>18%</span></div>
+        <div class="rr e"><span class="nm">Epic</span><div class="track"><div class="fill"></div></div><span>9%</span></div>
+        <div class="rr l"><span class="nm">Legendary</span><div class="track"><div class="fill"></div></div><span>4%</span></div>
+      </div>
+      <div class="hint">Améliorer la Forge décale les poids vers le haut (moins de Common, plus de Rare+). Affixes : Rare 1 · Epic 1 · Legendary 2 (1 préfixe + 1 suffixe).</div>
+    </div>
+
+    <div class="box">
+      <div class="eyebrow" style="margin-bottom:10px">Recette — Épée d'acier</div>
+      <div class="cost">
+        <div class="ci"><span>Iron Ore ×8</span><span class="ok">12 ✓</span></div>
+        <div class="ci"><span>Old Wood ×4</span><span class="ok">9 ✓</span></div>
+        <div class="ci"><span>Quartz ×2</span><span class="no">0 ✗</span></div>
+        <div class="ci"><span>Écu ×150</span><span class="ok">2 340 ✓</span></div>
+      </div>
+
+      <div class="preview">
+        <div class="ic">⚔️</div>
+        <div class="nm">Résultat (aperçu rareté)</div>
+        <div class="af">Rareté tirée à la création · affixes selon rareté · iLvl = Forge tier</div>
+      </div>
+
+      <button class="btn btn--gold cta" disabled>Forger (matériau manquant)</button>
+    </div>
+  </div>
+</div></body></html>

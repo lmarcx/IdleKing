@@ -2,9 +2,6 @@ import type { GameState } from "./state.js";
 import { getForgeRecipe, getForgeRecipeLockReason, type ForgeRecipeId } from "../building/forge/recipes.js";
 import {
   canForgeUpgrade,
-  createPreciousStoneItem,
-  FORGE_PRECIOUS_STONE_DROP_CHANCE,
-  getForgeRecycleEcuRefund,
   getForgeUpgradeCost,
   getForgeUpgradeLevel,
   getUpgradedEquipmentStats,
@@ -15,6 +12,8 @@ import { hasAtLeast, spend } from "../resources/types.js";
 import { addItem, findItem, removeItem } from "../items/inventory.js";
 import { isEquipmentItem, isItemRarity, type Item, type NonEquipmentItem } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
+import { recycleEquipment } from "../loot/mvp.js";
+import { createSeededRng, hashStringSeed, type SeededRng } from "../random/index.js";
 
 function createCraftedItemId(state: GameState, recipeId: ForgeRecipeId): string {
   const matchingItems = state.inventory.items.filter((item) => item.id.startsWith(`forge_${recipeId}_`)).length;
@@ -133,13 +132,14 @@ export function forgeUpgrade(
   }
 
   const nextResources = spend(state.resources, cost.resources);
-  const baseStats = normalizedItem.baseStats ?? normalizedItem.stats;
+  const rolledStats = normalizedItem.rolledStats ?? normalizedItem.baseStats ?? normalizedItem.stats;
   const nextUpgradeLevel = normalizedItem.upgradeLevel + 1;
   const upgraded = {
     ...normalizedItem,
-    baseStats,
+    baseStats: normalizedItem.baseStats ?? rolledStats,
+    rolledStats,
     stats: getUpgradedEquipmentStats(
-      baseStats,
+      rolledStats,
       normalizedItem.rarity,
       normalizedItem.itemLevel ?? normalizedItem.ilvl ?? 1,
       nextUpgradeLevel,
@@ -163,11 +163,16 @@ export type ForgeRecycleResult = {
   next: GameState;
   ok: boolean;
   ecuRefund?: number;
+  itemDestroyed?: true;
   preciousStoneItemId?: string;
+  recipeMaterials?: readonly [];
   reason?: "ITEM_NOT_FOUND";
 };
 
 export type ForgeRecycleOptions = {
+  rng?: Pick<SeededRng, "nextFloat">;
+  seed?: number;
+  /** @deprecated Explicit roll retained as a deterministic brownfield test seam. */
   preciousStoneRoll?: number;
 };
 
@@ -179,21 +184,28 @@ export function forgeRecycle(state: GameState, itemId: string, options: ForgeRec
   if (!item || !isEquipmentItem(item)) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
 
   const rarity = isItemRarity(item.rarity) ? item.rarity : "COMMON";
-  const ecuRefund = getForgeRecycleEcuRefund(item);
-  const roll = options.preciousStoneRoll ?? Math.random();
-  const preciousStone = roll < FORGE_PRECIOUS_STONE_DROP_CHANCE ? createPreciousStoneItem(rarity) : null;
+  const normalizedItem = { ...item, rarity };
+  const rng =
+    options.preciousStoneRoll === undefined
+      ? options.rng ?? createSeededRng(options.seed ?? hashStringSeed(item.id))
+      : { nextFloat: () => options.preciousStoneRoll! };
+  const recycleResult = recycleEquipment(normalizedItem, rng);
 
   const nextInv = removeItem(state.inventory, itemId);
-  const nextItems = preciousStone ? addStackableInventoryItem(nextInv.items, preciousStone) : nextInv.items;
+  const nextItems = recycleResult.preciousStone
+    ? addStackableInventoryItem(nextInv.items, recycleResult.preciousStone)
+    : nextInv.items;
 
   return {
     ok: true,
-    ecuRefund,
-    preciousStoneItemId: preciousStone?.id,
+    ecuRefund: recycleResult.ecuGained,
+    itemDestroyed: recycleResult.itemDestroyed,
+    preciousStoneItemId: recycleResult.preciousStone?.id,
+    recipeMaterials: recycleResult.recipeMaterials,
     next: {
       ...state,
       inventory: { items: nextItems },
-      wallet: grantCurrency(state.wallet, "ECU", ecuRefund),
+      wallet: grantCurrency(state.wallet, "ECU", recycleResult.ecuGained),
     },
   };
 }

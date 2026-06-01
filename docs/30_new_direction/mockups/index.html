@@ -1,0 +1,77 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IdleKing — Maquettes UI</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  body{padding:32px}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:2.1rem;color:#e8ddc0}
+  .sub{font-size:.78rem;color:var(--ik-text-2);margin:6px 0 24px;max-width:680px;line-height:1.6}
+  .gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+  a.card{display:block;text-decoration:none;color:inherit;border-radius:var(--r-xl);overflow:hidden;
+    border:1px solid rgba(58,66,79,.85);background:var(--ik-bg-1);transition:all .14s ease}
+  a.card:hover{transform:translateY(-3px);border-color:var(--ik-gold);box-shadow:0 14px 34px rgba(0,0,0,.5)}
+  .thumb{height:120px;display:grid;place-items:center;font-size:2.4rem;position:relative;overflow:hidden}
+  .t-combat{background:radial-gradient(circle at 50% 20%,rgba(255,138,43,.2),transparent 50%),linear-gradient(180deg,#1a120c,#0d0a08)}
+  .t-time{background:radial-gradient(circle at 50% 40%,rgba(0,231,255,.2),transparent 50%),radial-gradient(circle at 50% 80%,rgba(138,92,255,.18),transparent 55%),#04060c}
+  .t-reso{background:linear-gradient(135deg,rgba(0,231,255,.12),rgba(154,92,255,.12)),var(--ik-bg-2)}
+  .t-dlg{background:linear-gradient(90deg,rgba(0,231,255,.14) 50%,rgba(198,168,91,.14) 50%),var(--ik-bg-2)}
+  .t-forge{background:radial-gradient(circle at 50% 0%,rgba(198,168,91,.2),transparent 55%),var(--ik-bg-2)}
+  .t-assets{background:linear-gradient(135deg,#9aa4b2,#46c46a,#2da8ff,#9a5cff,#e3a93a);opacity:.85}
+  .meta{padding:14px}
+  .meta .nm{font-family:var(--font-title);font-size:1.02rem}
+  .meta .d{font-size:.68rem;color:var(--ik-text-2);margin-top:4px;line-height:1.5}
+  .badge{display:inline-block;margin-top:8px;font-size:.58rem;padding:3px 8px;border-radius:999px;border:1px solid rgba(255,255,255,.14);color:var(--ik-text-1)}
+  .b-new{border-color:rgba(26,255,122,.5);color:var(--ik-xp)}
+  .foot{margin-top:26px;font-size:.66rem;color:var(--ik-text-2);line-height:1.7}
+</style></head>
+<body><div class="wrap">
+  <div class="eyebrow">Propositions visuelles — non normatif</div>
+  <h1>Maquettes UI — IdleKing</h1>
+  <div class="sub">Maquettes HTML autonomes construites sur la palette de <code>ui-tokens.css</code>.
+  Cliquez pour ouvrir. Référence : <code>UI_AND_ASSETS_PROPOSAL.md</code>.</div>
+
+  <div class="gal">
+    <a class="card" href="combat-hud.html">
+      <div class="thumb t-combat">⚔️</div>
+      <div class="meta"><div class="nm">Combat HUD</div>
+        <div class="d">HP/Mana/Stamina, 5 skills, dash, télégraphes, boss bar (Ère Funèbre).</div>
+        <span class="badge">M1 · à refondre</span></div>
+    </a>
+    <a class="card" href="time-gate.html">
+      <div class="thumb t-time">⏳</div>
+      <div class="meta"><div class="nm">Time Gate</div>
+        <div class="d">Sélection d'Ère, Kaléidoscope, Fragment du Temps. Couche cosmic.</div>
+        <span class="badge b-new">M6 · à créer</span></div>
+    </a>
+    <a class="card" href="resonance-effect-sets.html">
+      <div class="thumb t-reso">🔷</div>
+      <div class="meta"><div class="nm">Résonance & Effect Sets</div>
+        <div class="d">9 slots → Effect Slots = floor(/9), slotting des 5 Effect Sets.</div>
+        <span class="badge b-new">M6 · à créer</span></div>
+    </a>
+    <a class="card" href="dialogue-tobo-vs-npc.html">
+      <div class="thumb t-dlg">💬</div>
+      <div class="meta"><div class="nm">Dialogue Tobo vs NPC</div>
+        <div class="d">Un pattern, deux skins (cosmic Tobo / fantasy NPC). Correction C-01.</div>
+        <span class="badge">M4-M5</span></div>
+    </a>
+    <a class="card" href="forge.html">
+      <div class="thumb t-forge">⚒️</div>
+      <div class="meta"><div class="nm">Forge</div>
+        <div class="d">Craft/Upgrade/Recycle, échelle d'armes Forge Level, roll de rareté.</div>
+        <span class="badge">M3</span></div>
+    </a>
+    <a class="card" href="assets-style-guide.html">
+      <div class="thumb t-assets"></div>
+      <div class="meta"><div class="nm">Assets Style Guide</div>
+        <div class="d">Cadres de rareté, palettes d'Ère, télégraphes, familles d'icônes.</div>
+        <span class="badge">référence</span></div>
+    </a>
+  </div>
+
+  <div class="foot">
+    Maquettes statiques de validation de direction — pas du code de production.
+    Les composants cibles vivent dans <code>apps/web/components/game/</code>.
+  </div>
+</div></body></html>

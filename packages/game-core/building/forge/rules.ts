@@ -1,21 +1,17 @@
 import type { WalletState } from "../../currencies/types.js";
+import {
+  EQUIPMENT_UPGRADE_CAP_BY_RARITY,
+  getUpgradeCapForRarity,
+} from "../../equipment/rules.js";
 import type { EquipmentItem, EquipmentStats, ItemRarity, NonEquipmentItem } from "../../items/types.js";
 import type { ResourceStock } from "../../resources/types.js";
 
-export const FORGE_UPGRADE_BREAKPOINTS = [3, 6, 9, 12, 15, 18, 21] as const;
+export const FORGE_UPGRADE_BREAKPOINTS = [3, 6, 9, 12] as const;
 
-export const FORGE_RARITY_UPGRADE_CAP: Record<ItemRarity, number> = {
-  COMMON: 6,
-  UNCOMMON: 6,
-  RARE: 6,
-  EPIC: 9,
-  LEGENDARY: 12,
-  MYTHIC: 15,
-  DIVINE: 18,
-  ANCIENT: 21,
-};
+export const FORGE_RARITY_UPGRADE_CAP = EQUIPMENT_UPGRADE_CAP_BY_RARITY;
 
-export const FORGE_PRECIOUS_STONE_DROP_CHANCE = 0.2; // PLACEHOLDER Phase 8A rate.
+// DEFERRED balancing: locked recycle model, placeholder Precious Stone rate.
+export const FORGE_PRECIOUS_STONE_DROP_CHANCE = 0.2;
 
 const FORGE_UPGRADE_STAT_RATE: Record<ItemRarity, number> = {
   COMMON: 0.05,
@@ -23,9 +19,6 @@ const FORGE_UPGRADE_STAT_RATE: Record<ItemRarity, number> = {
   RARE: 0.05,
   EPIC: 0.055,
   LEGENDARY: 0.06,
-  MYTHIC: 0.065,
-  DIVINE: 0.07,
-  ANCIENT: 0.075,
 };
 
 const PRECIOUS_STONE_NAME: Record<ItemRarity, string> = {
@@ -34,9 +27,6 @@ const PRECIOUS_STONE_NAME: Record<ItemRarity, string> = {
   RARE: "Precious Stone Rare",
   EPIC: "Precious Stone Epic",
   LEGENDARY: "Precious Stone Legendary",
-  MYTHIC: "Precious Stone Mythic",
-  DIVINE: "Precious Stone Divine",
-  ANCIENT: "Precious Stone Ancient",
 };
 
 export type ForgeUpgradeCost = {
@@ -45,7 +35,7 @@ export type ForgeUpgradeCost = {
 };
 
 export function getForgeUpgradeMaxLevel(rarity: ItemRarity = "COMMON"): number {
-  return FORGE_RARITY_UPGRADE_CAP[rarity];
+  return getUpgradeCapForRarity(rarity);
 }
 
 export function getForgeUpgradeLevel(item: Pick<EquipmentItem, "upgradeLevel">): number {

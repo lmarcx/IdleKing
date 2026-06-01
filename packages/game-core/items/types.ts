@@ -3,10 +3,7 @@ export type ItemRarity =
   | "UNCOMMON"
   | "RARE"
   | "EPIC"
-  | "LEGENDARY"
-  | "MYTHIC"
-  | "DIVINE"
-  | "ANCIENT";
+  | "LEGENDARY";
 
 export const ITEM_RARITIES: readonly ItemRarity[] = [
   "COMMON",
@@ -14,14 +11,11 @@ export const ITEM_RARITIES: readonly ItemRarity[] = [
   "RARE",
   "EPIC",
   "LEGENDARY",
-  "MYTHIC",
-  "DIVINE",
-  "ANCIENT",
 ] as const;
 
 export type EquipmentSlot =
-  | "weapon"
-  | "offhand"
+  | "main_hand"
+  | "off_hand"
   | "helmet"
   | "chest"
   | "gloves"
@@ -33,8 +27,8 @@ export type EquipmentSlot =
   | "artifact";
 
 export const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = [
-  "weapon",
-  "offhand",
+  "main_hand",
+  "off_hand",
   "helmet",
   "chest",
   "gloves",
@@ -46,7 +40,7 @@ export const EQUIPMENT_SLOTS: readonly EquipmentSlot[] = [
   "artifact",
 ] as const;
 
-export type LegacyItemSlot = "WEAPON" | "ARMOR" | "CAPE" | "AMULET" | "RING";
+export type LegacyItemSlot = "weapon" | "offhand" | "WEAPON" | "ARMOR" | "CAPE" | "AMULET" | "RING";
 
 export type EquipmentStats = {
   hp?: number;
@@ -64,19 +58,34 @@ export type ResolvedEquipmentStats = {
 
 export type ItemId = string;
 
-export type EquipmentItem = {
+export type EquipmentAffix = {
+  affixId: string;
+  stat: keyof EquipmentStats;
+  value: number;
+};
+
+export type EquipmentInstance = {
+  affixes: EquipmentAffix[];
+  baseItemId: string;
+  instanceId: string;
+  ilvl: number;
+  rarity: ItemRarity;
+  rolledStats: EquipmentStats;
+  setId?: string;
+  skillId?: string;
+  slot: EquipmentSlot;
+  upgradeLevel: number;
+};
+
+export type EquipmentItem = EquipmentInstance & {
   id: ItemId;
   kind?: "equipment";
   name: string;
-  slot: EquipmentSlot;
 
   stats: EquipmentStats;
   baseStats?: EquipmentStats;
 
   itemLevel?: number;
-  ilvl?: number; // legacy forge/display alias for itemLevel
-  rarity?: ItemRarity;
-  upgradeLevel: number;
   value?: number;
 };
 
@@ -92,7 +101,9 @@ export type NonEquipmentItem = {
 export type Item = EquipmentItem | NonEquipmentItem;
 
 const LEGACY_ITEM_SLOT_MAP: Partial<Record<LegacyItemSlot, EquipmentSlot>> = {
-  WEAPON: "weapon",
+  weapon: "main_hand",
+  offhand: "off_hand",
+  WEAPON: "main_hand",
   ARMOR: "chest",
   CAPE: "cape",
   AMULET: "necklace",
@@ -118,6 +129,29 @@ function normalizeUpgradeLevel(value: unknown): number {
   return Math.max(0, Math.floor(value));
 }
 
+function normalizeIlvl(candidate: Partial<EquipmentItem>): number {
+  const value = candidate.ilvl ?? candidate.itemLevel;
+  if (typeof value !== "number" || !Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(1000, Math.floor(value)));
+}
+
+function normalizeAffixes(value: unknown): EquipmentAffix[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((affix): EquipmentAffix[] => {
+    if (!affix || typeof affix !== "object") return [];
+    const candidate = affix as Partial<EquipmentAffix>;
+    if (
+      typeof candidate.affixId !== "string" ||
+      typeof candidate.stat !== "string" ||
+      typeof candidate.value !== "number" ||
+      !Number.isFinite(candidate.value)
+    ) {
+      return [];
+    }
+    return [{ affixId: candidate.affixId, stat: candidate.stat as keyof EquipmentStats, value: candidate.value }];
+  });
+}
+
 export function isEquipmentItem(item: unknown): item is EquipmentItem {
   if (!item || typeof item !== "object") return false;
   const candidate = item as Partial<EquipmentItem>;
@@ -130,13 +164,21 @@ export function normalizeEquipmentItem(item: unknown): EquipmentItem | null {
   const candidate = item as Partial<EquipmentItem> & { slot?: unknown };
   const slot = normalizeEquipmentSlot(candidate.slot);
   if (!slot || typeof candidate.id !== "string" || typeof candidate.name !== "string") return null;
+  if (candidate.rarity !== undefined && !isItemRarity(candidate.rarity)) return null;
   const stats = candidate.stats ?? {};
+  const ilvl = normalizeIlvl(candidate);
 
   return {
     ...candidate,
+    affixes: normalizeAffixes(candidate.affixes),
+    baseItemId: typeof candidate.baseItemId === "string" ? candidate.baseItemId : candidate.id,
     id: candidate.id,
+    ilvl,
+    instanceId: typeof candidate.instanceId === "string" ? candidate.instanceId : candidate.id,
+    itemLevel: candidate.itemLevel ?? ilvl,
     kind: "equipment",
     name: candidate.name,
+    rolledStats: candidate.rolledStats ?? stats,
     slot,
     stats,
     baseStats: candidate.baseStats ?? stats,

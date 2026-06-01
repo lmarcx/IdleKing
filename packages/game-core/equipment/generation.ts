@@ -1,10 +1,25 @@
-import { EQUIPMENT_SLOTS, type EquipmentItem, type EquipmentSlot, type EquipmentStats, type ItemRarity } from "../items/types.js";
+import {
+  EQUIPMENT_SLOTS,
+  normalizeEquipmentSlot,
+  type EquipmentItem,
+  type EquipmentSlot,
+  type EquipmentStats,
+  type ItemRarity,
+  type LegacyItemSlot,
+} from "../items/types.js";
+import { applyEquipmentAffixes, generatePlaceholderAffixes } from "./rules.js";
+import { getEquipmentSetDefinitionOrThrow } from "./sets.js";
+
+type EquipmentSlotInput = EquipmentSlot | LegacyItemSlot;
 
 export type GenerateEquipmentItemParams = {
+  baseItemId?: string;
   id?: string;
   seed?: string | number;
   name?: string;
-  slot: EquipmentSlot;
+  setId?: string;
+  skillId?: string;
+  slot: EquipmentSlotInput;
   itemLevel: number;
   rarity?: ItemRarity;
 };
@@ -15,12 +30,12 @@ export type GenerateEquipmentLootDropParams = {
   chance?: number;
   itemLevel?: number;
   rarity?: ItemRarity;
-  slots?: readonly EquipmentSlot[];
+  slots?: readonly EquipmentSlotInput[];
 };
 
 const SLOT_BASE_NAMES: Record<EquipmentSlot, string> = {
-  weapon: "Sword",
-  offhand: "Guard",
+  main_hand: "Sword",
+  off_hand: "Guard",
   helmet: "Helm",
   chest: "Armor",
   gloves: "Gloves",
@@ -38,9 +53,6 @@ const RARITY_MULTIPLIER: Record<ItemRarity, number> = {
   RARE: 1.18,
   EPIC: 1.42,
   LEGENDARY: 1.8,
-  MYTHIC: 2.15,
-  DIVINE: 2.55,
-  ANCIENT: 3,
 };
 
 function slug(value: string): string {
@@ -77,11 +89,11 @@ function buildStats(slot: EquipmentSlot, itemLevel: number, rarity: ItemRarity):
   const scale = itemLevel * RARITY_MULTIPLIER[rarity];
 
   switch (slot) {
-    case "weapon": {
+    case "main_hand": {
       const stats = { attack: stat(4 + scale * 0.32) };
       return { ...stats, power: derivedPower(stats) };
     }
-    case "offhand": {
+    case "off_hand": {
       const stats = { attack: stat(1 + scale * 0.1), defense: stat(2 + scale * 0.2) };
       return { ...stats, power: derivedPower(stats) };
     }
@@ -118,30 +130,40 @@ function buildStats(slot: EquipmentSlot, itemLevel: number, rarity: ItemRarity):
       return { ...stats, power: derivedPower(stats) + stat(1 + scale * 0.12) };
     }
     case "artifact": {
-      const stats = { hp: stat(6 + scale * 0.5), attack: stat(2 + scale * 0.16), defense: stat(1 + scale * 0.08) };
-      return { ...stats, power: derivedPower(stats) + stat(2 + scale * 0.18) };
+      return {};
     }
   }
 }
 
 export function generateEquipmentItem(params: GenerateEquipmentItemParams): EquipmentItem {
+  const slot = normalizeEquipmentSlot(params.slot);
+  if (!slot) throw new Error(`Unknown equipment slot: ${params.slot}`);
+  if (params.setId) getEquipmentSetDefinitionOrThrow(params.setId);
   const itemLevel = normalizeItemLevel(params.itemLevel);
   const rarity = params.rarity ?? "COMMON";
-  const name = params.name ?? `${SLOT_BASE_NAMES[params.slot]} ${itemLevel}`;
-  const id = params.id ?? `eq_${slug(String(params.seed ?? `${params.slot}-${itemLevel}-${rarity}`))}`;
-  const stats = buildStats(params.slot, itemLevel, rarity);
+  const name = params.name ?? `${SLOT_BASE_NAMES[slot]} ${itemLevel}`;
+  const id = params.id ?? `eq_${slug(String(params.seed ?? `${slot}-${itemLevel}-${rarity}`))}`;
+  const baseStats = buildStats(slot, itemLevel, rarity);
+  const affixes = generatePlaceholderAffixes(rarity);
+  const rolledStats = slot === "artifact" ? {} : applyEquipmentAffixes(baseStats, affixes);
 
   return {
+    affixes,
+    baseItemId: params.baseItemId ?? `${slot}_${slug(name)}`,
     id,
+    ilvl: itemLevel,
+    instanceId: id,
     kind: "equipment",
     name,
-    slot: params.slot,
+    rolledStats,
+    setId: params.setId,
+    skillId: params.skillId,
+    slot,
     itemLevel,
-    ilvl: itemLevel,
     rarity,
     upgradeLevel: 0,
-    baseStats: stats,
-    stats,
+    baseStats,
+    stats: rolledStats,
   };
 }
 
@@ -151,10 +173,11 @@ export function generateEquipmentLootDrop(params: GenerateEquipmentLootDropParam
 
   if (rng() >= chance) return null;
 
-  const slots = (params.slots?.length ? params.slots : EQUIPMENT_SLOTS).filter((slot) =>
-    (EQUIPMENT_SLOTS as readonly string[]).includes(slot),
-  );
-  const slot = slots[Math.floor(rng() * slots.length)] ?? "weapon";
+  const slots = (params.slots?.length ? params.slots : EQUIPMENT_SLOTS).flatMap((slot) => {
+    const normalized = normalizeEquipmentSlot(slot);
+    return normalized ? [normalized] : [];
+  });
+  const slot = slots[Math.floor(rng() * slots.length)] ?? "main_hand";
   const itemLevel = params.itemLevel ?? clamp(Math.round(params.worldLevel * 20), 1, 1000);
 
   return generateEquipmentItem({

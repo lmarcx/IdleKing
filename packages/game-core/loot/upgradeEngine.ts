@@ -2,6 +2,8 @@ import type { GeneratedItem } from "./itemGenerator.js";
 import type { Element, CombatStats } from "../power/types.js";
 import { computeItemPowerFromStats, emptyCombatStats } from "../power/itemScore.js";
 import { tierFromWorldLevel } from "./budget.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
+import { getUpgradeCapForRarity } from "../equipment/rules.js";
 
 export type UpgradeCost = {
   kingamas: number;
@@ -9,14 +11,13 @@ export type UpgradeCost = {
 };
 
 export type UpgradeConfig = {
-  maxUpgradeLevel: number;
+  maxUpgradeLevel?: number;
   statPerLevelMultiplier: number; // ex: 0.06
   costGrowth: number; // ex: 1.35
   baseKingamas: number; // ex: 5
 };
 
 export const DEFAULT_UPGRADE_CONFIG: UpgradeConfig = {
-  maxUpgradeLevel: 10,
   statPerLevelMultiplier: 0.06,
   costGrowth: 1.35,
   baseKingamas: 5,
@@ -28,9 +29,6 @@ const RARITY_FACTOR: Record<GeneratedItem["rarity"], number> = {
   RARE: 1.5,
   EPIC: 2.4,
   LEGENDARY: 4.0,
-  MYTHIC: 6.0,
-  DIVINE: 8.5,
-  ANCIENT: 12.0,
 };
 
 const TIER_FACTOR = [1, 2, 4, 7, 12] as const;
@@ -81,7 +79,7 @@ function toCombatStats(itemStats: GeneratedItem["stats"]): CombatStats {
     resists: { ...base.resists, ...(itemStats.resists ?? {}) },
     elemental: { ...base.elemental, ...(itemStats.elemental ?? {}) },
     critChance: itemStats.critChance ?? 0,
-    critDmg: 1.5 + (itemStats.critDmg ?? 0),
+    critDmg: CRIT_DAMAGE_DEFAULT + (itemStats.critDmg ?? 0),
     speedRating: Math.round(itemStats.speedRating ?? 0),
     pierceRating: Math.round(itemStats.pierceRating ?? 0),
   };
@@ -109,7 +107,7 @@ export function getUpgradeCost(
 }
 
 export function canUpgrade(item: GeneratedItem, cfg: UpgradeConfig = DEFAULT_UPGRADE_CONFIG) {
-  return item.upgradeLevel < cfg.maxUpgradeLevel;
+  return item.upgradeLevel < (cfg.maxUpgradeLevel ?? getUpgradeCapForRarity(item.rarity));
 }
 
 export function applyUpgrade(

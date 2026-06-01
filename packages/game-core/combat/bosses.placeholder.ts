@@ -1,5 +1,6 @@
 import type { BossDef } from "./types.js";
 import type { Element } from "../power/types.js";
+import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 
 const ELEMENTS: readonly Element[] = ["FIRE", "ICE", "LIGHTNING", "VOID"] as const;
 
@@ -67,7 +68,7 @@ function makePlaceholderBoss(level: number, id: string, name: string): BossDef {
       resists,
       elemental,
       critChance,
-      critDmg: 1.5,
+      critDmg: CRIT_DAMAGE_DEFAULT,
       speedRating,
       pierceRating,
     },
