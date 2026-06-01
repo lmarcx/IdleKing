@@ -8,6 +8,7 @@ import {
   type LegacyItemSlot,
 } from "../items/types.js";
 import { applyEquipmentAffixes, generatePlaceholderAffixes } from "./rules.js";
+import { getEquipmentSetDefinitionOrThrow } from "./sets.js";
 
 type EquipmentSlotInput = EquipmentSlot | LegacyItemSlot;
 
@@ -137,6 +138,7 @@ function buildStats(slot: EquipmentSlot, itemLevel: number, rarity: ItemRarity):
 export function generateEquipmentItem(params: GenerateEquipmentItemParams): EquipmentItem {
   const slot = normalizeEquipmentSlot(params.slot);
   if (!slot) throw new Error(`Unknown equipment slot: ${params.slot}`);
+  if (params.setId) getEquipmentSetDefinitionOrThrow(params.setId);
   const itemLevel = normalizeItemLevel(params.itemLevel);
   const rarity = params.rarity ?? "COMMON";
   const name = params.name ?? `${SLOT_BASE_NAMES[slot]} ${itemLevel}`;

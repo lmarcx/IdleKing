@@ -8,6 +8,7 @@ export type {
   GenerateEquipmentLootDropParams,
 } from "./generation.js";
 export * from "./rules.js";
+export * from "./sets.js";
 import {
   EQUIPMENT_SLOTS,
   isEquipmentItem,
@@ -21,6 +22,10 @@ import {
   type ItemRarity,
   type ResolvedEquipmentStats,
 } from "../items/types.js";
+import {
+  calculateEquipmentSetModifiersFromItems,
+} from "./sets.js";
+import type { StatsModifiers } from "../power/statsModel.js";
 
 export type PlayerEquipmentState = {
   equipped: Record<EquipmentSlot, string | null>;
@@ -168,12 +173,22 @@ function addEquipmentStats(target: ResolvedEquipmentStats, item: EquipmentItem) 
 
 export function calculateEquipmentStats(gameState: GameState): ResolvedEquipmentStats {
   const stats: ResolvedEquipmentStats = { hp: 0, attack: 0, defense: 0, power: 0 };
+  const items = getEquippedItems(gameState);
 
-  for (const item of getEquippedItems(gameState)) {
+  for (const item of items) {
     addEquipmentStats(stats, item);
   }
 
+  const setModifiers = calculateEquipmentSetModifiersFromItems(items);
+  stats.hp += setModifiers.base?.hp ?? 0;
+  stats.attack += setModifiers.base?.atk ?? 0;
+  stats.defense += setModifiers.base?.def ?? 0;
+
   return stats;
+}
+
+export function calculateEquipmentSetModifiers(gameState: GameState): StatsModifiers {
+  return calculateEquipmentSetModifiersFromItems(getEquippedItems(gameState));
 }
 
 export function calculateFinalCharacterStats(gameState: GameState): ResolvedEquipmentStats {
