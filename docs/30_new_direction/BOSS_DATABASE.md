@@ -100,7 +100,7 @@ Bosses accessible after story completion through alternate gameplay modes.
 
 Access:
 - Kaléidoscope
-- World Gate
+- Time Gate
 - challenge modes
 - future alternate game modes
 

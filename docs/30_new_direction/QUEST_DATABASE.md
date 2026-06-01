@@ -357,7 +357,7 @@ Restore a device capable of traversing the Eras.
 
 ### Unlocks
 
-* World Gate
+* Time Gate
 * Era Glaciaire
 
 ---

@@ -222,7 +222,7 @@ Les règles exactes seront définies dans :
 
 ```txt
 PROGRESSION.md
-STORY.md
+STORY_CHAPTERS.md
 RECIPES.md
 BUILDINGS.md
 ```
@@ -250,7 +250,7 @@ affiche l’état du World
 consomment World Energy pour lancer des runs
 ```
 
-### World Gate
+### Time Gate
 
 ```txt
 certains modes consomment World Energy

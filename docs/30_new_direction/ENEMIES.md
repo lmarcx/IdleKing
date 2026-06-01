@@ -1,5 +1,8 @@
 # 👹 Idle King — Enemy System (v1)
 
+> ⚠️ **Concept v1.** Les données canoniques (familles, variants, élites, boss, drops) sont dans
+> `ENEMIES_DATABASE_V2.md` (source of truth). Ce document reste le doc de vision/philosophie.
+
 ---
 
 # 🧭 Vision

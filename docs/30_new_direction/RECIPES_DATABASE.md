@@ -183,6 +183,15 @@ Not MVP.
 
 # 6. Weapon Recipes
 
+> **Échelle d'unlock par Forge Level (DESIGN_FREEZE_V1 §5, D-08)** — le **type** d'arme est gaté par le niveau de Forge :
+>
+> ```txt
+> Fg1 Sword · Fg2 Dagger · Fg3 Axe · Fg4 Greatsword · Fg5 Pistol
+> Fg6 Bow · Fg7 Shield · Fg8 Spear · Fg9 Grimoire · Fg10 Staff
+> ```
+>
+> Les armes **thématiques de boss** requièrent la défaite du boss **EN PLUS** du type débloqué.
+
 ---
 
 # 6.1 Sword Recipes
@@ -209,7 +218,7 @@ Common → Legendary
 ## Funeral Blade
 
 Unlock:
-Seigneur de la Pluie Déchu defeated
+Amalgame des Ténèbres defeated
 
 Ingredients:
 
@@ -217,7 +226,8 @@ Ingredients:
 45x Iron Ore
 25x Ashwood
 18x Shadow Residue
-2x Fallen Rain Pearl
+12x Spectral Dust
+2x Dark Amalgam Core
 ```
 
 Theme:
@@ -269,7 +279,7 @@ glacial warfare
 ## Broken Axe
 
 Unlock:
-Forge Level 1
+Forge Level 3
 
 Ingredients:
 
@@ -324,7 +334,7 @@ glacial execution
 ## Bone Knife
 
 Unlock:
-Forge Level 1
+Forge Level 2
 
 Ingredients:
 
@@ -453,7 +463,7 @@ Ingredients:
 ## Hunter Bow
 
 Unlock:
-Forge Level 1
+Forge Level 6
 
 Ingredients:
 
@@ -575,6 +585,9 @@ Ingredients:
 ---
 
 ## Rusted Shield
+
+Unlock:
+Forge Level 7
 
 Ingredients:
 

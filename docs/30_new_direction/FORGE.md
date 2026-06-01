@@ -83,7 +83,7 @@ fixes
 débloquées par conditions
 ```
 
-Phase 8C ajoute des unlocks de recette par niveau de Forge.
+Les unlocks de recette suivent le niveau de Forge (DESIGN_FREEZE_V1 §5).
 
 ```txt
 Forge Level 1  -> sword
@@ -134,7 +134,7 @@ Chaque niveau d’upgrade augmente :
 stats basiques
 ```
 
-Phase 8B applique ces stats basiques depuis les stats de base de l'item :
+L'upgrade applique ces stats basiques depuis les stats de base de l'item :
 
 ```txt
 HP
@@ -158,6 +158,13 @@ stats avancées
 Les paliers dépendent de la rareté.
 
 ### Common / Uncommon
+
+```txt
++3
++6
+```
+
+### Rare
 
 ```txt
 +3
@@ -320,7 +327,7 @@ limitations
 
 Recycle détruit un item et ne rembourse pas les ressources de recette.
 
-Règles Phase 8A :
+Règles de recycle (DESIGN_FREEZE_V1 §9) :
 
 ```txt
 item détruit définitivement

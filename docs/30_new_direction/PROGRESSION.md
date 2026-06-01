@@ -26,7 +26,6 @@ Exemple :
 ```txt
 Player Level max 50
 World Level max 50
-Skill Level max 10
 ```
 
 Un **soft cap**, c’est quand on peut continuer, mais avec rendement réduit.
@@ -130,8 +129,9 @@ Lorsqu’un joueur gagne un niveau :
 
 ```txt
 stats basiques augmentent
-skill point +1
 ```
+
+> Le level up n'octroie PLUS de skill point (DESIGN_FREEZE_V1 §3, D-02 — ring-scaling pur).
 
 Stats basiques concernées :
 
@@ -146,15 +146,8 @@ SPEED
 
 ## Skill Points
 
-Les skill points servent à améliorer les skills.
-
-Ils proviennent principalement :
-
-```txt
-level up joueur
-quêtes
-récompenses spécifiques
-```
+> ❌ SUPPRIMÉ du MVP (DESIGN_FREEZE_V1 §3, D-02). Les skills n'ont pas de niveau propre :
+> leur puissance vient du ring (ring-scaling pur). Aucun skill point n'existe au MVP.
 
 ---
 
@@ -503,54 +496,40 @@ Les plafonds exacts seront définis en balancing.
 
 # 8. Skill Progression
 
-## Skill Level
+## Ring-scaling pur (LOCKED — DESIGN_FREEZE_V1 §3, D-02)
+
+Les skills **n'ont AUCUN niveau indépendant** et **aucun skill point**.
+
+La puissance d'une skill dérive **uniquement du ring qui la porte** :
 
 ```txt
-Skill Level max = 10
+Ring Rarity
+Ring iLvl
+Ring Upgrade Level
+Ring Affixes
 ```
 
----
-
-## Upgrade
-
-Les skills sont améliorées avec :
+Donc :
 
 ```txt
-skill points
-```
-
-Structure MVP :
-
-```txt
-upgrade linéaire
+Upgrade Ring = Upgrade Skill
 ```
 
 ---
 
 ## Reset / Respec
 
-Le reset des skills est possible via :
-
-```txt
-Temple
-```
-
-En dev :
-
-```txt
-reset possible directement depuis la page Skills
-```
+Changer de skill = **changer de ring** équipé. Pas de respec de niveau (il n'y a pas de niveau de skill).
 
 ---
 
-## Future Extensions
+## Future Extensions (backlog)
 
 Plus tard, les skills pourront recevoir :
 
 ```txt
-éveil
 passive stats
-modificateurs via rings
+Power Stones (modificateurs via rings)
 systèmes avancés
 ```
 
@@ -558,23 +537,24 @@ systèmes avancés
 
 # 9. Ring Progression
 
-Les rings sont équipés dans :
+Les rings sont un **système core MVP** (DESIGN_FREEZE_V1 §4, D-03).
 
 ```txt
-5 slots
+5 slots = 5 skills actifs
+1 ring = 1 skill (skillId)
+interdit : 2 rings avec la même Skill ID
 ```
 
-Vision long terme :
+Un ring progresse via :
 
 ```txt
-modificateurs / améliorateurs de skills équipées
+rarity
+ilvl
+upgrade level
+affixes
 ```
 
-Ils appartiennent plutôt au :
-
-```txt
-endgame / theorycraft avancé
-```
+Améliorer un ring = améliorer la skill qu'il porte. (Mapping rings nommés → skills : `RINGS_SKILLS_MAP.md`.)
 
 ---
 
@@ -786,8 +766,9 @@ Pour le MVP, plusieurs hard caps existent :
 ```txt
 Player Level max = 50
 World Level max = 50
-Skill Level max = 10
 ```
+
+> Pas de "Skill Level" (ring-scaling pur, D-02). Le plafond de puissance des skills passe par le ring (rarity/upgrade).
 
 Les autres plafonds seront définis selon les systèmes.
 
@@ -857,12 +838,11 @@ Le MVP progression inclut :
 ```txt
 Player XP
 Player Level
-Skill Points
 World XP
 World Level
 Story Unlocks
 Building Unlocks
-Equipment Progression
+Equipment Progression (incl. rings = skills)
 ```
 
 À reporter plus tard :
@@ -903,7 +883,6 @@ type ProgressionState = {
   player: {
     level: number;
     xp: number;
-    skillPoints: number;
   };
 
   world: {

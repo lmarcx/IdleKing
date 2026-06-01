@@ -1,19 +1,19 @@
 category,name,unlock,ingredients,theme,possible_rarities
 Sword,Rusted Sword,Forge Lv1,30 Iron Ore + 15 Old Wood,Kingdom,Common→Legendary
-Sword,Funeral Blade,Seigneur de la Pluie Déchu,45 Iron Ore + 25 Ashwood + 18 Shadow Residue + 2 Fallen Rain Pearl,Funebre,Common→Legendary
+Sword,Funeral Blade,Amalgame des Ténèbres,45 Iron Ore + 25 Ashwood + 18 Shadow Residue + 12 Spectral Dust + 2 Dark Amalgam Core,Funebre,Common→Legendary
 Sword,Royal Saber,Kingdom Progression,60 Iron Ore + 20 Silver Ore + 12 Quartz,Royal,Common→Legendary
 Sword,Frostbound Longsword,Chapter II,55 Cold Iron + 20 Sapphire + 18 Frozen Echo + 2 Frost Amalgam Core,Glacial,Common→Legendary
-Axe,Broken Axe,Forge Lv1,40 Iron Ore + 10 Old Wood,Survival,Common→Legendary
+Axe,Broken Axe,Forge Lv3,40 Iron Ore + 10 Old Wood,Survival,Common→Legendary
 Axe,Ashen Axe,Ombre du Dragon,65 Iron Ore + 25 Ashwood + 22 Spectral Dust + 3 Dragon Ash Core,Dragon Ash,Common→Legendary
 Axe,Frostsplitter,Chapter II,60 Cold Iron + 25 Frozen Echo + 10 Sapphire,Glacial,Common→Legendary
-Dagger,Bone Knife,Forge Lv1,15 Iron Ore + 10 Tough Meat + 5 Old Wood,Survival,Common→Legendary
+Dagger,Bone Knife,Forge Lv2,15 Iron Ore + 10 Tough Meat + 5 Old Wood,Survival,Common→Legendary
 Dagger,Frostfang Dagger,Amalgame du Givre,40 Cold Iron + 15 Sapphire + 15 Frozen Echo + 2 Frost Amalgam Core,Glacial,Common→Legendary
 Dagger,Spectral Shiv,Chapter I,30 Iron Ore + 20 Spectral Dust + 10 Shadow Residue,Spectral,Common→Legendary
 Greatsword,Tomb Greatsword,Chapter I,70 Iron Ore + 35 Ashwood + 20 Spectral Dust,Funebre,Common→Legendary
 Greatsword,Dragonbone Greatsword,Ombre du Dragon,90 Iron Ore + 45 Ashwood + 25 Spectral Dust + 5 Dragon Ash Core,Dragon Ash,Common→Legendary
 Spear,Ashen Spear,Ombre du Dragon,50 Iron Ore + 30 Ashwood + 20 Spectral Dust + 3 Dragon Ash Core,Dragon Ash,Common→Legendary
 Spear,Frostpiercer,Chapter II,55 Cold Iron + 20 Sapphire + 18 Frozen Echo,Glacial,Common→Legendary
-Bow,Hunter Bow,Forge Lv1,20 Old Wood + 10 Tough Meat,Hunter,Common→Legendary
+Bow,Hunter Bow,Forge Lv6,20 Old Wood + 10 Tough Meat,Hunter,Common→Legendary
 Bow,Funeral Longbow,Chapter I,40 Ashwood + 15 Spectral Dust + 10 Shadow Residue,Funebre,Common→Legendary
 Pistol,Rusted Pistol,Forge Lv5,35 Iron Ore + 20 Silver Ore + 10 Quartz,Kingdom,Common→Legendary
 Pistol,Frostfire Pistol,Chapter II,55 Cold Iron + 25 Sapphire + 15 Frozen Echo,Glacial,Common→Legendary

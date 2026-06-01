@@ -672,6 +672,11 @@ arcane utility
 
 # 6. Armor Sets
 
+> **Identités de set : `EQUIPMENT_SETS.md` est la source of truth (DESIGN_FREEZE_V1 §7, D-06).**
+> MVP actifs : **Vagabond, Pleureur, Maraudeur, Docteur**. Placeholder : **Flageleur, Gardien des Cendres,
+> Voltigeur, Reine Blanche**. Les lignes « Identity » ci-dessous sont indicatives et cèdent à
+> EQUIPMENT_SETS en cas de conflit (ex. Maraudeur = burst/crit, Pleureur = tank/DEF).
+
 ---
 
 # 6.1 Kingdom / Prologue
@@ -991,13 +996,17 @@ sustain scaling
 
 # 8. Artifacts
 
-Reserved for:
-- Kaléidoscope
+> **LOCKED — DESIGN_FREEZE_V1 §16 (D-11/D-12) :** le slot **artifact est INERTE au MVP** (aucun effet ;
+> modificateur d'arme = backlog). Le **Kaléidoscope n'est PAS un artifact** : c'est un **Special World Item**
+> qui débloque les pleins pouvoirs à la **Time Gate**. Le déblocage des Ères se fait via les **Fragments du Temps**
+> (lootés sur boss de fin de chapitre). Voir `RESOURCES_DATABASE.md` §6.
+
+Reserved for (futur) :
 - Era relics
 - soul fragments
 - future systems
 
-MVP artifacts remain limited.
+MVP artifacts remain limited (slot inert).
 
 ---
 

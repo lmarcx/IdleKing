@@ -184,45 +184,18 @@ Savage Iron Sword of Fury
 
 ---
 
-# 📊 Affixes by Rarity
-
-## Common
+# 📊 Affixes by Rarity (LOCKED — DESIGN_FREEZE_V1 §6, D-05)
 
 ```txt
-0 Affixes
+Common     → 0 affixe
+Uncommon   → 0 affixe
+Rare       → 1 affixe
+Epic       → 1 affixe
+Legendary  → 2 affixes (1 préfixe + 1 suffixe)
 ```
 
----
-
-## Uncommon
-
-```txt
-1 Affix
-```
-
----
-
-## Rare
-
-```txt
-2 Affixes
-```
-
----
-
-## Epic
-
-```txt
-3 Affixes
-```
-
----
-
-## Legendary
-
-```txt
-4 Affixes
-```
+Cap MVP = **2 affixes** (cohérent avec « 1 Prefix + 1 Suffix »).
+Plages de valeurs + pools par slot = DEFERRED (balancing).
 
 ---
 
@@ -529,7 +502,7 @@ Bosses may drop:
 Generated Gear
 Boss Materials
 Boss Tokens
-Era Progression Items
+Fragment du Temps
 ```
 
 ---

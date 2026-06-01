@@ -392,7 +392,7 @@ Drops:
 
 ```txt
 Bone Fragment
-Iron Scrap
+Iron Ore
 ```
 
 ---
@@ -498,7 +498,7 @@ Drops:
 
 ```txt
 Dragon Ash Core
-Era Progression Item
+Fragment du Temps
 Boss Token
 ```
 
@@ -946,6 +946,39 @@ Icebound Grimoire
 
 ---
 
+## Seigneur de la Pluie Déchu
+
+Family:
+
+```txt
+Humanoid Duel Boss
+```
+
+Location:
+
+```txt
+Gouffre Royal
+```
+
+Phase Count:
+
+```txt
+1–2
+```
+
+Lore:
+
+Noah's original identity, encountered as a tease of Era Déluge.
+
+Drops:
+
+```txt
+Pearlescent Scale
+Boss Token
+```
+
+---
+
 ## Allaeva, Reine de Glace
 
 Family:
@@ -957,14 +990,14 @@ Commandants
 Phase Count:
 
 ```txt
-1
+2
 ```
 
 Drops:
 
 ```txt
 Frozen Queen Tear
-Era Progression Item
+Fragment du Temps
 Boss Token
 ```
 

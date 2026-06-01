@@ -289,7 +289,6 @@ Un level doit pouvoir contenir :
 - ressources
 - équipements
 - consommables
-- skill points
 - monnaie spéciale
 ```
 
@@ -361,7 +360,7 @@ Le système doit permettre d’ajouter facilement :
 
 ## 🔗 Liens
 
-* `STORY.md`
+* `STORY_CHAPTERS.md`
 * `COMBAT.md`
 * `ENEMIES.md`
 * `BOSS.md`

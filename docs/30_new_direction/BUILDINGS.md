@@ -60,7 +60,7 @@ Kitchen
 Temple
 Market
 Forum
-World Gate
+Time Gate
 Bank
 ```
 
@@ -868,7 +868,7 @@ vente
 special vendors
 ```
 
-MVP Phase 9B :
+MVP :
 
 ```txt
 ECU uniquement
@@ -927,11 +927,11 @@ events
 
 ---
 
-# 16. World Gate
+# 16. Time Gate
 
 ## Rôle
 
-Le World Gate est le point d’entrée vers les modes de jeu.
+Le Time Gate est le point d’entrée vers les modes de jeu.
 
 Il donne accès à :
 
@@ -961,7 +961,7 @@ consommables
 objets spéciaux non-quête
 ```
 
-MVP Phase 9A :
+MVP :
 
 ```txt
 accès via le bâtiment / page Bank du Kingdom
@@ -1120,9 +1120,8 @@ RECIPES.md
 STATS.md
 WORLD.md
 PROGRESSION.md
-STORY.md
-MARKET.md
-BANK.md
+STORY_CHAPTERS.md
+(Market & Bank = sections de ce document)
 ```
 
 ---

@@ -15,6 +15,28 @@ Un Equipment Set doit rester facilement extensible afin d’ajouter de nouveaux 
 
 ---
 
+## 0. MVP Status (LOCKED — DESIGN_FREEZE_V1 §7, D-06)
+
+**4 sets actifs au MVP** (équilibrés) :
+
+| Set | Disponibilité | Rôle | Base bias | Stats avancées |
+|---|---|---|---|---|
+| Vagabond | Prologue | Mobilité / exploration | SPEED / Stamina | move speed, stamina regen, dash |
+| Pleureur | Début Ch I | Tank / mitigation | HP / DEF | DEF, HP regen, (reflect futur) |
+| Maraudeur | Début Ch II | Burst / crit | ATK / SPEED | crit chance, crit damage |
+| Docteur | Ch II | Support / heal / mana | Mana / HP | healing power, buff power, mana regen, CDR |
+
+**4 sets PLACEHOLDER** (non finalisés, retravaillés aux chapitres suivants, hors balancing MVP) :
+
+```txt
+Flageleur · Gardien des Cendres · Voltigeur · Reine Blanche
+```
+
+> Les fiches détaillées ci-dessous font foi pour le rôle mécanique de **Pleureur, Maraudeur, Docteur**.
+> **Vagabond** (mobilité) est un set actif MVP. **Flageleur** et **Voltigeur** restent documentés mais en statut **placeholder**.
+
+---
+
 ## 2. Principe général
 
 Chaque item peut appartenir à un Equipment Set.

@@ -600,7 +600,7 @@ réduire la difficulté des recettes inférieures
 
 # 13. Difficulté
 
-Mine, Farm et certains modes du World Gate pourront supporter plusieurs niveaux de difficulté.
+Mine, Farm et certains modes du Time Gate pourront supporter plusieurs niveaux de difficulté.
 
 La difficulté pourra influencer :
 

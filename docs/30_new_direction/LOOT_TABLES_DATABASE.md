@@ -11,7 +11,7 @@ It determines:
 - replayability
 - crafting progression
 - economy balancing
-- World Gate farming
+- Time Gate farming
 
 Scope:
 
@@ -75,9 +75,9 @@ Subject to balancing.
 
 ---
 
-## World Gate Modifier
+## Time Gate Modifier
 
-World Gate increases quality.
+Time Gate increases quality.
 
 Example:
 
@@ -244,7 +244,7 @@ Guaranteed:
 Bonus:
 
 ```txt
-10% Iron Scrap
+10% Iron Ore
 ```
 
 ---
@@ -260,7 +260,7 @@ Guaranteed:
 Bonus:
 
 ```txt
-5% Iron Scrap
+5% Iron Ore
 ```
 
 ---
@@ -344,7 +344,7 @@ Guaranteed:
 Bonus:
 
 ```txt
-10% Sapphire Fragment
+10% Sapphire
 ```
 
 ---
@@ -663,7 +663,7 @@ Guaranteed:
 ```txt
 Dragon Ash Core
 Boss Token
-Era Progression Item (first clear)
+Fragment du Temps (first clear)
 ```
 
 Bonus:
@@ -712,6 +712,24 @@ Bonus:
 
 ---
 
+## Seigneur de la Pluie Déchu
+
+Guaranteed:
+
+```txt
+2x Pearlescent Scale
+Boss Token
+```
+
+Bonus:
+
+```txt
+30% Rare Crafting Cache
+10% Equipment Roll
+```
+
+---
+
 ## Allaeva
 
 Guaranteed:
@@ -719,7 +737,7 @@ Guaranteed:
 ```txt
 Frozen Queen Tear
 Boss Token
-Era Progression Item (first clear)
+Fragment du Temps (first clear)
 ```
 
 Bonus:
@@ -779,7 +797,7 @@ Guaranteed:
 
 ```txt
 Dragon Ash Core
-Kaléidoscope Component
+Fragment du Temps
 ```
 
 Unlock:
@@ -796,7 +814,7 @@ Guaranteed:
 
 ```txt
 Frozen Queen Tear
-Kaléidoscope Component
+Fragment du Temps
 ```
 
 Unlock:
@@ -807,9 +825,9 @@ Era Déluge
 
 ---
 
-# 9. World Gate Modifiers
+# 9. Time Gate Modifiers
 
-World Gate does NOT replace loot tables.
+Time Gate does NOT replace loot tables.
 
 It modifies them.
 
@@ -847,12 +865,17 @@ No separate boss tables required.
 
 # 11. Recycle Tables
 
-Equipment recycling returns:
+> ⚠️ **Superseded par DESIGN_FREEZE_V1 §9 (D-07).** Le recycle canonique rend **ECU + Precious Stone**
+> (50% de la valeur de l'item en ECU + 20% placeholder de Precious Stone de même rareté), **sans retour
+> de matériaux**. Les pourcentages de « material recovery » ci-dessous ne s'appliquent **pas** au MVP
+> et sont conservés pour référence future.
+
+Equipment recycling returns (MVP, LOCKED):
 
 ```txt
-base resources
+ECU (50% item value)
 +
-forge_special chance
+Precious Stone chance (20% placeholder, même rareté)
 ```
 
 ---
@@ -925,7 +948,7 @@ Future iteration:
 
 - resource quantities
 - rarity percentages
-- World Gate modifiers
+- Time Gate modifiers
 - ECU scaling
 - recycle efficiency
 - equipment drop frequency

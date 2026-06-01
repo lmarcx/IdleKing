@@ -291,6 +291,14 @@ Un Événement Narratif Majeur
 
 # 🔥 MVP EFFECT SETS
 
+> **LOCKED — DESIGN_FREEZE_V1 §8 (D-01) : Effect Sets SIMPLIFIÉS pour le MVP.**
+> Au MVP, les paliers se limitent à des **effets simples et chiffrables** (bonus de stats /
+> application de status basique). **Aucun proc sur-mesure** (Shadow Clone, Ice Nova, Tidal Wave,
+> explosions, orbitales…). Les paliers spectaculaires d'origine (typiquement IV-V) sont **reportés en V2**.
+> Les paliers ci-dessous décrivent l'intention thématique ; leur version MVP est l'effet simple correspondant
+> (valeurs = DEFERRED balancing). Acquisition = récompense narrative (boss / NPC / événement).
+> Rainmaker : source = **Seigneur de la Pluie Déchu** (boss du Gouffre Royal, Ch II).
+
 ---
 
 # Shadow Veil

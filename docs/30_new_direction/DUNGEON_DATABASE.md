@@ -42,7 +42,7 @@ Boss
 Story Progression
 ```
 
-The World Gate uses:
+The Time Gate uses:
 
 ```txt
 Era
@@ -422,8 +422,7 @@ Reward:
 
 ```txt
 Dragon Ash Core
-Era Progression Item
-Kaléidoscope Component
+Fragment du Temps
 ```
 
 Unlock:
@@ -643,7 +642,7 @@ Boss Token
 Type:
 
 ```txt
-Adventure Dungeon
+Boss Dungeon
 ```
 
 Purpose:
@@ -670,14 +669,22 @@ Léviathan Juvénile Gelé
 Boss:
 
 ```txt
-None (MVP)
+Seigneur de la Pluie Déchu
+```
+
+Narrative Beats:
+
+```txt
+Noah's original identity
+Era Déluge tease
 ```
 
 Reward:
 
 ```txt
 Marine Resources
-Pearlescent Materials
+Pearlescent Scale
+Boss Token
 ```
 
 ---
@@ -741,9 +748,8 @@ Reward:
 
 ```txt
 Frozen Queen Tear
-Era Progression Item
+Fragment du Temps
 Boss Token
-Kaléidoscope Component
 ```
 
 Unlock:
@@ -754,7 +760,7 @@ Era Déluge
 
 ---
 
-# 7. World Gate Structure
+# 7. Time Gate Structure
 
 ## Era Funèbre
 

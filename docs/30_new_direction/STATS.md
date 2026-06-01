@@ -246,10 +246,11 @@ stats avancées
 
 Stamina est liée à la mobilité.
 
-Elle sert principalement au :
+Elle sert au :
 
 ```txt
 sprint
+dash
 ```
 
 Fonctionnement :
@@ -259,19 +260,15 @@ regen passive
 léger délai après consommation
 ```
 
-Le dash ne consomme pas de stamina pour l’instant.
+Le dash consomme de la Stamina (DESIGN_FREEZE_V1 §2 — Stamina = sprint + dash).
 
 ---
 
 ## 13. Dash
 
-Le dash fonctionne avec :
+Le dash consomme de la **Stamina** (DESIGN_FREEZE_V1 §2). Il peut aussi posséder un court cooldown.
 
-```txt
-cooldown
-```
-
-Le cooldown du dash est réduit par :
+Le cooldown éventuel du dash est réduit par :
 
 ```txt
 SPEED
