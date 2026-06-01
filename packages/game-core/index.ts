@@ -15,6 +15,8 @@ export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
+export * as random from "./random/index.js";
+export * as registry from "./registry/index.js";
 export {
   canSpendCurrency,
   createDefaultWalletState,
