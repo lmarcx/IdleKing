@@ -6,6 +6,9 @@ export const DASH_COOLDOWN_SECONDS = 0.75;
 export const BASIC_ATTACK_BASE_DAMAGE = 10;
 export const BASIC_ATTACK_WEAPON_COEFFICIENT = 1;
 
+// Skill hit base damage. The skill coefficient comes from SkillDef.damageMultiplier.
+export const SKILL_ATTACK_BASE_DAMAGE = 10;
+
 export const CHECKPOINT_HP_RESTORE_RATIO = 1;
 export const CHECKPOINT_MANA_RESTORE_RATIO = 1;
 export const CHECKPOINT_STAMINA_RESTORE_RATIO = 1;

@@ -10,11 +10,9 @@ import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js"
 import { isEnemyInBeam, isEnemyInCircle, isEnemyInFrontalAoe } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
-  RANGED_DAMAGE_MULTIPLIER,
-  calculatePlayerDamageFromStats,
+  GRUNT_HP,
   createInitialEnemies,
   damageEnemy,
-  damagePlayer,
   isCircleIntersectingCircle,
   isEnemyAlive,
   isTargetInsideAttackCone,
@@ -24,6 +22,13 @@ import {
   type EnemyLoot,
   type StoryLevelEnemy,
 } from "./story-level-combat";
+import {
+  computeStorySkillDamage,
+  createStoryCombatRng,
+  createStoryCombatRuntimeState,
+  retargetStoryCombatRuntimeEnemy,
+  STORY_RUNTIME_VISUAL_PLACEHOLDERS,
+} from "./story-combat-runtime-adapter";
 
 type PixiExplorationStageProps = {
   inputBlocked?: boolean;
@@ -55,6 +60,9 @@ const SPARKLE_BURST_DURATION_MS = 520;
 const POI_HIGHLIGHT_RADIUS = 96;
 const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
 const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
+const CHECKPOINT_RESPAWN_EVENT = "idleking:story-checkpoint-respawn";
+const DASH_KEY_CODE = "Space";
+const SPRINT_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
 
 const EXPLORATION_ASSETS = {
   chest: "/assets/exploration/golden_chest.png",
@@ -192,12 +200,26 @@ type LocalSkillsState = {
 };
 
 export type ExplorationCombatHudState = {
+  dashFeedback?: string;
   enemiesRemaining: number;
   isDefeated: boolean;
   playerHealth: {
     current: number;
     max: number;
   };
+  playerMana: {
+    current: number;
+    max: number;
+  };
+  playerStamina: {
+    current: number;
+    max: number;
+  };
+  runtimeEnemyHealth?: {
+    current: number;
+    max: number;
+  };
+  runtimeEnemyLabel?: string;
   skillBar: {
     combatLoadout: CharacterCombatLoadout;
     cooldowns: SkillCooldownState;
@@ -603,7 +625,14 @@ export function PixiExplorationStage({
     () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
     [playerSkills]
   );
-  const playerMaxHp = Math.max(1, Math.ceil(combatLoadout.stats.hp));
+  const initialCombatRuntime = useMemo(
+    () => createStoryCombatRuntimeState(combatLoadout, { hp: GRUNT_HP, maxHp: GRUNT_HP }),
+    [combatLoadout]
+  );
+  // Latest loadout is read via ref inside the Pixi effect so a loadout change does
+  // NOT tear down and rebuild the whole stage (see the main setup effect deps).
+  const combatLoadoutRef = useRef(combatLoadout);
+  const playerMaxHp = initialCombatRuntime.player.hpMax;
   const [skillsState, setSkillsState] = useState<LocalSkillsState>(() => ({
     activeEffects: [],
     combatLoadout,
@@ -611,12 +640,20 @@ export function PixiExplorationStage({
     currentTimeMs: 0,
   }));
   const skillsStateRef = useRef(skillsState);
-  const [combatHud, setCombatHud] = useState({
+  const [combatHud, setCombatHud] = useState<Omit<ExplorationCombatHudState, "skillBar">>({
     enemiesRemaining: 0,
     isDefeated: false,
     playerHealth: {
       current: playerMaxHp,
       max: playerMaxHp,
+    },
+    playerMana: {
+      current: initialCombatRuntime.player.manaCurrent,
+      max: initialCombatRuntime.player.manaMax,
+    },
+    playerStamina: {
+      current: initialCombatRuntime.player.staminaCurrent,
+      max: initialCombatRuntime.player.staminaMax,
     },
   });
 
@@ -644,6 +681,10 @@ export function PixiExplorationStage({
   useEffect(() => {
     skillsStateRef.current = skillsState;
   }, [skillsState]);
+
+  useEffect(() => {
+    combatLoadoutRef.current = combatLoadout;
+  }, [combatLoadout]);
 
   useEffect(() => {
     onCombatHudChangeRef.current?.({
@@ -702,6 +743,8 @@ export function PixiExplorationStage({
     let sparkleTexture: PIXI.Texture | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
+    let dashFeedback: string | undefined;
+    let dashFeedbackExpiresAt = 0;
     let hudElapsed = 0;
     let lastUiHeight = 0;
     let lastUiWidth = 0;
@@ -711,7 +754,12 @@ export function PixiExplorationStage({
     let isPlayerDefeated = false;
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
-    let playerHp = playerMaxHp;
+    let runtimeEnemyId: EnemyId | null = null;
+    let runtimeState = createStoryCombatRuntimeState(combatLoadoutRef.current, {
+      hp: GRUNT_HP,
+      maxHp: GRUNT_HP,
+    });
+    const runtimeRng = createStoryCombatRng(levelId);
 
     function destroyPixiApp() {
       if (!initialized || destroyed) return;
@@ -722,7 +770,7 @@ export function PixiExplorationStage({
     function publishSkillsState(nowMs: number) {
       const nextState: LocalSkillsState = {
         activeEffects: [...activeSkillEffects],
-        combatLoadout,
+        combatLoadout: combatLoadoutRef.current,
         cooldowns: { ...skillCooldowns },
         currentTimeMs: nowMs,
       };
@@ -735,7 +783,7 @@ export function PixiExplorationStage({
     }
 
     function getEquippedSkillForSlot(slot: SkillSlot): EquippedCombatSkill | undefined {
-      return combatLoadout.skills.find((skill) => skill.slot === slot);
+      return combatLoadoutRef.current.skills.find((skill) => skill.slot === slot);
     }
 
     function createDirectionalSnapshot(): DirectionalSkillSnapshot {
@@ -747,6 +795,40 @@ export function PixiExplorationStage({
         originX: playerPosition.x,
         originY: playerPosition.y,
       };
+    }
+
+    function showDashFeedback(message: string, nowMs: number) {
+      dashFeedback = message;
+      dashFeedbackExpiresAt = nowMs + STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashFeedbackDurationMs;
+      syncCombatHud();
+    }
+
+    function tryDash(nowMs: number) {
+      const result = combat.applyDashCost(runtimeState);
+      runtimeState = result.next;
+
+      if (!result.ok) {
+        if (result.reason === "NOT_ENOUGH_STAMINA") {
+          showDashFeedback("Dash indisponible : Stamina insuffisante", nowMs);
+        } else if (result.reason === "COOLDOWN") {
+          showDashFeedback("Dash indisponible : cooldown", nowMs);
+        }
+        return;
+      }
+
+      dashFeedback = undefined;
+      dashFeedbackExpiresAt = 0;
+      playerPosition.x = clamp(
+        playerPosition.x + playerFacing.x * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
+        PLAYER_SIZE / 2,
+        mapWidth - PLAYER_SIZE / 2
+      );
+      playerPosition.y = clamp(
+        playerPosition.y + playerFacing.y * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
+        PLAYER_SIZE / 2,
+        mapHeight - PLAYER_SIZE / 2
+      );
+      syncCombatHud();
     }
 
     function tryCastSkill(slot: SkillSlot, nowMs: number) {
@@ -810,6 +892,13 @@ export function PixiExplorationStage({
         }
         return;
       }
+      if (event.code === DASH_KEY_CODE) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryDash(performance.now());
+        }
+        return;
+      }
 
       const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
       if (skillSlot) {
@@ -820,7 +909,7 @@ export function PixiExplorationStage({
         return;
       }
 
-      if (KEY_DIRECTIONS[event.code]) {
+      if (KEY_DIRECTIONS[event.code] || SPRINT_KEY_CODES.has(event.code)) {
         pressedKeys.add(event.code);
         event.preventDefault();
       }
@@ -1232,30 +1321,69 @@ export function PixiExplorationStage({
       if (enemy.lootClaimed) return;
       enemy.lootClaimed = true;
 
-      const loot = rollEnemyLoot(enemy, levelId);
+      const loot = rollEnemyLoot(enemy, runtimeRng);
       addLootToPlayerResources(loot);
       createLootPopup(enemy.position, loot);
     }
 
     function syncCombatHud() {
+      if (dashFeedback && performance.now() >= dashFeedbackExpiresAt) {
+        dashFeedback = undefined;
+        dashFeedbackExpiresAt = 0;
+      }
+
       setCombatHud({
+        dashFeedback,
         enemiesRemaining: getEnemiesRemaining(),
         isDefeated: isPlayerDefeated,
         playerHealth: {
-          current: Math.max(0, Math.ceil(playerHp)),
-          max: playerMaxHp,
+          current: runtimeState.player.hpCurrent,
+          max: runtimeState.player.hpMax,
         },
+        playerMana: {
+          current: runtimeState.player.manaCurrent,
+          max: runtimeState.player.manaMax,
+        },
+        playerStamina: {
+          current: runtimeState.player.staminaCurrent,
+          max: runtimeState.player.staminaMax,
+        },
+        runtimeEnemyHealth: runtimeEnemyId
+          ? {
+              current: runtimeState.enemy.hpCurrent,
+              max: runtimeState.enemy.hpMax,
+            }
+          : undefined,
+        runtimeEnemyLabel: runtimeEnemyId ?? undefined,
       });
+    }
+
+    function selectRuntimeEnemy(enemy: ActiveEnemy) {
+      runtimeEnemyId = enemy.id;
+      runtimeState = retargetStoryCombatRuntimeEnemy(runtimeState, enemy);
     }
 
     function damageActiveEnemy(enemy: ActiveEnemy, amount: number) {
       const died = damageEnemy(enemy, amount);
+      if (runtimeEnemyId === enemy.id) {
+        runtimeState = retargetStoryCombatRuntimeEnemy(runtimeState, enemy);
+      }
       enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
       createHitParticles(enemy.position);
       if (died) {
         enemy.deathFadeMs = 0;
         claimEnemyLoot(enemy);
       }
+    }
+
+    function performRuntimeBasicAttack(enemy: ActiveEnemy) {
+      selectRuntimeEnemy(enemy);
+      const result = combat.performBasicAttack(runtimeState, runtimeRng);
+      runtimeState = result.next;
+      if (!result.ok) return;
+
+      damageActiveEnemy(enemy, result.damage.damage);
+      syncCombatHud();
     }
 
     function getPlayerDamageMultiplier(effects: VisualActiveSkillEffect[], nowMs: number): number {
@@ -1266,21 +1394,11 @@ export function PixiExplorationStage({
     }
 
     function computeSkillDamage(skillDef: combat.SkillDef, nowMs: number): number {
-      const damageMultiplier = skillDef.damageMultiplier ?? 0;
-      if (damageMultiplier <= 0) return 0;
+      if ((skillDef.damageMultiplier ?? 0) <= 0) return 0;
 
-      return calculatePlayerDamageFromStats({
+      // Damage math lives in game-core (combat.computeSkillDamage via the adapter).
+      return computeStorySkillDamage(runtimeState, skillDef, {
         buffMultiplier: getPlayerDamageMultiplier(activeSkillEffects, nowMs),
-        damageMultiplier,
-        stats: combatLoadout.stats,
-      });
-    }
-
-    function computePlayerAttackDamage(nowMs: number, rangedMultiplier = 1): number {
-      return calculatePlayerDamageFromStats({
-        buffMultiplier: getPlayerDamageMultiplier(activeSkillEffects, nowMs),
-        rangedMultiplier,
-        stats: combatLoadout.stats,
       });
     }
 
@@ -1384,7 +1502,7 @@ export function PixiExplorationStage({
 
         if (!isHit) continue;
         attack.hitEnemyIds.add(enemy.id);
-        damageActiveEnemy(enemy, computePlayerAttackDamage(performance.now()));
+        performRuntimeBasicAttack(enemy);
       }
     }
 
@@ -1393,7 +1511,7 @@ export function PixiExplorationStage({
         if (!isEnemyAlive(enemy)) continue;
         if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
 
-        damageActiveEnemy(enemy, computePlayerAttackDamage(performance.now(), RANGED_DAMAGE_MULTIPLIER));
+        performRuntimeBasicAttack(enemy);
         return true;
       }
 
@@ -1413,17 +1531,23 @@ export function PixiExplorationStage({
       enemy.attackLungeX = (dx / dist) * 18;
       enemy.attackLungeY = (dy / dist) * 18;
 
-      const nextHp = damagePlayer(playerHp, enemy.contactDamage);
-      if (nextHp < playerHp) {
+      const previousHp = runtimeState.player.hpCurrent;
+      runtimeState = combat.applyDamageToPlayer(runtimeState, enemy.contactDamage);
+      if (runtimeState.player.hpCurrent < previousHp) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
       }
-      playerHp = nextHp;
 
-      if (playerHp <= 0) {
+      if (combat.isPlayerDead(runtimeState)) {
         isPlayerDefeated = true;
         pressedKeys.clear();
         resetHeldMouseButtons();
       }
+      syncCombatHud();
+    }
+
+    function handleCheckpointRespawnEvent() {
+      runtimeState = combat.handlePlayerDeathAtCheckpoint(runtimeState);
+      isPlayerDefeated = combat.isPlayerDead(runtimeState);
       syncCombatHud();
     }
 
@@ -1607,18 +1731,28 @@ export function PixiExplorationStage({
         directionY += direction.y;
       }
 
-      if (!isPlayerDefeated && (directionX !== 0 || directionY !== 0)) {
+      runtimeState = combat.tickCombatRuntime(runtimeState, deltaSeconds);
+      const hasMovementInput = directionX !== 0 || directionY !== 0;
+      const wantsToSprint = [...SPRINT_KEY_CODES].some((code) => pressedKeys.has(code));
+      const isSprinting = hasMovementInput && wantsToSprint && combat.canSprint(runtimeState);
+      if (isSprinting) {
+        runtimeState = combat.applySprintCost(runtimeState, deltaSeconds);
+      }
+
+      if (!isPlayerDefeated && hasMovementInput) {
         const length = Math.hypot(directionX, directionY) || 1;
+        const moveSpeed =
+          PLAYER_SPEED * (isSprinting ? STORY_RUNTIME_VISUAL_PLACEHOLDERS.sprintSpeedMultiplier : 1);
         if (!hasPointerWorldPosition) {
           updatePlayerFacing({ x: directionX / length, y: directionY / length });
         }
         playerPosition.x = clamp(
-          playerPosition.x + (directionX / length) * PLAYER_SPEED * deltaSeconds,
+          playerPosition.x + (directionX / length) * moveSpeed * deltaSeconds,
           PLAYER_SIZE / 2,
           mapWidth - PLAYER_SIZE / 2
         );
         playerPosition.y = clamp(
-          playerPosition.y + (directionY / length) * PLAYER_SPEED * deltaSeconds,
+          playerPosition.y + (directionY / length) * moveSpeed * deltaSeconds,
           PLAYER_SIZE / 2,
           mapHeight - PLAYER_SIZE / 2
         );
@@ -1737,6 +1871,10 @@ export function PixiExplorationStage({
         renderEnemy(enemy);
         enemyLayer.addChild(enemy.container);
       }
+      const firstEnemy = enemies.find(isEnemyAlive);
+      if (firstEnemy) {
+        selectRuntimeEnemy(firstEnemy);
+      }
       entityLayer.addChild(enemyLayer);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
@@ -1750,6 +1888,7 @@ export function PixiExplorationStage({
       window.addEventListener("mouseup", handleWindowMouseUp);
       window.addEventListener("pointerup", handlePointerUp);
       window.addEventListener("pointercancel", handlePointerCancel);
+      window.addEventListener(CHECKPOINT_RESPAWN_EVENT, handleCheckpointRespawnEvent);
       if (IS_SKILL_HIT_DEBUG_ENABLED) {
         window.addEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
       }
@@ -1767,6 +1906,7 @@ export function PixiExplorationStage({
       window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
+      window.removeEventListener(CHECKPOINT_RESPAWN_EVENT, handleCheckpointRespawnEvent);
       if (IS_SKILL_HIT_DEBUG_ENABLED) {
         window.removeEventListener(SKILL_DEBUG_EVENT, handleSkillDebugScenarioEvent);
       }
@@ -1787,7 +1927,9 @@ export function PixiExplorationStage({
       cleanupEnemies();
       destroyPixiApp();
     };
-  }, [combatLoadout, levelId, mapHeight, mapWidth, playerMaxHp, pointsOfInterest]);
+    // combatLoadout is intentionally read via combatLoadoutRef (not a dep) so a loadout
+    // change does not remount the Pixi stage. Initial runtime is derived inside the effect.
+  }, [levelId, mapHeight, mapWidth, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">
@@ -1804,6 +1946,7 @@ export function PixiExplorationStage({
       <div className="pointer-events-none absolute bottom-24 right-4 z-10 rounded-lg border border-amber-200/20 bg-black/62 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
         <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-amber-200/80">Combat prototype</p>
         <span className="mt-1 block text-xs text-amber-50">Ennemis restants {combatHud.enemiesRemaining}</span>
+        {combatHud.dashFeedback ? <span className="mt-1 block text-xs text-red-200">{combatHud.dashFeedback}</span> : null}
       </div>
       {combatHud.isDefeated ? (
         <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/68 px-4 backdrop-blur-sm">
@@ -1811,12 +1954,13 @@ export function PixiExplorationStage({
             <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-red-200">Defaite</p>
             <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Game Over</h2>
             <p className="mt-3 font-ik-body text-sm text-muted-foreground">Vous vous êtes fait arrachés...</p>
-            <a
+            <button
               className="mt-5 inline-flex w-full items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
-              href="/game/kingdom"
+              onClick={() => window.dispatchEvent(new Event(CHECKPOINT_RESPAWN_EVENT))}
+              type="button"
             >
-              Retour au Royaume
-            </a>
+              Reprendre au checkpoint
+            </button>
           </div>
         </div>
       ) : null}
