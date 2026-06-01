@@ -5,6 +5,7 @@ import { SLOT_KIND, allocateStats, tierFromWorldLevel, budgetFinal } from "./bud
 import type { Rarity } from "./rarity.js";
 import { rarityFromIlvl } from "./rarity.js";
 import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
+import { createSeededRng, type SeededRng } from "../random/index.js";
 
 /**
  * Biomes (MVP): 4 biomes -> 4 elements
@@ -49,29 +50,13 @@ export type GenerateItemParams = {
   ilvl: number;
 
   /**
-   * Optional: smart-loot anti-tilt.
-   * If provided, the generator will slightly bias toward this slot.
+   * @deprecated Accepted for brownfield compatibility. MVP loot is fully random.
    */
   biasSlot?: ItemSlot;
 };
 
-/**
- * Deterministic PRNG (Mulberry32).
- * Returns a function rng() -> [0,1)
- */
-function mulberry32(seed: number) {
-  let t = seed >>> 0;
-  return function rng() {
-    t += 0x6d2b79f5;
-    let x = Math.imul(t ^ (t >>> 15), 1 | t);
-    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function pickOne<T>(rng: () => number, arr: readonly T[]): T {
-  const idx = Math.floor(rng() * arr.length);
-  return arr[Math.max(0, Math.min(arr.length - 1, idx))];
+function pickOne<T>(rng: SeededRng, arr: readonly T[]): T {
+  return arr[rng.nextInt(0, arr.length - 1)];
 }
 
 function clampIlvl(ilvl: number) {
@@ -99,23 +84,11 @@ const ALL_SLOTS: readonly ItemSlot[] = [...ARMOR_SLOTS, ...JEWELRY_SLOTS, "STONE
  * - Jewelry: 35%
  * - Stone: 10%
  */
-function rollSlot(rng: () => number): ItemSlot {
-  const r = rng();
+function rollSlot(rng: SeededRng): ItemSlot {
+  const r = rng.nextFloat();
   if (r < 0.55) return pickOne(rng, ARMOR_SLOTS);
   if (r < 0.90) return pickOne(rng, JEWELRY_SLOTS);
   return "STONE";
-}
-
-/**
- * Anti-tilt bias: small chance to force a chosen slot.
- */
-function rollSlotWithBias(rng: () => number, biasSlot?: ItemSlot): ItemSlot {
-  if (!biasSlot) return rollSlot(rng);
-
-  // 18% chance to respect bias, otherwise normal distribution
-  const biasChance = 0.18;
-  if (rng() < biasChance) return biasSlot;
-  return rollSlot(rng);
 }
 
 /**
@@ -124,9 +97,9 @@ function rollSlotWithBias(rng: () => number, biasSlot?: ItemSlot): ItemSlot {
  * - 30% random other
  * 1 element per item (MVP rule)
  */
-function rollElement(rng: () => number, biome: Biome): Element {
+function rollElement(rng: SeededRng, biome: Biome): Element {
   const primary = BIOME_ELEMENT[biome];
-  if (rng() < 0.7) return primary;
+  if (rng.nextFloat() < 0.7) return primary;
 
   const others: Element[] = ["FIRE", "ICE", "LIGHTNING", "VOID"].filter((e) => e !== primary) as Element[];
   return pickOne(rng, others);
@@ -183,12 +156,12 @@ function defaultName(slot: ItemSlot, rarity: Rarity, element: Element): string {
 
 export function generateItem(params: GenerateItemParams): GeneratedItem {
   const ilvl = clampIlvl(params.ilvl);
-  const rng = mulberry32(params.seed);
+  const rng = createSeededRng(params.seed);
 
   const tier = tierFromWorldLevel(params.worldLevel);
   const { rarity } = rarityFromIlvl(ilvl);
 
-  const slot = rollSlotWithBias(rng, params.biasSlot);
+  const slot = rollSlot(rng);
   const kind = SLOT_KIND[slot];
 
   const element = rollElement(rng, params.biome);

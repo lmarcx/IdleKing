@@ -13,7 +13,7 @@ export type SeededRng = {
  * Deterministic Mulberry32 RNG.
  *
  * TODO(FONDATIONS-02): inject this utility into legacy callers that still use
- * Math.random directly (combat crits, Forge precious-stone fallback, recruit ids).
+ * Math.random directly (recruit ids).
  */
 export function createSeededRng(seed: number): SeededRng {
   let state = seed >>> 0;
@@ -87,4 +87,13 @@ export function hashSeed(seed: number, salt: number): number {
   value = Math.imul(value, 0x846ca68b) >>> 0;
   value ^= value >>> 16;
   return value >>> 0;
+}
+
+export function hashStringSeed(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }

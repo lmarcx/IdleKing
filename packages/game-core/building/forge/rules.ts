@@ -10,7 +10,8 @@ export const FORGE_UPGRADE_BREAKPOINTS = [3, 6, 9, 12] as const;
 
 export const FORGE_RARITY_UPGRADE_CAP = EQUIPMENT_UPGRADE_CAP_BY_RARITY;
 
-export const FORGE_PRECIOUS_STONE_DROP_CHANCE = 0.2; // PLACEHOLDER Phase 8A rate.
+// DEFERRED balancing: locked recycle model, placeholder Precious Stone rate.
+export const FORGE_PRECIOUS_STONE_DROP_CHANCE = 0.2;
 
 const FORGE_UPGRADE_STAT_RATE: Record<ItemRarity, number> = {
   COMMON: 0.05,

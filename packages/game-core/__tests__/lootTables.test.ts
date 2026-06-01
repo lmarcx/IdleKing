@@ -28,15 +28,13 @@ test("LOSE gives no items but resources consolation", () => {
   assert.ok(out.resources.length > 0);
 });
 
-test("bias slot can influence guaranteed drop", () => {
-  // This doesn't guarantee the slot becomes bias (only 18% in generator),
-  // so instead we just verify it runs and remains deterministic.
+test("legacy lost slot bias is accepted but ignored by random MVP loot", () => {
   const a = generateExpeditionLoot({
     seed: 999,
     worldLevel: 20,
     biome: "VOLCANIC",
     result: "WIN",
-    lostSlotBias: "NECKLACE",
+    lostSlotBias: "STONE",
     secondItemChance: 0,
   });
 
