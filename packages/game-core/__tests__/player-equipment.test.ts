@@ -49,13 +49,14 @@ function totalStats(item: EquipmentItem): number {
   return (item.stats.hp ?? 0) + (item.stats.attack ?? 0) + (item.stats.defense ?? 0) + (item.stats.power ?? 0);
 }
 
-test("default player equipment state initializes all active slots to null", () => {
+test("default player equipment state initializes active slots and five ring slots", () => {
   const equipment = createDefaultPlayerEquipmentState();
 
-  assert.deepEqual(Object.keys(equipment.equipped), [...EQUIPMENT_SLOTS]);
+  assert.deepEqual(Object.keys(equipment.equipped), [...EQUIPMENT_SLOTS, "rings"]);
   for (const slot of EQUIPMENT_SLOTS) {
     assert.equal(equipment.equipped[slot], null);
   }
+  assert.deepEqual(equipment.equipped.rings, [null, null, null, null, null]);
   assert.deepEqual(getEquippedItemIds(equipment), []);
 });
 

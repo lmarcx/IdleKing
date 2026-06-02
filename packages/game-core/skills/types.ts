@@ -19,6 +19,10 @@ export const SKILL_IDS = [
 
 export type SkillId = (typeof SKILL_IDS)[number];
 
+export function isSkillId(skillId: unknown): skillId is SkillId {
+  return typeof skillId === "string" && (SKILL_IDS as readonly string[]).includes(skillId);
+}
+
 export const SKILL_CATEGORIES = [
   "attack",
   "movement",
@@ -72,13 +76,16 @@ export type SkillCooldownState = Partial<Record<SkillId, number>>;
 
 export type SkillCastOptions = Readonly<{
   nowMs: number;
+  ringSkillScaling?: number;
 }>;
 
 export type SkillCastDamageInput = Readonly<{
   skillDamageMultiplier: number;
+  ringSkillScaling?: number;
 }>;
 
 export type SkillCastFailureReason =
   | "unknown_skill"
+  | "invalid_ring"
   | "not_enough_mana"
   | "cooldown";

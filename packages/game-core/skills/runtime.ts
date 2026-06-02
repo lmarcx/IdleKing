@@ -1,5 +1,10 @@
 import { spendMana } from "../combat/runtime/resources.js";
 import type { CombatRuntimeState } from "../combat/runtime/types.js";
+import {
+  calculateRingSkillScaling,
+  isSkillBearingRing,
+  type RingEquipmentInstance,
+} from "../equipment/rings.js";
 import { getSkillDefinition } from "./registry.js";
 import type {
   SkillCastDamageInput,
@@ -71,7 +76,7 @@ export function canCastSkill(
     return buildFailure(runtimeState, skillDef, "not_enough_mana");
   }
 
-  return buildSuccess(runtimeState, skillDef, options.nowMs);
+  return buildSuccess(runtimeState, skillDef, options.nowMs, options.ringSkillScaling);
 }
 
 export function castSkill(
@@ -97,10 +102,26 @@ export function castSkill(
   };
 }
 
+export function castRingSkill(
+  runtimeState: CombatRuntimeState,
+  ring: RingEquipmentInstance,
+  options: SkillCastOptions
+): SkillCastResult {
+  if (!isSkillBearingRing(ring)) {
+    return buildFailure(runtimeState, null, "invalid_ring");
+  }
+
+  return castSkill(runtimeState, ring.skillId, {
+    ...options,
+    ringSkillScaling: calculateRingSkillScaling(ring),
+  });
+}
+
 function buildSuccess(
   runtimeState: CombatRuntimeState,
   skillDef: SkillDefinition,
-  nowMs: number
+  nowMs: number,
+  ringSkillScaling?: number
 ): SkillCastSuccess {
   return {
     success: true,
@@ -110,7 +131,10 @@ function buildSuccess(
     remainingCooldownSeconds: 0,
     damageInput:
       skillDef.category === "attack"
-        ? { skillDamageMultiplier: skillDef.basePower }
+        ? {
+            skillDamageMultiplier: skillDef.basePower,
+            ...(ringSkillScaling === undefined ? {} : { ringSkillScaling }),
+          }
         : undefined,
   };
 }

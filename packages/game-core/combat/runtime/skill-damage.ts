@@ -11,6 +11,8 @@ export type SkillDamageInput = {
   attack: number;
   /** SkillDef.damageMultiplier — used as the skill coefficient in the locked damage formula. */
   skillDamageMultiplier: number;
+  /** Ring-only scaling multiplier from rarity, ilvl, upgrades, and affixes. */
+  ringSkillScaling?: number;
   /** Optional offensive buff multiplier (e.g. War Cry). */
   buffMultiplier?: number;
   targetDef?: number;
@@ -39,7 +41,7 @@ export function computeSkillDamage(
     {
       baseDamage: SKILL_ATTACK_BASE_DAMAGE,
       attack: input.attack,
-      skillCoefficient: Math.max(0, input.skillDamageMultiplier),
+      skillCoefficient: Math.max(0, input.skillDamageMultiplier) * Math.max(0, input.ringSkillScaling ?? 1),
       offensiveModifiers: input.buffMultiplier != null ? [input.buffMultiplier] : undefined,
       targetDef: input.targetDef,
       critChance: input.critChance ?? 0,
