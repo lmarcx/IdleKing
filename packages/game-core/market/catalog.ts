@@ -1,5 +1,6 @@
 import type { EquipmentItem, Item, NonEquipmentItem } from "../items/types.js";
 import { ALL_RESOURCES, type ResourceId } from "../resources/types.js";
+import { calculateResourceValue, getResourceDefinition } from "../resources/index.js";
 import type {
   MarketCatalogEntry,
   MarketConsumableEntry,
@@ -22,7 +23,7 @@ function sellPriceFromBuy(amount: number): MarketPrice {
 }
 
 // PLACEHOLDER Phase 9B resource values. Rebalance with final economy data.
-export const MARKET_RESOURCE_PLACEHOLDER_VALUES: Record<ResourceId, number> = {
+export const MARKET_RESOURCE_PLACEHOLDER_VALUES: Partial<Record<ResourceId, number>> = {
   XP_GLOBAL: 1,
   STONE: 2,
   WOOD: 2,
@@ -62,7 +63,7 @@ export const MARKET_RESOURCE_PLACEHOLDER_VALUES: Record<ResourceId, number> = {
 const MARKET_RESOURCE_IDS: ResourceId[] = ["WOOD", "STONE", "WATER", "MEAT", "COPPER", "IRON"];
 
 export const MARKET_RESOURCE_ENTRIES: MarketResourceEntry[] = MARKET_RESOURCE_IDS.map((resourceId) => {
-  const value = MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId];
+  const value = MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId] ?? 1;
   return {
     id: `resource_${resourceId.toLowerCase()}`,
     category: "resources",
@@ -155,7 +156,10 @@ export function getMarketBuyPrice(entry: MarketCatalogEntry): MarketPrice {
 }
 
 export function getResourceMarketSellPrice(resourceId: ResourceId): MarketPrice {
-  return sellPriceFromBuy(MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId] ?? 1);
+  const canonicalDefinition = getResourceDefinition(resourceId);
+  const value = MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId]
+    ?? (canonicalDefinition ? calculateResourceValue(canonicalDefinition.id, 1) : 1);
+  return sellPriceFromBuy(value);
 }
 
 export function getMarketSellPrice(target: MarketCatalogEntry | Item | ResourceId): MarketPrice {

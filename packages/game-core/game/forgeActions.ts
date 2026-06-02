@@ -6,7 +6,7 @@ import {
   getForgeUpgradeLevel,
   getUpgradedEquipmentStats,
 } from "../building/forge/rules.js";
-import { grantCurrency, spendCurrency } from "../currencies/index.js";
+import { grantCurrency, isCurrencyId, spendCurrency } from "../currencies/index.js";
 import { generateEquipmentItem } from "../equipment/index.js";
 import { hasAtLeast, spend } from "../resources/types.js";
 import { addItem, findItem, removeItem } from "../items/inventory.js";
@@ -126,6 +126,7 @@ export function forgeUpgrade(
 
   let nextWallet = state.wallet;
   for (const [currencyId, amount] of Object.entries(cost.currencies)) {
+    if (!isCurrencyId(currencyId)) return { next: state, ok: false, reason: "NOT_ENOUGH_CURRENCY" };
     const spent = spendCurrency(nextWallet, currencyId, amount ?? 0);
     if (!spent.ok) return { next: state, ok: false, reason: "NOT_ENOUGH_CURRENCY" };
     nextWallet = spent.wallet;

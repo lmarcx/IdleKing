@@ -3,6 +3,7 @@ export * as loot from "./loot/index.js";
 export * as progression from "./progression/index.js";
 export * as economy from "./economy/index.js";
 export * as currencies from "./currencies/index.js";
+export * as resources from "./resources/index.js";
 export * as world from "./world/index.js";
 export * as minigames from "./minigames/index.js";
 export * as player from "./player/index.js";
@@ -20,9 +21,13 @@ export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
 export {
   canSpendCurrency,
+  CURRENCIES,
+  ECU,
+  BOSS_TOKEN,
   createDefaultWalletState,
   getCurrencyBalance,
   grantCurrency,
+  isCurrencyId,
   normalizeWalletState,
   spendCurrency,
 } from "./currencies/index.js";
@@ -202,13 +207,36 @@ export {
 } from "./items/index.js";
 export {
   ALL_RESOURCES,
+  RESOURCE_ALIASES,
+  RESOURCE_DEFINITIONS,
+  RESOURCE_MAX_STACK,
+  RESOURCE_REGISTRY,
+  RESOURCE_TYPES,
+  RESOURCE_VALUE_PLACEHOLDERS,
+  addResourceToStock,
+  calculateItemValueFromRecipeResources,
+  calculateResourceBundleValue,
+  calculateResourceValue,
+  canSpendResources,
+  clampResourceStack,
+  getCanonicalResourceQuantity,
+  getResourceDefinition,
+  getResourceDefinitionOrThrow,
   getQty,
   hasAtLeast,
-} from "./resources/types.js";
+  normalizeResourceId,
+  removeResourceFromStock,
+  spendResources,
+  validateResourceRegistry,
+} from "./resources/index.js";
 export type {
+  CanonicalResourceId,
+  ResourceCosts,
+  ResourceDefinition,
   ResourceId,
   ResourceStock,
-} from "./resources/types.js";
+  ResourceType,
+} from "./resources/index.js";
 export {
   abandonMiniGameRun,
   addMiniGameTemporaryRewards,
