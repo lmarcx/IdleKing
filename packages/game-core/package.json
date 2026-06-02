@@ -14,6 +14,7 @@
     "./equipment": "./dist/equipment/index.js",
     "./random": "./dist/random/index.js",
     "./registry": "./dist/registry/index.js",
+    "./skills": "./dist/skills/index.js",
     "./game/*": "./dist/game/*",
     "./building/*": "./dist/building/*",
     "./bank": "./dist/bank/index.js",

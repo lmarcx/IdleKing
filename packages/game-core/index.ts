@@ -17,6 +17,7 @@ export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
+export * as skills from "./skills/index.js";
 export {
   canSpendCurrency,
   createDefaultWalletState,
@@ -31,6 +32,29 @@ export type {
   CurrencyId,
   WalletState,
 } from "./currencies/index.js";
+export {
+  SKILL_BALANCING_PLACEHOLDERS,
+  SKILL_REGISTRY,
+  canCastSkill,
+  castSkill,
+  getSkillDefinition,
+  getSkillDefinitionOrThrow,
+  getSkillRemainingCooldownSeconds,
+  isSkillOnCooldown,
+  validateSkillRegistry,
+} from "./skills/index.js";
+export type {
+  SkillCastFailure,
+  SkillCastFailureReason,
+  SkillCastOptions,
+  SkillCastResult,
+  SkillCastSuccess,
+  SkillCategory,
+  SkillCooldownState,
+  SkillDefinition,
+  SkillElement,
+  SkillTargeting,
+} from "./skills/index.js";
 export {
   claimCornucopia,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,
