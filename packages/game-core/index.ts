@@ -213,6 +213,20 @@ export type {
   CraftEquipmentFromRecipeResult,
 } from "./building/forge/craft.js";
 export {
+  forgeRecycleEquipment,
+} from "./building/forge/recycle.js";
+export type {
+  ForgeRecycleEquipmentInput,
+  ForgeRecycleEquipmentResult,
+} from "./building/forge/recycle.js";
+export {
+  forgeUpgradeEquipment,
+} from "./building/forge/upgrade.js";
+export type {
+  ForgeUpgradeEquipmentInput,
+  ForgeUpgradeEquipmentResult,
+} from "./building/forge/upgrade.js";
+export {
   forgeCraft,
   forgeRecycle,
   forgeUpgrade,
@@ -226,20 +240,45 @@ export type {
 } from "./game/forgeActions.js";
 export {
   convertTempleGlobalXp,
+  convertPlayerXpToWorldXp,
 } from "./game/templeActions.js";
 export type {
   TempleGlobalXpConversionOptions,
   TempleGlobalXpConversionResult,
+  TemplePlayerXpToWorldXpConversionResult,
   TempleXpTarget,
 } from "./game/templeActions.js";
 export {
+  canLevelUpWorld,
+  forumRankUpWorld,
+  levelUpWorld,
+} from "./game/forumActions.js";
+export type {
+  ForumRankUpWorldResult,
+} from "./game/forumActions.js";
+export {
   applyGameXpGain,
   applyPlayerXpGain,
+  PLAYER_LEVEL_SKILL_POINTS_GAIN_DISABLED,
 } from "./game/playerXpActions.js";
 export type {
   AppliedGameXpGain,
   AppliedPlayerXpGain,
 } from "./game/playerXpActions.js";
+export {
+  addPlayerXp,
+  getPlayerLevelFromXp,
+  getXpRequiredForPlayerLevel,
+  addWorldXp,
+  convertPlayerXpToWxp,
+  getWorldLevelFromXp,
+  getWorldXpRequired,
+  TEMPLE_PLAYER_XP_TO_WORLD_XP_RATIO,
+} from "./progression/index.js";
+export type {
+  PlayerProgressionState,
+  WorldProgressionState,
+} from "./progression/index.js";
 export {
   isEquipmentItem,
   normalizeEquipmentItem,

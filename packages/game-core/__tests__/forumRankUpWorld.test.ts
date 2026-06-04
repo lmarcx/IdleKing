@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createInitialGameState } from "../game/state.js";
 import { completeChapterAction } from "../game/actions.js";
 import { addWorldWxp, wxpNext } from "../progression/worldXp.js";
-import { forumRankUpWorld } from "../game/forumActions.js";
+import { canLevelUpWorld, forumRankUpWorld, levelUpWorld } from "../game/forumActions.js";
 
 test("Forum rank-up requires forum unlocked and built", () => {
   let s = createInitialGameState();
@@ -37,6 +37,7 @@ test("Forum rank-up requires forum unlocked and built", () => {
 
   // Not enough WXP
   {
+    assert.equal(canLevelUpWorld(s), false);
     const r = forumRankUpWorld(s);
     assert.equal(r.rankedUp, false);
     assert.equal(r.reason, "NOT_ENOUGH_WXP");
@@ -55,9 +56,12 @@ test("Forum rank-up requires forum unlocked and built", () => {
     },
   };
 
-  const r2 = forumRankUpWorld(s);
+  assert.equal(canLevelUpWorld(s), true);
+  const playerLevelBefore = s.progression.playerLevel;
+  const r2 = levelUpWorld(s);
   assert.equal(r2.rankedUp, true);
   assert.ok(r2.next.progression.worldWxp < s.progression.worldWxp);
+  assert.equal(r2.next.progression.playerLevel, playerLevelBefore);
   assert.equal(
   r2.next.progression.worldLevel,
   s.progression.worldLevel + 1

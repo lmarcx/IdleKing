@@ -2,12 +2,24 @@ import { ageCoeffFromWorldLevel, ageFromWorldLevel } from "./age.js";
 
 export const WORLD_MAX_LEVEL = 50;
 
+// DEFERRED balancing: Temple MVP player XP to WXP conversion ratio.
+export const TEMPLE_PLAYER_XP_TO_WORLD_XP_RATIO = 1;
+
+export type WorldProgressionState = {
+  worldLevel: number;
+  worldWxp: number;
+};
+
 /**
  * Converts Temple XP_GLOBAL into World XP (WXP).
  * Rule: WXP = floor(XP_GLOBAL) at a 1:1 rate.
  */
 export function convertXpToWxp(xpGained: number): number {
   return Math.floor(Math.max(0, xpGained));
+}
+
+export function convertPlayerXpToWxp(playerXp: number): number {
+  return Math.floor(Math.max(0, playerXp) * TEMPLE_PLAYER_XP_TO_WORLD_XP_RATIO);
 }
 
 /**
@@ -21,6 +33,24 @@ export function wxpNext(worldLevel: number): number {
   const base = 140 * Math.pow(W, 2.2);
   const coeff = ageCoeffFromWorldLevel(W);
   return Math.round(base * coeff);
+}
+
+export function getWorldXpRequired(level: number): number {
+  return wxpNext(level);
+}
+
+export function getWorldLevelFromXp(xp: number): number {
+  let level = 1;
+  let remainingWxp = Math.max(0, Math.floor(Number.isFinite(xp) ? xp : 0));
+
+  while (level < WORLD_MAX_LEVEL) {
+    const required = getWorldXpRequired(level);
+    if (required <= 0 || remainingWxp < required) break;
+    remainingWxp -= required;
+    level += 1;
+  }
+
+  return level;
 }
 
 /**
@@ -49,6 +79,15 @@ export function addWorldWxp(
   return {
     newWorldLevel: level,
     newWorldWxp: wxp + gain,
+  };
+}
+
+export function addWorldXp<T extends WorldProgressionState>(state: T, amount: number): T {
+  const world = addWorldWxp(state.worldLevel, state.worldWxp, amount);
+  return {
+    ...state,
+    worldLevel: world.newWorldLevel,
+    worldWxp: world.newWorldWxp,
   };
 }
 

@@ -6,5 +6,7 @@ export * from "./templeBuilding.js";
 export * from "./progression.js";
 export * from "./forge/craft.js";
 export * from "./forge/recipes.js";
+export * from "./forge/recycle.js";
 export * from "./forge/rules.js";
+export * from "./forge/upgrade.js";
 export * from "./forge/weapons.js";

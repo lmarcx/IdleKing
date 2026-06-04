@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import * as gameCore from "../index.js";
 import {
@@ -12,6 +15,7 @@ import {
 import {
   didReachForgeUpgradeBreakpoint,
   FORGE_CRAFT_RARITIES,
+  FORGE_PRECIOUS_STONE_DROP_CHANCE,
   getForgeCraftRarityWeights,
   getForgeRecycleEcuRefund,
   getForgeUpgradeBreakpointsReached,
@@ -25,6 +29,12 @@ import {
   craftEquipmentFromRecipe,
 } from "../building/forge/craft.js";
 import {
+  forgeRecycleEquipment,
+} from "../building/forge/recycle.js";
+import {
+  forgeUpgradeEquipment,
+} from "../building/forge/upgrade.js";
+import {
   validateForgeRecipeRegistry,
   type ForgeRecipe,
 } from "../building/forge/recipes.js";
@@ -35,7 +45,7 @@ import {
   WEAPON_FAMILY_UNLOCK_LADDER,
 } from "../building/forge/weapons.js";
 import { getBuildCost } from "../building/buildCosts.js";
-import { getCurrencyBalance, grantCurrency } from "../currencies/index.js";
+import { createDefaultWalletState, getCurrencyBalance, grantCurrency } from "../currencies/index.js";
 import { calculateFinalCharacterStats, equipItem, generateEquipmentItem } from "../equipment/index.js";
 import { completeChapterAction } from "../game/actions.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
@@ -47,11 +57,18 @@ import { isEquipmentItem } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
 import { createSeededRng } from "../random/index.js";
 import { addResourceToStock, getCanonicalResourceQuantity, getResourceDefinitionOrThrow } from "../resources/index.js";
-import { addQty, getQty, type ResourceStock } from "../resources/types.js";
+import { getQty, type ResourceStock } from "../resources/types.js";
 
 function grantCraftResources(stock: ResourceStock, resources: Record<string, number>): ResourceStock {
   return Object.entries(resources).reduce(
     (next, [resourceId, amount]) => addResourceToStock(next, resourceId, amount),
+    stock,
+  );
+}
+
+function grantResourceCosts(stock: ResourceStock, resources: ResourceStock): ResourceStock {
+  return Object.entries(resources).reduce(
+    (next, [resourceId, amount]) => addResourceToStock(next, resourceId, amount ?? 0),
     stock,
   );
 }
@@ -103,9 +120,24 @@ function fundUpgradeCosts(state: GameState, itemId: string): GameState {
   const cost = getForgeUpgradeCost(item);
   return {
     ...state,
-    resources: addQty(state.resources, "GOLD", cost.resources.GOLD ?? 0),
+    resources: grantResourceCosts(state.resources, cost.resources),
     wallet: grantCurrency(state.wallet, "ECU", cost.currencies.ECU ?? 0),
   };
+}
+
+function findSeedForPreciousStoneDrop(): number {
+  for (let seed = 1; seed <= 10_000; seed += 1) {
+    if (createSeededRng(seed).nextFloat() < FORGE_PRECIOUS_STONE_DROP_CHANCE) return seed;
+  }
+  throw new Error("No deterministic Precious Stone seed found");
+}
+
+function listFilesRecursive(dir: string, extension: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return listFilesRecursive(path, extension);
+    return extname(entry.name) === extension ? [path] : [];
+  });
 }
 
 function getEquipmentOrFail(state: GameState, itemId: string) {
@@ -266,6 +298,19 @@ test("Forge craft never produces rarity outside MVP", () => {
 test("Forge MVP exports do not add Evolve, Enchant, or Fusion", () => {
   for (const forbidden of ["forgeEvolve", "forgeEnchant", "forgeFusion", "evolveEquipment", "enchantEquipment", "fuseEquipment"]) {
     assert.equal(forbidden in gameCore, false);
+  }
+});
+
+test("Forge upgrade and recycle paths do not call Math.random", () => {
+  const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const files = [
+    ...listFilesRecursive(join(packageRoot, "building", "forge"), ".js"),
+    join(packageRoot, "game", "forgeActions.js"),
+    join(packageRoot, "loot", "mvp.js"),
+  ];
+
+  for (const file of files) {
+    assert.doesNotMatch(readFileSync(file, "utf8"), /Math\.random/, file);
   }
 });
 
@@ -604,6 +649,40 @@ test("Forge craft works for weapon progression recipes once unlocked", () => {
   assert.equal(item.slot, "main_hand");
 });
 
+test("Forge upgrade caps match MVP rarity limits", () => {
+  assert.equal(getForgeUpgradeMaxLevel("COMMON"), 6);
+  assert.equal(getForgeUpgradeMaxLevel("UNCOMMON"), 6);
+  assert.equal(getForgeUpgradeMaxLevel("RARE"), 6);
+  assert.equal(getForgeUpgradeMaxLevel("EPIC"), 9);
+  assert.equal(getForgeUpgradeMaxLevel("LEGENDARY"), 12);
+
+  for (const [rarity, cap] of [
+    ["COMMON", 6],
+    ["UNCOMMON", 6],
+    ["RARE", 6],
+    ["EPIC", 9],
+    ["LEGENDARY", 12],
+  ] as const) {
+    const item = generateEquipmentItem({
+      id: `capped_${rarity.toLowerCase()}`,
+      slot: "main_hand",
+      itemLevel: 80,
+      rarity,
+      seed: `capped-${rarity}`,
+    });
+    item.upgradeLevel = cap;
+
+    const result = forgeUpgradeEquipment({
+      item,
+      resourceStock: grantCraftResources({}, { iron_ore: 999 }),
+      wallet: grantCurrency(createDefaultWalletState(), "ECU", 999),
+    });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.reason, "MAX_UPGRADE_LEVEL");
+  }
+});
+
 test("Forge upgrade increments upgradeLevel, increases stats, and preserves item identity and ilvl", () => {
   let s = progressToChapter4AndBuildForge(createInitialGameState());
   s = {
@@ -634,13 +713,44 @@ test("Forge upgrade increments upgradeLevel, increases stats, and preserves item
   assert.equal(upgraded.rarity, craftedItem.rarity);
   assert.equal(upgraded.ilvl ?? upgraded.itemLevel, ilvlBefore);
   assert.equal(upgraded.itemLevel, craftedItem.itemLevel);
+  assert.equal(upgraded.baseItemId, craftedItem.baseItemId);
   assert.ok((upgraded.stats.attack ?? 0) > (craftedItem.stats.attack ?? 0));
   assert.ok((upgraded.stats.power ?? 0) > (craftedItem.stats.power ?? 0));
   assert.deepEqual(upgraded.baseStats, craftedItem.baseStats);
+  assert.deepEqual(upgraded.affixes, craftedItem.affixes);
   assert.equal(upgraded.upgradeLevel, 1);
   assert.equal(upgradedResult.next.villagers.list.length, 0);
   assert.equal(getQty(upgradedResult.next.resources, "GOLD"), goldBefore);
   assert.equal(getCurrencyBalance(upgradedResult.next.wallet, "ECU"), ecuBefore - 1);
+});
+
+test("pure Forge upgrade consumes costs without changing ilvl, affixes, or base item id", () => {
+  const item = generateEquipmentItem({
+    id: "pure_upgrade",
+    slot: "main_hand",
+    itemLevel: 120,
+    rarity: "LEGENDARY",
+    seed: "pure-upgrade",
+  });
+  item.baseItemId = "weapon_sword_base";
+  const cost = getForgeUpgradeCost(item);
+
+  const result = forgeUpgradeEquipment({
+    item,
+    resourceStock: grantResourceCosts({}, cost.resources),
+    wallet: grantCurrency(createDefaultWalletState(), "ECU", cost.currencies.ECU ?? 0),
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.upgradedItem.upgradeLevel, 1);
+  assert.equal(result.upgradedItem.ilvl, item.ilvl);
+  assert.equal(result.upgradedItem.itemLevel, item.itemLevel);
+  assert.equal(result.upgradedItem.baseItemId, item.baseItemId);
+  assert.deepEqual(result.upgradedItem.affixes, item.affixes);
+  assert.deepEqual(result.upgradedItem.rolledStats, item.rolledStats);
+  assert.equal(getCanonicalResourceQuantity(result.updatedResourceStock, "iron_ore"), 0);
+  assert.equal(getCurrencyBalance(result.updatedWallet, "ECU"), 0);
 });
 
 test("Forge repeated upgrades scale deterministically from base stats", () => {
@@ -751,12 +861,14 @@ test("Forge recycle destroys item and grants ECU equal to 50% item value", () =>
 
   assert.equal(result.ok, true);
   assert.equal(result.ecuRefund, getForgeRecycleEcuRefund(item));
+  assert.equal(result.itemDestroyed, true);
+  assert.deepEqual(result.recipeMaterials, []);
   assert.equal(result.next.inventory.items.some((entry) => entry.id === item.id), false);
   assert.equal(getCurrencyBalance(result.next.wallet, "ECU"), 60);
   assert.equal(getQty(result.next.resources, "COPPER"), 0);
 });
 
-test("Forge recycle can grant a matching-rarity precious stone deterministically", () => {
+test("Forge recycle can grant a matching-rarity precious stone with a seed", () => {
   const item = generateEquipmentItem({
     id: "recycle_legendary",
     slot: "helmet",
@@ -768,7 +880,7 @@ test("Forge recycle can grant a matching-rarity precious stone deterministically
   let s = progressToChapter4AndBuildForge(createInitialGameState());
   s = { ...s, inventory: addItem(s.inventory, item) };
 
-  const result = forgeRecycle(s, item.id, { preciousStoneRoll: 0 });
+  const result = forgeRecycle(s, item.id, { seed: findSeedForPreciousStoneDrop() });
 
   assert.equal(result.ok, true);
   assert.equal(result.preciousStoneItemId, "precious_stone_legendary");
@@ -776,6 +888,33 @@ test("Forge recycle can grant a matching-rarity precious stone deterministically
   assert.ok(stone && !isEquipmentItem(stone));
   assert.equal(stone.kind, "material");
   assert.equal(stone.quantity, 1);
+});
+
+test("pure Forge recycle returns only ECU and optional Precious Stone, then removes the item", () => {
+  const item = generateEquipmentItem({
+    id: "pure_recycle_rare",
+    slot: "ring",
+    itemLevel: 90,
+    rarity: "RARE",
+    seed: "pure-recycle",
+  });
+  item.value = 200;
+
+  const result = forgeRecycleEquipment({
+    item,
+    inventory: addItem({ items: [] }, item),
+    wallet: createDefaultWalletState(),
+    rng: { nextFloat: () => 0 },
+  });
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.ecuGained, 100);
+  assert.equal(result.itemDestroyed, true);
+  assert.equal(result.preciousStone?.id, "precious_stone_rare");
+  assert.deepEqual(result.recipeMaterials, []);
+  assert.equal(result.updatedInventory?.items.some((entry) => entry.id === item.id), false);
+  assert.equal(getCurrencyBalance(result.updatedWallet, "ECU"), 100);
 });
 
 test("Legacy save equipment items missing upgradeLevel migrate to 0", () => {

@@ -155,9 +155,9 @@ export function getForgeUpgradeCost(item: EquipmentItem): ForgeUpgradeCost {
   const ilvl = item.itemLevel ?? item.ilvl ?? 1;
 
   return {
-    // PLACEHOLDER Phase 8A tuning: one GOLD per 50 ilvl, scaling with target upgrade level.
-    resources: { GOLD: Math.max(1, Math.ceil(ilvl / 50)) * nextLevel },
-    // PLACEHOLDER Phase 8A tuning: ECU sink proves currency costs are supported by Forge V2.
+    // DEFERRED balancing: canonical MVP upgrade resource sink, scaling with ilvl and target level.
+    resources: { iron_ore: Math.max(1, Math.ceil(ilvl / 50)) * nextLevel },
+    // DEFERRED balancing: ECU sink proves currency costs are supported by Forge MVP.
     currencies: { ECU: nextLevel },
   };
 }
