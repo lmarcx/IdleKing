@@ -1,16 +1,22 @@
 import type { GameState } from "./state.js";
-import { getForgeRecipe, getForgeRecipeLockReason, type ForgeRecipeId } from "../building/forge/recipes.js";
+import { craftEquipmentFromRecipe } from "../building/forge/craft.js";
+import {
+  getEffectiveForgeLevel,
+  getForgeRecipe,
+  getForgeRecipeLockReason,
+  type ForgeRecipeId,
+} from "../building/forge/recipes.js";
 import {
   canForgeUpgrade,
   getForgeUpgradeCost,
   getForgeUpgradeLevel,
   getUpgradedEquipmentStats,
 } from "../building/forge/rules.js";
-import { grantCurrency, isCurrencyId, spendCurrency } from "../currencies/index.js";
-import { generateEquipmentItem } from "../equipment/index.js";
+import { isCurrencyId, spendCurrency } from "../currencies/index.js";
 import { hasAtLeast, spend } from "../resources/types.js";
+import type { ResourceCosts } from "../resources/index.js";
 import { addItem, findItem, removeItem } from "../items/inventory.js";
-import { isEquipmentItem, isItemRarity, type Item, type NonEquipmentItem } from "../items/types.js";
+import { isEquipmentItem, isItemRarity, type Item, type ItemRarity, type NonEquipmentItem } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
 import { recycleEquipment } from "../loot/mvp.js";
 import { createSeededRng, hashStringSeed, type SeededRng } from "../random/index.js";
@@ -38,17 +44,25 @@ export type ForgeCraftResult = {
   next: GameState;
   ok: boolean;
   createdItemId?: string;
+  rolledRarity?: ItemRarity;
+  consumedResources?: ResourceCosts;
   reason?:
     | "FORGE_LOCKED"
     | "FORGE_NOT_BUILT"
     | "RECIPE_NOT_FOUND"
+    | "OUTPUT_BASE_NOT_FOUND"
     | "FORGE_LEVEL_TOO_LOW"
     | "WORLD_LEVEL_TOO_LOW"
+    | "CHAPTER_REQUIRED"
+    | "QUEST_REQUIRED"
+    | "BOSS_REQUIRED"
     | "NOT_ENOUGH_RESOURCES";
 };
 
 export type ForgeCraftOptions = {
   allowLocked?: boolean;
+  rng?: Pick<SeededRng, "pickWeighted">;
+  seed?: number;
 };
 
 /**
@@ -73,28 +87,29 @@ export function forgeCraft(
   const lockReason = getForgeRecipeLockReason(state, recipe);
   if (lockReason) return { next: state, ok: false, reason: lockReason };
 
-  if (!hasAtLeast(state.resources, recipe.cost)) {
-    return { next: state, ok: false, reason: "NOT_ENOUGH_RESOURCES" };
-  }
-
-  const nextResources = spend(state.resources, recipe.cost);
-
   const itemLevel = expectedIlvl(state.progression.worldLevel);
-  const item = generateEquipmentItem({
-    id: createCraftedItemId(state, recipe.id),
-    slot: recipe.slot,
-    name: recipe.baseName,
+  const seed = options.seed ?? hashStringSeed(`${recipe.id}:${state.progression.worldLevel}:${state.inventory.items.length}`);
+  const crafted = craftEquipmentFromRecipe({
+    recipeId: recipe.id,
+    resourceStock: state.resources,
+    forgeLevel: getEffectiveForgeLevel(state),
     itemLevel,
-    rarity: recipe.rarity,
+    rng: options.rng ?? createSeededRng(seed),
+    seed,
+    itemId: createCraftedItemId(state, recipe.id),
   });
+
+  if (!crafted.ok) return { next: state, ok: false, reason: crafted.reason };
 
   return {
     ok: true,
-    createdItemId: item.id,
+    createdItemId: crafted.craftedItem.id,
+    rolledRarity: crafted.rolledRarity,
+    consumedResources: crafted.consumedResources,
     next: {
       ...state,
-      resources: nextResources,
-      inventory: addItem(state.inventory, item),
+      resources: crafted.updatedResourceStock,
+      inventory: addItem(state.inventory, crafted.craftedItem),
     },
   };
 }

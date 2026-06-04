@@ -4,3 +4,6 @@ export * from "./tick.js";
 export * from "./temple.js";
 export * from "./templeBuilding.js";
 export * from "./progression.js";
+export * from "./forge/craft.js";
+export * from "./forge/recipes.js";
+export * from "./forge/rules.js";

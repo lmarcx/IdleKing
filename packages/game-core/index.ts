@@ -159,9 +159,13 @@ export type {
 export {
   canForgeUpgrade,
   didReachForgeUpgradeBreakpoint,
+  FORGE_CRAFT_BASE_RARITY_WEIGHTS,
+  FORGE_CRAFT_RARITIES,
+  FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL,
   FORGE_PRECIOUS_STONE_DROP_CHANCE,
   FORGE_RARITY_UPGRADE_CAP,
   FORGE_UPGRADE_BREAKPOINTS,
+  getForgeCraftRarityWeights,
   getForgeRecycleEcuRefund,
   getForgeUpgradeBreakpointsReached,
   getForgeUpgradeCost,
@@ -170,10 +174,29 @@ export {
   getNextForgeUpgradeBreakpoint,
   getPreciousStoneId,
   getUpgradedEquipmentStats,
+  rollCraftRarityForForgeLevel,
 } from "./building/forge/rules.js";
 export type {
   ForgeUpgradeCost,
 } from "./building/forge/rules.js";
+export {
+  craftEquipmentFromRecipe,
+} from "./building/forge/craft.js";
+export type {
+  CraftEquipmentFromRecipeInput,
+  CraftEquipmentFromRecipeResult,
+} from "./building/forge/craft.js";
+export {
+  FORGE_OUTPUT_BASES,
+  normalizeForgeRecipeIngredients,
+  validateForgeRecipeRegistry,
+} from "./building/forge/recipes.js";
+export type {
+  ForgeOutputBaseDefinition,
+  ForgeRecipeCategory,
+  ForgeRecipeRarityRoll,
+  ForgeRecipeUnlockConditions,
+} from "./building/forge/recipes.js";
 export {
   forgeCraft,
   forgeRecycle,
