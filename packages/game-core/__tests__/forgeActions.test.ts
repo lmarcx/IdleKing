@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import * as gameCore from "../index.js";
 import {
   FORGE_RECIPES,
+  getCanonicalForgeRecipeRequiredLevel,
   getAvailableForgeRecipes,
   getForgeRecipe,
   getForgeRecipeLockReason,
@@ -27,6 +28,12 @@ import {
   validateForgeRecipeRegistry,
   type ForgeRecipe,
 } from "../building/forge/recipes.js";
+import {
+  assertWeaponFamilyUnlocked,
+  getWeaponFamilyUnlockLevel,
+  isWeaponFamilyUnlocked,
+  WEAPON_FAMILY_UNLOCK_LADDER,
+} from "../building/forge/weapons.js";
 import { getBuildCost } from "../building/buildCosts.js";
 import { getCurrencyBalance, grantCurrency } from "../currencies/index.js";
 import { calculateFinalCharacterStats, equipItem, generateEquipmentItem } from "../equipment/index.js";
@@ -39,7 +46,7 @@ import { addItem } from "../items/inventory.js";
 import { isEquipmentItem } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
 import { createSeededRng } from "../random/index.js";
-import { addResourceToStock, getCanonicalResourceQuantity } from "../resources/index.js";
+import { addResourceToStock, getCanonicalResourceQuantity, getResourceDefinitionOrThrow } from "../resources/index.js";
 import { addQty, getQty, type ResourceStock } from "../resources/types.js";
 
 function grantCraftResources(stock: ResourceStock, resources: Record<string, number>): ResourceStock {
@@ -76,6 +83,16 @@ function withForgeLevel(state: GameState, level: number): GameState {
         status: "built",
         unlocked: true,
       },
+    },
+  };
+}
+
+function withDefeatedBoss(state: GameState, bossId: string): GameState {
+  return {
+    ...state,
+    story: {
+      ...state.story,
+      completedEvents: new Set([...state.story.completedEvents, bossId]),
     },
   };
 }
@@ -230,7 +247,7 @@ test("Forge recipe validation enforces ids, category, output base, Forge level, 
   );
   assert.throws(
     () => validateForgeRecipeRegistry([{ ...validBase, unlockConditions: { requiredForgeLevel: 0 } }]),
-    /Invalid requiredForgeLevel/,
+    /requiredForgeLevel/,
   );
   assert.throws(
     () => validateForgeRecipeRegistry([{ ...validBase, rarityRoll: "fixed" as any }]),
@@ -250,6 +267,154 @@ test("Forge MVP exports do not add Evolve, Enchant, or Fusion", () => {
   for (const forbidden of ["forgeEvolve", "forgeEnchant", "forgeFusion", "evolveEquipment", "enchantEquipment", "fuseEquipment"]) {
     assert.equal(forbidden in gameCore, false);
   }
+});
+
+test("Forge weapon family ladder is canonical from Forge Level 1 to 10", () => {
+  assert.deepEqual(WEAPON_FAMILY_UNLOCK_LADDER, [
+    "sword",
+    "dagger",
+    "axe",
+    "greatsword",
+    "pistol",
+    "bow",
+    "shield",
+    "spear",
+    "grimoire",
+    "staff",
+  ]);
+
+  for (const [index, family] of WEAPON_FAMILY_UNLOCK_LADDER.entries()) {
+    const unlockLevel = index + 1;
+    assert.equal(getWeaponFamilyUnlockLevel(family), unlockLevel);
+    assert.equal(isWeaponFamilyUnlocked(family, unlockLevel - 1), false);
+    assert.equal(isWeaponFamilyUnlocked(family, unlockLevel), true);
+    assert.doesNotThrow(() => assertWeaponFamilyUnlocked(family, unlockLevel));
+  }
+});
+
+test("Forge craft follows the weapon ladder for Sword, Dagger, and Staff", () => {
+  let state = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 1);
+  state = { ...state, resources: grantCraftResources(state.resources, { iron_ore: 20, silver_ore: 5, old_wood: 5, sapphire: 5 }) };
+
+  const sword = forgeCraft(state, "weapon_sword", { seed: 201 });
+  assert.equal(sword.ok, true);
+
+  const daggerLocked = forgeCraft(state, "weapon_dagger", { seed: 202 });
+  assert.equal(daggerLocked.ok, false);
+  if (!daggerLocked.ok) assert.equal(daggerLocked.reason, "FORGE_LEVEL_TOO_LOW");
+
+  const dagger = forgeCraft(withForgeLevel(state, 2), "weapon_dagger", { seed: 203 });
+  assert.equal(dagger.ok, true);
+
+  const staffLocked = forgeCraft(withForgeLevel(state, 9), "weapon_staff", { seed: 204 });
+  assert.equal(staffLocked.ok, false);
+  if (!staffLocked.ok) assert.equal(staffLocked.reason, "FORGE_LEVEL_TOO_LOW");
+
+  const staff = forgeCraft(withForgeLevel(state, 10), "weapon_staff", { seed: 205 });
+  assert.equal(staff.ok, true);
+});
+
+test("Forge boss weapons require boss defeat, Forge Level, and resources", () => {
+  let state = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 2);
+  state = {
+    ...state,
+    resources: grantCraftResources(state.resources, {
+      cold_iron: 2,
+      frozen_echo: 3,
+      frost_amalgam_core: 1,
+    }),
+  };
+
+  const missingBoss = forgeCraft(state, "boss_frostfang_dagger", { seed: 301 });
+  assert.equal(missingBoss.ok, false);
+  if (!missingBoss.ok) assert.equal(missingBoss.reason, "BOSS_REQUIRED");
+
+  const crafted = forgeCraft(withDefeatedBoss(state, "frost_amalgam"), "boss_frostfang_dagger", { seed: 302 });
+  assert.equal(crafted.ok, true);
+  if (!crafted.ok) return;
+  const item = crafted.next.inventory.items.find((entry) => entry.id === crafted.createdItemId);
+  assert.ok(item && isEquipmentItem(item));
+  assert.equal(item.baseItemId, "frostfang_dagger");
+  assert.equal(item.name, "Frostfang Dagger");
+  assert.equal(getCanonicalResourceQuantity(crafted.next.resources, "frost_amalgam_core"), 0);
+});
+
+test("Forge boss weapon remains locked when Forge Level is below its family ladder", () => {
+  let state = withForgeLevel(progressToChapter4AndBuildForge(createInitialGameState()), 9);
+  state = withDefeatedBoss(state, "corrupted_archmage");
+  state = {
+    ...state,
+    resources: grantCraftResources(state.resources, {
+      frostpine: 3,
+      archival_fragment: 2,
+      archmage_sigil: 1,
+    }),
+  };
+
+  const result = forgeCraft(state, "boss_arathas_staff", { seed: 303 });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.reason, "FORGE_LEVEL_TOO_LOW");
+});
+
+test("Forge boss recipes are MVP-only, resource-backed, and correctly gated", () => {
+  const bossRecipeIds = [
+    "boss_funeral_blade",
+    "boss_ashen_axe",
+    "boss_ashen_spear",
+    "boss_dragonbone_greatsword",
+    "boss_dragon_ash_shield",
+    "boss_frostfang_dagger",
+    "boss_frostbound_longsword",
+    "boss_arathas_staff",
+    "boss_icebound_grimoire",
+    "boss_frozen_royal_shield",
+    "boss_queens_tear_necklace",
+  ];
+
+  for (const recipeId of bossRecipeIds) {
+    const recipe = getForgeRecipe(recipeId);
+    assert.ok(recipe, `Missing ${recipeId}`);
+    assert.ok(recipe.unlockConditions.requiredBossId, `${recipeId} should require a boss`);
+    for (const resourceId of Object.keys(recipe.ingredients)) {
+      assert.equal(getResourceDefinitionOrThrow(resourceId).id, resourceId);
+    }
+  }
+
+  const funeralBlade = getForgeRecipe("boss_funeral_blade");
+  assert.ok(funeralBlade);
+  assert.equal("fallen_rain_pearl" in funeralBlade.ingredients, false);
+  assert.equal("pearlescent_scale" in funeralBlade.ingredients, false);
+  assert.deepEqual(Object.keys(funeralBlade.ingredients).sort(), [
+    "dark_amalgam_core",
+    "shadow_residue",
+    "spectral_dust",
+  ]);
+});
+
+test("Forge recipe validation rejects weapon ladder contradictions and bad boss gates", () => {
+  const dagger = getForgeRecipe("weapon_dagger");
+  const funeralBlade = getForgeRecipe("boss_funeral_blade");
+  assert.ok(dagger);
+  assert.ok(funeralBlade);
+
+  assert.equal(getCanonicalForgeRecipeRequiredLevel({ ...dagger, unlockConditions: { requiredForgeLevel: 1 } }), 2);
+  assert.throws(
+    () => validateForgeRecipeRegistry([{ ...dagger, unlockConditions: { requiredForgeLevel: 1 } }]),
+    /must match dagger ladder level 2/,
+  );
+  assert.throws(
+    () => validateForgeRecipeRegistry([{ ...funeralBlade, unlockConditions: { requiredForgeLevel: 1 } }]),
+    /must declare requiredBossId/,
+  );
+  assert.throws(
+    () => validateForgeRecipeRegistry([{ ...funeralBlade, unlockConditions: { requiredForgeLevel: 1, requiredBossId: "rain_lord" } }]),
+    /non-MVP boss id/,
+  );
+  assert.throws(
+    () => validateForgeRecipeRegistry([{ ...funeralBlade, ingredients: { pearlescent_scale: 1 } }]),
+    /Funeral Blade must not reference/,
+  );
 });
 
 test("Forge craft no longer needs a villager and spends recipe resources", () => {

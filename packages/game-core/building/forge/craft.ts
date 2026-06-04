@@ -11,6 +11,7 @@ import { rollCraftRarityForForgeLevel } from "./rules.js";
 import {
   FORGE_OUTPUT_BASES,
   FORGE_RECIPES,
+  getCanonicalForgeRecipeRequiredLevel,
   getForgeOutputBase,
   normalizeForgeRecipeIngredients,
   type ForgeOutputBaseDefinition,
@@ -22,6 +23,7 @@ export type CraftEquipmentFromRecipeInput = Readonly<{
   recipeId: ForgeRecipeId;
   resourceStock: ResourceStock;
   forgeLevel: number;
+  defeatedBossIds?: readonly string[];
   itemLevel: number;
   rng: Pick<SeededRng, "pickWeighted">;
   itemId?: string;
@@ -46,6 +48,7 @@ export type CraftEquipmentFromRecipeResult =
         | "RECIPE_NOT_FOUND"
         | "OUTPUT_BASE_NOT_FOUND"
         | "FORGE_LEVEL_TOO_LOW"
+        | "BOSS_REQUIRED"
         | "NOT_ENOUGH_RESOURCES";
     }>;
 
@@ -57,14 +60,18 @@ export function craftEquipmentFromRecipe(input: CraftEquipmentFromRecipeInput): 
     return { ok: false, updatedResourceStock: input.resourceStock, reason: "RECIPE_NOT_FOUND" };
   }
 
-  const requiredForgeLevel = recipe.unlockConditions.requiredForgeLevel ?? 1;
-  if (Math.max(1, Math.floor(input.forgeLevel)) < requiredForgeLevel) {
-    return { ok: false, updatedResourceStock: input.resourceStock, reason: "FORGE_LEVEL_TOO_LOW" };
-  }
-
   const outputBase = outputBases[recipe.outputBaseId] ?? getForgeOutputBase(recipe.outputBaseId);
   if (!outputBase) {
     return { ok: false, updatedResourceStock: input.resourceStock, reason: "OUTPUT_BASE_NOT_FOUND" };
+  }
+
+  if (Math.max(1, Math.floor(input.forgeLevel)) < getCanonicalForgeRecipeRequiredLevel(recipe)) {
+    return { ok: false, updatedResourceStock: input.resourceStock, reason: "FORGE_LEVEL_TOO_LOW" };
+  }
+
+  const requiredBossId = recipe.unlockConditions.requiredBossId;
+  if (requiredBossId && !(input.defeatedBossIds ?? []).includes(requiredBossId)) {
+    return { ok: false, updatedResourceStock: input.resourceStock, reason: "BOSS_REQUIRED" };
   }
 
   const consumedResources = normalizeForgeRecipeIngredients(recipe.ingredients);

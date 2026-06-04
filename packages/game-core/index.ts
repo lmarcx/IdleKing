@@ -145,17 +145,43 @@ export type {
 } from "./market/index.js";
 export {
   FORGE_RECIPES,
+  FORGE_MVP_BOSS_IDS,
+  FORGE_OUTPUT_BASES,
   getAvailableForgeRecipes,
+  getCanonicalForgeRecipeRequiredLevel,
   getEffectiveForgeLevel,
+  getForgeOutputBase,
   getForgeRecipe,
   getForgeRecipeLockReason,
+  normalizeForgeRecipeIngredients,
   isForgeRecipeAvailable,
+  validateForgeRecipeRegistry,
 } from "./building/forge/recipes.js";
 export type {
   ForgeRecipe,
   ForgeRecipeId,
   ForgeRecipeLockReason,
+  ForgeOutputBaseDefinition,
+  ForgeRecipeCategory,
+  ForgeRecipeRarityRoll,
+  ForgeRecipeUnlockConditions,
 } from "./building/forge/recipes.js";
+export {
+  assertWeaponFamilyUnlocked,
+  getEquipmentSlotForWeaponFamily,
+  getWeaponFamilyDefinition,
+  getWeaponFamilyDefinitionOrThrow,
+  getWeaponFamilyUnlockLevel,
+  isWeaponFamilyUnlocked,
+  WEAPON_FAMILY_REGISTRY,
+  WEAPON_FAMILY_UNLOCK_LADDER,
+} from "./building/forge/weapons.js";
+export type {
+  WeaponFamily,
+  WeaponFamilyDefinition,
+  WeaponHandedness,
+  WeaponSlotBehavior,
+} from "./building/forge/weapons.js";
 export {
   canForgeUpgrade,
   didReachForgeUpgradeBreakpoint,
@@ -186,17 +212,6 @@ export type {
   CraftEquipmentFromRecipeInput,
   CraftEquipmentFromRecipeResult,
 } from "./building/forge/craft.js";
-export {
-  FORGE_OUTPUT_BASES,
-  normalizeForgeRecipeIngredients,
-  validateForgeRecipeRegistry,
-} from "./building/forge/recipes.js";
-export type {
-  ForgeOutputBaseDefinition,
-  ForgeRecipeCategory,
-  ForgeRecipeRarityRoll,
-  ForgeRecipeUnlockConditions,
-} from "./building/forge/recipes.js";
 export {
   forgeCraft,
   forgeRecycle,

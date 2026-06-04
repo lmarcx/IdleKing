@@ -93,6 +93,7 @@ export function forgeCraft(
     recipeId: recipe.id,
     resourceStock: state.resources,
     forgeLevel: getEffectiveForgeLevel(state),
+    defeatedBossIds: [...state.story.completedEvents],
     itemLevel,
     rng: options.rng ?? createSeededRng(seed),
     seed,
