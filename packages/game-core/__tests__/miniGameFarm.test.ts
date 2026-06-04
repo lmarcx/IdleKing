@@ -19,7 +19,7 @@ function makeSpawn(patch: Partial<FarmSpawn> = {}): FarmSpawn {
   return {
     id: "spawn-1",
     kind: "fruit",
-    reward: { WHEAT: 1 },
+    reward: { tomato: 1 },
     hit: false,
     x: 0.5,
     y: 0.5,
@@ -59,7 +59,7 @@ test("Farm start consumes World Energy", () => {
 });
 
 test("Farm fruit hit adds temporary reward", () => {
-  const reward = { WHEAT: 2 } satisfies ResourceStock;
+  const reward = { tomato: 2 } satisfies ResourceStock;
   const started = requireStartedFarm({ spawns: [makeSpawn({ reward })] });
 
   const hit = hitFarmSpawn(started.next, "spawn-1");
@@ -67,7 +67,7 @@ test("Farm fruit hit adds temporary reward", () => {
   assert.equal(hit.ok, true);
   if (!hit.ok) return;
   assert.deepEqual(hit.run.temporaryRewards, reward);
-  assert.equal(getQty(hit.next.resources, "WHEAT"), 0);
+  assert.equal(getQty(hit.next.resources, "tomato"), 0);
   assert.equal(hit.spawn.hit, true);
 });
 
@@ -84,7 +84,7 @@ test("Farm bomb hit reduces run HP", () => {
 });
 
 test("Farm golden fruit adds reward and timer", () => {
-  const reward = { APPLE: 2 } satisfies ResourceStock;
+  const reward = { carrot: 2 } satisfies ResourceStock;
   const started = requireStartedFarm({
     timerMs: 20_000,
     timerMaxMs: 60_000,
@@ -114,7 +114,7 @@ test("Farm timer reaching zero commits temporary rewards", () => {
   const started = requireStartedFarm({
     timerMs: 1_000,
     timerMaxMs: 60_000,
-    spawns: [makeSpawn({ reward: { WHEAT: 3 } })],
+    spawns: [makeSpawn({ reward: { tomato: 3 } })],
   });
   const hit = hitFarmSpawn(started.next, "spawn-1");
   assert.equal(hit.ok, true);
@@ -127,13 +127,13 @@ test("Farm timer reaching zero commits temporary rewards", () => {
   assert.equal(ticked.finished, true);
   assert.equal(ticked.next.miniGames.activeRun, null);
   assert.equal(ticked.next.miniGames.lastRun?.status, "success");
-  assert.equal(getQty(ticked.next.resources, "WHEAT"), 3);
+  assert.equal(getQty(ticked.next.resources, "tomato"), 3);
 });
 
 test("Farm HP reaching zero discards temporary rewards", () => {
   const started = requireStartedFarm({
     spawns: [
-      makeSpawn({ id: "fruit", reward: { WHEAT: 2 } }),
+      makeSpawn({ id: "fruit", reward: { tomato: 2 } }),
       makeSpawn({ id: "bomb", kind: "bomb", reward: undefined }),
     ],
   });
@@ -165,14 +165,14 @@ test("Farm HP reaching zero discards temporary rewards", () => {
   assert.equal(bombHit.failed, true);
   assert.equal(bombHit.next.miniGames.activeRun, null);
   assert.equal(bombHit.next.miniGames.lastRun?.status, "failed");
-  assert.equal(getQty(bombHit.next.resources, "WHEAT"), 0);
+  assert.equal(getQty(bombHit.next.resources, "tomato"), 0);
 });
 
 test("Farm Energy reaching zero discards temporary rewards", () => {
   const started = requireStartedFarm({
     spawns: [
-      makeSpawn({ id: "fruit-1", reward: { WHEAT: 2 } }),
-      makeSpawn({ id: "fruit-2", reward: { TOMATO: 1 } }),
+      makeSpawn({ id: "fruit-1", reward: { tomato: 2 } }),
+      makeSpawn({ id: "fruit-2", reward: { carrot: 1 } }),
     ],
   });
   const firstHit = hitFarmSpawn(started.next, "fruit-1");
@@ -202,12 +202,12 @@ test("Farm Energy reaching zero discards temporary rewards", () => {
   if (!secondHit.ok) return;
   assert.equal(secondHit.failed, true);
   assert.equal(secondHit.next.miniGames.lastRun?.status, "failed");
-  assert.equal(getQty(secondHit.next.resources, "WHEAT"), 0);
-  assert.equal(getQty(secondHit.next.resources, "TOMATO"), 0);
+  assert.equal(getQty(secondHit.next.resources, "tomato"), 0);
+  assert.equal(getQty(secondHit.next.resources, "carrot"), 0);
 });
 
 test("Farm abandon discards temporary rewards", () => {
-  const started = requireStartedFarm({ spawns: [makeSpawn({ reward: { WHEAT: 2 } })] });
+  const started = requireStartedFarm({ spawns: [makeSpawn({ reward: { tomato: 2 } })] });
   const hit = hitFarmSpawn(started.next, "spawn-1");
   assert.equal(hit.ok, true);
   if (!hit.ok) return;
@@ -218,7 +218,7 @@ test("Farm abandon discards temporary rewards", () => {
   if (!abandoned.ok) return;
   assert.equal(abandoned.next.miniGames.activeRun, null);
   assert.equal(abandoned.next.miniGames.lastRun?.status, "abandoned");
-  assert.equal(getQty(abandoned.next.resources, "WHEAT"), 0);
+  assert.equal(getQty(abandoned.next.resources, "tomato"), 0);
 });
 
 test("Farm actions fail outside an active Farm run", () => {

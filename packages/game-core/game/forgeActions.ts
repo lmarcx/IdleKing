@@ -14,6 +14,7 @@ import { isEquipmentItem, isItemRarity, type Item, type NonEquipmentItem } from 
 import { expectedIlvl } from "../progression/expectedIlvl.js";
 import { recycleEquipment } from "../loot/mvp.js";
 import { createSeededRng, hashStringSeed, type SeededRng } from "../random/index.js";
+import { grantCurrencyReward } from "../rewards/index.js";
 
 function createCraftedItemId(state: GameState, recipeId: ForgeRecipeId): string {
   const matchingItems = state.inventory.items.filter((item) => item.id.startsWith(`forge_${recipeId}_`)).length;
@@ -206,7 +207,7 @@ export function forgeRecycle(state: GameState, itemId: string, options: ForgeRec
     next: {
       ...state,
       inventory: { items: nextItems },
-      wallet: grantCurrency(state.wallet, "ECU", recycleResult.ecuGained),
+      wallet: grantCurrencyReward(state.wallet, { currencyId: "ECU", amount: recycleResult.ecuGained }),
     },
   };
 }

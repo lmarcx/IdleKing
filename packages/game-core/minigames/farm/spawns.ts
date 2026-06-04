@@ -1,16 +1,40 @@
-import type { ResourceId, ResourceStock } from "../../resources/types.js";
+import { getResourceDefinitionOrThrow } from "../../resources/index.js";
+import type { CanonicalResourceId, ResourceStock } from "../../resources/types.js";
 import type { FarmSpawn, FarmSpawnKind } from "./types.js";
 
 export const FARM_RUN_TIMER_MS = 60_000;
 export const FARM_SPAWNS_PER_WAVE = 8;
 
-export const FARM_RESOURCE_TABLE: Array<{ id: ResourceId; amount: number; weight: number }> = [
-  { id: "WHEAT", amount: 1, weight: 5 },
-  { id: "TOMATO", amount: 1, weight: 4 },
-  { id: "CARROT", amount: 1, weight: 4 },
-  { id: "EGG", amount: 1, weight: 2 },
-  { id: "APPLE", amount: 1, weight: 1 },
+// DEFERRED balancing: Farm quantities and weights are Phase 5 placeholders.
+export const FARM_RESOURCE_AMOUNT_PLACEHOLDERS = {
+  tomato: 1,
+  carrot: 1,
+  tough_meat: 1,
+} as const satisfies Readonly<Partial<Record<CanonicalResourceId, number>>>;
+
+export const FARM_RESOURCE_TABLE: readonly {
+  id: keyof typeof FARM_RESOURCE_AMOUNT_PLACEHOLDERS;
+  amount: number;
+  weight: number;
+}[] = [
+  { id: "tomato", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.tomato, weight: 5 },
+  { id: "carrot", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.carrot, weight: 4 },
+  { id: "tough_meat", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.tough_meat, weight: 2 },
 ];
+
+export function validateFarmResourceTable(table = FARM_RESOURCE_TABLE): void {
+  for (const entry of table) {
+    getResourceDefinitionOrThrow(entry.id);
+    if (!Number.isInteger(entry.amount) || entry.amount <= 0) {
+      throw new Error(`Invalid Farm resource amount for ${entry.id}: ${entry.amount}`);
+    }
+    if (!Number.isFinite(entry.weight) || entry.weight <= 0) {
+      throw new Error(`Invalid Farm resource weight for ${entry.id}: ${entry.weight}`);
+    }
+  }
+}
+
+validateFarmResourceTable();
 
 export type GenerateFarmSpawnsOptions = {
   seed?: number;

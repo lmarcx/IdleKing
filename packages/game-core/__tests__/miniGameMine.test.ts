@@ -94,7 +94,7 @@ test("digging a Mine soil tile consumes run Energy and reveals adjacent hints", 
 });
 
 test("breaking a Mine resource rock adds temporary reward without committing it", () => {
-  const reward = { COPPER: 2 } satisfies ResourceStock;
+  const reward = { iron_ore: 2 } satisfies ResourceStock;
   const board = makeBoard({
     patches: {
       "1,1": { type: "rock", content: "resource", resourceReward: reward },
@@ -107,7 +107,7 @@ test("breaking a Mine resource rock adds temporary reward without committing it"
   assert.equal(broken.ok, true);
   if (!broken.ok) return;
   assert.deepEqual(broken.run.temporaryRewards, reward);
-  assert.equal(getQty(broken.next.resources, "COPPER"), 0);
+  assert.equal(getQty(broken.next.resources, "iron_ore"), 0);
 });
 
 test("Mine enemy tile reduces run HP", () => {
@@ -149,7 +149,7 @@ test("Mine stair advances floor and regenerates the board", () => {
 test("Mine extract commits temporary rewards", () => {
   const board = makeBoard({
     patches: {
-      "1,1": { type: "rock", content: "resource", resourceReward: { COPPER: 2 } },
+      "1,1": { type: "rock", content: "resource", resourceReward: { iron_ore: 2 } },
     },
   });
   const started = requireStartedMine(board);
@@ -161,7 +161,7 @@ test("Mine extract commits temporary rewards", () => {
 
   assert.equal(extracted.ok, true);
   if (!extracted.ok) return;
-  assert.equal(getQty(extracted.next.resources, "COPPER"), 2);
+  assert.equal(getQty(extracted.next.resources, "iron_ore"), 2);
   assert.equal(extracted.next.miniGames.activeRun, null);
   assert.equal(extracted.next.miniGames.lastRun?.status, "success");
 });
@@ -169,7 +169,7 @@ test("Mine extract commits temporary rewards", () => {
 test("Mine failure discards temporary rewards", () => {
   const board = makeBoard({
     patches: {
-      "1,1": { type: "rock", content: "resource", resourceReward: { COPPER: 2 } },
+      "1,1": { type: "rock", content: "resource", resourceReward: { iron_ore: 2 } },
     },
   });
   const started = requireStartedMine(board);
@@ -181,14 +181,14 @@ test("Mine failure discards temporary rewards", () => {
 
   assert.equal(failed.ok, true);
   if (!failed.ok) return;
-  assert.equal(getQty(failed.next.resources, "COPPER"), 0);
+  assert.equal(getQty(failed.next.resources, "iron_ore"), 0);
   assert.equal(failed.next.miniGames.lastRun?.status, "failed");
 });
 
 test("Mine run fails when run Energy reaches zero and discards rewards", () => {
   const board = makeBoard({
     patches: {
-      "1,1": { type: "rock", content: "resource", resourceReward: { COPPER: 2 } },
+      "1,1": { type: "rock", content: "resource", resourceReward: { iron_ore: 2 } },
     },
   });
   const started = requireStartedMine(board);
@@ -217,7 +217,7 @@ test("Mine run fails when run Energy reaches zero and discards rewards", () => {
   assert.equal(broken.failed, true);
   assert.equal(broken.next.miniGames.activeRun, null);
   assert.equal(broken.next.miniGames.lastRun?.status, "failed");
-  assert.equal(getQty(broken.next.resources, "COPPER"), 0);
+  assert.equal(getQty(broken.next.resources, "iron_ore"), 0);
 });
 
 test("Mine actions fail outside an active mine run", () => {

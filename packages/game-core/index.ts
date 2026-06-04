@@ -4,6 +4,7 @@ export * as progression from "./progression/index.js";
 export * as economy from "./economy/index.js";
 export * as currencies from "./currencies/index.js";
 export * as resources from "./resources/index.js";
+export * as rewards from "./rewards/index.js";
 export * as world from "./world/index.js";
 export * as minigames from "./minigames/index.js";
 export * as player from "./player/index.js";
@@ -229,6 +230,18 @@ export {
   spendResources,
   validateResourceRegistry,
 } from "./resources/index.js";
+export {
+  calculateResourceRewardBundleValue,
+  grantCurrencyReward,
+  grantResourceReward,
+  grantRewardBundle,
+} from "./rewards/index.js";
+export type {
+  CurrencyReward,
+  ResourceReward,
+  RewardBundle,
+  RewardBundleState,
+} from "./rewards/index.js";
 export type {
   CanonicalResourceId,
   ResourceCosts,
@@ -262,6 +275,7 @@ export {
   FARM_GOLDEN_FRUIT_SCORE,
   FARM_GOLDEN_TIMER_BONUS_MS,
   FARM_RESOURCE_TABLE,
+  FARM_RESOURCE_AMOUNT_PLACEHOLDERS,
   FARM_RUN_BOMB_DAMAGE,
   FARM_RUN_ENERGY_COST_PER_ACTION,
   FARM_RUN_TIMER_MS,
@@ -281,6 +295,7 @@ export {
   MINE_BOARD_SIZE,
   MINE_MAX_FLOORS,
   MINE_RESOURCE_TABLE,
+  MINE_RESOURCE_AMOUNT_PLACEHOLDERS,
   MINE_RUN_ENEMY_DAMAGE,
   MINE_RUN_ENERGY_COST_PER_ACTION,
   hitFarmSpawn,
@@ -298,6 +313,8 @@ export {
   startKitchenRun,
   submitKitchenPatternInput,
   tickFarmTimer,
+  validateFarmResourceTable,
+  validateMineResourceTable,
 } from "./minigames/index.js";
 export type {
   ActiveFarmRunState,

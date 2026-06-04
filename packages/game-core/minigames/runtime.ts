@@ -1,5 +1,6 @@
 import type { GameState } from "../game/state.js";
-import { ALL_RESOURCES, addQty, hasAtLeast, spend, type ResourceId, type ResourceStock } from "../resources/types.js";
+import { ALL_RESOURCES, hasAtLeast, spend, type ResourceId, type ResourceStock } from "../resources/types.js";
+import { grantResourceReward } from "../rewards/index.js";
 import type {
   MiniGameConsumedCosts,
   MiniGameKind,
@@ -116,7 +117,7 @@ function normalizeTemporaryItemRewards(value: unknown): MiniGameTemporaryItemRew
 function addResourceStock(stock: ResourceStock, rewards: ResourceStock): ResourceStock {
   let next = stock;
   for (const [resourceId, amount] of Object.entries(rewards) as Array<[ResourceId, number | undefined]>) {
-    next = addQty(next, resourceId, amount ?? 0);
+    next = grantResourceReward(next, { resourceId, amount: amount ?? 0 });
   }
   return next;
 }

@@ -10,6 +10,7 @@ import type {
   NonEquipmentItem,
 } from "../items/types.js";
 import type { SeededRng } from "../random/index.js";
+import type { ResourceReward } from "../rewards/index.js";
 import { getResourceDefinition } from "../resources/index.js";
 import {
   BOSS_EQUIPMENT_LOOT_SLOTS,
@@ -18,10 +19,7 @@ import {
   type EnemyLootTableDefinition,
 } from "./mvpConfig.js";
 
-export type MaterialDrop = {
-  amount: number;
-  resourceId: string;
-};
+export type MaterialDrop = ResourceReward;
 
 export type RollEquipmentLootParams = {
   itemLevel: number;
