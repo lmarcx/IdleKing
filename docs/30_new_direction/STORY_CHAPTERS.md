@@ -312,9 +312,9 @@ Narrative beats:
 - Old King emerges from a familiar dream
 - Fragmented visions
 - Awakens in ruined wastelands
-- Meets a dying thirsty dog
+- Meets a dying thirsty great wolf
 - Cuts his hand to feed it
-- Dog transforms into colossal corrupted creature
+- Wolf transforms into colossal corrupted creature
 - Sun is eclipsed
 - Shadows emerge
 - First combat
@@ -433,7 +433,7 @@ Characters:
 Bosses:
 
 - Archmage
-- Corrupted Lord of Rain
+- Fallen Lord of Rain (Seigneur de la Pluie Déchu — MVP boss, D-A02)
 
 Narrative beats:
 

@@ -349,6 +349,17 @@ Boss
 Seigneur de la Pluie Déchu
 ```
 
+### MVP Status
+
+```txt
+MVP BOSS CANON (D-A02)
+```
+
+> ⚠️ Placement à confirmer : DESIGN_FREEZE §14/§15 (D-10) situe le **combat** contre le
+> Seigneur de la Pluie Déchu au **Gouffre Royal (Ch II — Era Glaciaire)**, alors que l'« Era
+> Funèbre » ci-dessus décrit l'origine narrative du personnage. L'ère du combat MVP vs l'ère
+> d'origine reste à arbitrer (lore).
+
 ### Description
 
 A tragic and corrupted figure whose fall becomes central to later timelines.
@@ -486,9 +497,17 @@ Commander
 Seigneur de la Pluie Corrompu
 ```
 
+### MVP Status
+
+```txt
+FUTURE CONTENT — hors MVP (D-A02)
+```
+
 ### Description
 
 A later manifestation of Noah's tragic destiny.
+The MVP boss is the Seigneur de la Pluie Déchu (CHR-007) ; the Corrompu is a future evolution,
+preserved in the lore but not produced for the MVP.
 
 ### Future Importance
 

@@ -1,0 +1,56 @@
+> ⚠️ **NON CANON — ARCHIVED DOCUMENT — DO NOT USE FOR IMPLEMENTATION**
+>
+> Archivé le 2026-06-04. Document issu de l'ancienne direction (Idle RPG / auto-combat),
+> conservé pour l'historique et la traçabilité uniquement. Le canon vit dans
+> `docs/30_new_direction/` — voir `DOCUMENTATION_INDEX.md`.
+
+---
+### Inspirations : 
+- Paperclips : Farm clicker + World Building
+- Tales of Wind : Contenu instancié, Progression
+- Tap Titans : Automatic Damage / Renaissance
+- Harvest Moon : Farm + Mine
+- BnS : The Tower (endgame content off-mvp)
+
+### Notes diverses de fonctionnalités à implémenter : 
+- [] Nouvelles raretés (ancestral, mythique, divin) obtainables en dépensant des matériaux des raretés correspondantes. Ces matériaux se lootent dans des contenus spécifiques du end-game.
+- [] Easter-eggs : Suite d'actions précises qui débloque automatiquement un obte unique (équipement ou autres) d'une rareté supérieur à légendaire. Si le stuff est perdu lors d'une Expédition il peut être racheté à un PNJ correspondant contre des Kingamas.
+- [] Les Cieux : Nouveau contenu end-game à plusieurs niveaux de difficultés permettant des objets de qualités correspondantes. Enchainement de trois Bosses 
+- [] Les Abysses : Nouveau contenu end-game à plusieurs niveaux de difficultés permettant des objets de qualités correspondantes. Combat de trois vagues de nombreux ennemis. 
+- [] Les PNJ de quêtes, de contenu et de marchandage. 
+- [] Dialogues, quêtes, assets, sounds.
+- [] Patterns début de monde et début de partie
+- [] Tutoriel début de monde
+- [] Pattern début du monde : Dialogue d'introduction -> Découverte de l'interface principale (Personnage, Inventaire, Mondes, Royaume, Compétences, Paramètres, Différents indicateurs de ressources, Une fenêtre principale avec une tête de robot et une fenêtre de dialogue.) -> Interaction avec le robot de la fenêtre principale -> Guide dans les menus -> Personnage : On peut équiper différents items à notre personnage, on a accès à ses stats et ses informations principales. -> Inventaire : on accède à tous notre inventaire en différentes catégories (Equipements, Ressources, Consommables, Unique) différentes actions sont possible sur les objets selon leur catégorie. Equipement -> Améliorer, Ressources -> Fusionner, Consommables -> Utiliser, Unique -> Voir. -> Mondes : on accède à l'histoire principale, et aux différents contenus (Donjons, Expéditions, Les Cieux, Les Abysses). -> Royaume -> c'est ici qu'on gère nos batiments. On peut en construire et les améliorer. Certains batiments donnent des bonus passif comme par exemple la récolte de ressource automatique, un buff de 1% d'ATTAQUE. Tandis que d'autres permettent de débloquer du contenu : débloquage d'un niveau de l'histoire principale, débloquage de la fonction Amélioration des armures, débloquage de la fonction Enchantement, ... -> Compétences : c'est l'arbre de compétences où l'on débloque toutes les compétences disponible. On peut en équiper pour un total de 5 et on peut aussi les améliorer (qualité et niveau). -> Paramètres : On peut personnaliser sa fiche de joueur, changer quelques configuration, ... -> Le dialogue continue avec le robot il invite le joueur à donner son nom -> Saisie du nom du joueur. -> Il lui pose des questions, le joueur peut choisir entre 4 réponses à chaque question. -> Saisie des réponses -> Redirection vers le Niveau 1 de l'Histoire principale -> Tutoriel des combats : utilisation des compétences principales, utilisation des compétences de soutien, utilisation des consommables, récolte du loot, validation du niveau. -> Retour à la fenêtre principale -> Le robot guide le joueur dans la création de son premier batiment (Ferme). Click sur un emplacement disponible -> Création disponible "Ferme" -> Construire Ferme (coût 10 pierres, 5 pailles). -> Dialogue du robot : Tu as besoin de ressources, va à la Corne d'abondance. Click sur le batiment "Corne d'abondance" -> Liste de toutes les ressources avec un bouton + et la quantité que le joueur a en dessous. -> Click sur le bouton +. Obtention d'1 ressource cliqué. Joueur multi click et amasse des ressources -> Retour à la Ferme -> Menu de la ferme -> Production de villageois (coût : 2 viandes et 1 or, le nombre total de villageois est déterminant pour construire certains batiment, ou d'autres fonctions conditionnelles), Production de poule (coût : 2 or, reste à détailler), Récolte de blé (+10 blé par minute), Récolte d'eau (+10 eau par minute), Récolte de bois (+10 bois par minute) (reste à détailler). -> Fin du Tutoriel. 
+- [] Pattern des débuts de parties : 
+ - Histoire Principale -> Enchaînement de combats et de dialogues. Regroupement de Chapitre sous forme d'Age (Tier) qui est déterminé par le niveau du monde du Joueur et par conséquent des bâtiments qu'il a construit et lui permet de construire plus de batiment ou de dépasser certaines limites d'amélioration. Facile. Récompenses obtainable que la première fois. 
+ - Donjons -> Petites enigmes à résoudre (Suite de dialogues, Questions, Enigmes Visuelles) puis Boss unique. Récompenses répétables 5 par jour donnant des équipements et des ressources. 
+ - Les Expéditions -> Donjons à 7 Salles. Salles 1, 3, 5 : Combat contre un groupe d'ennemis. Salles 2, 4, 6 : Salle de choix donnant un buff, une ressource ou un malus. Salle 7 : Combat contre Boss Final. Récompense équipements, ressources, Kingamas. Il y a 10 niveaux d'expédition et chaque niveau est réalisable qu'une fois par semaine. La difficulté ainsi que les récompenses augmentent proportionnellement. Voir pour séparer le niveau spécial 10 Boss Final en mode chrono invincible et en monde normal. Ajouter éventuellement une fonction de chrono pour chaque niveau pour faire un leaderboard Speedrun. 
+ - Les Cieux : voir plus haut.
+ - Les Abysses : voir plus haut. 
+- [] Détail des fonctionnalités.
+- [] Fonctions Multijoueur : Mécaniques collectives sur les Cieux et les Abysses, avec système de seuil et/ou de chronomètre. Leaderboards hebdomadaire avec récompense. PvP. Alliances. AvA. Amis & Chats. 
+- [] Intégrations des Events, et de Pass.
+- [] Monétisation du jeu.
+- [] Communication du jeu.  
+- [] Liste de tous les batiments. Par types : Production, Amélioration, Marchandage, Spécial. 
+- [] Liste de toutes les ressources.
+- [] Liste de tous les équipements.
+- [] Liste de tous les consommables.
+- [] Liste de toutes les compétences.
+- [] Système de Renaissance et de Rang : La Renaissance est disponible lorsque le joueur atteint le niveau de POWER requis pour passer de Rang. Cette fonction permet de reset le personnage, il perd tout ses objets, toutes ses ressources sauf c'est Kingamas, tous ses niveaux et donc ses stats, toutes ses compétences. Il recommence de zéro à l'exception des Kingamas. Mais il gagne des bonus de compte (augmentation de l'espace de stockage, +1 Rang, un Titre, un Ornement, un Fond, ...). Première renaissance déloquage du système de Rang. Il existe 4 Rangs par Titre. Un rang donne des stats de personnages fixe. Il y a 7 Titres (Duc, Seigneur, Roi, Empereur, Héro, Saint, Divinité). 
+- [] Leaderboards POWER une catégorie par Rang de chaque Titre. (Récompenses Mensuelles)
+- [] Leaderboards Expéditions une catégorie Titre tout rang confondu. (Récompenses Hebdomadaires)
+- [] Leaderboard Kingamas globale. (Récompenses Mensuelles)
+- [] Leaderboard PvP système de Ranks : Bronze, Argent, Or, Platine, Diamant, Conquérant, Divin. (Récompenses trimestrielles)
+- [] Leaderboard Alliance : Somme des Contributions par les membres d'une Alliance. Système de don des ressources pour la construction et la glorification de l'Alliance. (Récompenses Semestrielles). 
+- [] Leaderboard AvA Championnat avec Poules et Phases finales. S'étend sur un Trimestre à raison d'un match en BO3 par semaine pour chaque Alliance. 
+- [] Hub Social : Possibilité de rejoindre une Room parmi plusieurs, où le joueur est représenté dans un carré au sein d'une grille 10x10 (100 joueurs max). Possibilité de se déplacer horizontalement ou verticalement. Possibilité d'interagir avec les joueurs situés à côté du joueur. Possibilité de visionner la fiche perso de chaque joueur présent dans la grille, la Room.
+- [] Nouveaux systèmes d'amélioration du POWER : Familiers, Enchantements, Éveil, Runes, ... (a détailler).
+- [] UI = Layout + Main. Liste des Mains : Robot -> Chat, Dialogues, (se mets en mini icône dans le layout quand le joueur n'est plus dans Robot). Personnage. Mondes -> Histoire -> Chapitres. Donjons -> 1 donjons à 3 difficultés par tranche de niveaux du joueur. (1 à 10, 11 à 20, 21 à 30, 31 à 40, 41 à 50.), Expédition -> 9 Niveaux + 1 Niveau Spécial, Loadout, Equipements. Cieux, Abysse, AvA, ... Royaume -> Corne, Ferme, Mine, Forge, Cuisine,  Forteresse, Château Royal, Laboratoire, Temple, Marché publique, Marché Noir, ... Inventaire -> Équipements, Ressources, Consommables, Unique. Compétences -> Arbre, Équiper, Améliorer, Éveil, ... Leaderboards -> Power, Expédition, Kingamas, 1v1, AvA. 
+Alliances -> Annuaire, Général, Contribution, Tournoi, Membres, Améliorations, Paramètres. 
+Paramètres. 
+
+
+### Point à améliorer 
+- Temple : Ajouter une ressource ou designer un system de repos pour rééquilibrer.

@@ -128,6 +128,9 @@ export function rankUpWorldOnce(
 /**
  * Ranks up the world as many times as possible in a loop.
  * Useful for legacy behavior or debug, but production can use Forum to apply single rank-ups.
+ *
+ * @deprecated MVP World Level-up is manual via the Forum (rankUpWorldOnce). This auto-level
+ * loop must NOT be wired into active MVP paths.
  */
 export function rankUpWorldMax(
   currentWorldLevel: number,
@@ -161,6 +164,9 @@ export function rankUpWorldMax(
  * Kept for backward compatibility, but new design should use:
  * - addWorldWxp(...) to accumulate
  * - rankUpWorldOnce(...) (via Forum) to perform rank-ups
+ *
+ * @deprecated Do NOT use in MVP paths. World Level-up is a manual Forum action;
+ * use addWorldWxp() to bank WXP and forumRankUpWorld()/rankUpWorldOnce() to rank up.
  */
 export function applyWorldWxp(
   currentWorldLevel: number,
