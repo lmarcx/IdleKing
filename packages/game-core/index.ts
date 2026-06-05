@@ -19,6 +19,7 @@ export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export * as resonance from "./resonance/index.js";
 export * as effectSets from "./effectSets/index.js";
+export * as content from "./content/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
@@ -496,6 +497,16 @@ export type {
   ResolvedEquipmentStats,
   UnequipItemResult,
 } from "./equipment/index.js";
+export {
+  MVP_BOSS_ROSTER,
+  assertValidMvpContentGraph,
+  validateMvpContentGraph,
+} from "./content/index.js";
+export type {
+  MvpBossId,
+  MvpContentGraphValidationInput,
+  MvpContentGraphValidationResult,
+} from "./content/index.js";
 export {
   EFFECT_SET_BALANCING_PLACEHOLDERS,
   EFFECT_SET_IDS,
