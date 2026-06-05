@@ -11,6 +11,8 @@ import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
 import { normalizeBankState } from "../bank/index.js";
 import { normalizeSpecialItemsState } from "../specialItems/index.js";
 import { normalizeEffectSetsState } from "../effectSets/index.js";
+import { ALL_RESOURCES, type ResourceStock } from "../resources/types.js";
+import { RESOURCE_MAX_STACK } from "../resources/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 2;
@@ -34,6 +36,25 @@ function toSet<T>(value: unknown): Set<T> {
   if (value instanceof Set) return new Set(value as Set<T>);
   if (Array.isArray(value)) return new Set(value as T[]);
   return new Set();
+}
+
+function clampSavedResourceQuantity(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.min(RESOURCE_MAX_STACK, Math.max(0, Math.floor(value)));
+}
+
+function normalizeResourceStockState(value: unknown): ResourceStock {
+  if (!value || typeof value !== "object") return {};
+  const allowed = new Set<string>(ALL_RESOURCES);
+  const stock: ResourceStock = {};
+
+  for (const [resourceId, amount] of Object.entries(value as Record<string, unknown>)) {
+    if (!allowed.has(resourceId)) continue;
+    const quantity = clampSavedResourceQuantity(amount);
+    if (quantity > 0) stock[resourceId as keyof ResourceStock] = quantity;
+  }
+
+  return stock;
 }
 
 function reviveInventory(inventory: GameState["inventory"]): GameState["inventory"] {
@@ -86,10 +107,29 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     progression.worldLevel,
   );
 
+  const rawStory = rawState.story as (Partial<GameState["story"]> & { defeatedBossIds?: unknown }) | undefined;
+  const defeatedBossIds = toSet<string>(rawStory?.defeatedBossIds);
+  const completedEvents = toSet<string>(rawStory?.completedEvents);
+  for (const bossId of defeatedBossIds) {
+    if (typeof bossId !== "string" || bossId.length === 0) continue;
+    completedEvents.add(bossId);
+    completedEvents.add(`boss:${bossId}:defeated`);
+  }
+
   return {
-    ...defaults,
-    ...state,
     progression,
+    story: {
+      ...defaults.story,
+      ...(rawState.story ?? {}),
+      completedChapters: toSet(rawStory?.completedChapters),
+      completedDungeonIds: toSet(rawStory?.completedDungeonIds),
+      completedEvents,
+      completedLevels: toSet(rawStory?.completedLevels),
+      discoveredEvents: toSet(rawStory?.discoveredEvents),
+      firstClearFlags: toSet(rawStory?.firstClearFlags),
+      unlocked: toSet(rawStory?.unlocked),
+    },
+    resources: normalizeResourceStockState(rawState.resources),
     inventory: reviveInventory(rawState.inventory ?? defaults.inventory),
     bank: normalizeBankState(rawState.bank),
     equipment: normalizePlayerEquipmentState(rawState.equipment),
@@ -100,16 +140,8 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     specialItems: normalizeSpecialItemsState((rawState as any).specialItems),
     effectSets: normalizeEffectSetsState((rawState as any).effectSets),
     buildings,
-    story: {
-      ...defaults.story,
-      ...(rawState.story ?? {}),
-      completedChapters: toSet(rawState.story?.completedChapters),
-      completedDungeonIds: toSet((rawState.story as any)?.completedDungeonIds),
-      completedEvents: toSet(rawState.story?.completedEvents),
-      completedLevels: toSet(rawState.story?.completedLevels),
-      discoveredEvents: toSet(rawState.story?.discoveredEvents),
-      firstClearFlags: toSet((rawState.story as any)?.firstClearFlags),
-      unlocked: toSet(rawState.story?.unlocked),
+    villagers: {
+      list: Array.isArray(rawState.villagers?.list) ? rawState.villagers.list : defaults.villagers.list,
     },
   };
 }
@@ -123,7 +155,7 @@ export function saveGame(state: GameState): void {
   const payload: PersistedSave = {
     schemaVersion: SCHEMA_VERSION,
     savedAt: Date.now(),
-    state,
+    state: reviveGameState(state, Date.now()),
   };
 
   localStorage.setItem(SAVE_KEY, stringifyGameState(payload));
