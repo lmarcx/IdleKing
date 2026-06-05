@@ -1,16 +1,13 @@
-# 📚 IdleKing — Documentation Index (v2)
+# 📚 IdleKing — Documentation Index (v3)
 
-> **Point d'entrée unique de la documentation du projet.** Toute lecture (humaine ou IA)
-> commence ici. Ce fichier ne définit aucun système : il **organise**, **classe** et **arbitre**.
+> **Point d'entrée unique de la documentation.** Toute lecture (humaine ou IA) commence ici.
+> Ce fichier **organise**, **classe**, **arbitre** et **relie** tous les documents. Il ne
+> définit aucun système.
 >
-> 📖 **Lore / Script** (canon narratif) → [`STORY_CHAPTERS.md`](STORY_CHAPTERS.md) · [`SCRIPTS.md`](SCRIPTS.md) · [`CHARACTER_DATABASE.md`](CHARACTER_DATABASE.md)
-> 🧊 **Design Freeze MVP** → [`DESIGN_FREEZE_V1.md`](DESIGN_FREEZE_V1.md)
-> 🎨 **Art Bibles** → [`art/`](art/) (8 documents — voir §5)
-> 🗃️ **Modèle métier** → [`DATA_MODEL.md`](DATA_MODEL.md)
-> 🛠️ **Ordre d'implémentation** → [`IMPLEMENTATION_BIBLE.md`](IMPLEMENTATION_BIBLE.md)
-> 🗺️ **Roadmap** → [`MVP_ROADMAP.md`](MVP_ROADMAP.md)
-> 🔍 **Audit d'architecture** → [`DOC_ARCHITECTURE_AUDIT.md`](DOC_ARCHITECTURE_AUDIT.md)
+> 🎨 **Branche artistique** → [`art/ART_INDEX.md`](art/ART_INDEX.md) (sous-index dédié).
+> 🔍 **Audit d'architecture** → [`DOC_ARCHITECTURE_AUDIT.md`](DOC_ARCHITECTURE_AUDIT.md).
 > 🗄️ **Legacy (NON CANON)** → [`../_legacy/`](../_legacy/README.md) — ignorer pour toute implémentation.
+> 🤖 **Règles agent / Codex** → [`../contrib/AGENT_RULES.md`](../contrib/AGENT_RULES.md).
 
 ---
 
@@ -19,318 +16,217 @@
 Validée par décision d'auteur **D-A03**. Chaque niveau a un **domaine de décision** exclusif.
 
 ```txt
-LORE / SCRIPT
-        │   décide : cosmologie · personnages · noms · peuples · événements narratifs
+LORE / SCRIPT          décide : cosmologie · personnages · noms · peuples · événements narratifs
         ▼
-DESIGN_FREEZE_V1
-        │   décide : scope · gameplay · progression · systèmes · contenu MVP
+DESIGN_FREEZE_V1       décide : scope · gameplay · progression · systèmes · contenu MVP
         ▼
-ART_BIBLES
-        │   décide : direction artistique · personnages (visuel) · boss · environnements · UI
+ART_BIBLES             décide : direction artistique · personnages (visuel) · boss · environnements · UI
         ▼
-GAME DESIGN DOCS   (concepts : COMBAT, STATS, WEAPONS, SKILLS, ITEMS, FORGE, WORLD…)
+GAME DESIGN DOCS       concepts : COMBAT, STATS, WEAPONS, SKILLS, ITEMS, FORGE, WORLD…
         ▼
-DATA_MODEL          (objets métier · save model)
+DATA_MODEL             objets métier · save model
         ▼
-IMPLEMENTATION_BIBLE
-        │   décide : COMMENT implémenter — JAMAIS quoi implémenter
+IMPLEMENTATION_BIBLE   décide : COMMENT implémenter — JAMAIS quoi implémenter
         ▼
-DATABASES           (*_DATABASE.md = spec canon de contenu → registres runtime)
+DATABASES              *_DATABASE.md = spec canon de contenu → registres runtime
         ▼
-ASSETS
-        ▼
-CODE
+ASSETS  ▼  CODE
 ```
 
 ### Règles d'arbitrage (résolution de conflit)
 
-En cas de divergence entre deux documents, appliquer dans l'ordre :
-
-0. **Domaines séparés.** Le **Lore/Script** tranche sur l'identité/lore/noms ; le **Design
-   Freeze** tranche sur les systèmes/scope/contenu MVP. Ils ne s'opposent pas : ils gouvernent
-   des objets différents.
-1. **Un document n'a jamais autorité sur un niveau supérieur.** Une Art Bible ne peut pas
-   contredire le Freeze (ex. « Fusion » dans l'UI = invalide, Freeze §9). L'Implementation
-   Bible ne décide jamais *quoi*, seulement *comment*.
-2. **`[DB]` > `(concept)`** — une base canonique prime sur un document de vision.
-3. **`V2` > `V1`** — la version la plus récente supersède l'ancienne.
-   `EFFECT_SETS_AND_RESONANCE_SYSTEM_V2` **>** `EFFECT_SETS` · `ENEMIES_DATABASE_V2` **>** `ENEMIES`.
-4. **`RECIPES_DATABASE` > `RECIPES`** (DB prime sur le stub).
-5. **`(review)` / `(proposal)` = non normatif** — `BUILDS_VIGILANCE` (balance) et
-   `UI_AND_ASSETS_PROPOSAL` (intégration) ne sont jamais des specs de design.
-6. **`docs/_legacy/` = NON CANON** — ignorer entièrement (ancienne direction Idle/auto-combat).
+0. **Domaines séparés.** Le **Lore/Script** tranche sur identité/lore/noms ; le **Design
+   Freeze** tranche sur systèmes/scope/contenu MVP. Ils gouvernent des objets différents.
+1. **Aucune autorité vers le haut.** Une Art Bible ne contredit jamais le Freeze ;
+   l'Implementation Bible décide *comment*, jamais *quoi*.
+2. **`[DB]` > `(concept)`** · **`V2` > `V1`** · **`RECIPES_DATABASE` > `RECIPES` (stub)**.
+3. **`(review)` / `(proposal)` = non normatif** (`BUILDS_VIGILANCE`, `UI_AND_ASSETS_PROPOSAL`).
+4. **`../_legacy/` = NON CANON** — ignorer entièrement.
 
 ### Légende des types
 
 | Tag | Signification |
 |-----|---------------|
-| `[DB]` | **Document canonique** — source of truth des données. |
-| `(art)` | **Art Bible** — direction artistique (niveau ART_BIBLES). |
-| `(concept)` | Vision / philosophie système. Contexte, pas données finales. |
+| `[DB]` | Document **canonique** — source of truth des données. |
+| `(canon)` | Document maître (Freeze, Data Model, Implementation, Roadmap). |
+| `(art)` | Art Bible (voir [`art/ART_INDEX.md`](art/ART_INDEX.md)). |
+| `(concept)` | Vision / philosophie système. |
 | `(narratif)` | Lore, script, cosmologie. |
-| `(stub)` | Placeholder / notes temporaires. |
-| `(review)` / `(proposal)` | Audit ou proposition — **non normatif**. |
+| `(stub)` | Placeholder temporaire. |
+| `(review)` / `(proposal)` | Non normatif. |
+| `(data)` | Export tabulaire (CSV/XLSX) accompagnant une DB. |
 
 ### Scope MVP
 
 ```txt
 Prologue · Chapter I — Era Funèbre · Chapter II — Era Glaciaire
 ```
-
-Exception : `CHARACTER_DATABASE.md` couvre **l'ensemble du projet** (voir Canon Rules §1.1).
-
----
-
-## 1. Canon Rules (règles transverses)
-
-Priment sur toute interprétation locale.
-
-### 1.1 CHARACTER_DATABASE — portée projet
-`CHARACTER_DATABASE` = registre canonique des personnages du **projet entier** (MVP + chapitres futurs). Fait autorité sur identité, rôles et apparitions.
-
-### 1.2 Equipment Sets ≠ Effect Sets
-`EQUIPMENT_SETS` = équipement physique / stat bias / identité visuelle. `EFFECT_SETS(_V2)` = système passif lié à la Résonance. Deux couches indépendantes.
-
-### 1.3 Time Gate = Building
-Le **Time Gate** est un **bâtiment** (ex-« World Gate », Freeze D-15). Ni item, ni artifact, ni skill.
-
-### 1.4 Kaleidoscope = Special World Item
-Le **Kaléidoscope** est un **Special World Item** (≠ Equipment / Artifact / Skill / Effect Set, Freeze D-12).
-
-### 1.5 Billy = Grand Loup (D-A01)
-Billy est un **Grand Loup**, compagnon du Roi, loyauté incarnée, apparence noble après purification. Toute référence à Billy comme « simple chien » est **legacy/obsolète**.
-
-### 1.6 Seigneur de la Pluie : Déchu (MVP) ≠ Corrompu (futur) — deux personnages (D-A02 / D-A04)
-**Le Déchu et le Corrompu sont deux personnages distincts** (D-A04) :
-- **Déchu** = frère légitime exilé, **jumeau** de Noah → **BOSS MVP CANON** (Gouffre Royal, Ch II — `DESIGN_FREEZE §14`).
-- **Corrompu** = **Noah** après transformation en Commandant → **future content, hors MVP**. Forme Commandant = **modèle entièrement différent** (jumeaux ⇒ apparence initiale proche seulement).
-
-### 1.7 Toponymes canoniques (D-A05 / D-A06)
-- **Caverne aux Chants** = donjon de l'Amalgame du Givre (Ch II). Remplace toute variante (« Caverne aux Reflets »).
-- **Source du Givre** = climax d'Allaeva (Ch II). « Eye of the Storm / Œil de la Tempête » = **réservé à un futur contenu**, plus un synonyme.
+Exception : `CHARACTER_DATABASE` couvre **tout le projet** (Canon Rule §1.1).
 
 ---
 
-## 2. Onboarding d'un nouvel agent IA (Claude / Codex / GPT)
+## 1. Canon Rules (transverses — priment sur toute interprétation locale)
+
+- **1.1 `CHARACTER_DATABASE` = portée projet** (MVP + chapitres futurs). Autorité sur identité/rôles/apparitions.
+- **1.2 Equipment Sets ≠ Effect Sets.** Équipement physique/stat bias vs système passif lié à la Résonance.
+- **1.3 Time Gate = bâtiment** (ex-« World Gate », Freeze D-15). Ni item, ni artifact, ni skill.
+- **1.4 Kaléidoscope = Special World Item** (≠ Equipment/Artifact/Skill/Effect Set, Freeze D-12).
+- **1.5 Billy = Grand Loup (D-A01).** Compagnon du Roi, noble après purification. « Simple chien » = legacy.
+- **1.6 Seigneur de la Pluie : Déchu (MVP) ≠ Corrompu (futur) — deux personnages (D-A02/D-A04).**
+  - **Déchu** = frère légitime exilé, jumeau de Noah → **BOSS MVP** (Gouffre Royal, Ch II).
+  - **Corrompu** = **Noah** après transformation en Commandant → **futur** ; modèle entièrement différent.
+- **1.7 Toponymes canon (D-A05/D-A06).** **Caverne aux Chants** (donjon Amalgame du Givre, remplace « Reflets ») ; **Source du Givre** (climax Allaeva ; « Eye of the Storm » = futur, pas un synonyme).
+
+---
+
+## 2. Onboarding agent IA (Claude / Codex / GPT)
 
 ### 2.1 Lecture minimale (toujours, avant toute tâche)
-
 ```txt
-1. DOCUMENTATION_INDEX.md   (ce fichier — hiérarchie & règles)
-2. DESIGN_FREEZE_V1.md      (systèmes & scope MVP, décisions D-xx)
-3. DATA_MODEL.md            (objets métier & save model)
-4. IMPLEMENTATION_BIBLE.md  (ordre d'exécution — comment, pas quoi)
+1. DOCUMENTATION_INDEX.md            (ce fichier)
+2. 00_canon/DESIGN_FREEZE_V1.md      (systèmes & scope, décisions D-xx)
+3. 00_canon/DATA_MODEL.md            (objets métier & save model)
+4. 00_canon/IMPLEMENTATION_BIBLE.md  (ordre d'exécution)
 ```
+### 2.2 Tâche LORE / IDENTITÉ → `01_lore/STORY_CHAPTERS.md` → `01_lore/CHARACTER_DATABASE.md`
+### 2.3 Tâche ART → [`art/ART_INDEX.md`](art/ART_INDEX.md) (puis la bible spécialisée)
+### 2.4 Tâche CONTENU / DONNÉES → les `03_databases/*_DATABASE.md` + concepts `02_design/`
 
-### 2.2 Si la tâche touche le LORE ou l'IDENTITÉ
-```txt
-+ STORY_CHAPTERS.md → CHARACTER_DATABASE.md   (avant toute décision narrative)
-```
-
-### 2.3 Si la tâche touche la PRODUCTION ARTISTIQUE
-```txt
-+ art/ART_BIBLE.md            (vision, ton, palette, règle d'or)
-+ la bible spécialisée :  CHARACTER_BIBLE | BOSS_BIBLE | ENVIRONMENT_BIBLE | UI_BIBLE
-+ art/ASSET_PRODUCTION_BIBLE.md  (formats, tailles, pipeline)
-+ art/PROMPT_BIBLE.md            (templates de génération)
-+ art/ART_BACKLOG_BIBLE.md       (ordre de production / sprints)
-```
-
-### 2.4 Si la tâche touche le CONTENU / DONNÉES
-```txt
-+ les *_DATABASE.md concernés (canon [DB]) puis les concepts associés (§6/§7)
-```
-
-### 2.5 Règles d'or pour l'agent
+### 2.5 Règles d'or
 - Appliquer la hiérarchie §0 et les Canon Rules §1.
-- **Ne jamais** se référer à `docs/_legacy/` (non canon, contredit le Freeze).
-- En cas de valeur chiffrée manquante : `DEFERRED (balancing)` (Freeze §21), placeholder centralisé.
-- Voir aussi [`../contrib/AGENT_RULES.md`](../contrib/AGENT_RULES.md) (discipline serveur/tests).
+- **Ne jamais** se référer à `../_legacy/` (non canon).
+- Valeur chiffrée manquante → `DEFERRED (balancing)` (Freeze §21), placeholder centralisé.
+- Discipline serveur/tests → [`../contrib/AGENT_RULES.md`](../contrib/AGENT_RULES.md).
 
 ---
 
-## 3. Domain Map & arborescence
+## 3. Arborescence
 
 ```txt
-00 · Lore & Narrative          05 · Enemies & Bosses
-01 · World & Progression       06 · Content & Level Design
-02 · Combat Core               07 · Balance & Review
-03 · Itemization & Equipment   08 · Art & Production   ← branche art/
-04 · Economy & Crafting        09 · Integration (UI/Assets, mockups)
-```
-
-```txt
-docs/
-├── 30_new_direction/                    ✅ CANON
-│   ├── DOCUMENTATION_INDEX.md           (ce fichier)
-│   ├── DOC_ARCHITECTURE_AUDIT.md        (audit — non normatif)
-│   ├── DESIGN_FREEZE_V1.md              🧊 systèmes & scope MVP
-│   ├── DATA_MODEL.md · IMPLEMENTATION_BIBLE.md · MVP_ROADMAP.md
-│   ├── 00 Lore : STORY_CHAPTERS · SCRIPTS · CHARACTER_DATABASE [DB]
-│   ├── 01 Méta : WORLD · PROGRESSION · BUILDINGS · MINIGAMES
-│   ├── 02 Combat : COMBAT · STATS · WEAPONS · SKILLS · SKILL_DATABASE [DB]
-│   ├── 03 Items : ITEMS · ITEMS_DATABASE [DB] · EQUIPMENTS · EQUIPMENT_GENERATION_DATABASE [DB]
-│   │             EQUIPMENT_SETS · EFFECT_SETS (v1) · EFFECT_SETS_AND_RESONANCE_SYSTEM_V2
-│   ├── 04 Éco : RESSOURCES · CURRENCIES · FORGE · RECIPES (stub) · RECIPES_DATABASE [DB] · LOOT_TABLES_DATABASE [DB]
-│   ├── 05 Mobs : ENEMIES (v1) · ENEMIES_DATABASE_V2 [DB] · BOSS · BOSS_DATABASE [DB]
-│   ├── 06 Contenu : LEVELDESIGN · DUNGEON_DATABASE [DB] · QUEST_DATABASE [DB]
-│   ├── 07 Review : BUILDS_VIGILANCE (non normatif)
-│   ├── 09 Intégration : UI_AND_ASSETS_PROPOSAL (proposal) · mockups/
-│   └── art/                             🎨 08 Art & Production
-│       ├── ART_BIBLE · CHARACTER_BIBLE · BOSS_BIBLE · ENVIRONMENT_BIBLE
-│       ├── UI_BIBLE · ASSET_PRODUCTION_BIBLE · PROMPT_BIBLE · ART_BACKLOG_BIBLE
-│
-├── contrib/AGENT_RULES.md               (règles agent/Codex)
-└── _legacy/                             🗄️ NON CANON (archivé)
+docs/30_new_direction/
+├── DOCUMENTATION_INDEX.md          ← ce fichier (point d'entrée)
+├── DOC_ARCHITECTURE_AUDIT.md       ← audit (non normatif)
+├── 00_canon/        Freeze · Data Model · Implementation · Roadmap
+├── 01_lore/         Story · Scripts · Character Database
+├── 02_design/       concepts gameplay (combat, items, éco, méta, contenu)
+├── 03_databases/    *_DATABASE [DB] + exports CSV/XLSX
+├── 04_integration/  UI/Assets proposal + mockups HTML
+└── art/             Art Bibles + ART_INDEX + concepts/ + production/
 ```
 
 ---
 
-## 4. Reading Paths (humain)
+## 4. Carte des documents (tous liés)
 
-### 🎨 Game Designer
-1. `STORY_CHAPTERS` → `CHARACTER_DATABASE` → `SCRIPTS` — *univers*
-2. `COMBAT` → `STATS` → `WEAPONS` → `SKILLS` — *boucle*
-3. `ITEMS` → `EQUIPMENTS` → `EQUIPMENT_SETS` → `EFFECT_SETS_AND_RESONANCE_SYSTEM_V2` — *build*
-4. `RESSOURCES` → `CURRENCIES` → `FORGE` — *économie*
-5. `ENEMIES` → `BOSS` → `LEVELDESIGN` — *contenu*
-6. `PROGRESSION` → `BUILDINGS` → `MINIGAMES` — *méta*
+### 📕 00_canon — Documents maîtres
+| Document | Type | Rôle |
+|---|---|---|
+| [`DESIGN_FREEZE_V1.md`](00_canon/DESIGN_FREEZE_V1.md) | (canon) | **Autorité MVP** : systèmes, scope, décisions D-01→D-17. |
+| [`DATA_MODEL.md`](00_canon/DATA_MODEL.md) | (canon) | Objets métier, save model. Dérivé du Freeze. |
+| [`IMPLEMENTATION_BIBLE.md`](00_canon/IMPLEMENTATION_BIBLE.md) | (canon) | Ordre d'exécution (comment, pas quoi). |
+| [`MVP_ROADMAP.md`](00_canon/MVP_ROADMAP.md) | (canon) | Jalons & exit criteria. |
 
-### 🛠️ Développeur Gameplay
-1. `STATS` → `COMBAT`
-2. `SKILL_DATABASE` + `SKILLS` → `WEAPONS`
-3. `EQUIPMENT_GENERATION_DATABASE` → `ITEMS_DATABASE` → `EQUIPMENT_SETS` / `EFFECT_SETS_…_V2`
-4. `LOOT_TABLES_DATABASE` → `RECIPES_DATABASE` → `RECIPES` (stub) → `FORGE`
-5. `ENEMIES_DATABASE_V2` → `BOSS_DATABASE` → `DUNGEON_DATABASE` → `QUEST_DATABASE`
-6. `WORLD` → `PROGRESSION` → `BUILDINGS` → `MINIGAMES`
+### 📖 01_lore — Canon narratif (niveau 0)
+| Document | Type | Rôle |
+|---|---|---|
+| [`STORY_CHAPTERS.md`](01_lore/STORY_CHAPTERS.md) | (narratif) | Chapitres + cosmologie (Créa/Naan/Amal). **Source canon du lore.** |
+| [`SCRIPTS.md`](01_lore/SCRIPTS.md) | (narratif) | Script narratif détaillé. |
+| [`CHARACTER_DATABASE.md`](01_lore/CHARACTER_DATABASE.md) | [DB] | Registre **projet** des personnages (CHR-ids). |
 
-### 🖌️ Artiste / Production
-1. `art/ART_BIBLE` (vision)
-2. `art/CHARACTER_BIBLE` · `art/BOSS_BIBLE` · `art/ENVIRONMENT_BIBLE` · `art/UI_BIBLE` (selon cible)
-3. `art/ASSET_PRODUCTION_BIBLE` (formats) → `art/PROMPT_BIBLE` (génération)
-4. `art/ART_BACKLOG_BIBLE` (ordre / sprints)
-5. Contexte canon : `CHARACTER_DATABASE`, `BOSS_DATABASE`, `DESIGN_FREEZE §14` (roster)
+### ⚙️ 02_design — Concepts gameplay
+| Document | Domaine | DB associée |
+|---|---|---|
+| [`COMBAT.md`](02_design/COMBAT.md) · [`STATS.md`](02_design/STATS.md) · [`WEAPONS.md`](02_design/WEAPONS.md) | Combat | — |
+| [`SKILLS.md`](02_design/SKILLS.md) | Combat | [`SKILL_DATABASE`](03_databases/SKILL_DATABASE.md) |
+| [`ITEMS.md`](02_design/ITEMS.md) · [`EQUIPMENTS.md`](02_design/EQUIPMENTS.md) | Items | [`ITEMS_DATABASE`](03_databases/ITEMS_DATABASE.md) · [`EQUIPMENT_GENERATION_DATABASE`](03_databases/EQUIPMENT_GENERATION_DATABASE.md) |
+| [`EQUIPMENT_SETS.md`](02_design/EQUIPMENT_SETS.md) | Équipement | équipement physique / stat bias |
+| [`EFFECT_SETS.md`](02_design/EFFECT_SETS.md) *(v1 — superseded)* · [`EFFECT_SETS_AND_RESONANCE_SYSTEM_V2.md`](02_design/EFFECT_SETS_AND_RESONANCE_SYSTEM_V2.md) | Résonance | autorité = V2 |
+| [`RESSOURCES.md`](02_design/RESSOURCES.md) · [`CURRENCIES.md`](02_design/CURRENCIES.md) · [`FORGE.md`](02_design/FORGE.md) | Économie | [`RECIPES_DATABASE`](03_databases/RECIPES_DATABASE.md) · [`LOOT_TABLES_DATABASE`](03_databases/LOOT_TABLES_DATABASE.md) |
+| [`RECIPES.md`](02_design/RECIPES.md) | Économie | (stub) → [`RECIPES_DATABASE`](03_databases/RECIPES_DATABASE.md) |
+| [`WORLD.md`](02_design/WORLD.md) · [`PROGRESSION.md`](02_design/PROGRESSION.md) · [`BUILDINGS.md`](02_design/BUILDINGS.md) · [`MINIGAMES.md`](02_design/MINIGAMES.md) | Méta | `BUILDINGS` contient **Time Gate** |
+| [`LEVELDESIGN.md`](02_design/LEVELDESIGN.md) | Contenu | [`DUNGEON_DATABASE`](03_databases/DUNGEON_DATABASE.md) |
+| [`ENEMIES.md`](02_design/ENEMIES.md) *(v1)* · [`BOSS.md`](02_design/BOSS.md) | Mobs | [`ENEMIES_DATABASE_V2`](03_databases/ENEMIES_DATABASE_V2.md) · [`BOSS_DATABASE`](03_databases/BOSS_DATABASE.md) |
+| [`BUILDS_VIGILANCE.md`](02_design/BUILDS_VIGILANCE.md) | Balance | **(review — non normatif)** |
 
----
+### 🗃️ 03_databases — Canon de contenu [DB]
+| Document | Couvre | Dépend de |
+|---|---|---|
+| [`ITEMS_DATABASE.md`](03_databases/ITEMS_DATABASE.md) | Items, raretés, bases | `RESSOURCES` |
+| [`SKILL_DATABASE.md`](03_databases/SKILL_DATABASE.md) | Skills SK-xxx | `SKILLS` |
+| [`RINGS_SKILLS_MAP.md`](03_databases/RINGS_SKILLS_MAP.md) | Rings nommés → SK-0xx | `SKILL_DATABASE` |
+| [`RESOURCES_DATABASE.md`](03_databases/RESOURCES_DATABASE.md) | Registre ressources (value, sources, uses) | `RESSOURCES` |
+| [`EQUIPMENT_GENERATION_DATABASE.md`](03_databases/EQUIPMENT_GENERATION_DATABASE.md) | Règles de génération | `ITEMS_DATABASE`, `SKILL_DATABASE`, `EQUIPMENT_SETS` |
+| [`RECIPES_DATABASE.md`](03_databases/RECIPES_DATABASE.md) | Recettes forge/kitchen | `RESOURCES_DATABASE`, `ITEMS_DATABASE` |
+| [`LOOT_TABLES_DATABASE.md`](03_databases/LOOT_TABLES_DATABASE.md) | Tables de loot | `ENEMIES_DATABASE_V2`, `BOSS_DATABASE`, `ITEMS_DATABASE` |
+| [`ENEMIES_DATABASE_V2.md`](03_databases/ENEMIES_DATABASE_V2.md) | Familles/variants/élites | `ENEMIES` |
+| [`BOSS_DATABASE.md`](03_databases/BOSS_DATABASE.md) | Roster 6 boss MVP | `BOSS`, `DESIGN_FREEZE §14` |
+| [`DUNGEON_DATABASE.md`](03_databases/DUNGEON_DATABASE.md) | Instances jouables | `LEVELDESIGN`, `ENEMIES_DATABASE_V2` |
+| [`QUEST_DATABASE.md`](03_databases/QUEST_DATABASE.md) | Quêtes MVP | `STORY_CHAPTERS`, `CHARACTER_DATABASE` |
+| Exports `(data)` | [`ITEMS .csv`](03_databases/IdleKing_ITEMS_DATABASE_V2.csv) · [`.xlsx`](03_databases/IdleKing_ITEMS_DATABASE_V2.xlsx) · [`RECIPES .csv`](03_databases/IdleKing_RECIPES_DATABASE_V2.csv) · [`.xlsx`](03_databases/IdleKing_RECIPES_DATABASE_V2.xlsx) | tabulaires |
 
-## 5. Art Bibles (branche `art/`)
+### 🖼️ 04_integration — UI / Assets (non normatif)
+| Document | Rôle |
+|---|---|
+| [`UI_AND_ASSETS_PROPOSAL.md`](04_integration/UI_AND_ASSETS_PROPOSAL.md) | Mapping composants `apps/web` ↔ écrans ↔ état (intégration code). |
+| [`mockups/index.html`](04_integration/mockups/index.html) | Galerie de maquettes HTML autonomes. |
 
-Niveau **ART_BIBLES** de la hiérarchie §0. Chaîne d'autorité interne :
-`ART_BIBLE → (CHARACTER|BOSS|ENVIRONMENT|UI)_BIBLE → ASSET_PRODUCTION_BIBLE → PROMPT_BIBLE → ASSETS`.
-
-| Document | Rôle précis | Dépend de |
-|----------|-------------|-----------|
-| [`art/ART_BIBLE.md`](art/ART_BIBLE.md) | Vision, ton, palette, piliers émotionnels, **règle d'or**. Autorité art racine. | LORE, DESIGN_FREEZE |
-| [`art/CHARACTER_BIBLE.md`](art/CHARACTER_BIBLE.md) | Direction visuelle & émotionnelle des personnages (peuples, Roi, Billy, Tobo, NPC). | `CHARACTER_DATABASE` (identité/CHR-id), ART_BIBLE |
-| [`art/BOSS_BIBLE.md`](art/BOSS_BIBLE.md) | Direction visuelle des boss, échelle, philosophie « tragédie ». | `BOSS_DATABASE`, `DESIGN_FREEZE §14` (roster 6), ART_BIBLE |
-| [`art/ENVIRONMENT_BIBLE.md`](art/ENVIRONMENT_BIBLE.md) | Direction visuelle des zones, landmarks, atmosphères d'Ère. | `WORLD`, `DUNGEON_DATABASE`, `STORY_CHAPTERS` |
-| [`art/UI_BIBLE.md`](art/UI_BIBLE.md) | Vision UI/UX, HUD, dialogue, règle du cyan, menus. | `DESIGN_FREEZE` (Forge §9 !), ART_BIBLE |
-| [`art/ASSET_PRODUCTION_BIBLE.md`](art/ASSET_PRODUCTION_BIBLE.md) | **Autorité technique assets** : formats, tailles, animations, naming, pipeline. | toutes les bibles ci-dessus |
-| [`art/PROMPT_BIBLE.md`](art/PROMPT_BIBLE.md) | Templates de prompts de génération + negative prompts. | ASSET_PRODUCTION_BIBLE |
-| [`art/ART_BACKLOG_BIBLE.md`](art/ART_BACKLOG_BIBLE.md) | Ordre réel de production (Priorités S→F, Sprints 1-4). | roster `DESIGN_FREEZE §14`, ART_BIBLE |
-
-> **Frontière de responsabilité** : l'identité d'un personnage (rôle, ère, apparitions) =
-> `CHARACTER_DATABASE` (canon) ; sa direction *visuelle* = `CHARACTER_BIBLE`. De même,
-> `UI_BIBLE` = vision UI ; [`UI_AND_ASSETS_PROPOSAL`](UI_AND_ASSETS_PROPOSAL.md) = **intégration
-> code/composants/mockups** (non normatif) ; `ASSET_PRODUCTION_BIBLE` = formats. Cross-référencer,
-> ne pas dupliquer.
-
----
-
-## 6. Canonical Databases (source of truth)
-
-| Document | Domaine | Couvre | Dépend de |
-|----------|---------|--------|-----------|
-| `ITEMS_DATABASE.md` | Items | Itemisation, raretés, bases | `RESSOURCES.md` |
-| `SKILL_DATABASE.md` | Skills | Liste SK-xxx, data model | `SKILLS.md` |
-| `RINGS_SKILLS_MAP.md` | Skills | Mapping rings nommés → SK-0xx | `SKILL_DATABASE.md` |
-| `RESOURCES_DATABASE.md` | Économie | Registre canon des ressources (id, value, sources, uses) | `RESSOURCES.md` |
-| `EQUIPMENT_GENERATION_DATABASE.md` | Équipement | Règles de génération (loot/forge/affixes) | `ITEMS_DATABASE`, `SKILL_DATABASE`, `EQUIPMENT_SETS` |
-| `RECIPES_DATABASE.md` | Craft | Recettes forge / kitchen / catalyseurs | `RESOURCES_DATABASE`, `ITEMS_DATABASE` |
-| `LOOT_TABLES_DATABASE.md` | Loot | Tables de loot, drops | `ENEMIES_DATABASE_V2`, `BOSS_DATABASE`, `ITEMS_DATABASE` |
-| `ENEMIES_DATABASE_V2.md` | Ennemis | Familles, variants, élites | `ENEMIES.md` (concept) |
-| `BOSS_DATABASE.md` | Boss | Roster (6 MVP), récompenses | `BOSS.md` (concept), `DESIGN_FREEZE §14` |
-| `DUNGEON_DATABASE.md` | Contenu | Instances jouables | `LEVELDESIGN`, `ENEMIES_DATABASE_V2` |
-| `QUEST_DATABASE.md` | Contenu | Quêtes MVP | `STORY_CHAPTERS`, `CHARACTER_DATABASE` |
-| `CHARACTER_DATABASE.md` | Narratif | **Registre projet** des personnages | `STORY_CHAPTERS`, `SCRIPTS` |
-
-> `EQUIPMENT_GENERATION_DATABASE` est **mi-règles mi-données** : canonique pour la génération,
-> n'inventorie pas les items (→ `ITEMS_DATABASE`).
-> `RESOURCES_DATABASE.md` (ex-livrable P0 Freeze §10/§20) **existe désormais** : source of truth
-> de `resource_value`. Vérifier que `RECIPES_DATABASE` le référence (et non l'ancien nom cassé).
+### 🎨 art — Direction artistique
+→ Sous-index complet : **[`art/ART_INDEX.md`](art/ART_INDEX.md)** (8 bibles + `concepts/` + `production/`).
 
 ---
 
-## 7. Concept Documents & Cross-References
+## 5. Reading Paths (humain)
 
-| Document | Domaine | DB / système associé |
-|----------|---------|----------------------|
-| `COMBAT` · `STATS` · `WEAPONS` | Combat | — / — / familles d'armes |
-| `SKILLS` | Combat | `SKILL_DATABASE` |
-| `ITEMS` · `EQUIPMENTS` | Items | `ITEMS_DATABASE` / `EQUIPMENT_GENERATION_DATABASE` |
-| `EQUIPMENT_SETS` | Équipement | équipement physique / stat bias |
-| `EFFECT_SETS` (v1 — superseded) / `EFFECT_SETS_AND_RESONANCE_SYSTEM_V2` | Résonance | autorité Effect Sets = V2 |
-| `RESSOURCES` · `CURRENCIES` · `FORGE` | Économie | `RECIPES_DATABASE`, `LOOT_TABLES_DATABASE` |
-| `WORLD` · `PROGRESSION` · `BUILDINGS` · `MINIGAMES` | Méta | `BUILDINGS` contient **Time Gate** |
-| `LEVELDESIGN` | Contenu | `DUNGEON_DATABASE` |
+**Game Designer** : `01_lore/STORY_CHAPTERS` → `01_lore/CHARACTER_DATABASE` → `02_design/COMBAT` → `STATS` → `WEAPONS` → `SKILLS` → `ITEMS` → `EQUIPMENT_SETS` → `EFFECT_SETS_…_V2` → éco → contenu → méta.
+
+**Développeur** : `02_design/STATS` → `COMBAT` → `03_databases/SKILL_DATABASE` → `EQUIPMENT_GENERATION_DATABASE` → `ITEMS_DATABASE` → `LOOT_TABLES_DATABASE` → `RECIPES_DATABASE` → `ENEMIES_DATABASE_V2` → `BOSS_DATABASE` → `DUNGEON_DATABASE` → `QUEST_DATABASE`.
+
+**Artiste** : [`art/ART_INDEX.md`](art/ART_INDEX.md) (ordre interne défini là-bas).
+
+---
+
+## 6. Cross-References (graphe condensé)
 
 ```txt
-RESSOURCES ──► RECIPES_DATABASE ──► FORGE          STORY_CHAPTERS ──► QUEST_DATABASE ──► DUNGEON_DATABASE
-        └────► LOOT_TABLES_DATABASE ◄── ENEMIES_DATABASE_V2 / BOSS_DATABASE         └──► CHARACTER_DATABASE
-ITEMS_DATABASE ──► EQUIPMENT_GENERATION_DATABASE ◄── SKILL_DATABASE ──► (EQUIPMENT_SETS · EFFECT_SETS_…_V2)
-
-ART :  ART_BIBLE ──► CHARACTER/BOSS/ENVIRONMENT/UI_BIBLE ──► ASSET_PRODUCTION_BIBLE ──► PROMPT_BIBLE
-            ▲                 │
-       CHARACTER_DATABASE ────┘ (identité)   BOSS_DATABASE ──► BOSS_BIBLE (roster 6)
+RESSOURCES ─► RESOURCES_DATABASE ─► RECIPES_DATABASE ─► FORGE
+        └─► LOOT_TABLES_DATABASE ◄─ ENEMIES_DATABASE_V2 / BOSS_DATABASE
+ITEMS_DATABASE ─► EQUIPMENT_GENERATION_DATABASE ◄─ SKILL_DATABASE ─► (EQUIPMENT_SETS · EFFECT_SETS_…_V2)
+STORY_CHAPTERS ─► QUEST_DATABASE ─► DUNGEON_DATABASE ;  STORY_CHAPTERS ─► CHARACTER_DATABASE
+ART_BIBLE ─► CHARACTER/BOSS/ENVIRONMENT/UI_BIBLE ─► ASSET_PRODUCTION_BIBLE ─► PROMPT_BIBLE   (cf. ART_INDEX)
 ```
 
 ---
 
-## 8. Document Status Table
+## 7. Maintenance de l'index (pour rester fluide & fiable)
 
-| Document | Type | Version | Statut |
-|----------|------|---------|--------|
-| `STORY_CHAPTERS` · `SCRIPTS` | narratif | — | Active (canon lore) |
-| `CHARACTER_DATABASE` | [DB] | V2 | Active (portée projet) |
-| `DESIGN_FREEZE_V1` | freeze | V1 | **LOCKED (autorité MVP)** |
-| `DATA_MODEL` · `IMPLEMENTATION_BIBLE` | spec | V1 | Active (dérivés du Freeze) |
-| `MVP_ROADMAP` | roadmap | V1 | Active |
-| `ITEMS_DATABASE` · `SKILL_DATABASE` · `EQUIPMENT_GENERATION_DATABASE` | [DB] | V2 | Active |
-| `RECIPES_DATABASE` · `LOOT_TABLES_DATABASE` · `ENEMIES_DATABASE_V2` | [DB] | V2 | Active |
-| `BOSS_DATABASE` · `DUNGEON_DATABASE` · `QUEST_DATABASE` · `RINGS_SKILLS_MAP` | [DB] | V1/V2 | Active |
-| `COMBAT` · `STATS` · `WEAPONS` · `SKILLS` · `ITEMS` · `EQUIPMENTS` | concept | V1/V2 | Active |
-| `EQUIPMENT_SETS` · `EFFECT_SETS_AND_RESONANCE_SYSTEM_V2` | concept | V1/V2 | Active |
-| `EFFECT_SETS` (v1) · `ENEMIES` (v1) | concept | V1 | **Superseded by V2** |
-| `RESSOURCES` · `CURRENCIES` · `FORGE` · `WORLD` · `PROGRESSION` · `BUILDINGS` · `MINIGAMES` · `LEVELDESIGN` · `BOSS` | concept | V1/V2 | Active |
-| `RECIPES` | stub | Phase 8A | Placeholder |
-| `BUILDS_VIGILANCE` | review | — | Non normatif |
-| `art/ART_BIBLE` · `CHARACTER_BIBLE` · `BOSS_BIBLE` · `ENVIRONMENT_BIBLE` | (art) | V1 | Active |
-| `art/UI_BIBLE` · `ASSET_PRODUCTION_BIBLE` · `PROMPT_BIBLE` · `ART_BACKLOG_BIBLE` | (art) | V1 | Active |
-| `UI_AND_ASSETS_PROPOSAL` + `mockups/` | proposal | V1 | Active (non normatif) |
-| `DOC_ARCHITECTURE_AUDIT` | audit | — | Non normatif |
-| `../_legacy/*` | legacy | — | **NON CANON — archivé** |
+> **Règle : tout ajout/déplacement/renommage d'un document met à jour cet index dans le même commit.**
+
+- **Ajout d'un doc** → le ranger dans le bon dossier (`00_canon`/`01_lore`/`02_design`/`03_databases`/`04_integration`/`art`) **et** l'ajouter à la Carte §4 avec un lien + un rôle.
+- **Nouvelle DB** → §4 (03_databases) + graphe §6.
+- **Nouveau doc art** → mettre à jour [`art/ART_INDEX.md`](art/ART_INDEX.md) (pas ici ; cet index pointe seulement vers ART_INDEX).
+- **Changement de version** (Vx→Vy) → marquer l'ancien *superseded* dans §8.
+- **Déplacement de fichier** → `git mv` (préserver l'historique) + réparer les liens §4.
+- **Décision d'auteur (D-Axx)** → l'ajouter en Canon Rule §1 si transverse, et résoudre les flags en §8.
 
 ---
 
-## 9. Known Issues (hygiène documentaire)
+## 8. Document Status & Known Issues
+
+**Statuts notables :** `EFFECT_SETS` (v1) & `ENEMIES` (v1) = **superseded by V2** · `RECIPES` = stub · `BUILDS_VIGILANCE` & `UI_AND_ASSETS_PROPOSAL` = non normatifs · `../_legacy/*` = **NON CANON**.
 
 **Résolu :**
-- ✅ Branche `art/` intégrée à l'index (hiérarchie §0, §5).
-- ✅ Legacy (Idle/auto-combat) archivé dans `docs/_legacy/` avec bandeau NON CANON.
-- ✅ **D-A01** : Billy = Grand Loup (aligné ART_BIBLE, CHARACTER_BIBLE, PROMPT_BIBLE, STORY_CHAPTERS).
-- ✅ **D-A02** : MVP = Seigneur de la Pluie *Déchu* ; Corrompu = future (aligné BOSS_BIBLE, ART_BACKLOG, STORY_CHAPTERS, CHARACTER_DATABASE).
-- ✅ « Fusion » retirée de l'UI Forge (`art/UI_BIBLE`), conforme Freeze §9.
-- ✅ Portraits unifiés à **1024×1024** (master de production).
-- ✅ Livrables P0 (Freeze §20) présents : `RESOURCES_DATABASE.md` + `RINGS_SKILLS_MAP.md` (réf. `RECIPES_DATABASE` → `RESOURCES_DATABASE` OK).
-- ✅ **D-A04** : Déchu (frère exilé, MVP boss) ≠ Corrompu (Noah Commandant, futur) = personnages distincts. Flags de contradiction levés (`CHARACTER_DATABASE`, `art/BOSS_BIBLE`).
-- ✅ **D-A05** : « Caverne aux Chants » canonique partout (Freeze, DUNGEON, QUEST, ENEMIES_V2, UI_PROPOSAL).
-- ✅ **D-A06** : « Source du Givre » canonique (Ch II) ; « Eye of the Storm » réservé futur (`STORY_CHAPTERS` aligné).
+- ✅ Réorganisation en 6 dossiers domaine ; tous les docs liés à l'index ; `art/ART_INDEX.md` créé.
+- ✅ Legacy archivé (`../_legacy/`, bandeau NON CANON).
+- ✅ D-A01 Billy = Grand Loup · D-A02/D-A04 Déchu (MVP) ≠ Corrompu (futur), personnages distincts.
+- ✅ « Fusion » retirée de l'UI Forge · portraits unifiés 1024×1024.
+- ✅ D-A05 « Caverne aux Chants » · D-A06 « Source du Givre » harmonisés partout.
+- ✅ Livrables P0 présents : `RESOURCES_DATABASE` + `RINGS_SKILLS_MAP`.
 
-**Restant (arbitrage humain / passe ultérieure) :**
-- ⚠️ **Variantes de noms** : Archimage (d'Arathas / Corrompu) ; Allaeva (Reine de Glace) ; Amalgame du Givre absent de `CHARACTER_DATABASE`.
-- ⚠️ **Lore dupliqué** `STORY_CHAPTERS` ↔ `SCRIPTS` — risque de divergence.
+**Restant (arbitrage / passe ultérieure) :**
+- ⚠️ Variantes de noms : Archimage (d'Arathas / Corrompu) ; Allaeva (Reine de Glace) ; Amalgame du Givre absent de `CHARACTER_DATABASE`.
+- ⚠️ Lore dupliqué `STORY_CHAPTERS` ↔ `SCRIPTS` — cross-référencer.
 
 ---
 
-*Index v2 — point d'entrée canonique. Mettre à jour §8 (Status Table) à chaque ajout/changement de version.*
-*Audit complet : [`DOC_ARCHITECTURE_AUDIT.md`](DOC_ARCHITECTURE_AUDIT.md).*
+*Index v3 — point d'entrée canonique. Maintenir §4 (Carte) et §8 (Status) à chaque évolution.*
+*Audit complet : [`DOC_ARCHITECTURE_AUDIT.md`](DOC_ARCHITECTURE_AUDIT.md) · Branche art : [`art/ART_INDEX.md`](art/ART_INDEX.md).*
