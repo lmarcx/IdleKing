@@ -36,8 +36,8 @@ export const RINGS_SKILLS_MAP = {
 } as const satisfies Readonly<Record<string, SkillId>>;
 
 /**
- * Phase 9 Resonance is not implemented yet. Keep this locked exclusion visible
- * beside the ring model so the future Resonance implementation cannot count rings.
+ * Phase 9 Resonance is implemented in the resonance module and keeps rings
+ * excluded from the eligible slot list.
  */
 export const RING_CONTRIBUTES_TO_RESONANCE = false;
 

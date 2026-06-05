@@ -17,6 +17,7 @@ export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
+export * as resonance from "./resonance/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
@@ -494,6 +495,20 @@ export type {
   ResolvedEquipmentStats,
   UnequipItemResult,
 } from "./equipment/index.js";
+export {
+  calculateEffectSlotCount,
+  calculateResonanceFromEquipment,
+  getResonanceEligibleSlots,
+  getResonanceValueForRarity,
+  RESONANCE_ELIGIBLE_SLOTS,
+  RESONANCE_VALUE_BY_RARITY,
+} from "./resonance/index.js";
+export type {
+  ResonanceBreakdown,
+  ResonanceEquipmentInput,
+  ResonanceSlot,
+  ResonanceSlotBreakdown,
+} from "./resonance/index.js";
 export {
   buildCharacterCombatLoadout,
 } from "./character/index.js";
