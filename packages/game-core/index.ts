@@ -3,6 +3,8 @@ export * as loot from "./loot/index.js";
 export * as progression from "./progression/index.js";
 export * as economy from "./economy/index.js";
 export * as currencies from "./currencies/index.js";
+export * as resources from "./resources/index.js";
+export * as rewards from "./rewards/index.js";
 export * as world from "./world/index.js";
 export * as minigames from "./minigames/index.js";
 export * as player from "./player/index.js";
@@ -17,11 +19,16 @@ export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
+export * as skills from "./skills/index.js";
 export {
   canSpendCurrency,
+  CURRENCIES,
+  ECU,
+  BOSS_TOKEN,
   createDefaultWalletState,
   getCurrencyBalance,
   grantCurrency,
+  isCurrencyId,
   normalizeWalletState,
   spendCurrency,
 } from "./currencies/index.js";
@@ -31,6 +38,29 @@ export type {
   CurrencyId,
   WalletState,
 } from "./currencies/index.js";
+export {
+  SKILL_BALANCING_PLACEHOLDERS,
+  SKILL_REGISTRY,
+  canCastSkill,
+  castSkill,
+  getSkillDefinition,
+  getSkillDefinitionOrThrow,
+  getSkillRemainingCooldownSeconds,
+  isSkillOnCooldown,
+  validateSkillRegistry,
+} from "./skills/index.js";
+export type {
+  SkillCastFailure,
+  SkillCastFailureReason,
+  SkillCastOptions,
+  SkillCastResult,
+  SkillCastSuccess,
+  SkillCategory,
+  SkillCooldownState,
+  SkillDefinition,
+  SkillElement,
+  SkillTargeting,
+} from "./skills/index.js";
 export {
   claimCornucopia,
   CORNUCOPIA_MAX_CLAIM_AMOUNT,
@@ -115,23 +145,53 @@ export type {
 } from "./market/index.js";
 export {
   FORGE_RECIPES,
+  FORGE_MVP_BOSS_IDS,
+  FORGE_OUTPUT_BASES,
   getAvailableForgeRecipes,
+  getCanonicalForgeRecipeRequiredLevel,
   getEffectiveForgeLevel,
+  getForgeOutputBase,
   getForgeRecipe,
   getForgeRecipeLockReason,
+  normalizeForgeRecipeIngredients,
   isForgeRecipeAvailable,
+  validateForgeRecipeRegistry,
 } from "./building/forge/recipes.js";
 export type {
   ForgeRecipe,
   ForgeRecipeId,
   ForgeRecipeLockReason,
+  ForgeOutputBaseDefinition,
+  ForgeRecipeCategory,
+  ForgeRecipeRarityRoll,
+  ForgeRecipeUnlockConditions,
 } from "./building/forge/recipes.js";
+export {
+  assertWeaponFamilyUnlocked,
+  getEquipmentSlotForWeaponFamily,
+  getWeaponFamilyDefinition,
+  getWeaponFamilyDefinitionOrThrow,
+  getWeaponFamilyUnlockLevel,
+  isWeaponFamilyUnlocked,
+  WEAPON_FAMILY_REGISTRY,
+  WEAPON_FAMILY_UNLOCK_LADDER,
+} from "./building/forge/weapons.js";
+export type {
+  WeaponFamily,
+  WeaponFamilyDefinition,
+  WeaponHandedness,
+  WeaponSlotBehavior,
+} from "./building/forge/weapons.js";
 export {
   canForgeUpgrade,
   didReachForgeUpgradeBreakpoint,
+  FORGE_CRAFT_BASE_RARITY_WEIGHTS,
+  FORGE_CRAFT_RARITIES,
+  FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL,
   FORGE_PRECIOUS_STONE_DROP_CHANCE,
   FORGE_RARITY_UPGRADE_CAP,
   FORGE_UPGRADE_BREAKPOINTS,
+  getForgeCraftRarityWeights,
   getForgeRecycleEcuRefund,
   getForgeUpgradeBreakpointsReached,
   getForgeUpgradeCost,
@@ -140,10 +200,32 @@ export {
   getNextForgeUpgradeBreakpoint,
   getPreciousStoneId,
   getUpgradedEquipmentStats,
+  rollCraftRarityForForgeLevel,
 } from "./building/forge/rules.js";
 export type {
   ForgeUpgradeCost,
 } from "./building/forge/rules.js";
+export {
+  craftEquipmentFromRecipe,
+} from "./building/forge/craft.js";
+export type {
+  CraftEquipmentFromRecipeInput,
+  CraftEquipmentFromRecipeResult,
+} from "./building/forge/craft.js";
+export {
+  forgeRecycleEquipment,
+} from "./building/forge/recycle.js";
+export type {
+  ForgeRecycleEquipmentInput,
+  ForgeRecycleEquipmentResult,
+} from "./building/forge/recycle.js";
+export {
+  forgeUpgradeEquipment,
+} from "./building/forge/upgrade.js";
+export type {
+  ForgeUpgradeEquipmentInput,
+  ForgeUpgradeEquipmentResult,
+} from "./building/forge/upgrade.js";
 export {
   forgeCraft,
   forgeRecycle,
@@ -158,33 +240,93 @@ export type {
 } from "./game/forgeActions.js";
 export {
   convertTempleGlobalXp,
+  convertPlayerXpToWorldXp,
 } from "./game/templeActions.js";
 export type {
   TempleGlobalXpConversionOptions,
   TempleGlobalXpConversionResult,
+  TemplePlayerXpToWorldXpConversionResult,
   TempleXpTarget,
 } from "./game/templeActions.js";
 export {
+  canLevelUpWorld,
+  forumRankUpWorld,
+  levelUpWorld,
+} from "./game/forumActions.js";
+export type {
+  ForumRankUpWorldResult,
+} from "./game/forumActions.js";
+export {
   applyGameXpGain,
   applyPlayerXpGain,
+  PLAYER_LEVEL_SKILL_POINTS_GAIN_DISABLED,
 } from "./game/playerXpActions.js";
 export type {
   AppliedGameXpGain,
   AppliedPlayerXpGain,
 } from "./game/playerXpActions.js";
 export {
+  addPlayerXp,
+  getPlayerLevelFromXp,
+  getXpRequiredForPlayerLevel,
+  addWorldXp,
+  convertPlayerXpToWxp,
+  getWorldLevelFromXp,
+  getWorldXpRequired,
+  TEMPLE_PLAYER_XP_TO_WORLD_XP_RATIO,
+} from "./progression/index.js";
+export type {
+  PlayerProgressionState,
+  WorldProgressionState,
+} from "./progression/index.js";
+export {
   isEquipmentItem,
   normalizeEquipmentItem,
 } from "./items/index.js";
 export {
   ALL_RESOURCES,
+  RESOURCE_ALIASES,
+  RESOURCE_DEFINITIONS,
+  RESOURCE_MAX_STACK,
+  RESOURCE_REGISTRY,
+  RESOURCE_TYPES,
+  RESOURCE_VALUE_PLACEHOLDERS,
+  addResourceToStock,
+  calculateItemValueFromRecipeResources,
+  calculateResourceBundleValue,
+  calculateResourceValue,
+  canSpendResources,
+  clampResourceStack,
+  getCanonicalResourceQuantity,
+  getResourceDefinition,
+  getResourceDefinitionOrThrow,
   getQty,
   hasAtLeast,
-} from "./resources/types.js";
+  normalizeResourceId,
+  removeResourceFromStock,
+  spendResources,
+  validateResourceRegistry,
+} from "./resources/index.js";
+export {
+  calculateResourceRewardBundleValue,
+  grantCurrencyReward,
+  grantResourceReward,
+  grantRewardBundle,
+} from "./rewards/index.js";
 export type {
+  CurrencyReward,
+  ResourceReward,
+  RewardBundle,
+  RewardBundleState,
+} from "./rewards/index.js";
+export type {
+  CanonicalResourceId,
+  ResourceCosts,
+  ResourceDefinition,
   ResourceId,
   ResourceStock,
-} from "./resources/types.js";
+  ResourceType,
+} from "./resources/index.js";
 export {
   abandonMiniGameRun,
   addMiniGameTemporaryRewards,
@@ -210,6 +352,7 @@ export {
   FARM_GOLDEN_FRUIT_SCORE,
   FARM_GOLDEN_TIMER_BONUS_MS,
   FARM_RESOURCE_TABLE,
+  FARM_RESOURCE_AMOUNT_PLACEHOLDERS,
   FARM_RUN_BOMB_DAMAGE,
   FARM_RUN_ENERGY_COST_PER_ACTION,
   FARM_RUN_TIMER_MS,
@@ -229,6 +372,7 @@ export {
   MINE_BOARD_SIZE,
   MINE_MAX_FLOORS,
   MINE_RESOURCE_TABLE,
+  MINE_RESOURCE_AMOUNT_PLACEHOLDERS,
   MINE_RUN_ENEMY_DAMAGE,
   MINE_RUN_ENERGY_COST_PER_ACTION,
   hitFarmSpawn,
@@ -246,6 +390,8 @@ export {
   startKitchenRun,
   submitKitchenPatternInput,
   tickFarmTimer,
+  validateFarmResourceTable,
+  validateMineResourceTable,
 } from "./minigames/index.js";
 export type {
   ActiveFarmRunState,
@@ -294,7 +440,10 @@ export {
   calculateEquipmentStats,
   calculateEquipmentSetModifiersFromItems,
   calculateFinalCharacterStats,
+  calculateRingSkillScaling,
+  canEquipRing,
   createDefaultPlayerEquipmentState,
+  createEmptyEquippedRingIds,
   canUpgradeEquipment,
   getAffixCountForRarity,
   getEquipmentSetDefinition,
@@ -303,14 +452,25 @@ export {
   EQUIPMENT_SETS,
   EQUIPMENT_SET_BIAS_PLACEHOLDERS,
   equipItem,
+  equipRing,
+  equipRingItem,
   generateEquipmentItem,
   generateEquipmentLootDrop,
   getEquippedItemIds,
   getEquippedItems,
+  getEquippedRingItems,
+  getEquippedRingSkills,
   normalizePlayerEquipmentState,
   upgradeEquipment,
   validateAffixCount,
+  validateEquippedRings,
+  validateRingsSkillsMap,
   unequipItem,
+  unequipRingItem,
+  MAX_EQUIPPED_RINGS,
+  RINGS_SKILLS_MAP,
+  RING_CONTRIBUTES_TO_RESONANCE,
+  RING_SKILL_SCALING_PLACEHOLDERS,
 } from "./equipment/index.js";
 export type {
   EquipmentActionError,
@@ -323,10 +483,13 @@ export type {
   EquipItemResult,
   EquipmentItem,
   EquipmentSlot,
+  EquippedRingIds,
+  EquippedRings,
   ItemRarity,
   GenerateEquipmentItemParams,
   GenerateEquipmentLootDropParams,
   PlayerEquipmentState,
+  RingEquipmentInstance,
   ResolvedEquipmentStats,
   UnequipItemResult,
 } from "./equipment/index.js";

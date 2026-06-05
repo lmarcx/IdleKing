@@ -44,7 +44,40 @@ export type ResourceId =
   | "GEMS"
   // Kitchen outputs (MVP)
   | "PLATE_STEW"
-  | "PLATE_SALAD";
+  | "PLATE_SALAD"
+  // Canonical Phase 5 resources. Uppercase ids above remain accepted by the
+  // brownfield runtime until Mine/Farm and recipes migrate in later phases.
+  | CanonicalResourceId;
+
+export type CanonicalResourceId =
+  | "iron_ore"
+  | "cold_iron"
+  | "silver_ore"
+  | "quartz"
+  | "sapphire"
+  | "pale_diamond"
+  | "old_wood"
+  | "ashwood"
+  | "frostpine"
+  | "frostroot"
+  | "tomato"
+  | "carrot"
+  | "tough_meat"
+  | "frozen_fish"
+  | "shadow_residue"
+  | "spectral_dust"
+  | "bone_fragment"
+  | "dragon_scale_fragment"
+  | "frozen_echo"
+  | "pearlescent_scale"
+  | "cold_shell_fragment"
+  | "archival_fragment"
+  | "experimental_tissue"
+  | "dark_amalgam_core"
+  | "dragon_ash_core"
+  | "frost_amalgam_core"
+  | "archmage_sigil"
+  | "frozen_queen_tear";
 
 export const ALL_RESOURCES: ResourceId[] = [
   "XP_GLOBAL",
@@ -81,6 +114,34 @@ export const ALL_RESOURCES: ResourceId[] = [
   "GEMS",
   "PLATE_STEW",
   "PLATE_SALAD",
+  "iron_ore",
+  "cold_iron",
+  "silver_ore",
+  "quartz",
+  "sapphire",
+  "pale_diamond",
+  "old_wood",
+  "ashwood",
+  "frostpine",
+  "frostroot",
+  "tomato",
+  "carrot",
+  "tough_meat",
+  "frozen_fish",
+  "shadow_residue",
+  "spectral_dust",
+  "bone_fragment",
+  "dragon_scale_fragment",
+  "frozen_echo",
+  "pearlescent_scale",
+  "cold_shell_fragment",
+  "archival_fragment",
+  "experimental_tissue",
+  "dark_amalgam_core",
+  "dragon_ash_core",
+  "frost_amalgam_core",
+  "archmage_sigil",
+  "frozen_queen_tear",
 ];
 
 export type ResourceStock = Partial<Record<ResourceId, number>>;

@@ -1,20 +1,50 @@
-import type { ResourceId, ResourceStock } from "../../resources/types.js";
+import { getResourceDefinitionOrThrow } from "../../resources/index.js";
+import type { CanonicalResourceId, ResourceStock } from "../../resources/types.js";
 import type { MineBoard, MineTile, MineTileAdjacentHints, MineTileContentKind, MineTileType } from "./types.js";
 
 export const MINE_MAX_FLOORS = 100;
 export const MINE_BOARD_SIZE = 5;
 
-export const MINE_RESOURCE_TABLE: Array<{ id: ResourceId; amount: number; minFloor: number; weight: number }> = [
-  { id: "STONE", amount: 1, minFloor: 1, weight: 6 },
-  { id: "COPPER", amount: 1, minFloor: 1, weight: 5 },
-  { id: "SILVER", amount: 1, minFloor: 5, weight: 3 },
-  { id: "GOLD", amount: 1, minFloor: 10, weight: 2 },
-  { id: "IRON", amount: 1, minFloor: 15, weight: 3 },
-  { id: "GEMS", amount: 1, minFloor: 20, weight: 1 },
-  { id: "PLATINUM", amount: 1, minFloor: 35, weight: 1 },
-  { id: "MITHRIL", amount: 1, minFloor: 55, weight: 1 },
-  { id: "ORICHALUM", amount: 1, minFloor: 75, weight: 1 },
+// DEFERRED balancing: Mine quantities, floor gates, and weights are Phase 5 placeholders.
+export const MINE_RESOURCE_AMOUNT_PLACEHOLDERS = {
+  iron_ore: 1,
+  cold_iron: 1,
+  silver_ore: 1,
+  quartz: 1,
+  sapphire: 1,
+  pale_diamond: 1,
+} as const satisfies Readonly<Partial<Record<CanonicalResourceId, number>>>;
+
+export const MINE_RESOURCE_TABLE: readonly {
+  id: keyof typeof MINE_RESOURCE_AMOUNT_PLACEHOLDERS;
+  amount: number;
+  minFloor: number;
+  weight: number;
+}[] = [
+  { id: "iron_ore", amount: MINE_RESOURCE_AMOUNT_PLACEHOLDERS.iron_ore, minFloor: 1, weight: 6 },
+  { id: "quartz", amount: MINE_RESOURCE_AMOUNT_PLACEHOLDERS.quartz, minFloor: 1, weight: 5 },
+  { id: "silver_ore", amount: MINE_RESOURCE_AMOUNT_PLACEHOLDERS.silver_ore, minFloor: 5, weight: 3 },
+  { id: "cold_iron", amount: MINE_RESOURCE_AMOUNT_PLACEHOLDERS.cold_iron, minFloor: 15, weight: 3 },
+  { id: "sapphire", amount: MINE_RESOURCE_AMOUNT_PLACEHOLDERS.sapphire, minFloor: 20, weight: 1 },
+  { id: "pale_diamond", amount: MINE_RESOURCE_AMOUNT_PLACEHOLDERS.pale_diamond, minFloor: 35, weight: 1 },
 ];
+
+export function validateMineResourceTable(table = MINE_RESOURCE_TABLE): void {
+  for (const entry of table) {
+    getResourceDefinitionOrThrow(entry.id);
+    if (!Number.isInteger(entry.amount) || entry.amount <= 0) {
+      throw new Error(`Invalid Mine resource amount for ${entry.id}: ${entry.amount}`);
+    }
+    if (!Number.isInteger(entry.minFloor) || entry.minFloor <= 0 || entry.minFloor > MINE_MAX_FLOORS) {
+      throw new Error(`Invalid Mine minFloor for ${entry.id}: ${entry.minFloor}`);
+    }
+    if (!Number.isFinite(entry.weight) || entry.weight <= 0) {
+      throw new Error(`Invalid Mine resource weight for ${entry.id}: ${entry.weight}`);
+    }
+  }
+}
+
+validateMineResourceTable();
 
 export type GenerateMineBoardOptions = {
   floor?: number;

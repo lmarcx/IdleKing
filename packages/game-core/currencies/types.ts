@@ -1,4 +1,4 @@
-export type CurrencyId = "ECU" | (string & {});
+export type CurrencyId = "ECU" | "BOSS_TOKEN";
 
 export type CurrencyFamily = "core" | "mode" | "online" | "event" | "premium";
 
@@ -20,4 +20,15 @@ export const ECU: CurrencyDef = {
   hudVisible: true,
 };
 
-export const CURRENCIES: CurrencyDef[] = [ECU];
+export const BOSS_TOKEN: CurrencyDef = {
+  id: "BOSS_TOKEN",
+  name: "Boss Token",
+  family: "core",
+  hudVisible: false,
+};
+
+export const CURRENCIES: readonly CurrencyDef[] = [ECU, BOSS_TOKEN];
+
+export function isCurrencyId(currencyId: unknown): currencyId is CurrencyId {
+  return typeof currencyId === "string" && CURRENCIES.some((currency) => currency.id === currencyId);
+}

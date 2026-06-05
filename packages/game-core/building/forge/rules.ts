@@ -4,11 +4,40 @@ import {
   getUpgradeCapForRarity,
 } from "../../equipment/rules.js";
 import type { EquipmentItem, EquipmentStats, ItemRarity, NonEquipmentItem } from "../../items/types.js";
+import type { SeededRng } from "../../random/index.js";
 import type { ResourceStock } from "../../resources/types.js";
 
 export const FORGE_UPGRADE_BREAKPOINTS = [3, 6, 9, 12] as const;
 
 export const FORGE_RARITY_UPGRADE_CAP = EQUIPMENT_UPGRADE_CAP_BY_RARITY;
+
+export const FORGE_CRAFT_RARITIES: readonly ItemRarity[] = [
+  "COMMON",
+  "UNCOMMON",
+  "RARE",
+  "EPIC",
+  "LEGENDARY",
+] as const;
+
+export const FORGE_CRAFT_BASE_RARITY_WEIGHTS: Readonly<Record<ItemRarity, number>> = {
+  COMMON: 50,
+  UNCOMMON: 25,
+  RARE: 15,
+  EPIC: 8,
+  LEGENDARY: 2,
+};
+
+/**
+ * DEFERRED balancing: Phase 6 only locks the direction of the curve.
+ * Higher Forge Level shifts weight from Common/Uncommon into Rare+.
+ */
+export const FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL: Readonly<Record<ItemRarity, number>> = {
+  COMMON: -1.2,
+  UNCOMMON: -0.25,
+  RARE: 0.75,
+  EPIC: 0.45,
+  LEGENDARY: 0.25,
+};
 
 // DEFERRED balancing: locked recycle model, placeholder Precious Stone rate.
 export const FORGE_PRECIOUS_STONE_DROP_CHANCE = 0.2;
@@ -28,6 +57,27 @@ const PRECIOUS_STONE_NAME: Record<ItemRarity, string> = {
   EPIC: "Precious Stone Epic",
   LEGENDARY: "Precious Stone Legendary",
 };
+
+function normalizeForgeLevel(forgeLevel: number): number {
+  return Math.max(1, Math.floor(Number.isFinite(forgeLevel) ? forgeLevel : 1));
+}
+
+export function getForgeCraftRarityWeights(forgeLevel: number): Readonly<Record<ItemRarity, number>> {
+  const levelDelta = normalizeForgeLevel(forgeLevel) - 1;
+
+  return {
+    COMMON: Math.max(20, FORGE_CRAFT_BASE_RARITY_WEIGHTS.COMMON + FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL.COMMON * levelDelta),
+    UNCOMMON: Math.max(15, FORGE_CRAFT_BASE_RARITY_WEIGHTS.UNCOMMON + FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL.UNCOMMON * levelDelta),
+    RARE: Math.min(40, FORGE_CRAFT_BASE_RARITY_WEIGHTS.RARE + FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL.RARE * levelDelta),
+    EPIC: Math.min(28, FORGE_CRAFT_BASE_RARITY_WEIGHTS.EPIC + FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL.EPIC * levelDelta),
+    LEGENDARY: Math.min(18, FORGE_CRAFT_BASE_RARITY_WEIGHTS.LEGENDARY + FORGE_CRAFT_RARITY_WEIGHT_SHIFT_PER_LEVEL.LEGENDARY * levelDelta),
+  };
+}
+
+export function rollCraftRarityForForgeLevel(forgeLevel: number, rng: Pick<SeededRng, "pickWeighted">): ItemRarity {
+  const weights = getForgeCraftRarityWeights(forgeLevel);
+  return rng.pickWeighted(FORGE_CRAFT_RARITIES.map((rarity) => ({ value: rarity, weight: weights[rarity] })));
+}
 
 export type ForgeUpgradeCost = {
   resources: ResourceStock;
@@ -105,9 +155,9 @@ export function getForgeUpgradeCost(item: EquipmentItem): ForgeUpgradeCost {
   const ilvl = item.itemLevel ?? item.ilvl ?? 1;
 
   return {
-    // PLACEHOLDER Phase 8A tuning: one GOLD per 50 ilvl, scaling with target upgrade level.
-    resources: { GOLD: Math.max(1, Math.ceil(ilvl / 50)) * nextLevel },
-    // PLACEHOLDER Phase 8A tuning: ECU sink proves currency costs are supported by Forge V2.
+    // DEFERRED balancing: canonical MVP upgrade resource sink, scaling with ilvl and target level.
+    resources: { iron_ore: Math.max(1, Math.ceil(ilvl / 50)) * nextLevel },
+    // DEFERRED balancing: ECU sink proves currency costs are supported by Forge MVP.
     currencies: { ECU: nextLevel },
   };
 }

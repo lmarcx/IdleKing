@@ -1,7 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { wxpNext, addWorldWxp, canRankUpWorld, rankUpWorldOnce, WORLD_MAX_LEVEL } from "../progression/worldXp.js";
+import {
+  addWorldXp,
+  wxpNext,
+  addWorldWxp,
+  canRankUpWorld,
+  getWorldLevelFromXp,
+  getWorldXpRequired,
+  rankUpWorldOnce,
+  WORLD_MAX_LEVEL,
+} from "../progression/worldXp.js";
+
+test("World progression helpers bank WXP without automatic level up", () => {
+  const need = getWorldXpRequired(1);
+  assert.equal(need, wxpNext(1));
+  assert.equal(getWorldLevelFromXp(0), 1);
+  assert.equal(getWorldLevelFromXp(need), 2);
+
+  const state = addWorldXp({ worldLevel: 1, worldWxp: 0 }, need + 10);
+  assert.deepEqual(state, { worldLevel: 1, worldWxp: need + 10 });
+});
 
 test("World WXP accumulates without leveling up", () => {
   const need = wxpNext(1);

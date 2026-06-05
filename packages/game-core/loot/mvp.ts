@@ -10,6 +10,8 @@ import type {
   NonEquipmentItem,
 } from "../items/types.js";
 import type { SeededRng } from "../random/index.js";
+import type { ResourceReward } from "../rewards/index.js";
+import { getResourceDefinition } from "../resources/index.js";
 import {
   BOSS_EQUIPMENT_LOOT_SLOTS,
   BOSS_EQUIPMENT_RARITY_WEIGHTS,
@@ -17,10 +19,7 @@ import {
   type EnemyLootTableDefinition,
 } from "./mvpConfig.js";
 
-export type MaterialDrop = {
-  amount: number;
-  resourceId: string;
-};
+export type MaterialDrop = ResourceReward;
 
 export type RollEquipmentLootParams = {
   itemLevel: number;
@@ -65,6 +64,9 @@ export function validateEnemyLootTables(
       if (!drop.resourceId) {
         throw new Error(`Enemy loot table ${lootTable.id} contains an empty resourceId`);
       }
+      if (!getResourceDefinition(drop.resourceId)) {
+        throw new Error(`Enemy loot table ${lootTable.id} references unknown MVP resource id: ${drop.resourceId}`);
+      }
       if (!Number.isFinite(drop.chance) || drop.chance < 0 || drop.chance > 1) {
         throw new Error(
           `Enemy loot table ${lootTable.id} has invalid chance for ${drop.resourceId}`,
@@ -82,9 +84,9 @@ export function validateEnemyLootTables(
       }
     }
   }
-
-  // TODO(PHASE-5): validate resourceId refs against RESOURCES_DATABASE once its registry exists.
 }
+
+validateEnemyLootTables();
 
 export function rollBossEquipmentRarity(rng: SeededRng): ItemRarity {
   return rng.pickWeighted(BOSS_EQUIPMENT_RARITY_WEIGHTS);

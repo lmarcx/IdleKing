@@ -1,18 +1,17 @@
 import type { GameState } from "./state.js";
-import { getForgeRecipe, getForgeRecipeLockReason, type ForgeRecipeId } from "../building/forge/recipes.js";
+import { craftEquipmentFromRecipe } from "../building/forge/craft.js";
 import {
-  canForgeUpgrade,
-  getForgeUpgradeCost,
-  getForgeUpgradeLevel,
-  getUpgradedEquipmentStats,
-} from "../building/forge/rules.js";
-import { grantCurrency, spendCurrency } from "../currencies/index.js";
-import { generateEquipmentItem } from "../equipment/index.js";
-import { hasAtLeast, spend } from "../resources/types.js";
-import { addItem, findItem, removeItem } from "../items/inventory.js";
-import { isEquipmentItem, isItemRarity, type Item, type NonEquipmentItem } from "../items/types.js";
+  getEffectiveForgeLevel,
+  getForgeRecipe,
+  getForgeRecipeLockReason,
+  type ForgeRecipeId,
+} from "../building/forge/recipes.js";
+import { forgeRecycleEquipment } from "../building/forge/recycle.js";
+import { forgeUpgradeEquipment } from "../building/forge/upgrade.js";
+import type { ResourceCosts } from "../resources/index.js";
+import { addItem, findItem } from "../items/inventory.js";
+import { isEquipmentItem, isItemRarity, type ItemRarity } from "../items/types.js";
 import { expectedIlvl } from "../progression/expectedIlvl.js";
-import { recycleEquipment } from "../loot/mvp.js";
 import { createSeededRng, hashStringSeed, type SeededRng } from "../random/index.js";
 
 function createCraftedItemId(state: GameState, recipeId: ForgeRecipeId): string {
@@ -20,34 +19,29 @@ function createCraftedItemId(state: GameState, recipeId: ForgeRecipeId): string 
   return `forge_${recipeId}_${state.progression.worldLevel}_${matchingItems + 1}`;
 }
 
-function addStackableInventoryItem(items: Item[], item: NonEquipmentItem): Item[] {
-  const existingIndex = items.findIndex((entry) => entry.id === item.id && !isEquipmentItem(entry));
-  if (existingIndex < 0) return [...items, item];
-
-  const next = items.slice();
-  const existing = next[existingIndex] as NonEquipmentItem;
-  next[existingIndex] = {
-    ...existing,
-    quantity: Math.max(0, Math.floor(existing.quantity ?? 1)) + Math.max(1, Math.floor(item.quantity ?? 1)),
-  };
-  return next;
-}
-
 export type ForgeCraftResult = {
   next: GameState;
   ok: boolean;
   createdItemId?: string;
+  rolledRarity?: ItemRarity;
+  consumedResources?: ResourceCosts;
   reason?:
     | "FORGE_LOCKED"
     | "FORGE_NOT_BUILT"
     | "RECIPE_NOT_FOUND"
+    | "OUTPUT_BASE_NOT_FOUND"
     | "FORGE_LEVEL_TOO_LOW"
     | "WORLD_LEVEL_TOO_LOW"
+    | "CHAPTER_REQUIRED"
+    | "QUEST_REQUIRED"
+    | "BOSS_REQUIRED"
     | "NOT_ENOUGH_RESOURCES";
 };
 
 export type ForgeCraftOptions = {
   allowLocked?: boolean;
+  rng?: Pick<SeededRng, "pickWeighted">;
+  seed?: number;
 };
 
 /**
@@ -72,28 +66,30 @@ export function forgeCraft(
   const lockReason = getForgeRecipeLockReason(state, recipe);
   if (lockReason) return { next: state, ok: false, reason: lockReason };
 
-  if (!hasAtLeast(state.resources, recipe.cost)) {
-    return { next: state, ok: false, reason: "NOT_ENOUGH_RESOURCES" };
-  }
-
-  const nextResources = spend(state.resources, recipe.cost);
-
   const itemLevel = expectedIlvl(state.progression.worldLevel);
-  const item = generateEquipmentItem({
-    id: createCraftedItemId(state, recipe.id),
-    slot: recipe.slot,
-    name: recipe.baseName,
+  const seed = options.seed ?? hashStringSeed(`${recipe.id}:${state.progression.worldLevel}:${state.inventory.items.length}`);
+  const crafted = craftEquipmentFromRecipe({
+    recipeId: recipe.id,
+    resourceStock: state.resources,
+    forgeLevel: getEffectiveForgeLevel(state),
+    defeatedBossIds: [...state.story.completedEvents],
     itemLevel,
-    rarity: recipe.rarity,
+    rng: options.rng ?? createSeededRng(seed),
+    seed,
+    itemId: createCraftedItemId(state, recipe.id),
   });
+
+  if (!crafted.ok) return { next: state, ok: false, reason: crafted.reason };
 
   return {
     ok: true,
-    createdItemId: item.id,
+    createdItemId: crafted.craftedItem.id,
+    rolledRarity: crafted.rolledRarity,
+    consumedResources: crafted.consumedResources,
     next: {
       ...state,
-      resources: nextResources,
-      inventory: addItem(state.inventory, item),
+      resources: crafted.updatedResourceStock,
+      inventory: addItem(state.inventory, crafted.craftedItem),
     },
   };
 }
@@ -116,45 +112,22 @@ export function forgeUpgrade(
   if (!item || !isEquipmentItem(item)) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
 
   const normalizedRarity = isItemRarity(item.rarity) ? item.rarity : "COMMON";
-  const normalizedItem = { ...item, rarity: normalizedRarity, upgradeLevel: getForgeUpgradeLevel(item) };
-  if (!canForgeUpgrade(normalizedItem)) return { next: state, ok: false, reason: "MAX_UPGRADE_LEVEL" };
+  const upgraded = forgeUpgradeEquipment({
+    item: { ...item, rarity: normalizedRarity },
+    resourceStock: state.resources,
+    wallet: state.wallet,
+  });
+  if (!upgraded.ok) return { next: state, ok: false, reason: upgraded.reason };
 
-  const cost = getForgeUpgradeCost(normalizedItem);
-  if (!hasAtLeast(state.resources, cost.resources)) {
-    return { next: state, ok: false, reason: "NOT_ENOUGH_RESOURCES" };
-  }
-
-  let nextWallet = state.wallet;
-  for (const [currencyId, amount] of Object.entries(cost.currencies)) {
-    const spent = spendCurrency(nextWallet, currencyId, amount ?? 0);
-    if (!spent.ok) return { next: state, ok: false, reason: "NOT_ENOUGH_CURRENCY" };
-    nextWallet = spent.wallet;
-  }
-
-  const nextResources = spend(state.resources, cost.resources);
-  const rolledStats = normalizedItem.rolledStats ?? normalizedItem.baseStats ?? normalizedItem.stats;
-  const nextUpgradeLevel = normalizedItem.upgradeLevel + 1;
-  const upgraded = {
-    ...normalizedItem,
-    baseStats: normalizedItem.baseStats ?? rolledStats,
-    rolledStats,
-    stats: getUpgradedEquipmentStats(
-      rolledStats,
-      normalizedItem.rarity,
-      normalizedItem.itemLevel ?? normalizedItem.ilvl ?? 1,
-      nextUpgradeLevel,
-    ),
-    upgradeLevel: nextUpgradeLevel,
-  };
-  const nextItems = state.inventory.items.map((it) => (it.id === itemId ? upgraded : it));
+  const nextItems = state.inventory.items.map((it) => (it.id === itemId ? upgraded.upgradedItem : it));
 
   return {
     ok: true,
     next: {
       ...state,
-      resources: nextResources,
+      resources: upgraded.updatedResourceStock,
       inventory: { items: nextItems },
-      wallet: nextWallet,
+      wallet: upgraded.updatedWallet,
     },
   };
 }
@@ -189,12 +162,13 @@ export function forgeRecycle(state: GameState, itemId: string, options: ForgeRec
     options.preciousStoneRoll === undefined
       ? options.rng ?? createSeededRng(options.seed ?? hashStringSeed(item.id))
       : { nextFloat: () => options.preciousStoneRoll! };
-  const recycleResult = recycleEquipment(normalizedItem, rng);
-
-  const nextInv = removeItem(state.inventory, itemId);
-  const nextItems = recycleResult.preciousStone
-    ? addStackableInventoryItem(nextInv.items, recycleResult.preciousStone)
-    : nextInv.items;
+  const recycleResult = forgeRecycleEquipment({
+    item: normalizedItem,
+    inventory: state.inventory,
+    wallet: state.wallet,
+    rng,
+  });
+  if (!recycleResult.ok) return { next: state, ok: false, reason: recycleResult.reason };
 
   return {
     ok: true,
@@ -204,8 +178,8 @@ export function forgeRecycle(state: GameState, itemId: string, options: ForgeRec
     recipeMaterials: recycleResult.recipeMaterials,
     next: {
       ...state,
-      inventory: { items: nextItems },
-      wallet: grantCurrency(state.wallet, "ECU", recycleResult.ecuGained),
+      inventory: recycleResult.updatedInventory ?? state.inventory,
+      wallet: recycleResult.updatedWallet,
     },
   };
 }

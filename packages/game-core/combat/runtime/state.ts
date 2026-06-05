@@ -58,6 +58,7 @@ export function createCombatRuntimeState(
     },
     timers: {
       dashCooldownRemainingSeconds: 0,
+      skillCooldowns: {},
     },
   };
 }

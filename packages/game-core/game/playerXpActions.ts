@@ -1,8 +1,9 @@
-import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
 import { applyXpGain } from "../progression/applyXpGain.js";
 import { applyPlayerXp, type PlayerXpResult } from "../progression/xp.js";
 import type { XpGain } from "../progression/sources.js";
 import type { GameState } from "./state.js";
+
+export const PLAYER_LEVEL_SKILL_POINTS_GAIN_DISABLED = true;
 
 export type AppliedPlayerXpGain = {
   next: GameState;
@@ -17,24 +18,8 @@ export type AppliedGameXpGain = {
   skillPointsGained: number;
 };
 
-function addSkillPointsForPlayerLevels(state: GameState, levelsGained: number): GameState {
-  const skills = state.skills ?? createDefaultPlayerSkillsState();
-  const skillPointsGained = Math.max(0, Math.floor(levelsGained));
-
-  if (skillPointsGained <= 0) return { ...state, skills };
-
-  return {
-    ...state,
-    skills: {
-      ...skills,
-      skillPoints: Math.max(0, skills.skillPoints) + skillPointsGained,
-    },
-  };
-}
-
 export function applyPlayerXpGain(state: GameState, gainedXp: number): AppliedPlayerXpGain {
   const player = applyPlayerXp(state.progression.playerLevel, state.progression.playerXp, gainedXp);
-  const skillPointsGained = Math.max(0, player.levelsGained);
   const nextWithProgression: GameState = {
     ...state,
     progression: {
@@ -45,15 +30,15 @@ export function applyPlayerXpGain(state: GameState, gainedXp: number): AppliedPl
   };
 
   return {
-    next: addSkillPointsForPlayerLevels(nextWithProgression, skillPointsGained),
+    next: nextWithProgression,
     player,
-    skillPointsGained,
+    // Legacy skillPoints still exist for the skill screen, but Phase 7 MVP player levels do not mint them.
+    skillPointsGained: 0,
   };
 }
 
 export function applyGameXpGain(state: GameState, gain: XpGain): AppliedGameXpGain {
   const progression = applyXpGain(state.progression, gain);
-  const skillPointsGained = Math.max(0, progression.player.levelsGained);
   const nextWithProgression: GameState = {
     ...state,
     progression: progression.next,
@@ -61,7 +46,8 @@ export function applyGameXpGain(state: GameState, gain: XpGain): AppliedGameXpGa
 
   return {
     ...progression,
-    next: addSkillPointsForPlayerLevels(nextWithProgression, skillPointsGained),
-    skillPointsGained,
+    next: nextWithProgression,
+    // Legacy skillPoints still exist for direct skill tests, but XP gain no longer awards them.
+    skillPointsGained: 0,
   };
 }

@@ -1,4 +1,5 @@
 import type { GameState } from "../../game/state.js";
+import { grantResourceReward } from "../../rewards/index.js";
 import type { ResourceStock } from "../../resources/types.js";
 import {
   abandonMiniGameRun,
@@ -72,11 +73,11 @@ function asPool(pool: MiniGameRunResourcePool | undefined): MiniGameRunResourceP
 }
 
 function addResourceStock(left: ResourceStock, right: ResourceStock): ResourceStock {
-  const next: ResourceStock = { ...left };
+  let next = left;
   for (const [resourceId, amount] of Object.entries(right)) {
     const value = Math.max(0, Math.floor(amount ?? 0));
     if (value > 0) {
-      next[resourceId as keyof ResourceStock] = Math.max(0, Math.floor(next[resourceId as keyof ResourceStock] ?? 0)) + value;
+      next = grantResourceReward(next, { resourceId, amount: value });
     }
   }
   return next;

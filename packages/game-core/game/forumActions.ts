@@ -9,6 +9,14 @@ export type ForumRankUpWorldResult = {
   reason?: "FORUM_LOCKED" | "FORUM_NOT_BUILT" | "NOT_ENOUGH_WXP" | "AT_MAX_LEVEL";
 };
 
+export function canLevelUpWorld(state: GameState): boolean {
+  return (
+    state.buildings.forum.unlocked &&
+    state.buildings.forum.built &&
+    canRankUpWorld(state.progression.worldLevel, state.progression.worldWxp)
+  );
+}
+
 /**
  * Performs a manual World Rank Up through the Forum.
  * WXP is treated as a bank; rank-ups are explicit actions instead of automatic leveling.
@@ -50,4 +58,8 @@ export function forumRankUpWorld(state: GameState): ForumRankUpWorldResult {
     rankedUp: true,
     next: refreshAllBuildingStatuses(next, r.newWorldLevel),
   };
+}
+
+export function levelUpWorld(state: GameState): ForumRankUpWorldResult {
+  return forumRankUpWorld(state);
 }

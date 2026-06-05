@@ -9,6 +9,7 @@ export type {
 } from "./generation.js";
 export * from "./rules.js";
 export * from "./sets.js";
+export * from "./rings.js";
 import {
   EQUIPMENT_SLOTS,
   isEquipmentItem,
@@ -26,12 +27,28 @@ import {
   calculateEquipmentSetModifiersFromItems,
 } from "./sets.js";
 import type { StatsModifiers } from "../power/statsModel.js";
+import {
+  createEmptyEquippedRingIds,
+  equipRing,
+  MAX_EQUIPPED_RINGS,
+  type EquippedRingIds,
+  type RingEquipmentInstance,
+} from "./rings.js";
 
 export type PlayerEquipmentState = {
-  equipped: Record<EquipmentSlot, string | null>;
+  equipped: Record<EquipmentSlot, string | null> & {
+    rings: EquippedRingIds;
+  };
 };
 
-export type EquipmentActionError = "ITEM_NOT_FOUND" | "ITEM_NOT_EQUIPMENT" | "INVALID_SLOT";
+export type EquipmentActionError =
+  | "ITEM_NOT_FOUND"
+  | "ITEM_NOT_EQUIPMENT"
+  | "INVALID_SLOT"
+  | "INVALID_RING"
+  | "INVALID_RING_SLOT"
+  | "RING_SKILL_ALREADY_EQUIPPED"
+  | "RING_SLOTS_FULL";
 
 export type EquipItemResult =
   | {
@@ -61,7 +78,10 @@ export const BASE_CHARACTER_STATS: ResolvedEquipmentStats = {
 
 export function createDefaultPlayerEquipmentState(): PlayerEquipmentState {
   return {
-    equipped: Object.fromEntries(EQUIPMENT_SLOTS.map((slot) => [slot, null])) as Record<EquipmentSlot, string | null>,
+    equipped: {
+      ...Object.fromEntries(EQUIPMENT_SLOTS.map((slot) => [slot, null])) as Record<EquipmentSlot, string | null>,
+      rings: createEmptyEquippedRingIds(),
+    },
   };
 }
 
@@ -73,19 +93,34 @@ export function normalizePlayerEquipmentState(value: unknown): PlayerEquipmentSt
   if (!equipped || typeof equipped !== "object") return base;
 
   for (const [slot, itemId] of Object.entries(equipped)) {
+    if (slot === "rings") continue;
     const normalizedSlot = normalizeEquipmentSlot(slot);
     if (!normalizedSlot) continue;
     base.equipped[normalizedSlot] = typeof itemId === "string" ? itemId : null;
   }
 
+  const ringIds = (equipped as Partial<PlayerEquipmentState["equipped"]>).rings;
+  if (Array.isArray(ringIds)) {
+    base.equipped.rings = createEmptyEquippedRingIds();
+    for (let slotIndex = 0; slotIndex < base.equipped.rings.length; slotIndex += 1) {
+      const itemId = ringIds[slotIndex];
+      base.equipped.rings[slotIndex] = typeof itemId === "string" ? itemId : null;
+    }
+  } else if (base.equipped.ring) {
+    // Legacy equipment had a single ring slot. Normalize it into the first MVP ring slot.
+    base.equipped.rings[0] = base.equipped.ring;
+  }
+  base.equipped.ring = null;
+
   return base;
 }
 
 export function getEquippedItemIds(equipmentState: PlayerEquipmentState): string[] {
-  return EQUIPMENT_SLOTS.flatMap((slot) => {
-    const itemId = equipmentState.equipped[slot];
+  const equipment = normalizePlayerEquipmentState(equipmentState);
+  return EQUIPMENT_SLOTS.filter((slot) => slot !== "ring").flatMap((slot) => {
+    const itemId = equipment.equipped[slot];
     return itemId ? [itemId] : [];
-  });
+  }).concat(equipment.equipped.rings.filter((itemId): itemId is string => Boolean(itemId)));
 }
 
 function getInventoryEquipmentItem(gameState: GameState, itemId: string): EquipmentItem | null {
@@ -98,12 +133,20 @@ export function getEquippedItems(gameState: GameState): EquipmentItem[] {
   const equipment = normalizePlayerEquipmentState(gameState.equipment);
   const items: EquipmentItem[] = [];
 
-  for (const slot of EQUIPMENT_SLOTS) {
+  for (const slot of EQUIPMENT_SLOTS.filter((entry) => entry !== "ring")) {
     const itemId = equipment.equipped[slot];
     if (!itemId) continue;
 
     const item = getInventoryEquipmentItem(gameState, itemId);
     if (!item || item.slot !== slot) continue;
+    items.push(item);
+  }
+
+  for (const itemId of equipment.equipped.rings) {
+    if (!itemId) continue;
+
+    const item = getInventoryEquipmentItem(gameState, itemId);
+    if (!item || item.slot !== "ring") continue;
     items.push(item);
   }
 
@@ -126,6 +169,13 @@ export function equipItem(gameState: GameState, itemId: string): EquipItemResult
   }
 
   const equipment = normalizePlayerEquipmentState(gameState.equipment);
+  if (item.slot === "ring") {
+    const slotIndex = equipment.equipped.rings.findIndex((itemId) => itemId === null);
+    if (slotIndex < 0) {
+      return { ok: false, state: gameState, reason: "RING_SLOTS_FULL" };
+    }
+    return equipRingItem(gameState, item.id, slotIndex);
+  }
   const replacedItemId = equipment.equipped[item.slot];
 
   return {
@@ -185,6 +235,84 @@ export function calculateEquipmentStats(gameState: GameState): ResolvedEquipment
   stats.defense += setModifiers.base?.def ?? 0;
 
   return stats;
+}
+
+export function equipRingItem(gameState: GameState, itemId: string, slotIndex: number): EquipItemResult {
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= MAX_EQUIPPED_RINGS) {
+    return { ok: false, state: gameState, reason: "INVALID_RING_SLOT" };
+  }
+
+  const item = getInventoryEquipmentItem(gameState, itemId);
+  if (!item) {
+    return { ok: false, state: gameState, reason: "ITEM_NOT_FOUND" };
+  }
+  if (item.slot !== "ring" || !item.skillId) {
+    return { ok: false, state: gameState, reason: "INVALID_RING" };
+  }
+
+  const equipment = normalizePlayerEquipmentState(gameState.equipment);
+  const equippedRings = getEquippedRingItems(gameState);
+  try {
+    equipRing(equippedRings, item, slotIndex);
+  } catch (error) {
+    const reason = error instanceof Error && error.message.includes("already equipped")
+      ? "RING_SKILL_ALREADY_EQUIPPED"
+      : "INVALID_RING";
+    return { ok: false, state: gameState, reason };
+  }
+
+  const replacedItemId = equipment.equipped.rings[slotIndex];
+  const rings = [...equipment.equipped.rings] as EquippedRingIds;
+  rings[slotIndex] = item.id;
+
+  return {
+    ok: true,
+    item,
+    replacedItemId,
+    state: {
+      ...gameState,
+      equipment: {
+        equipped: {
+          ...equipment.equipped,
+          rings,
+        },
+      },
+    },
+  };
+}
+
+export function getEquippedRingItems(gameState: GameState): Array<RingEquipmentInstance | null> {
+  const equipment = normalizePlayerEquipmentState(gameState.equipment);
+  return equipment.equipped.rings.map((itemId) => {
+    if (!itemId) return null;
+    const item = getInventoryEquipmentItem(gameState, itemId);
+    return item?.slot === "ring" ? item as RingEquipmentInstance : null;
+  });
+}
+
+export function unequipRingItem(gameState: GameState, slotIndex: number): UnequipItemResult {
+  const equipment = normalizePlayerEquipmentState(gameState.equipment);
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= equipment.equipped.rings.length) {
+    return { ok: true, state: gameState, removedItemId: null };
+  }
+
+  const removedItemId = equipment.equipped.rings[slotIndex];
+  const rings = [...equipment.equipped.rings] as EquippedRingIds;
+  rings[slotIndex] = null;
+
+  return {
+    ok: true,
+    removedItemId,
+    state: {
+      ...gameState,
+      equipment: {
+        equipped: {
+          ...equipment.equipped,
+          rings,
+        },
+      },
+    },
+  };
 }
 
 export function calculateEquipmentSetModifiers(gameState: GameState): StatsModifiers {

@@ -50,7 +50,7 @@ test("mini-game success commits temporary rewards", () => {
   assert.equal(launched.ok, true);
   if (!launched.ok) return;
 
-  const rewarded = addMiniGameTemporaryRewards(launched.next, { COPPER: 3, GEMS: 1 }, launched.run.id);
+  const rewarded = addMiniGameTemporaryRewards(launched.next, { iron_ore: 3, quartz: 1 }, launched.run.id);
   assert.equal(rewarded.ok, true);
   if (!rewarded.ok) return;
 
@@ -58,9 +58,9 @@ test("mini-game success commits temporary rewards", () => {
 
   assert.equal(finished.ok, true);
   if (!finished.ok) return;
-  assert.equal(getQty(finished.next.resources, "COPPER"), 3);
-  assert.equal(getQty(finished.next.resources, "GEMS"), 1);
-  assert.deepEqual(finished.rewardsCommitted, { COPPER: 3, GEMS: 1 });
+  assert.equal(getQty(finished.next.resources, "iron_ore"), 3);
+  assert.equal(getQty(finished.next.resources, "quartz"), 1);
+  assert.deepEqual(finished.rewardsCommitted, { iron_ore: 3, quartz: 1 });
   assert.equal(finished.next.miniGames.activeRun, null);
   assert.equal(finished.next.miniGames.lastRun?.status, "success");
 });
@@ -71,7 +71,7 @@ test("mini-game failure discards temporary rewards", () => {
   assert.equal(launched.ok, true);
   if (!launched.ok) return;
 
-  const rewarded = addMiniGameTemporaryRewards(launched.next, { COPPER: 3 }, launched.run.id);
+  const rewarded = addMiniGameTemporaryRewards(launched.next, { iron_ore: 3 }, launched.run.id);
   assert.equal(rewarded.ok, true);
   if (!rewarded.ok) return;
 
@@ -79,7 +79,7 @@ test("mini-game failure discards temporary rewards", () => {
 
   assert.equal(finished.ok, true);
   if (!finished.ok) return;
-  assert.equal(getQty(finished.next.resources, "COPPER"), 0);
+  assert.equal(getQty(finished.next.resources, "iron_ore"), 0);
   assert.deepEqual(finished.rewardsCommitted, {});
   assert.equal(finished.outcome, "failed");
   assert.equal(finished.next.miniGames.lastRun?.status, "failed");
@@ -91,7 +91,7 @@ test("mini-game abandon discards temporary rewards and counts as failure", () =>
   assert.equal(launched.ok, true);
   if (!launched.ok) return;
 
-  const rewarded = addMiniGameTemporaryRewards(launched.next, { WHEAT: 5 }, launched.run.id);
+  const rewarded = addMiniGameTemporaryRewards(launched.next, { tomato: 5 }, launched.run.id);
   assert.equal(rewarded.ok, true);
   if (!rewarded.ok) return;
 
@@ -99,7 +99,7 @@ test("mini-game abandon discards temporary rewards and counts as failure", () =>
 
   assert.equal(finished.ok, true);
   if (!finished.ok) return;
-  assert.equal(getQty(finished.next.resources, "WHEAT"), 0);
+  assert.equal(getQty(finished.next.resources, "tomato"), 0);
   assert.equal(finished.outcome, "failed");
   assert.equal(finished.next.miniGames.lastRun?.status, "abandoned");
 });

@@ -1,11 +1,12 @@
 import type { EquipmentSlot, ItemRarity } from "../items/types.js";
 import type { WeightedEntry } from "../random/index.js";
+import type { CanonicalResourceId } from "../resources/index.js";
 
 export type EnemyMaterialDropDefinition = {
   chance: number;
   maxAmount: number;
   minAmount: number;
-  resourceId: string;
+  resourceId: CanonicalResourceId;
 };
 
 export type EnemyLootTableDefinition = {
@@ -35,7 +36,7 @@ export const BOSS_EQUIPMENT_LOOT_SLOTS: readonly EquipmentSlot[] = [
   "ring",
 ];
 
-// DEFERRED balancing: temporary Phase 3 tables until RESOURCES_DATABASE lands in Phase 5.
+// DEFERRED balancing: temporary Phase 3 drop chances and quantities.
 export const ENEMY_LOOT_TABLES: readonly EnemyLootTableDefinition[] = [
   {
     id: "enemy_wasteland_placeholder",

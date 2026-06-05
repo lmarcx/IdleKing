@@ -1,4 +1,5 @@
 import type { ActiveStatusEffect } from "../core/statuses.js";
+import type { SkillCooldownState } from "../../skills/types.js";
 
 export type CombatSecuredReward = Readonly<{
   kind: string;
@@ -38,6 +39,7 @@ export type CombatRuntimeCheckpoint = {
 
 export type CombatRuntimeTimers = {
   dashCooldownRemainingSeconds: number;
+  skillCooldowns: SkillCooldownState;
 };
 
 export type CombatRuntimeState = {

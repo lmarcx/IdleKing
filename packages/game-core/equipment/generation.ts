@@ -9,6 +9,7 @@ import {
 } from "../items/types.js";
 import { applyEquipmentAffixes, generatePlaceholderAffixes } from "./rules.js";
 import { getEquipmentSetDefinitionOrThrow } from "./sets.js";
+import { resolveGeneratedRingSkillId } from "./rings.js";
 
 type EquipmentSlotInput = EquipmentSlot | LegacyItemSlot;
 
@@ -18,7 +19,7 @@ export type GenerateEquipmentItemParams = {
   seed?: string | number;
   name?: string;
   setId?: string;
-  skillId?: string;
+  skillId?: string | null;
   slot: EquipmentSlotInput;
   itemLevel: number;
   rarity?: ItemRarity;
@@ -146,6 +147,9 @@ export function generateEquipmentItem(params: GenerateEquipmentItemParams): Equi
   const baseStats = buildStats(slot, itemLevel, rarity);
   const affixes = generatePlaceholderAffixes(rarity);
   const rolledStats = slot === "artifact" ? {} : applyEquipmentAffixes(baseStats, affixes);
+  const skillId = slot === "ring"
+    ? resolveGeneratedRingSkillId({ name, seed: params.seed ?? id, skillId: params.skillId })
+    : undefined;
 
   return {
     affixes,
@@ -157,7 +161,7 @@ export function generateEquipmentItem(params: GenerateEquipmentItemParams): Equi
     name,
     rolledStats,
     setId: params.setId,
-    skillId: params.skillId,
+    skillId,
     slot,
     itemLevel,
     rarity,

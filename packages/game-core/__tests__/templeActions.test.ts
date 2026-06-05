@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
-import { convertTempleGlobalXp } from "../game/templeActions.js";
+import { convertPlayerXpToWorldXp, convertTempleGlobalXp } from "../game/templeActions.js";
 import { getBuildCost } from "../building/buildCosts.js";
 import { xpNext } from "../progression/xpCurve.js";
+import { wxpNext } from "../progression/worldXp.js";
 import { getQty } from "../resources/types.js";
 
 function builtTempleState(resources: ReturnType<typeof createInitialGameState>["resources"] = {}) {
@@ -59,7 +60,7 @@ test("Temple levels up player when threshold is reached", () => {
   assert.equal(result.player?.leveledUp, true);
 });
 
-test("Temple conversion to playerXp grants skill points for gained player levels", () => {
+test("Temple conversion to playerXp grants no skill points for gained player levels", () => {
   const threshold = xpNext(1);
   const state = builtTempleState({ XP_GLOBAL: threshold });
 
@@ -68,7 +69,47 @@ test("Temple conversion to playerXp grants skill points for gained player levels
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.next.progression.playerLevel, 2);
-  assert.equal(result.next.skills.skillPoints, 1);
+  assert.equal(result.next.skills.skillPoints, 0);
+});
+
+test("Temple converts player XP to WXP without changing Player Level or World Level", () => {
+  const state = {
+    ...builtTempleState(),
+    progression: {
+      playerLevel: 3,
+      playerXp: 25,
+      worldLevel: 1,
+      worldWxp: wxpNext(1) - 5,
+    },
+  };
+
+  const result = convertPlayerXpToWorldXp(state, 20);
+
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.playerXpSpent, 20);
+  assert.equal(result.worldXpGained, 20);
+  assert.equal(result.next.progression.playerLevel, 3);
+  assert.equal(result.next.progression.playerXp, 5);
+  assert.equal(result.next.progression.worldLevel, 1);
+  assert.equal(result.next.progression.worldWxp, wxpNext(1) + 15);
+  assert.equal(result.next.skills.skillPoints, 0);
+});
+
+test("Temple refuses player XP conversion when player XP is insufficient", () => {
+  const state = {
+    ...builtTempleState(),
+    progression: {
+      ...createInitialGameState().progression,
+      playerXp: 2,
+    },
+  };
+
+  const result = convertPlayerXpToWorldXp(state, 3);
+
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.reason, "NOT_ENOUGH_PLAYER_XP");
 });
 
 test("Temple converts XP_GLOBAL to worldWxp without automatic rank up", () => {
