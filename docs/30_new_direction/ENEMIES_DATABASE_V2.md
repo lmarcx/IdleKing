@@ -539,10 +539,6 @@ Dragon Ash Shield
 
 ---
 
-## Caverne aux Reflets
-
----
-
 ## Caverne aux Chants
 
 ---

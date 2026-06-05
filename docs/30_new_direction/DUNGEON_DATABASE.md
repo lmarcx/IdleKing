@@ -530,7 +530,7 @@ Academic Resources
 
 # Dungeon 7
 
-## Caverne aux Reflets
+## Caverne aux Chants
 
 Type:
 
@@ -778,7 +778,7 @@ Pic des Cendres
 ```txt
 Camp de la Retraite Silencieuse
 Tour de la Chute Blanche
-Caverne aux Reflets
+Caverne aux Chants
 Académie d'Arathas
 Gouffre Royal
 Source du Givre

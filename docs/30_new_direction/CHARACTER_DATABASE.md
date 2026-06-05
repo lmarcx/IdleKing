@@ -329,18 +329,18 @@ High
 
 ---
 
-## CHR-007 — Noah (Funèbre Variant)
+## CHR-007 — Seigneur de la Pluie Déchu
 
 ### Era
 
 ```txt
-Era Funèbre
+Chapter II — Era Glaciaire (Gouffre Royal)
 ```
 
 ### Role
 
 ```txt
-Boss
+Boss (MVP)
 ```
 
 ### Title
@@ -355,14 +355,19 @@ Seigneur de la Pluie Déchu
 MVP BOSS CANON (D-A02)
 ```
 
-> ⚠️ Placement à confirmer : DESIGN_FREEZE §14/§15 (D-10) situe le **combat** contre le
-> Seigneur de la Pluie Déchu au **Gouffre Royal (Ch II — Era Glaciaire)**, alors que l'« Era
-> Funèbre » ci-dessus décrit l'origine narrative du personnage. L'ère du combat MVP vs l'ère
-> d'origine reste à arbitrer (lore).
+### Identity (D-A04)
+
+```txt
+Personnage DISTINCT — n'est PAS Noah / n'est PAS le Corrompu (CHR-011)
+```
+
+Le Seigneur de la Pluie Déchu est le **frère légitime exilé** et le **jumeau** de Noah
+(CHR-011). Étant jumeaux, son apparence est initialement proche de celle de Noah. Boss MVP
+combattu au **Gouffre Royal** (Ch II — Era Glaciaire, cf. DESIGN_FREEZE §14/§15).
 
 ### Description
 
-A tragic and corrupted figure whose fall becomes central to later timelines.
+A tragic, noble figure — the legitimate exiled brother whose fate is intertwined with Noah's.
 
 ### Related Effect Set
 
@@ -503,11 +508,20 @@ Seigneur de la Pluie Corrompu
 FUTURE CONTENT — hors MVP (D-A02)
 ```
 
+### Identity (D-A04)
+
+```txt
+C'est NOAH après sa transformation en Commandant
+Personnage DISTINCT du Seigneur de la Pluie Déchu (CHR-007), bien qu'ils soient jumeaux
+```
+
 ### Description
 
-A later manifestation of Noah's tragic destiny.
-The MVP boss is the Seigneur de la Pluie Déchu (CHR-007) ; the Corrompu is a future evolution,
-preserved in the lore but not produced for the MVP.
+The Corrompu is **Noah after his transformation into a Commander**. He and the Déchu (CHR-007)
+are twin brothers, so Noah's **initial** appearance stays close to the Déchu — but his
+**Commander form uses an entirely different model** (D-A04). The MVP boss is the Déchu
+(CHR-007) ; the Corrompu is a future evolution, preserved in the lore but **not produced for
+the MVP**.
 
 ### Future Importance
 
@@ -560,15 +574,15 @@ These characters possess multiple versions across eras.
 ## Noah
 
 ```txt
-Era Funèbre
-Boss
-
 Era Glaciaire
-Commander
+Commander  (Seigneur de la Pluie Corrompu, CHR-011)
 
 Era du Déluge
 Main NPC
 ```
+
+> Le Seigneur de la Pluie Déchu (CHR-007) est un **personnage distinct** — le frère jumeau
+> légitime exilé de Noah, **pas** une variante de Noah (D-A04).
 
 ---
 

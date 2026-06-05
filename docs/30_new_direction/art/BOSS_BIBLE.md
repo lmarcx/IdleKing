@@ -329,10 +329,11 @@ Comme s'il n'avait jamais existé.
 # SEIGNEUR DE LA PLUIE DÉCHU
 
 > ✅ BOSS MVP CANON (D-A02). Boss du Gouffre Royal (Ch II — cf. DESIGN_FREEZE §14/§15).
+> Personnage **DISTINCT** du Corrompu (D-A04) : frère légitime exilé et **jumeau de Noah**.
 
 ## Concept
 
-Vestige d'un futur Commandant.
+Le frère légitime exilé.
 
 Puissance divine brisée.
 
@@ -376,7 +377,8 @@ Le silence revient.
 
 # SEIGNEUR DE LA PLUIE CORROMPU
 
-> ⚠️ FUTURE CONTENT — HORS MVP (D-A02). Évolution future du Seigneur de la Pluie Déchu.
+> ⚠️ FUTURE CONTENT — HORS MVP (D-A02 / D-A04). C'est **Noah** après sa transformation en
+> Commandant — personnage **DISTINCT** du Seigneur de la Pluie Déchu (son frère jumeau).
 > Conservé dans le lore, **non produit au MVP**.
 
 ## Concept
@@ -393,7 +395,10 @@ Catastrophe Naturelle
 
 ## Apparence
 
-Version amplifiée du Seigneur Déchu.
+Personnage distinct du Seigneur de la Pluie Déchu (D-A04).
+
+Noah et le Déchu sont frères jumeaux : la forme **initiale** de Noah reste proche du Déchu.
+Mais sa **forme Commandant utilise un modèle entièrement différent**.
 
 Plus imposant.
 

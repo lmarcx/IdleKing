@@ -385,7 +385,7 @@ Story            = linéaire (chapitres → donjons → boss → unlocks)
 |---|---|---|---|
 | **Amalgame des Ténèbres** | Story | Prologue / Terres Désolées | 1 |
 | **Ombre du Dragon** | Story | Ch I / Pic des Cendres (climax Ch I) | 2 |
-| **Amalgame du Givre** | Story Mid | Ch II / Caverne aux Reflets | 1 |
+| **Amalgame du Givre** | Story Mid | Ch II / Caverne aux Chants | 1 |
 | **Archimage Corrompu** | Mid | Ch II / Académie d'Arathas | 2 |
 | **Seigneur de la Pluie Déchu** | Mid | **Ch II / Gouffre Royal** *(nouvelle place)* | 1–2 |
 | **Allaeva, Reine de Glace** | Story | Ch II / Source du Givre (climax Ch II) | **2** |

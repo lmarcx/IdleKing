@@ -100,9 +100,14 @@ Le **Kaléidoscope** est un **Special World Item** (≠ Equipment / Artifact / S
 ### 1.5 Billy = Grand Loup (D-A01)
 Billy est un **Grand Loup**, compagnon du Roi, loyauté incarnée, apparence noble après purification. Toute référence à Billy comme « simple chien » est **legacy/obsolète**.
 
-### 1.6 Seigneur de la Pluie : MVP = Déchu (D-A02)
-**MVP = Seigneur de la Pluie *Déchu*** (boss du Gouffre Royal). Le **Corrompu** existe dans le lore mais est **future content, hors MVP**.
-> Résiduel : l'ère d'origine du Déchu (Funèbre dans `CHARACTER_DATABASE` vs Glaciaire/Gouffre Royal du combat MVP dans `DESIGN_FREEZE §14`) reste à arbitrer — cf. §9.
+### 1.6 Seigneur de la Pluie : Déchu (MVP) ≠ Corrompu (futur) — deux personnages (D-A02 / D-A04)
+**Le Déchu et le Corrompu sont deux personnages distincts** (D-A04) :
+- **Déchu** = frère légitime exilé, **jumeau** de Noah → **BOSS MVP CANON** (Gouffre Royal, Ch II — `DESIGN_FREEZE §14`).
+- **Corrompu** = **Noah** après transformation en Commandant → **future content, hors MVP**. Forme Commandant = **modèle entièrement différent** (jumeaux ⇒ apparence initiale proche seulement).
+
+### 1.7 Toponymes canoniques (D-A05 / D-A06)
+- **Caverne aux Chants** = donjon de l'Amalgame du Givre (Ch II). Remplace toute variante (« Caverne aux Reflets »).
+- **Source du Givre** = climax d'Allaeva (Ch II). « Eye of the Storm / Œil de la Tempête » = **réservé à un futur contenu**, plus un synonyme.
 
 ---
 
@@ -317,10 +322,11 @@ ART :  ART_BIBLE ──► CHARACTER/BOSS/ENVIRONMENT/UI_BIBLE ──► ASSET_P
 - ✅ « Fusion » retirée de l'UI Forge (`art/UI_BIBLE`), conforme Freeze §9.
 - ✅ Portraits unifiés à **1024×1024** (master de production).
 - ✅ Livrables P0 (Freeze §20) présents : `RESOURCES_DATABASE.md` + `RINGS_SKILLS_MAP.md` (réf. `RECIPES_DATABASE` → `RESOURCES_DATABASE` OK).
+- ✅ **D-A04** : Déchu (frère exilé, MVP boss) ≠ Corrompu (Noah Commandant, futur) = personnages distincts. Flags de contradiction levés (`CHARACTER_DATABASE`, `art/BOSS_BIBLE`).
+- ✅ **D-A05** : « Caverne aux Chants » canonique partout (Freeze, DUNGEON, QUEST, ENEMIES_V2, UI_PROPOSAL).
+- ✅ **D-A06** : « Source du Givre » canonique (Ch II) ; « Eye of the Storm » réservé futur (`STORY_CHAPTERS` aligné).
 
 **Restant (arbitrage humain / passe ultérieure) :**
-- ⚠️ **Ère du Seigneur de la Pluie Déchu** : `CHARACTER_DATABASE` (origine Funèbre) vs `DESIGN_FREEZE §14` (combat au Gouffre Royal, Ch II/Glaciaire). À trancher.
-- ⚠️ **Toponymes** : « Caverne aux Reflets » (Freeze/UI_PROPOSAL) vs « Caverne aux Chants / Singing Cavern » (STORY/ENVIRONMENT) ; « Source du Givre » (Freeze) vs « Eye of the Storm » (STORY). Canon non évident → arbitrage.
 - ⚠️ **Variantes de noms** : Archimage (d'Arathas / Corrompu) ; Allaeva (Reine de Glace) ; Amalgame du Givre absent de `CHARACTER_DATABASE`.
 - ⚠️ **Lore dupliqué** `STORY_CHAPTERS` ↔ `SCRIPTS` — risque de divergence.
 

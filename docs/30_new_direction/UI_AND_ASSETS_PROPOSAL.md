@@ -190,7 +190,7 @@ Existant : beaucoup de **placeholders SVG** (resources, equipment-slots, story-z
 |---|---|
 | **Bâtiments Kingdom** | upgrade des PNG + états (locked/built/maxed) + **Time Gate** (manquant) + Market/Bank/Forge détaillés |
 | **Portraits NPC** | Tobo (skin cosmic), Billy, Erix, Gugus, Chevalier, Aemon, Archimage, Noah, Allaeva |
-| **Backgrounds d'Ère** | Funèbre : Terres Désolées, Mausolée, Pic des Cendres · Glaciaire : Caverne aux Reflets, Académie d'Arathas, Gouffre Royal, Source du Givre |
+| **Backgrounds d'Ère** | Funèbre : Terres Désolées, Mausolée, Pic des Cendres · Glaciaire : Caverne aux Chants, Académie d'Arathas, Gouffre Royal, Source du Givre |
 | **Skin onirique Time Gate** | cadre + transition d'Ère (couche cyan/violet) |
 | **Assets mini-jeux** | Mine (sol/roche/minerai/ennemi/passage), Farm (fruits + bombes + doré), Kitchen (patterns + ingrédients) |
 

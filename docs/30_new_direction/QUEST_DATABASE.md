@@ -423,7 +423,7 @@ Search for Billy.
 
 ### Location
 
-* Caverne aux Reflets
+* Caverne aux Chants
 
 ### Narrative Beats
 
@@ -446,7 +446,7 @@ Save Billy.
 
 ### Location
 
-* Caverne aux Reflets
+* Caverne aux Chants
 
 ### Narrative Beats
 

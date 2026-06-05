@@ -419,7 +419,7 @@ Key locations:
 - Ancient Forge
 - Royal Abyss
 - Arathas Academy
-- Eye of the Storm
+- Source du Givre
 
 Characters:
 
@@ -447,7 +447,7 @@ Narrative beats:
 - Aquatic horrors
 - Arathas Academy
 - Battle with Archmage
-- Progression to Eye of the Storm
+- Progression to Source du Givre
 - Confrontation:
   Allaeva + Noah vs player
 - Tobo intervention
