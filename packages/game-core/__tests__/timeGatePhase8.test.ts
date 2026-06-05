@@ -22,6 +22,7 @@ import {
 import { completeDungeon } from "../story/progressionMvp.js";
 import { getResourceDefinition } from "../resources/index.js";
 import { EQUIPMENT_SETS } from "../equipment/index.js";
+import { EFFECT_SET_REGISTRY } from "../effectSets/index.js";
 import { EQUIPMENT_SLOTS } from "../items/types.js";
 import { SKILL_REGISTRY } from "../skills/index.js";
 import { getBuildingDef } from "../world/buildings.js";
@@ -201,6 +202,7 @@ test("Fragment du Temps and Kaleidoscope are absent from resources, equipment, a
   assert.equal("fragment_du_temps" in SKILL_REGISTRY, false);
   assert.equal("kaleidoscope" in SKILL_REGISTRY, false);
   assert.equal(EQUIPMENT_SETS.some((set) => String(set.id) === "kaleidoscope" || String(set.id) === "fragment_du_temps"), false);
+  assert.equal(EFFECT_SET_REGISTRY.some((set) => String(set.id) === "kaleidoscope" || String(set.id) === "fragment_du_temps"), false);
 });
 
 test("Era registry has unique ids and no active modes outside MVP", () => {

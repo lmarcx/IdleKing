@@ -1,6 +1,7 @@
 import type { GameState } from "../game/state.js";
 import { grantRewardBundle, type RewardBundle } from "../rewards/index.js";
 import { grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
+import { applyNarrativeEffectSetUnlock } from "../effectSets/index.js";
 import type { StoryState } from "./state.js";
 
 export type MvpStoryChapterId = "prologue" | "chapter_i_funebre" | "chapter_ii_glaciaire";
@@ -447,6 +448,10 @@ export function completeDungeon(
 
   if (shouldFirstClear && boss) {
     rewarded = applyBossFirstClearSpecialRewards(rewarded, boss.id);
+    rewarded = applyNarrativeEffectSetUnlock(rewarded, boss.id);
+  }
+  if (shouldFirstClear) {
+    rewarded = applyNarrativeEffectSetUnlock(rewarded, dungeon.id);
   }
 
   nextStory.completedDungeonIds.add(dungeon.id);

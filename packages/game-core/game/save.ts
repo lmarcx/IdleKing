@@ -10,6 +10,7 @@ import { normalizeAllBuildingProgress } from "../building/progression.js";
 import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
 import { normalizeBankState } from "../bank/index.js";
 import { normalizeSpecialItemsState } from "../specialItems/index.js";
+import { normalizeEffectSetsState } from "../effectSets/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 2;
@@ -97,6 +98,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     world: normalizeWorldResourcesState(rawState.world, progression.worldLevel, nowMs),
     miniGames: normalizeMiniGameRuntimeState(rawState.miniGames),
     specialItems: normalizeSpecialItemsState((rawState as any).specialItems),
+    effectSets: normalizeEffectSetsState((rawState as any).effectSets),
     buildings,
     story: {
       ...defaults.story,

@@ -11,6 +11,7 @@ import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../comba
 import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
 import { createDefaultMiniGameRuntimeState, type MiniGameRuntimeState } from "../minigames/index.js";
 import { createDefaultSpecialItemsState, type SpecialItemsState } from "../specialItems/index.js";
+import { createDefaultEffectSetsState, type EffectSetsState } from "../effectSets/index.js";
 
 export type Villager = {
   id: string;
@@ -33,6 +34,7 @@ export type GameState = {
   world: GameWorldResourcesState;
   miniGames: MiniGameRuntimeState;
   specialItems: SpecialItemsState;
+  effectSets: EffectSetsState;
 
   buildings: {
     forum: CanonicalBuildingState;
@@ -105,6 +107,7 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     world: createDefaultWorldResourcesState(1, nowMs),
     miniGames: createDefaultMiniGameRuntimeState(),
     specialItems: createDefaultSpecialItemsState(),
+    effectSets: createDefaultEffectSetsState(),
     buildings: {
       forum: { ...lockedBuilding },
       temple: { ...lockedBuilding, assignedVillagers: 0 },

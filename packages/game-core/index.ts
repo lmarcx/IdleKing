@@ -18,6 +18,7 @@ export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export * as resonance from "./resonance/index.js";
+export * as effectSets from "./effectSets/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
@@ -495,6 +496,40 @@ export type {
   ResolvedEquipmentStats,
   UnequipItemResult,
 } from "./equipment/index.js";
+export {
+  EFFECT_SET_BALANCING_PLACEHOLDERS,
+  EFFECT_SET_IDS,
+  EFFECT_SET_REGISTRY,
+  applyNarrativeEffectSetUnlock,
+  calculateEffectSetModifiers,
+  canSlotEffectSet,
+  createDefaultEffectSetsState,
+  getEffectSetDefinition,
+  getUnlockedEffectSets,
+  hasUnlockedEffectSet,
+  isEffectSetId,
+  normalizeEffectSetsState,
+  slotEffectSet,
+  unlockEffectSet,
+  unslotEffectSet,
+  validateEffectSetRegistry,
+} from "./effectSets/index.js";
+export type {
+  EffectSetDefinition,
+  EffectSetId,
+  EffectSetModifiers,
+  EffectSetResonanceContext,
+  EffectSetSource,
+  EffectSetStatModifiers,
+  EffectSetStatusId,
+  EffectSetStatusModifiers,
+  EffectSetTheme,
+  EffectSetTierDefinition,
+  EffectSetsState,
+  SimpleEffect,
+  SlotEffectSetResult,
+  SlottedEffectSet,
+} from "./effectSets/index.js";
 export {
   calculateEffectSlotCount,
   calculateResonanceFromEquipment,

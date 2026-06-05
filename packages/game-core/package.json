@@ -13,6 +13,7 @@
     "./character": "./dist/character/index.js",
     "./equipment": "./dist/equipment/index.js",
     "./resonance": "./dist/resonance/index.js",
+    "./effectSets": "./dist/effectSets/index.js",
     "./random": "./dist/random/index.js",
     "./registry": "./dist/registry/index.js",
     "./skills": "./dist/skills/index.js",
