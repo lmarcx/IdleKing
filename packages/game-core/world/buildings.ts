@@ -35,6 +35,15 @@ export const BUILDINGS: BuildingDefinition[] = [
     bonus: { elemental: { FIRE: 12, ICE: 12, LIGHTNING: 12, VOID: 12 } },
   },
   {
+    id: "TIME_GATE",
+    name: "Time Gate",
+    description: "Batiment canonique de transition d'eres et d'acces futur aux modes du monde.",
+    role: "era_unlock",
+    actions: ["world_modes", "open_modal"],
+    minWorldLevel: 1,
+    flags: ["ERA_UNLOCK", "WORLD_MODES"],
+  },
+  {
     id: "WELL",
     name: "Puits",
     description: "Production d'eau (online).",

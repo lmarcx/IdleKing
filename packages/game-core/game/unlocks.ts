@@ -30,6 +30,7 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
       kitchen: { ...state.buildings.kitchen },
       forge: { ...state.buildings.forge },
       market: { ...state.buildings.market },
+      timeGate: { ...state.buildings.timeGate },
       worldGate: { ...state.buildings.worldGate },
       bank: { ...state.buildings.bank },
     },

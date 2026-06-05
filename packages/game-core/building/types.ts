@@ -8,6 +8,7 @@ export type BuildingId =
   | "KITCHEN"
   | "FORGE"
   | "MARKET"
+  | "TIME_GATE"
   | "WORLD_GATE"
   | "BANK"
   | "CORNUCOPIA"
@@ -21,8 +22,8 @@ export type CanonicalBuildingId =
   | "KITCHEN"
   | "TEMPLE"
   | "MARKET"
+  | "TIME_GATE"
   | "FORUM"
-  | "WORLD_GATE"
   | "BANK";
 
 export type BuildingStatus =

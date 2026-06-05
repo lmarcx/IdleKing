@@ -20,6 +20,7 @@ export * as equipment from "./equipment/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
+export * as specialItems from "./specialItems/index.js";
 export {
   canSpendCurrency,
   CURRENCIES,
@@ -549,6 +550,7 @@ export {
   canEnterDungeon,
   completeDungeon,
   completeStoryEvent,
+  applyBossFirstClearSpecialRewards,
   getAvailableChapters,
   getAvailableDungeons,
   applyFirstClearRewards,
@@ -561,6 +563,29 @@ export {
   STORY_DUNGEON_REGISTRY,
   validateStoryProgressionRegistry,
 } from "./story/progressionMvp.js";
+export {
+  DEFAULT_UNLOCKED_ERAS,
+  ERA_REGISTRY,
+  canUnlockEraAtTimeGate,
+  createDefaultSpecialItemsState,
+  getEraDefinition,
+  grantFragmentDuTemps,
+  grantKaleidoscope,
+  hasKaleidoscope,
+  isEraPlayable,
+  isEraUnlocked,
+  normalizeSpecialItemsState,
+  spendFragmentDuTemps,
+  unlockEraAtTimeGate,
+  validateSpecialItemsAndEraRegistry,
+} from "./specialItems/index.js";
+export type {
+  EraDefinition,
+  EraId,
+  SpecialItemsState,
+  SpendFragmentDuTempsResult,
+  UnlockEraAtTimeGateResult,
+} from "./specialItems/index.js";
 export type { StoryState } from "./story/state.js";
 export type {
   DungeonCompletionResult,

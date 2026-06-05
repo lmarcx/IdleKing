@@ -24,8 +24,8 @@ export const CANONICAL_BUILDING_IDS = [
   "KITCHEN",
   "TEMPLE",
   "MARKET",
+  "TIME_GATE",
   "FORUM",
-  "WORLD_GATE",
   "BANK",
 ] as const satisfies readonly CanonicalBuildingId[];
 
@@ -36,6 +36,7 @@ type BuildingStateKey =
   | "kitchen"
   | "temple"
   | "market"
+  | "timeGate"
   | "forum"
   | "worldGate"
   | "bank";
@@ -49,7 +50,7 @@ const BUILDING_STATE_KEYS: Record<CanonicalBuildingId, BuildingStateKey> = {
   MARKET: "market",
   MINE: "mine",
   TEMPLE: "temple",
-  WORLD_GATE: "worldGate",
+  TIME_GATE: "timeGate",
 };
 
 export function isCanonicalBuildingId(buildingId: BuildingId): buildingId is CanonicalBuildingId {
@@ -130,6 +131,7 @@ export function normalizeAllBuildingProgress(
     market: normalizeBuildingProgress((buildings as any).market, defaults.market, worldLevel),
     mine: normalizeBuildingProgress((buildings as any).mine, defaults.mine, worldLevel),
     temple: normalizeBuildingProgress((buildings as any).temple, defaults.temple, worldLevel),
+    timeGate: normalizeBuildingProgress((buildings as any).timeGate ?? (buildings as any).worldGate, defaults.timeGate, worldLevel),
     worldGate: normalizeBuildingProgress((buildings as any).worldGate, defaults.worldGate, worldLevel),
     cornucopia: { ...defaults.cornucopia, ...(buildings as any).cornucopia },
   };

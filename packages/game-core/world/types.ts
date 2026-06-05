@@ -7,6 +7,7 @@ export type BuildingId =
   | "BARRACKS"
   | "FORGE"
   | "ARCANE_TOWER"
+  | "TIME_GATE"
   | "WELL"
   | "HUNTERS_LODGE"
   | "STONEQUARRY"
@@ -29,6 +30,8 @@ export type BuildingDefinition = {
   id: BuildingId;
   name: string;
   description: string;
+  role?: "era_unlock" | "world_modes" | (string & {});
+  actions?: readonly ("world_modes" | "open_modal" | (string & {}))[];
 
   // Content gating
   minWorldLevel?: number;

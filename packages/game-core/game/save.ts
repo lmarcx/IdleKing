@@ -9,6 +9,7 @@ import { normalizeWorldResourcesState } from "../world/worldResources.js";
 import { normalizeAllBuildingProgress } from "../building/progression.js";
 import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
 import { normalizeBankState } from "../bank/index.js";
+import { normalizeSpecialItemsState } from "../specialItems/index.js";
 
 const SAVE_KEY = "idle_king_save_v1";
 const SCHEMA_VERSION = 2;
@@ -75,6 +76,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
       kitchen: { ...defaults.buildings.kitchen, ...(rawBuildings as any).kitchen },
       forge: { ...defaults.buildings.forge, ...(rawBuildings as any).forge },
       market: { ...defaults.buildings.market, ...(rawBuildings as any).market },
+      timeGate: { ...defaults.buildings.timeGate, ...((rawBuildings as any).timeGate ?? (rawBuildings as any).worldGate) },
       worldGate: { ...defaults.buildings.worldGate, ...(rawBuildings as any).worldGate },
       bank: { ...defaults.buildings.bank, ...(rawBuildings as any).bank },
       cornucopia: { ...defaults.buildings.cornucopia, ...(rawBuildings as any).cornucopia },
@@ -94,6 +96,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     wallet: normalizeWalletState(rawState.wallet),
     world: normalizeWorldResourcesState(rawState.world, progression.worldLevel, nowMs),
     miniGames: normalizeMiniGameRuntimeState(rawState.miniGames),
+    specialItems: normalizeSpecialItemsState((rawState as any).specialItems),
     buildings,
     story: {
       ...defaults.story,

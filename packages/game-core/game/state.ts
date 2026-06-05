@@ -10,6 +10,7 @@ import { createDefaultWorldResourcesState, type GameWorldResourcesState } from "
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
 import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
 import { createDefaultMiniGameRuntimeState, type MiniGameRuntimeState } from "../minigames/index.js";
+import { createDefaultSpecialItemsState, type SpecialItemsState } from "../specialItems/index.js";
 
 export type Villager = {
   id: string;
@@ -31,6 +32,7 @@ export type GameState = {
   wallet: WalletState;
   world: GameWorldResourcesState;
   miniGames: MiniGameRuntimeState;
+  specialItems: SpecialItemsState;
 
   buildings: {
     forum: CanonicalBuildingState;
@@ -41,6 +43,7 @@ export type GameState = {
     forge: CanonicalBuildingState;
     market: CanonicalBuildingState;
     worldGate: CanonicalBuildingState;
+    timeGate: CanonicalBuildingState;
     bank: CanonicalBuildingState;
 
     // Corne d'Abondance: toujours disponible dès le départ
@@ -101,6 +104,7 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     wallet: createDefaultWalletState(),
     world: createDefaultWorldResourcesState(1, nowMs),
     miniGames: createDefaultMiniGameRuntimeState(),
+    specialItems: createDefaultSpecialItemsState(),
     buildings: {
       forum: { ...lockedBuilding },
       temple: { ...lockedBuilding, assignedVillagers: 0 },
@@ -110,6 +114,7 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
       forge: { ...lockedBuilding },
       market: { ...unlockedBuilding },
       worldGate: { ...unlockedBuilding },
+      timeGate: { ...unlockedBuilding },
       bank: { ...unlockedBuilding },
 
       // Toujours accessible (pas de build/unlock/activate requis)

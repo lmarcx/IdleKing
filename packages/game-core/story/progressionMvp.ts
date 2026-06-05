@@ -1,5 +1,6 @@
 import type { GameState } from "../game/state.js";
 import { grantRewardBundle, type RewardBundle } from "../rewards/index.js";
+import { grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
 import type { StoryState } from "./state.js";
 
 export type MvpStoryChapterId = "prologue" | "chapter_i_funebre" | "chapter_ii_glaciaire";
@@ -63,6 +64,12 @@ export type DungeonCompletionResult =
 export type CompleteDungeonOptions = Readonly<{
   forceReplay?: boolean;
 }>;
+
+const BOSS_FIRST_CLEAR_SPECIAL_REWARDS: Readonly<Record<string, Readonly<{ kaleidoscope?: true; fragmentDuTemps?: number }>>> = {
+  dark_amalgam: { kaleidoscope: true },
+  dragon_shadow: { fragmentDuTemps: 1 },
+  allaeva: { fragmentDuTemps: 1 },
+};
 
 const firstClear = (dungeonId: string) => `first_clear:${dungeonId}`;
 const completedDungeon = (dungeonId: string) => `dungeon:${dungeonId}:completed`;
@@ -411,6 +418,16 @@ export function applyReplayRewards(state: GameState, dungeonId: string): GameSta
   return grantRewardBundle(state, dungeon.replayRewards);
 }
 
+export function applyBossFirstClearSpecialRewards(state: GameState, bossId: string): GameState {
+  const rewards = BOSS_FIRST_CLEAR_SPECIAL_REWARDS[bossId];
+  if (!rewards) return state;
+
+  let next = state;
+  if (rewards.kaleidoscope) next = grantKaleidoscope(next);
+  if (rewards.fragmentDuTemps) next = grantFragmentDuTemps(next, rewards.fragmentDuTemps);
+  return next;
+}
+
 export function completeDungeon(
   state: GameState,
   dungeonId: string,
@@ -424,9 +441,13 @@ export function completeDungeon(
 
   const firstClearFlag = firstClear(dungeonId);
   const shouldFirstClear = options.forceReplay !== true && !state.story.firstClearFlags.has(firstClearFlag);
-  const rewarded = shouldFirstClear ? applyFirstClearRewards(state, dungeonId) : applyReplayRewards(state, dungeonId);
+  let rewarded = shouldFirstClear ? applyFirstClearRewards(state, dungeonId) : applyReplayRewards(state, dungeonId);
   const nextStory = cloneStoryWithDungeonProgress(rewarded.story);
   const boss = dungeon.bossId ? getStoryBossDefinition(dungeon.bossId) : undefined;
+
+  if (shouldFirstClear && boss) {
+    rewarded = applyBossFirstClearSpecialRewards(rewarded, boss.id);
+  }
 
   nextStory.completedDungeonIds.add(dungeon.id);
   nextStory.completedEvents.add(completedDungeon(dungeon.id));
