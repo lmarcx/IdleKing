@@ -87,6 +87,8 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     story: {
       completedChapters: new Set(),
       completedLevels: new Set(),
+      completedDungeonIds: new Set(),
+      firstClearFlags: new Set(),
       discoveredEvents: new Set(),
       completedEvents: new Set(),
       unlocked: new Set(),

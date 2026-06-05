@@ -99,9 +99,11 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
       ...defaults.story,
       ...(rawState.story ?? {}),
       completedChapters: toSet(rawState.story?.completedChapters),
+      completedDungeonIds: toSet((rawState.story as any)?.completedDungeonIds),
       completedEvents: toSet(rawState.story?.completedEvents),
       completedLevels: toSet(rawState.story?.completedLevels),
       discoveredEvents: toSet(rawState.story?.discoveredEvents),
+      firstClearFlags: toSet((rawState.story as any)?.firstClearFlags),
       unlocked: toSet(rawState.story?.unlocked),
     },
   };

@@ -545,5 +545,31 @@ export {
   getStoryLevelDef,
   getVisibleStoryChaptersWithLevels,
 } from "./story/levels.js";
+export {
+  canEnterDungeon,
+  completeDungeon,
+  completeStoryEvent,
+  getAvailableChapters,
+  getAvailableDungeons,
+  applyFirstClearRewards,
+  applyReplayRewards,
+  getStoryBossDefinition,
+  getStoryChapterDefinition,
+  getStoryDungeonDefinition,
+  STORY_BOSS_REGISTRY,
+  STORY_CHAPTER_REGISTRY,
+  STORY_DUNGEON_REGISTRY,
+  validateStoryProgressionRegistry,
+} from "./story/progressionMvp.js";
 export type { StoryState } from "./story/state.js";
+export type {
+  DungeonCompletionResult,
+  CompleteDungeonOptions,
+  MvpStoryChapterId,
+  MvpStoryEra,
+  StoryBossDefinition,
+  StoryChapterDefinition,
+  StoryDungeonDefinition,
+  StoryUnlockConditions,
+} from "./story/progressionMvp.js";
 export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";
