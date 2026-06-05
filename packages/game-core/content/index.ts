@@ -3,12 +3,29 @@ import {
   FORGE_OUTPUT_BASES,
   type ForgeRecipe,
 } from "../building/forge/recipes.js";
-import { FORGE_CRAFT_RARITIES } from "../building/forge/rules.js";
+import { craftEquipmentFromRecipe } from "../building/forge/craft.js";
+import {
+  FORGE_CRAFT_RARITIES,
+  getForgeUpgradeMaxLevel,
+} from "../building/forge/rules.js";
+import { forgeRecycleEquipment } from "../building/forge/recycle.js";
+import { forgeUpgradeEquipment } from "../building/forge/upgrade.js";
 import { CANONICAL_BUILDING_IDS } from "../building/progression.js";
-import { CURRENCIES, isCurrencyId } from "../currencies/index.js";
+import { CURRENCIES, createDefaultWalletState, grantCurrency, isCurrencyId } from "../currencies/index.js";
+import {
+  applyDamageToPlayer,
+  applyDashCost,
+  applySprintCost,
+  createCombatRuntimeState,
+  handlePlayerDeathAtCheckpoint,
+  regenerateResources,
+  spendMana,
+  spendStamina,
+} from "../combat/runtime/index.js";
 import {
   EQUIPMENT_SETS,
   RINGS_SKILLS_MAP,
+  generateEquipmentItem,
   validateRingsSkillsMap,
 } from "../equipment/index.js";
 import {
@@ -18,6 +35,7 @@ import {
   type EffectSetDefinition,
 } from "../effectSets/index.js";
 import { createInitialGameState } from "../game/state.js";
+import { forumRankUpWorld } from "../game/forumActions.js";
 import { ITEM_RARITIES } from "../items/index.js";
 import {
   BOSS_EQUIPMENT_RARITY_WEIGHTS,
@@ -27,11 +45,16 @@ import {
 import { getCurrencyBalance } from "../currencies/index.js";
 import {
   RESOURCE_DEFINITIONS,
+  addResourceToStock,
+  canSpendResources,
+  spendResources,
   type ResourceDefinition,
 } from "../resources/index.js";
 import {
   DEFAULT_UNLOCKED_ERAS,
   ERA_REGISTRY,
+  isEraPlayable,
+  unlockEraAtTimeGate,
   validateSpecialItemsAndEraRegistry,
   type EraDefinition,
 } from "../specialItems/index.js";
@@ -47,6 +70,14 @@ import {
 } from "../story/progressionMvp.js";
 import { getCanonicalResourceQuantity } from "../resources/index.js";
 import { PLAYER_LEVEL_SKILL_POINTS_GAIN_DISABLED } from "../game/playerXpActions.js";
+import { createSeededRng } from "../random/index.js";
+import { wxpNext } from "../progression/worldXp.js";
+import {
+  applyWorldResourceRegenForElapsed,
+  createDefaultWorldResourcesState,
+  maxWorldEnergy,
+  worldEnergyRegenPerMinute,
+} from "../world/worldResources.js";
 
 export const MVP_BOSS_ROSTER = [
   "dark_amalgam",
@@ -147,6 +178,19 @@ export function assertValidMvpContentGraph(input: MvpContentGraphValidationInput
   const result = validateMvpContentGraph(input);
   if (!result.ok) {
     throw new Error(`Invalid MVP content graph:\n${result.errors.join("\n")}`);
+  }
+}
+
+export function assertMvpNoSoftLockGuards(): void {
+  const errors: string[] = [];
+
+  runValidation(errors, validateCombatResourceGuards);
+  runValidation(errors, validateWorldResourceGuards);
+  runValidation(errors, validateEconomySoftLockGuards);
+  runValidation(errors, validateStoryTimeGateSoftLockGuards);
+
+  if (errors.length > 0) {
+    throw new Error(`Invalid MVP no-soft-lock guards:\n${errors.join("\n")}`);
   }
 }
 
@@ -487,6 +531,180 @@ function validateStoryFirstClearAndSpecialRewards(errors: string[]): void {
   if (deluge?.playable) errors.push("Era Deluge must not become playable during content pass");
 }
 
+function validateCombatResourceGuards(): void {
+  const runtime = createCombatRuntimeState({
+    player: {
+      hpMax: 100,
+      hpCurrent: 250,
+      manaMax: 50,
+      manaCurrent: 0,
+      staminaMax: 50,
+      staminaCurrent: 0,
+      manaRegenPerSecond: 5,
+      staminaRegenPerSecond: 10,
+      attack: 10,
+    },
+    enemy: { hpMax: 100 },
+  });
+  if (runtime.player.hpCurrent !== runtime.player.hpMax) throw new Error("Combat HP must clamp to max");
+
+  const regenerated = regenerateResources(runtime, 1);
+  if (regenerated.player.manaCurrent <= 0) throw new Error("Mana regen must restore above 0");
+  if (regenerated.player.staminaCurrent <= 0) throw new Error("Stamina regen must restore above 0");
+
+  const dashBlocked = applyDashCost(runtime);
+  if (dashBlocked.ok || dashBlocked.reason !== "NOT_ENOUGH_STAMINA") {
+    throw new Error("Dash must fail cleanly when Stamina is insufficient");
+  }
+
+  const sprinted = applySprintCost({ ...runtime, player: { ...runtime.player, staminaCurrent: 1 } }, 999);
+  if (sprinted.player.staminaCurrent < 0) throw new Error("Sprint must not make Stamina negative");
+
+  const dead = applyDamageToPlayer(spendMana(spendStamina(regenerated, 999), 999), 999);
+  if (dead.player.hpCurrent !== 0 || !dead.player.respawnRequired) {
+    throw new Error("Player death must clamp HP to 0 and require respawn");
+  }
+  const respawned = handlePlayerDeathAtCheckpoint(dead);
+  if (respawned.player.hpCurrent <= 0 || respawned.player.manaCurrent <= 0 || respawned.player.staminaCurrent <= 0) {
+    throw new Error("Checkpoint respawn must restore HP/Mana/Stamina");
+  }
+}
+
+function validateWorldResourceGuards(): void {
+  const world = createDefaultWorldResourcesState(1, 1_000);
+  if (maxWorldEnergy(1) <= 0) throw new Error("World Energy max must be positive");
+  if (worldEnergyRegenPerMinute(1) < 0) throw new Error("World Energy regen must be non-negative");
+
+  const regened = applyWorldResourceRegenForElapsed(
+    { ...world, energy: { ...world.energy, current: 0 }, hp: { ...world.hp, current: 0 } },
+    1,
+    10 * 60_000,
+  );
+  if (regened.energy.current <= 0) throw new Error("World Energy regen must restore above 0");
+  if (regened.energy.current > regened.energy.max) throw new Error("World Energy must clamp to max");
+
+  const forumState = {
+    ...createInitialGameState(),
+    progression: { ...createInitialGameState().progression, worldWxp: wxpNext(1) },
+    buildings: {
+      ...createInitialGameState().buildings,
+      forum: {
+        ...createInitialGameState().buildings.forum,
+        unlocked: true,
+        built: true,
+        active: true,
+        status: "built" as const,
+        level: 1,
+      },
+    },
+    world: { ...world, energy: { ...world.energy, current: 0 } },
+  };
+  const ranked = forumRankUpWorld(forumState);
+  if (!ranked.rankedUp || ranked.next.world.energy.current <= 0) {
+    throw new Error("Forum World level-up must keep a World Energy refill path");
+  }
+}
+
+function validateEconomySoftLockGuards(): void {
+  const stock = addResourceToStock({}, "iron_ore", 10_000);
+  if (getCanonicalResourceQuantity(stock, "iron_ore") !== 999) {
+    throw new Error("Resource stock must clamp to 999");
+  }
+  if (canSpendResources({}, { iron_ore: 1 })) {
+    throw new Error("Resource spending must detect insufficiency");
+  }
+  try {
+    spendResources({}, { iron_ore: 1 });
+    throw new Error("spendResources should have thrown");
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("Not enough")) throw error;
+  }
+
+  const craft = craftEquipmentFromRecipe({
+    recipeId: "weapon_sword",
+    resourceStock: {},
+    forgeLevel: 1,
+    itemLevel: 1,
+    rng: createSeededRng(12_012),
+  });
+  if (craft.ok || craft.reason !== "NOT_ENOUGH_RESOURCES") {
+    throw new Error("Forge craft must fail cleanly when resources are insufficient");
+  }
+
+  const cappedItem = generateEquipmentItem({
+    id: "capped-common",
+    itemLevel: 1,
+    rarity: "COMMON",
+    seed: "capped-common",
+    slot: "main_hand",
+  });
+  const upgrade = forgeUpgradeEquipment({
+    item: { ...cappedItem, upgradeLevel: getForgeUpgradeMaxLevel("COMMON") },
+    resourceStock: stock,
+    wallet: grantCurrency(createDefaultWalletState(), "ECU", 999),
+  });
+  if (upgrade.ok || upgrade.reason !== "MAX_UPGRADE_LEVEL") {
+    throw new Error("Forge upgrade must fail cleanly at cap");
+  }
+
+  const recycled = forgeRecycleEquipment({
+    item: cappedItem,
+    inventory: { items: [cappedItem] },
+    wallet: createDefaultWalletState(),
+    rng: { nextFloat: () => 1 },
+  });
+  if (!recycled.ok || recycled.recipeMaterials.length !== 0 || recycled.itemDestroyed !== true) {
+    throw new Error("Forge recycle must destroy item and never return recipe materials");
+  }
+}
+
+function validateStoryTimeGateSoftLockGuards(): void {
+  let state = createInitialGameState();
+  state = {
+    ...state,
+    buildings: {
+      ...state.buildings,
+      timeGate: {
+        ...state.buildings.timeGate,
+        active: true,
+        built: true,
+        level: 1,
+        status: "built",
+        unlocked: true,
+      },
+    },
+  };
+  const prologue = completeDungeon(state, "prologue_wastelands");
+  if (!prologue.ok || !prologue.next.specialItems.kaleidoscopeOwned) {
+    throw new Error("dark_amalgam first clear must grant Kaleidoscope");
+  }
+  const replay = completeDungeon(prologue.next, "prologue_wastelands");
+  if (!replay.ok || replay.firstClear || getCurrencyBalance(replay.next.wallet, "BOSS_TOKEN") !== 1) {
+    throw new Error("Replay must stay possible without duplicating unique rewards");
+  }
+  state = completeDungeon(prologue.next, "funeral_mausoleum").next;
+  const dragon = completeDungeon(state, "ashen_peak");
+  if (!dragon.ok || dragon.next.specialItems.fragmentDuTemps !== 1) {
+    throw new Error("dragon_shadow first clear must grant one Fragment du Temps");
+  }
+  state = {
+    ...dragon.next,
+    progression: { ...dragon.next.progression, worldLevel: 5 },
+  };
+  const unlockedEra = unlockEraAtTimeGate(state, "era_glaciaire");
+  if (!unlockedEra.ok || unlockedEra.next.specialItems.fragmentDuTemps !== 0) {
+    throw new Error("Time Gate must consume Fragment and unlock era_glaciaire");
+  }
+  state = unlockedEra.next;
+  for (const dungeonId of ["frozen_river", "reflection_cavern", "royal_abyss", "arathas_academy", "frost_source"] as const) {
+    const result = completeDungeon(state, dungeonId);
+    if (!result.ok) throw new Error(`Chapter II path blocked after Time Gate: ${dungeonId}`);
+    state = result.next;
+  }
+  if (!state.story.completedEvents.has("chapter_ii_complete")) throw new Error("Chapter II completion must remain reachable");
+  if (isEraPlayable("era_deluge")) throw new Error("era_deluge must remain teaser locked");
+}
+
 function collectProducedStoryEvents(
   chapters: readonly StoryChapterDefinition[],
   dungeons: readonly StoryDungeonDefinition[],
@@ -508,3 +726,4 @@ function collectProducedStoryEvents(
 }
 
 assertValidMvpContentGraph();
+assertMvpNoSoftLockGuards();
