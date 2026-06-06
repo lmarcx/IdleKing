@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
@@ -523,22 +524,6 @@ function drawWorld({
   return poiVisuals;
 }
 
-function configurePlayerSprite(player: PIXI.Container, texture: PIXI.Texture) {
-  player.removeChildren();
-  const shadow = createShadow(22, 8, 0.5);
-  shadow.position.set(0, 12);
-  const sprite = new PIXI.Sprite(texture);
-  sprite.anchor.set(0.5, 0.82);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, 68);
-  player.addChild(shadow);
-  player.addChild(sprite);
-  return {
-    baseScale,
-    sprite,
-  };
-}
-
 function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): ActiveEnemy {
   const container = new PIXI.Container();
   const shadow = createShadow(enemy.radius * 0.95, enemy.radius * 0.34, 0.45);
@@ -762,6 +747,7 @@ export function PixiExplorationStage({
     const attackLayer = new PIXI.Container();
     const lootPopupLayer = new PIXI.Container();
     const player = new PIXI.Container();
+    const playerVisual = createPlayerVisual({ displayHeight: 82, shadowOffsetY: 14, shadowWidth: 22, shadowHeight: 8 });
     const playerPosition = {
       x: mapWidth / 2,
       y: mapHeight / 2,
@@ -784,8 +770,6 @@ export function PixiExplorationStage({
     const poiVisuals: PoiVisual[] = [];
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
-    let playerSprite: PIXI.Sprite | null = null;
-    let playerBaseScale = 1;
     let enemyTexture: PIXI.Texture | null = null;
     let sparkleTexture: PIXI.Texture | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
@@ -1421,15 +1405,15 @@ export function PixiExplorationStage({
       }
     }
 
-    function renderPlayer(nowMs: number) {
+    function renderPlayer(nowMs: number, moving: boolean) {
       player.position.set(playerPosition.x, playerPosition.y);
-      player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
       player.zIndex = playerPosition.y;
-
-      if (!playerSprite) return;
-      const breath = 1 + Math.sin(nowMs / 380) * 0.026;
-      playerSprite.scale.set(playerBaseScale * breath, playerBaseScale * (1 / breath));
-      playerSprite.tint = playerHitFlashMs > 0 ? 0xffd0d0 : 0xffffff;
+      playerVisual.update({
+        elapsedSeconds: nowMs / 1000,
+        facing: playerFacing,
+        moving,
+        flashTint: playerHitFlashMs > 0 ? 0xffd0d0 : null,
+      });
     }
 
     function resizeUiLayer() {
@@ -1918,7 +1902,7 @@ export function PixiExplorationStage({
       updateTelegraphs(ticker.deltaMS);
       renderEnemies();
       renderAttacks();
-      renderPlayer(nowMs);
+      renderPlayer(nowMs, hasMovementInput && !isPlayerDefeated);
       renderSkillEffects(app, player, activeSkillEffects);
 
       playerHitFlashMs = Math.max(0, playerHitFlashMs - ticker.deltaMS);
@@ -1980,9 +1964,8 @@ export function PixiExplorationStage({
       const textures = getTextures();
       enemyTexture = textures.enemy;
       sparkleTexture = textures.sparkle;
-      const configuredPlayer = configurePlayerSprite(player, textures.player);
-      playerSprite = configuredPlayer.sprite;
-      playerBaseScale = configuredPlayer.baseScale;
+      playerVisual.setSprite(textures.player);
+      player.addChild(playerVisual.container);
 
       if (cancelled) {
         destroyPixiApp();

@@ -5,6 +5,7 @@ import Link from "next/link";
 import * as PIXI from "pixi.js";
 
 import { CombatHud } from "@/components/game/combat/combat-hud";
+import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { getResourceAssetPath } from "@/lib/resource-assets";
@@ -40,6 +41,7 @@ const PLAYER_PROJECTILE_MAX_RANGE = 620;
 const PLAYER_PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
 const SCARECROW_ASSET = "/assets/exploration/resurrected_scarecrow.png";
+const KING_ASSET = "/assets/exploration/player_king.png";
 
 type ActiveMeleeAttack = {
   ageMs: number;
@@ -202,19 +204,6 @@ function drawArenaWorld(container: PIXI.Container, mapWidth: number, mapHeight: 
   container.addChild(background);
 }
 
-function drawPlayer() {
-  const player = new PIXI.Graphics();
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).fill(0x1a2330);
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).stroke({
-    color: 0xf0c26a,
-    width: 2,
-  });
-  player.rect(-8, -18, 16, 12).fill(0xf0c26a);
-  player.rect(-14, -4, 28, 24).fill(0x304457);
-  player.circle(-8, -10, 3).fill(0x79f5d4);
-  player.circle(8, -10, 3).fill(0x79f5d4);
-  return player;
-}
 
 function drawBoss(texture: PIXI.Texture) {
   const container = new PIXI.Container();
@@ -376,7 +365,8 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     const attackLayer = new PIXI.Container();
     const entityLayer = new PIXI.Container();
     const fxLayer = new PIXI.Container();
-    const player = drawPlayer();
+    const playerVisual = createPlayerVisual({ displayHeight: 88 });
+    const player = playerVisual.container;
     const bossPosition = {
       x: mapWidth / 2,
       y: Math.max(250, mapHeight * 0.24),
@@ -1068,10 +1058,14 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       bossVisual.container.alpha = bossHp <= 0 ? 0.42 : 1;
     }
 
-    function renderPlayer(deltaMs: number) {
+    function renderPlayer(deltaMs: number, nowMs: number, moving: boolean) {
       playerHitFlashMs = Math.max(0, playerHitFlashMs - deltaMs);
-      player.tint = playerHitFlashMs > 0 ? 0xff7272 : 0xffffff;
-      player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
+      playerVisual.update({
+        elapsedSeconds: nowMs / 1000,
+        facing: playerFacing,
+        moving,
+        flashTint: playerHitFlashMs > 0 ? 0xff7272 : null,
+      });
     }
 
     function cleanupPlayerAttacks() {
@@ -1101,13 +1095,17 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         return;
       }
 
-      const bossTexture = await PIXI.Assets.load(SCARECROW_ASSET);
+      const [bossTexture, playerTexture] = await Promise.all([
+        PIXI.Assets.load(SCARECROW_ASSET),
+        PIXI.Assets.load(KING_ASSET),
+      ]);
       if (cancelled) {
         destroyPixiApp();
         return;
       }
 
       bossVisual = drawBoss(bossTexture);
+      playerVisual.setSprite(playerTexture);
       canvasElement = app.canvas;
       hostElement.appendChild(canvasElement);
       canvasElement.addEventListener("contextmenu", handleContextMenu);
@@ -1180,7 +1178,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         renderBossProjectiles();
         renderRainImpacts();
         renderBoss(deltaMs);
-        renderPlayer(deltaMs);
+        renderPlayer(deltaMs, now, (directionX !== 0 || directionY !== 0) && playerHp > 0 && bossHp > 0);
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;

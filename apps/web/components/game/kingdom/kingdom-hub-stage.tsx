@@ -48,12 +48,14 @@ import {
   type ResourceId,
   type TempleXpTarget,
 } from "@idleking/game-core";
+import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 import { KingdomOverlay } from "./kingdom-overlay";
 
 const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
 const PLAYER_SIZE = 48;
+const PLAYER_DISPLAY_HEIGHT = 104;
 const PLAYER_SPEED = 310;
 const PLAYER_COLLIDER = { height: 28, offsetY: 10, width: 32 } as const;
 const SHOW_HUB_COLLIDER_DEBUG = false;
@@ -67,6 +69,7 @@ const HUB_ASSETS = {
   kitchen: "/assets/kingdom-hub/building_kitchen.png",
   mine: "/assets/kingdom-hub/building_mine.png",
   npcVillager: "/assets/kingdom-hub/npc_villager.png",
+  player: "/assets/exploration/player_king.png",
   runeTile: "/assets/kingdom-hub/tile_engraved_runes.png",
   softGlow: "/assets/kingdom-hub/fx_soft_glow_aura.png",
   sparkle: "/assets/kingdom-hub/fx_sparkle_particles.png",
@@ -82,13 +85,13 @@ const MARKET_POSITION = { x: MAP_WIDTH / 2 - 540, y: MAP_HEIGHT / 2 + 85 };
 const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 245, y: MAP_HEIGHT / 2 + 15 };
 const PORTAL_POSITION = { x: MAP_WIDTH / 2 - 455, y: MAP_HEIGHT / 2 + 375 };
 const HUB_DISPLAY_HEIGHTS = {
-  cornucopia: 116,
-  farm: 190,
-  forge: 186,
-  forum: 250,
-  kitchen: 174,
-  mine: 184,
-  temple: 210,
+  cornucopia: 134,
+  farm: 226,
+  forge: 222,
+  forum: 292,
+  kitchen: 208,
+  mine: 220,
+  temple: 248,
 } as const;
 const FARM_SLOT = {
   id: "farm_slot_01",
@@ -218,6 +221,7 @@ type HubTextures = {
   kitchen: PIXI.Texture;
   mine: PIXI.Texture;
   npcVillager: PIXI.Texture;
+  player: PIXI.Texture;
   runeTile: PIXI.Texture;
   softGlow: PIXI.Texture;
   sparkle: PIXI.Texture;
@@ -379,6 +383,7 @@ function getHubTextures(): HubTextures {
     kitchen: PIXI.Texture.from(HUB_ASSETS.kitchen),
     mine: PIXI.Texture.from(HUB_ASSETS.mine),
     npcVillager: PIXI.Texture.from(HUB_ASSETS.npcVillager),
+    player: PIXI.Texture.from(HUB_ASSETS.player),
     runeTile: PIXI.Texture.from(HUB_ASSETS.runeTile),
     softGlow: PIXI.Texture.from(HUB_ASSETS.softGlow),
     sparkle: PIXI.Texture.from(HUB_ASSETS.sparkle),
@@ -428,26 +433,6 @@ function drawWorld(container: PIXI.Container, textures: HubTextures) {
   container.addChild(fallback, floor, ...tileVariations, haze);
 }
 
-function drawPlayer() {
-  const container = new PIXI.Container();
-  const shadow = new PIXI.Graphics();
-  const body = new PIXI.Graphics();
-
-  shadow.ellipse(0, 24, 30, 11).fill({ color: 0x000000, alpha: 0.42 });
-
-  body.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).fill(0x1a2330);
-  body.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).stroke({
-    color: 0xf0c26a,
-    width: 2,
-  });
-  body.rect(-8, -18, 16, 12).fill(0xf0c26a);
-  body.rect(-14, -4, 28, 24).fill(0x304457);
-  body.circle(-8, -10, 3).fill(0x79f5d4);
-  body.circle(8, -10, 3).fill(0x79f5d4);
-
-  container.addChild(shadow, body);
-  return { body, container, shadow };
-}
 
 function createHubSprite({
   displayHeight,
@@ -1172,7 +1157,7 @@ export function KingdomHubStage() {
     const entityLayer = new PIXI.Container();
     const fxLayer = new PIXI.Container();
     const uiLayer = new PIXI.Container();
-    const playerVisual = drawPlayer();
+    const playerVisual = createPlayerVisual({ displayHeight: PLAYER_DISPLAY_HEIGHT });
     const player = playerVisual.container;
     const playerPosition = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 };
     const playerFacing = { x: 0, y: -1 };
@@ -1716,6 +1701,7 @@ export function KingdomHubStage() {
 
       poiVisuals.set(VILLAGER_NPC.id, villagerVisual);
       entityLayer.addChild(villagerVisual.container);
+      playerVisual.setSprite(textures.player);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
       spawnWorldFxRef.current = spawnWorldFx;
@@ -1740,7 +1726,8 @@ export function KingdomHubStage() {
           }
         }
 
-        if (directionX !== 0 || directionY !== 0) {
+        const moving = directionX !== 0 || directionY !== 0;
+        if (moving) {
           const length = Math.hypot(directionX, directionY) || 1;
           playerFacing.x = directionX / length;
           playerFacing.y = directionY / length;
@@ -1749,13 +1736,10 @@ export function KingdomHubStage() {
             (directionY / length) * PLAYER_SPEED * deltaSeconds,
           );
           player.position.set(playerPosition.x, playerPosition.y);
-          player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
           updateNearbyInteractable();
         }
 
-        const breathing = 1 + Math.sin(elapsedSeconds * 2.4) * 0.025;
-        playerVisual.body.scale.set(breathing);
-        playerVisual.shadow.scale.set(1 + Math.sin(elapsedSeconds * 2.4 + Math.PI) * 0.045, 1);
+        playerVisual.update({ elapsedSeconds, facing: playerFacing, moving });
 
         for (const visual of poiVisuals.values()) {
           visual.update(elapsedSeconds);
