@@ -8,6 +8,8 @@ type DirectionalSkillSnapshot = {
   directionY: number;
   originX: number;
   originY: number;
+  targetX: number;
+  targetY: number;
 };
 
 type VisualActiveSkillEffect = Partial<DirectionalSkillSnapshot> & {
@@ -16,6 +18,8 @@ type VisualActiveSkillEffect = Partial<DirectionalSkillSnapshot> & {
   skillDef: SkillDefinition;
   skillId: SkillId;
   startedAtMs: number;
+  targetX?: number;
+  targetY?: number;
 };
 
 type SkillVisual = {
@@ -27,6 +31,7 @@ type SkillVisual = {
 type InstantSkillVisual = {
   graphic: PIXI.Graphics;
   snapshot: DirectionalSkillSnapshot;
+  skillDef: SkillDefinition;
   skillId: SkillId;
   startedAtMs: number;
 };
@@ -93,8 +98,20 @@ function renderDeferredSkillStub(graphic: PIXI.Graphics, effect: VisualActiveSki
 
   graphic.clear();
   graphic.scale.set(pulse);
-  graphic.circle(0, 0, 74).fill({ color, alpha: 0.14 * (1 - progress * 0.4) });
-  graphic.circle(0, 0, 52).stroke({ color, alpha: 0.55 * (1 - progress * 0.25), width: 4 });
+  if (effect.category === "movement") {
+    graphic.circle(0, 0, 42).stroke({ color, alpha: 0.62 * (1 - progress), width: 4 });
+    graphic.moveTo(-34, 0).lineTo(34, 0).stroke({ color, alpha: 0.42 * (1 - progress), width: 3 });
+    return;
+  }
+
+  if (effect.category === "summon") {
+    graphic.circle(44, -10, 18).fill({ color, alpha: 0.28 * (1 - progress * 0.35) });
+    graphic.circle(44, -10, 27).stroke({ color, alpha: 0.64 * (1 - progress * 0.25), width: 3 });
+    return;
+  }
+
+  graphic.circle(0, 0, effect.category === "defense" ? 82 : 66).fill({ color, alpha: 0.14 * (1 - progress * 0.4) });
+  graphic.circle(0, 0, effect.category === "defense" ? 58 : 46).stroke({ color, alpha: 0.55 * (1 - progress * 0.25), width: 4 });
 }
 
 function renderActiveVisual(visual: SkillVisual, effect: VisualActiveSkillEffect, nowMs: number, player: PIXI.Container): void {
@@ -122,20 +139,47 @@ function renderInstantVisuals(player: PIXI.Container, nowMs: number): void {
     const alpha = 0.66 * (1 - progress);
     visual.graphic.clear();
     visual.graphic.scale.set(1 + progress * 0.18);
-    visual.graphic
-      .moveTo(0, 0)
-      .arc(0, 0, 160, -0.54, 0.54)
-      .lineTo(0, 0)
-      .fill({ color: 0xf0c26a, alpha: alpha * 0.34 });
-    visual.graphic.arc(0, 0, 160, -0.5, 0.5).stroke({ color: 0xfff1b8, alpha, width: 7 });
-    visual.graphic.position.set(visual.snapshot.originX, visual.snapshot.originY);
-    visual.graphic.rotation = visual.snapshot.angle;
+
+    if (visual.skillDef.targeting === "cone") {
+      visual.graphic
+        .moveTo(0, 0)
+        .arc(0, 0, 170, -0.54, 0.54)
+        .lineTo(0, 0)
+        .fill({ color: 0xf0c26a, alpha: alpha * 0.34 });
+      visual.graphic.arc(0, 0, 170, -0.5, 0.5).stroke({ color: 0xfff1b8, alpha, width: 7 });
+      visual.graphic.position.set(visual.snapshot.originX, visual.snapshot.originY);
+      visual.graphic.rotation = visual.snapshot.angle;
+      continue;
+    }
+
+    if (visual.skillDef.targeting === "line") {
+      visual.graphic
+        .roundRect(0, -24, 360, 48, 22)
+        .fill({ color: 0x9fe7ff, alpha: alpha * 0.24 })
+        .stroke({ color: 0xd6fbff, alpha, width: 5 });
+      visual.graphic.position.set(visual.snapshot.originX, visual.snapshot.originY);
+      visual.graphic.rotation = visual.snapshot.angle;
+      continue;
+    }
+
+    if (visual.skillDef.targeting === "aoe" || visual.skillDef.targeting === "enemy_cast") {
+      visual.graphic.circle(0, 0, visual.skillDef.targeting === "aoe" ? 92 : 76).fill({ color: 0xff9f43, alpha: alpha * 0.24 });
+      visual.graphic.circle(0, 0, visual.skillDef.targeting === "aoe" ? 92 : 76).stroke({ color: 0xffd19b, alpha, width: 5 });
+      visual.graphic.position.set(visual.snapshot.targetX, visual.snapshot.targetY);
+      visual.graphic.rotation = 0;
+      continue;
+    }
+
+    visual.graphic.circle(0, 0, 34).fill({ color: 0xd8d4ff, alpha: alpha * 0.28 });
+    visual.graphic.circle(0, 0, 48).stroke({ color: 0xffffff, alpha, width: 4 });
+    visual.graphic.position.set(visual.snapshot.targetX, visual.snapshot.targetY);
+    visual.graphic.rotation = 0;
   }
 }
 
 export function spawnInstantSkillEffect(
   player: PIXI.Container,
-  skillId: SkillId,
+  skillDef: SkillDefinition,
   startedAtMs: number,
   snapshot: DirectionalSkillSnapshot,
 ): void {
@@ -148,7 +192,8 @@ export function spawnInstantSkillEffect(
   getInstantVisuals(player).push({
     graphic,
     snapshot,
-    skillId,
+    skillDef,
+    skillId: skillDef.id,
     startedAtMs,
   });
 }

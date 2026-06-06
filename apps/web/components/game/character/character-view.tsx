@@ -145,6 +145,7 @@ export function CharacterView() {
   const dispatch = useGameStore((s) => s.dispatch);
   const equipPlayerItem = useGameStore((s) => s.equipPlayerItem);
   const unequipPlayerItem = useGameStore((s) => s.unequipPlayerItem);
+  const unequipPlayerRing = useGameStore((s) => s.unequipPlayerRing);
   const characterStats = useMemo(() => calculateFinalCharacterStats(state), [state]);
   const availableEquipment = useMemo(
     () =>
@@ -221,18 +222,31 @@ export function CharacterView() {
     unequipPlayerItem(slot as EquipmentSlot);
   }, [unequipPlayerItem]);
 
+  const handleUnequipItem = useCallback((item: CharacterEquipment) => {
+    unequipPlayerItem(toCoreEquipmentSlot(item.slot));
+  }, [unequipPlayerItem]);
+
+  const handleUnequipRing = useCallback((slotIndex: number) => {
+    unequipPlayerRing(slotIndex);
+  }, [unequipPlayerRing]);
+
   return (
     <div className="space-y-4">
       <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
 
       <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
         <CharacterStatsPanel stats={stats} />
-        <EquipmentDoll equippedItems={equippedItems} onUnequip={handleUnequip} />
-        <AvailableEquipmentPanel
+        <EquipmentDoll
           equippedItems={equippedItems}
+          equippedRings={equippedRings}
+          onUnequip={handleUnequip}
+          onUnequipRing={handleUnequipRing}
+        />
+        <AvailableEquipmentPanel
+          equippedItemIds={equippedItemIds}
           items={availableEquipment}
           onEquip={handleEquip}
-          onUnequip={handleUnequip}
+          onUnequip={handleUnequipItem}
         />
       </div>
     </div>

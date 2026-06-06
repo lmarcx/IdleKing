@@ -10,9 +10,11 @@ import {
   SKILL_ELEMENTS,
   SKILL_IDS,
   SKILL_REGISTRY,
+  STORY_SKILL_RUNTIME_PROFILES,
   canCastSkill,
   castSkill,
   getSkillDefinitionOrThrow,
+  getStorySkillRuntimeProfile,
   getSkillRemainingCooldownSeconds,
   validateSkillRegistry,
   type SkillDefinition,
@@ -171,6 +173,66 @@ test("summon cast remains a data-driven runtime stub", () => {
   if (!result.success) return;
   assert.equal(result.skillDef.category, "summon");
   assert.equal(result.damageInput, undefined);
+});
+
+test("Story runtime profiles differentiate all 16 SK skills without level systems", () => {
+  assert.deepEqual(Object.keys(STORY_SKILL_RUNTIME_PROFILES), [...SKILL_IDS]);
+
+  for (const skillId of SKILL_IDS) {
+    const skillDefinition = getSkillDefinitionOrThrow(skillId);
+    const profile = getStorySkillRuntimeProfile(skillId);
+
+    assert.equal(profile.skillId, skillId);
+    assert.equal(profile.targeting, skillDefinition.targeting);
+
+    const behaviorCount = [
+      profile.attack,
+      profile.movement,
+      profile.defense,
+      profile.utility,
+      profile.summon,
+    ].filter(Boolean).length;
+    assert.equal(behaviorCount, 1, `${skillId} should expose exactly one Story MVP behavior`);
+
+    assert.equal("level" in profile, false);
+    assert.equal("skillPoints" in profile, false);
+  }
+});
+
+test("Story attack skills cover simple cone, line, aoe, auto target, and enemy cast shapes", () => {
+  const attackShapes = Object.values(STORY_SKILL_RUNTIME_PROFILES)
+    .map((profile) => profile.attack?.shape)
+    .filter(Boolean);
+
+  assert.deepEqual(attackShapes, [
+    "cone",
+    "aoe",
+    "line",
+    "auto_target",
+    "enemy_cast",
+  ]);
+});
+
+test("Story movement, defense, utility, and summon profiles remain lightweight MVP stubs", () => {
+  assert.deepEqual(
+    ["SK-006", "SK-007", "SK-008"].map((skillId) => getStorySkillRuntimeProfile(skillId as typeof SKILL_IDS[number]).movement?.mode),
+    ["step", "leap", "dash"]
+  );
+
+  assert.deepEqual(
+    ["SK-009", "SK-010", "SK-011"].map((skillId) => getStorySkillRuntimeProfile(skillId as typeof SKILL_IDS[number]).defense?.kind),
+    ["shield", "barrier", "barrier"]
+  );
+
+  assert.deepEqual(
+    ["SK-012", "SK-013", "SK-014"].map((skillId) => getStorySkillRuntimeProfile(skillId as typeof SKILL_IDS[number]).utility?.kind),
+    ["damage_buff", "mana_regen_buff", "enemy_vulnerability_debuff"]
+  );
+
+  assert.deepEqual(
+    ["SK-015", "SK-016"].map((skillId) => getStorySkillRuntimeProfile(skillId as typeof SKILL_IDS[number]).summon?.stubId),
+    ["spectral_hound", "frozen_wisp"]
+  );
 });
 
 test("game-core TypeScript source has no rendering-engine imports", () => {

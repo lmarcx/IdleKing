@@ -8,7 +8,7 @@ import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
-import { isEnemyInFrontalAoe } from "./skills-hit-detection";
+import { isEnemyInBeam, isEnemyInCircle } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   GRUNT_HP,
@@ -33,11 +33,13 @@ import {
 import {
   canCastSkill as canCastCanonicalSkill,
   castSkill as castCanonicalSkill,
+  getStorySkillRuntimeProfile,
   type SkillCastDamageInput,
   type SkillCategory,
   type SkillCooldownState,
   type SkillDefinition,
   type SkillId,
+  type StorySkillRuntimeProfile,
 } from "@idleking/game-core/skills";
 
 type PixiExplorationStageProps = {
@@ -202,6 +204,7 @@ type VisualActiveSkillEffect = {
   category: SkillCategory;
   damageInput?: SkillCastDamageInput;
   endsAtMs: number;
+  profile: StorySkillRuntimeProfile;
   skillId: SkillId;
   startedAtMs: number;
   angle?: number;
@@ -211,6 +214,9 @@ type VisualActiveSkillEffect = {
   lastDamageTickAtMs?: number;
   originX?: number;
   originY?: number;
+  targetEnemyId?: EnemyId;
+  targetX?: number;
+  targetY?: number;
   skillDef: SkillDefinition;
 };
 type CharacterCombatLoadout = import("@idleking/game-core").CharacterCombatLoadout;
@@ -222,6 +228,8 @@ type DirectionalSkillSnapshot = {
   directionY: number;
   originX: number;
   originY: number;
+  targetX: number;
+  targetY: number;
 };
 
 type LocalSkillsState = {
@@ -828,12 +836,20 @@ export function PixiExplorationStage({
 
     function createDirectionalSnapshot(): DirectionalSkillSnapshot {
       const direction = normalizeVector(playerFacing);
+      const target = hasPointerWorldPosition
+        ? mouseInput.pointerWorldPosition
+        : {
+            x: playerPosition.x + direction.x * 180,
+            y: playerPosition.y + direction.y * 180,
+          };
       return {
         angle: Math.atan2(direction.y, direction.x),
         directionX: direction.x,
         directionY: direction.y,
         originX: playerPosition.x,
         originY: playerPosition.y,
+        targetX: clamp(target.x, PLAYER_SIZE / 2, mapWidth - PLAYER_SIZE / 2),
+        targetY: clamp(target.y, PLAYER_SIZE / 2, mapHeight - PLAYER_SIZE / 2),
       };
     }
 
@@ -874,6 +890,116 @@ export function PixiExplorationStage({
       syncCombatHud();
     }
 
+    function findNearestAliveEnemy(position: Vector2, maxRange: number): ActiveEnemy | null {
+      let nearest: ActiveEnemy | null = null;
+      let nearestDistance = Infinity;
+
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy)) continue;
+        const distance = Math.hypot(enemy.position.x - position.x, enemy.position.y - position.y);
+        if (distance > maxRange || distance >= nearestDistance) continue;
+        nearest = enemy;
+        nearestDistance = distance;
+      }
+
+      return nearest;
+    }
+
+    function applyMovementSkill(
+      profile: StorySkillRuntimeProfile,
+      snapshot: DirectionalSkillSnapshot,
+      skillDef: SkillDefinition,
+      nowMs: number
+    ) {
+      if (!profile.movement) return;
+
+      const distance = profile.movement.distance;
+      playerPosition.x = clamp(
+        playerPosition.x + snapshot.directionX * distance,
+        PLAYER_SIZE / 2,
+        mapWidth - PLAYER_SIZE / 2
+      );
+      playerPosition.y = clamp(
+        playerPosition.y + snapshot.directionY * distance,
+        PLAYER_SIZE / 2,
+        mapHeight - PLAYER_SIZE / 2
+      );
+
+      activeSkillEffects = [
+        ...activeSkillEffects,
+        {
+          category: "movement",
+          endsAtMs: nowMs + profile.movement.durationMs,
+          originX: snapshot.originX,
+          originY: snapshot.originY,
+          profile,
+          skillDef,
+          skillId: profile.skillId,
+          startedAtMs: nowMs,
+          targetX: playerPosition.x,
+          targetY: playerPosition.y,
+        },
+      ];
+      createCombatTelegraph(playerPosition, PLAYER_SIZE * 0.58, TELEGRAPH_COLORS.safeHeal);
+      showDashFeedback(`${skillDef.name} ${profile.movement.mode}`, nowMs);
+    }
+
+    function applyUtilitySkill(
+      profile: StorySkillRuntimeProfile,
+      snapshot: DirectionalSkillSnapshot,
+      skillDef: SkillDefinition,
+      nowMs: number
+    ) {
+      if (!profile.utility) return;
+
+      if (profile.utility.kind === "enemy_vulnerability_debuff") {
+        const target = findNearestAliveEnemy(playerPosition, profile.utility.range ?? 360);
+        if (!target) {
+          showDashFeedback(`${skillDef.name} : aucune cible`, nowMs);
+          return;
+        }
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: skillDef.category,
+            endsAtMs: nowMs + profile.utility.durationMs,
+            originX: snapshot.originX,
+            originY: snapshot.originY,
+            profile,
+            skillDef,
+            skillId: skillDef.id,
+            startedAtMs: nowMs,
+            targetEnemyId: target.id,
+            targetX: target.position.x,
+            targetY: target.position.y,
+          },
+        ];
+        createCombatTelegraph(target.position, target.radius + 24, TELEGRAPH_COLORS.debuff);
+        showDashFeedback(`${skillDef.name} marque ${target.id}`, nowMs);
+        return;
+      }
+
+      activeSkillEffects = [
+        ...activeSkillEffects,
+        {
+          category: skillDef.category,
+          endsAtMs: nowMs + profile.utility.durationMs,
+          originX: playerPosition.x,
+          originY: playerPosition.y,
+          profile,
+          skillDef,
+          skillId: skillDef.id,
+          startedAtMs: nowMs,
+        },
+      ];
+      createCombatTelegraph(
+        playerPosition,
+        PLAYER_SIZE * (profile.utility.kind === "mana_regen_buff" ? 1.15 : 0.82),
+        profile.utility.kind === "mana_regen_buff" ? TELEGRAPH_COLORS.safeHeal : TELEGRAPH_COLORS.stun
+      );
+      showDashFeedback(`${skillDef.name} actif`, nowMs);
+    }
+
     function tryCastSkill(slot: SkillSlot, nowMs: number) {
       if (isPlayerDefeated) return;
 
@@ -907,17 +1033,54 @@ export function PixiExplorationStage({
 
       runtimeState = result.updatedState;
       skillCooldowns = { ...runtimeState.timers.skillCooldowns };
+      const profile = getStorySkillRuntimeProfile(result.skillDef.id);
+      const snapshot = createDirectionalSnapshot();
 
       if (result.damageInput) {
-        const snapshot = createDirectionalSnapshot();
-        spawnInstantSkillEffect(player, result.skillDef.id, nowMs, snapshot);
-        applyAttackSkillDamage(result.damageInput, snapshot, nowMs);
+        spawnInstantSkillEffect(player, result.skillDef, nowMs, snapshot);
+        applyAttackSkillDamage(result.damageInput, snapshot, nowMs, profile);
+      } else if (profile.movement) {
+        applyMovementSkill(profile, snapshot, result.skillDef, nowMs);
+      } else if (profile.defense) {
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: result.skillDef.category,
+            endsAtMs: nowMs + profile.defense.durationMs,
+            profile,
+            skillDef: result.skillDef,
+            skillId: result.skillDef.id,
+            startedAtMs: nowMs,
+          },
+        ];
+        createCombatTelegraph(playerPosition, PLAYER_SIZE * 0.9, TELEGRAPH_COLORS.safeHeal);
+        showDashFeedback(`${result.skillDef.name} actif`, nowMs);
+      } else if (profile.utility) {
+        applyUtilitySkill(profile, snapshot, result.skillDef, nowMs);
+      } else if (profile.summon) {
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: result.skillDef.category,
+            endsAtMs: nowMs + profile.summon.durationMs,
+            originX: playerPosition.x,
+            originY: playerPosition.y,
+            profile,
+            skillDef: result.skillDef,
+            skillId: result.skillDef.id,
+            startedAtMs: nowMs,
+            targetX: playerPosition.x + snapshot.directionY * 48,
+            targetY: playerPosition.y - snapshot.directionX * 48,
+          },
+        ];
+        showDashFeedback(`${result.skillDef.name} invoque un stub visuel`, nowMs);
       } else {
         activeSkillEffects = [
           ...activeSkillEffects,
           {
             category: result.skillDef.category,
             endsAtMs: nowMs + 700,
+            profile,
             skillDef: result.skillDef,
             skillId: result.skillDef.id,
             startedAtMs: nowMs,
@@ -1505,14 +1668,15 @@ export function PixiExplorationStage({
     }
 
     function damageActiveEnemy(enemy: ActiveEnemy, amount: number, didCrit = false) {
-      const isLethal = amount >= enemy.hp;
-      const died = damageEnemy(enemy, amount);
+      const finalAmount = Math.max(0, Math.round(amount * getEnemyIncomingDamageMultiplier(enemy, performance.now())));
+      const isLethal = finalAmount >= enemy.hp;
+      const died = damageEnemy(enemy, finalAmount);
       if (runtimeEnemyId === enemy.id) {
         runtimeState = retargetStoryCombatRuntimeEnemy(runtimeState, enemy);
       }
       enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
       createDamageNumber({
-        amount,
+        amount: finalAmount,
         didCrit,
         isLethal,
         position: { x: enemy.position.x, y: enemy.position.y - 54 },
@@ -1523,7 +1687,7 @@ export function PixiExplorationStage({
         isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
       );
       createHitParticles(enemy.position);
-      if (amount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
+      if (finalAmount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
       }
       if (died) {
@@ -1543,9 +1707,28 @@ export function PixiExplorationStage({
     }
 
     function getPlayerDamageMultiplier(effects: VisualActiveSkillEffect[], nowMs: number): number {
-      void effects;
-      void nowMs;
-      return 1;
+      return effects.reduce((multiplier, effect) => {
+        if (effect.endsAtMs < nowMs) return multiplier;
+        if (effect.profile.utility?.kind !== "damage_buff") return multiplier;
+        return multiplier * (effect.profile.utility.damageMultiplier ?? 1);
+      }, 1);
+    }
+
+    function getEnemyIncomingDamageMultiplier(enemy: ActiveEnemy, nowMs: number): number {
+      return activeSkillEffects.reduce((multiplier, effect) => {
+        if (effect.endsAtMs < nowMs) return multiplier;
+        if (effect.profile.utility?.kind !== "enemy_vulnerability_debuff") return multiplier;
+        if (effect.targetEnemyId !== enemy.id) return multiplier;
+        return multiplier * (effect.profile.utility.incomingDamageMultiplier ?? 1);
+      }, 1);
+    }
+
+    function getIncomingPlayerDamageMultiplier(nowMs: number): number {
+      return activeSkillEffects.reduce((multiplier, effect) => {
+        if (effect.endsAtMs < nowMs) return multiplier;
+        if (!effect.profile.defense) return multiplier;
+        return multiplier * effect.profile.defense.incomingDamageMultiplier;
+      }, 1);
     }
 
     function computeSkillDamage(damageInput: SkillCastDamageInput, nowMs: number): number {
@@ -1560,28 +1743,78 @@ export function PixiExplorationStage({
       damageActiveEnemy(enemy, damage);
     }
 
-    function applyAttackSkillDamage(damageInput: SkillCastDamageInput, snapshot: DirectionalSkillSnapshot, nowMs: number) {
-      const damage = computeSkillDamage(damageInput, nowMs);
-      const hitEnemyIds = new Set<EnemyId>();
+    function isEnemyHitByAttackProfile(
+      enemy: ActiveEnemy,
+      snapshot: DirectionalSkillSnapshot,
+      profile: StorySkillRuntimeProfile
+    ): boolean {
+      const attack = profile.attack;
+      if (!attack) return false;
 
-      for (const enemy of enemies) {
-        if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
-        if (
-          !isEnemyInFrontalAoe(
+      switch (attack.shape) {
+        case "cone":
+          return isTargetInsideAttackCone({
+            attackDirection: { x: snapshot.directionX, y: snapshot.directionY },
+            attackPosition: { x: snapshot.originX, y: snapshot.originY },
+            halfAngleRadians: attack.halfAngleRadians ?? 0.7,
+            range: attack.range,
+            targetPosition: enemy.position,
+            targetRadius: enemy.radius,
+          });
+        case "line":
+          return isEnemyInBeam(
             enemy,
             snapshot.originX,
             snapshot.originY,
             snapshot.directionX,
             snapshot.directionY,
-            260,
-            170
-          )
-        ) {
-          continue;
+            attack.range,
+            attack.width ?? 64
+          );
+        case "aoe":
+          return isEnemyInCircle(enemy, snapshot.targetX, snapshot.targetY, attack.radius ?? 80);
+        case "auto_target":
+        case "enemy_cast":
+          return false;
+      }
+
+      return false;
+    }
+
+    function applyAttackSkillDamage(
+      damageInput: SkillCastDamageInput,
+      snapshot: DirectionalSkillSnapshot,
+      nowMs: number,
+      profile: StorySkillRuntimeProfile
+    ) {
+      const damage = computeSkillDamage(damageInput, nowMs);
+      const hitEnemyIds = new Set<EnemyId>();
+      const attack = profile.attack;
+      if (!attack) return;
+
+      if (attack.shape === "auto_target" || attack.shape === "enemy_cast") {
+        const target = findNearestAliveEnemy(
+          attack.shape === "enemy_cast" ? { x: snapshot.targetX, y: snapshot.targetY } : playerPosition,
+          attack.range
+        );
+        if (target) {
+          hitEnemyIds.add(target.id);
+          if (attack.shape === "enemy_cast") {
+            createCombatTelegraph(target.position, attack.radius ?? target.radius + 28, TELEGRAPH_COLORS.damage);
+          }
+          applySkillDamageToEnemy(target, damage);
         }
+        if (hitEnemyIds.size > 0) syncCombatHud();
+        return;
+      }
+
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
+        if (!isEnemyHitByAttackProfile(enemy, snapshot, profile)) continue;
 
         hitEnemyIds.add(enemy.id);
         applySkillDamageToEnemy(enemy, damage);
+        if (attack.maxTargets && hitEnemyIds.size >= attack.maxTargets) break;
       }
 
       if (hitEnemyIds.size > 0) {
@@ -1638,13 +1871,14 @@ export function PixiExplorationStage({
       enemy.attackLungeY = (dy / dist) * 18;
 
       const previousHp = runtimeState.player.hpCurrent;
-      const isLethal = enemy.contactDamage >= previousHp;
+      const incomingDamage = Math.max(0, Math.round(enemy.contactDamage * getIncomingPlayerDamageMultiplier(now)));
+      const isLethal = incomingDamage >= previousHp;
       createCombatTelegraph(
         playerPosition,
         PLAYER_SIZE * 0.62,
         isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
       );
-      runtimeState = combat.applyDamageToPlayer(runtimeState, enemy.contactDamage);
+      runtimeState = combat.applyDamageToPlayer(runtimeState, incomingDamage);
       if (runtimeState.player.hpCurrent < previousHp) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
         playerHitFlashMs = ENEMY_HIT_FLASH_MS;
@@ -1663,6 +1897,27 @@ export function PixiExplorationStage({
         resetHeldMouseButtons();
       }
       syncCombatHud();
+    }
+
+    function applyActiveUtilityResourceEffects(deltaSeconds: number, nowMs: number) {
+      let manaGainPerSecond = 0;
+      for (const effect of activeSkillEffects) {
+        if (effect.endsAtMs < nowMs) continue;
+        if (effect.profile.utility?.kind !== "mana_regen_buff") continue;
+        manaGainPerSecond += effect.profile.utility.manaRegenPerSecond ?? 0;
+      }
+
+      if (manaGainPerSecond <= 0) return;
+      runtimeState = {
+        ...runtimeState,
+        player: {
+          ...runtimeState.player,
+          manaCurrent: Math.min(
+            runtimeState.player.manaMax,
+            runtimeState.player.manaCurrent + manaGainPerSecond * deltaSeconds
+          ),
+        },
+      };
     }
 
     function handleCheckpointRespawnEvent() {
@@ -1873,6 +2128,7 @@ export function PixiExplorationStage({
       }
 
       runtimeState = combat.tickCombatRuntime(runtimeState, deltaSeconds);
+      applyActiveUtilityResourceEffects(deltaSeconds, nowMs);
       const hasMovementInput = directionX !== 0 || directionY !== 0;
       const wantsToSprint = [...SPRINT_KEY_CODES].some((code) => pressedKeys.has(code));
       const isSprinting = hasMovementInput && wantsToSprint && combat.canSprint(runtimeState);
