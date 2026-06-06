@@ -7,6 +7,7 @@ import {
   applyNarrativeEffectSetUnlock,
   calculateEffectSetModifiers,
   canSlotEffectSet,
+  getEffectiveSlottedEffectSets,
   getEffectSetDefinition,
   hasUnlockedEffectSet,
   slotEffectSet,
@@ -20,8 +21,12 @@ import {
   calculateResonanceFromEquipment,
   RESONANCE_ELIGIBLE_SLOTS,
 } from "../resonance/index.js";
-import { createDefaultPlayerEquipmentState } from "../equipment/index.js";
-import { createInitialGameState } from "../game/state.js";
+import {
+  calculateFinalCharacterStats,
+  createDefaultPlayerEquipmentState,
+} from "../equipment/index.js";
+import { buildCharacterCombatLoadout } from "../character/index.js";
+import { createInitialGameState, type GameState } from "../game/state.js";
 import { completeDungeon } from "../story/progressionMvp.js";
 import type { EquipmentItem, EquipmentSlot, ItemRarity } from "../items/types.js";
 
@@ -51,6 +56,27 @@ function resonanceTotalForNineSlots(rarity: ItemRarity): number {
 
 function unlockMany(ids: readonly EffectSetId[]) {
   return ids.reduce((state, effectSetId) => unlockEffectSet(state, effectSetId), createInitialGameState());
+}
+
+function stateWithNineResonanceSlots(rarity: ItemRarity): GameState {
+  const equipment = createDefaultPlayerEquipmentState();
+  const items = RESONANCE_ELIGIBLE_SLOTS.map((slot) => equipmentItem(slot, rarity));
+  for (const item of items) equipment.equipped[item.slot] = item.id;
+
+  return {
+    ...createInitialGameState(),
+    equipment,
+    inventory: { items },
+  };
+}
+
+function slotUnlockedEffectSet(state: GameState, effectSetId: EffectSetId, tier: number): GameState {
+  const resonance = calculateResonanceFromEquipment(state.equipment, state.inventory.items);
+  const unlocked = unlockEffectSet(state, effectSetId);
+  const result = slotEffectSet(unlocked, effectSetId, tier, { totalResonance: resonance.totalResonance });
+  assert.equal(result.ok, true);
+  if (!result.ok) assert.fail("Expected Effect Set slotting to succeed");
+  return result.state;
 }
 
 test("Effect Set registry contains exactly the five MVP sets and no future set", () => {
@@ -161,6 +187,72 @@ test("calculateEffectSetModifiers returns simple stats, statuses, and tags only"
   assert.ok((modifiers.statusModifiers.frozen?.damageBonus ?? 0) > 0);
   assert.ok((modifiers.statusModifiers.drench?.damageBonus ?? 0) > 0);
   assert.equal(Object.keys(modifiers).sort().join(","), "combatTags,statModifiers,statusModifiers");
+});
+
+test("slotted Motherstone increases final HP and DEF", () => {
+  const baseState = stateWithNineResonanceSlots("UNCOMMON");
+  const baseStats = calculateFinalCharacterStats(baseState);
+  const withMotherstone = slotUnlockedEffectSet(baseState, "motherstone", 2);
+  const finalStats = calculateFinalCharacterStats(withMotherstone);
+
+  assert.equal(finalStats.defense, baseStats.defense + 8);
+  assert.equal(finalStats.hp, baseStats.hp + 40);
+  assert.equal(finalStats.effectSetModifiers.statModifiers.defense, 8);
+  assert.equal(finalStats.effectSetModifiers.statModifiers.hp, 40);
+});
+
+test("slotted Rainmaker increases combat Mana regen", () => {
+  const baseState = stateWithNineResonanceSlots("UNCOMMON");
+  const baseStats = calculateFinalCharacterStats(baseState);
+  const withRainmaker = slotUnlockedEffectSet(baseState, "rainmaker", 1);
+  const loadout = buildCharacterCombatLoadout(withRainmaker);
+
+  assert.equal(loadout.stats.manaRegen, baseStats.manaRegen + 0.4);
+  assert.equal(loadout.stats.effectSetModifiers.statModifiers.manaRegen, 0.4);
+});
+
+test("slotted Shadow Veil increases crit and exposes dark combat tags", () => {
+  const baseState = stateWithNineResonanceSlots("UNCOMMON");
+  const withShadowVeil = slotUnlockedEffectSet(baseState, "shadow_veil", 2);
+  const loadout = buildCharacterCombatLoadout(withShadowVeil);
+
+  assert.equal(loadout.stats.critChance, 0.03);
+  assert.equal(loadout.stats.effectSetModifiers.statModifiers.darkDamage, 0.06);
+  assert.ok(loadout.stats.combatTags.includes("theme:dark"));
+  assert.ok(loadout.stats.combatTags.includes("stat:darkDamage"));
+});
+
+test("slotted effects beyond current Resonance Effect Slots are ignored", () => {
+  let state = stateWithNineResonanceSlots("EPIC");
+  state = (["shadow_veil", "motherstone", "rainmaker"] as const).reduce<GameState>((current, effectSetId) => {
+    const unlocked = unlockEffectSet(current, effectSetId);
+    const resonance = calculateResonanceFromEquipment(unlocked.equipment, unlocked.inventory.items);
+    const result = slotEffectSet(unlocked, effectSetId, 1, { totalResonance: resonance.totalResonance });
+    assert.equal(result.ok, true);
+    if (!result.ok) assert.fail("Expected Effect Set slotting to succeed");
+    return result.state;
+  }, state);
+
+  const loweredResonanceState = {
+    ...state,
+    equipment: createDefaultPlayerEquipmentState(),
+  };
+
+  const resonance = calculateResonanceFromEquipment(
+    loweredResonanceState.equipment,
+    loweredResonanceState.inventory.items
+  );
+  assert.equal(resonance.effectSlots, 0);
+  assert.equal(loweredResonanceState.effectSets.slottedEffects.length, 3);
+  assert.deepEqual(
+    getEffectiveSlottedEffectSets(loweredResonanceState, { effectSlots: resonance.effectSlots }),
+    []
+  );
+
+  const finalStats = calculateFinalCharacterStats(loweredResonanceState);
+  assert.equal(finalStats.critChance, 0);
+  assert.equal(finalStats.effectSetModifiers.statModifiers.defense, 0);
+  assert.equal(finalStats.effectSetModifiers.statModifiers.manaRegen, 0);
 });
 
 test("Effect Set registry contains no forbidden proc-style effects", () => {

@@ -1,27 +1,25 @@
 import type { GameState } from "../game/state.js";
-import { calculateFinalCharacterStats } from "../equipment/index.js";
 import {
-  getEffectiveSkillDef,
-  getEquippedSkillLoadout,
-  getSkillProgress,
-  isSkillUnlocked,
-  type SkillDef,
-  type SkillId,
-  type SkillSlot,
-} from "../combat/skills/index.js";
+  calculateFinalCharacterStats,
+  calculateRingSkillScaling,
+  getEquippedRingItems,
+  normalizePlayerEquipmentState,
+  type FinalCharacterStats,
+  type RingEquipmentInstance,
+} from "../equipment/index.js";
+import { getSkillDefinition } from "../skills/registry.js";
+import type { SkillDefinition, SkillId } from "../skills/types.js";
 
-export type CharacterCombatStats = {
-  hp: number;
-  attack: number;
-  defense: number;
-  power: number;
-};
+export type CharacterCombatStats = FinalCharacterStats;
+
+export type CombatSkillSlot = 1 | 2 | 3 | 4 | 5;
 
 export type EquippedCombatSkill = {
-  slot: SkillSlot;
+  slot: CombatSkillSlot;
   skillId: SkillId;
-  skillDef: SkillDef;
-  level: number;
+  skillDef: SkillDefinition;
+  ring: RingEquipmentInstance;
+  ringSkillScaling: number;
 };
 
 export type CharacterCombatLoadout = {
@@ -29,25 +27,38 @@ export type CharacterCombatLoadout = {
   skills: EquippedCombatSkill[];
 };
 
-const COMBAT_SKILL_SLOTS: readonly SkillSlot[] = [1, 2, 3, 4] as const;
+const COMBAT_SKILL_SLOTS: readonly CombatSkillSlot[] = [1, 2, 3, 4, 5] as const;
 
 export function buildCharacterCombatLoadout(gameState: GameState): CharacterCombatLoadout {
-  const equippedLoadout = getEquippedSkillLoadout(gameState.skills);
-  const skills = COMBAT_SKILL_SLOTS.flatMap((slot): EquippedCombatSkill[] => {
-    const skillId = equippedLoadout[slot];
-    if (!skillId || !isSkillUnlocked(gameState.skills, skillId)) return [];
+  const equippedRingIds = normalizePlayerEquipmentState(gameState.equipment).equipped.rings;
+  const equippedRings = getEquippedRingItems(gameState).slice(0, COMBAT_SKILL_SLOTS.length);
+  const seenSkillIds = new Set<SkillId>();
+  const skills = COMBAT_SKILL_SLOTS.flatMap((slot, index): EquippedCombatSkill[] => {
+    const ring = equippedRings[index];
+    if (!ring && equippedRingIds[index]) {
+      const rawItem = gameState.inventory.items.find((item) => item.id === equippedRingIds[index]);
+      if (rawItem && "slot" in rawItem && rawItem.slot === "ring" && rawItem.skillId != null) {
+        throw new Error(`Unknown equipped ring skillId: ${rawItem.skillId}`);
+      }
+    }
+    if (!ring || ring.skillId == null) return [];
 
-    const progress = getSkillProgress(gameState.skills, skillId);
-    if (!progress || progress.level <= 0) return [];
+    const skillDef = getSkillDefinition(ring.skillId);
+    if (!skillDef) {
+      throw new Error(`Unknown equipped ring skillId: ${ring.skillId}`);
+    }
+    if (seenSkillIds.has(skillDef.id)) {
+      throw new Error(`Duplicate equipped ring skillId: ${skillDef.id}`);
+    }
+    seenSkillIds.add(skillDef.id);
 
-    return [
-      {
-        slot,
-        skillId,
-        skillDef: getEffectiveSkillDef(skillId, gameState.skills),
-        level: progress.level,
-      },
-    ];
+    return [{
+      slot,
+      skillId: skillDef.id,
+      skillDef,
+      ring,
+      ringSkillScaling: calculateRingSkillScaling(ring),
+    }];
   });
 
   return {

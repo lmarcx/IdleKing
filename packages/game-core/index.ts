@@ -489,6 +489,7 @@ export type {
   EquipmentSlot,
   EquippedRingIds,
   EquippedRings,
+  FinalCharacterStats,
   ItemRarity,
   GenerateEquipmentItemParams,
   GenerateEquipmentLootDropParams,
@@ -516,6 +517,7 @@ export {
   canSlotEffectSet,
   createDefaultEffectSetsState,
   getEffectSetDefinition,
+  getEffectiveSlottedEffectSets,
   getUnlockedEffectSets,
   hasUnlockedEffectSet,
   isEffectSetId,
@@ -559,6 +561,7 @@ export {
   buildCharacterCombatLoadout,
 } from "./character/index.js";
 export type {
+  CombatSkillSlot,
   CharacterCombatLoadout,
   CharacterCombatStats,
   EquippedCombatSkill,

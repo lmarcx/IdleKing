@@ -1,21 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
-
-import { useGameStore } from "@/store/game-store";
 import {
-  getEquippedRingItems,
-  getSkillDefinition,
   type CharacterCombatLoadout,
+  type CombatSkillSlot,
   type SkillDefinition,
   type SkillElement,
 } from "@idleking/game-core";
-import type { combat } from "@idleking/game-core";
-import type { SkillId } from "@idleking/game-core/skills";
-import type { GameState } from "@idleking/game-core/game/state.js";
+import type { SkillCooldownState, SkillId } from "@idleking/game-core/skills";
 
-type SkillSlot = 1 | 2 | 3 | 4 | 5;
-type SkillCooldownState = combat.SkillCooldownState;
+type SkillSlot = CombatSkillSlot;
 
 type SkillBarProps = {
   combatLoadout: CharacterCombatLoadout;
@@ -47,34 +40,25 @@ function formatSeconds(seconds: number): string {
   return `${Number(seconds.toFixed(seconds >= 10 ? 0 : 1))}s`;
 }
 
-function getRingSkillSlots(state: GameState): RingSkillSlot[] {
-  return getEquippedRingItems(state).map((ring, index): RingSkillSlot => {
-    const skillDef = ring?.skillId ? getSkillDefinition(ring.skillId) ?? null : null;
+function getRingSkillSlots(combatLoadout: CharacterCombatLoadout): RingSkillSlot[] {
+  return SKILL_SLOTS.map((slot): RingSkillSlot => {
+    const skill = combatLoadout.skills.find((candidate) => candidate.slot === slot);
     return {
-      skillDef,
-      skillId: ring?.skillId ?? null,
-      slot: (index + 1) as SkillSlot,
+      skillDef: skill?.skillDef ?? null,
+      skillId: skill?.skillId ?? null,
+      slot,
     };
   });
 }
 
-// NOTE (MVP preview): this bar displays the 5 equipped ring skills (MVP build, via game-core
-// getEquippedRingItems/getSkillDefinition). The Pixi Story runtime still casts the 4 legacy
-// skills (keys 1-4). Until the runtime is migrated to ring skills, the bar is a non-castable
-// preview and is labelled as such to avoid implying live cast. It intentionally does not consume
-// the runtime cooldown/loadout props (kept for the future wiring).
-export function SkillBar(_props: SkillBarProps) {
-  const state = useGameStore((store) => store.state);
-  const ringSkillSlots = useMemo(() => getRingSkillSlots(state), [state]);
+export function SkillBar({ combatLoadout, cooldowns, currentTimeMs }: SkillBarProps) {
+  const ringSkillSlots = getRingSkillSlots(combatLoadout);
 
   return (
     <div
-      aria-label="Barre de skills — apercu MVP (rings equipes ; cast runtime a venir)"
+      aria-label="Barre de skills rings equipes, slots 1 a 5 castables"
       className="pointer-events-none relative flex items-center justify-center gap-2 rounded-lg border border-amber-200/25 bg-black/68 px-3 py-2 shadow-[0_14px_42px_rgba(0,0,0,0.45)] backdrop-blur-sm"
     >
-      <span className="absolute -top-2 left-2 rounded-sm border border-amber-200/25 bg-black/85 px-1.5 py-0.5 font-ik-menu text-[0.5rem] uppercase tracking-[0.12em] text-amber-100/80">
-        MVP preview
-      </span>
       {SKILL_SLOTS.map((slot) => {
         const skill = ringSkillSlots[slot - 1];
         const skillDef = skill?.skillDef ?? null;
@@ -82,7 +66,14 @@ export function SkillBar(_props: SkillBarProps) {
           return <EmptySkillSlot key={slot} slot={slot} />;
         }
 
-        return <EquippedSkillSlot key={slot} skill={{ ...skill, skillDef }} />;
+        return (
+          <EquippedSkillSlot
+            cooldowns={cooldowns}
+            currentTimeMs={currentTimeMs}
+            key={slot}
+            skill={{ ...skill, skillDef }}
+          />
+        );
       })}
     </div>
   );
@@ -101,10 +92,17 @@ function EmptySkillSlot({ slot }: { slot: SkillSlot }) {
 }
 
 function EquippedSkillSlot({
+  cooldowns,
+  currentTimeMs,
   skill,
 }: {
+  cooldowns: SkillCooldownState;
+  currentTimeMs: number;
   skill: RingSkillSlot & { skillDef: SkillDefinition };
 }) {
+  const cooldownMs = Math.max(0, (cooldowns[skill.skillDef.id] ?? 0) - currentTimeMs);
+  const cooldownLabel = cooldownMs > 0 ? formatSeconds(cooldownMs / 1_000) : null;
+
   return (
     <div
       aria-label={`Ring slot ${skill.slot}: ${skill.skillDef.id} ${skill.skillDef.name}, ${skill.skillDef.element}, cooldown ${formatSeconds(skill.skillDef.cooldownSeconds)}, mana ${skill.skillDef.manaCost}`}
@@ -123,7 +121,7 @@ function EquippedSkillSlot({
         {skill.skillDef.element}
       </span>
       <span className="absolute bottom-1 right-1 rounded-sm bg-amber-200/18 px-1 font-ik-menu text-[0.5rem] leading-3 text-amber-50">
-        M{skill.skillDef.manaCost}
+        {cooldownLabel ?? `M${skill.skillDef.manaCost}`}
       </span>
     </div>
   );

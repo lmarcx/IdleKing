@@ -37,12 +37,17 @@ export function StoryLevelList({ levels, selectedLevelId, onSelectLevel }: Story
               "group grid w-full grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg border bg-black/35 p-3 text-left transition",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45",
               isSelected && "border-amber-200/60 bg-amber-200/[0.07]",
-              !isSelected && "border-amber-200/15 hover:border-amber-200/35 hover:bg-white/[0.035]",
-              isLocked && "opacity-60",
+              !isSelected && !isLocked && "border-amber-200/15 hover:border-amber-200/35 hover:bg-white/[0.035]",
+              !isSelected && isLocked && "border-amber-200/15",
+              isLocked && "cursor-not-allowed opacity-60",
               isCompleted && "border-emerald-300/30"
             )}
+            disabled={isLocked}
             key={level.id}
-            onClick={() => onSelectLevel(level.id)}
+            onClick={() => {
+              if (isLocked) return;
+              onSelectLevel(level.id);
+            }}
             type="button"
           >
             <span

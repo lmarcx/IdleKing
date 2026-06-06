@@ -49,6 +49,15 @@ function totalStats(item: EquipmentItem): number {
   return (item.stats.hp ?? 0) + (item.stats.attack ?? 0) + (item.stats.defense ?? 0) + (item.stats.power ?? 0);
 }
 
+function baseStats(stats: { hp: number; attack: number; defense: number; power: number }) {
+  return {
+    hp: stats.hp,
+    attack: stats.attack,
+    defense: stats.defense,
+    power: stats.power,
+  };
+}
+
 test("default player equipment state initializes active slots and five ring slots", () => {
   const equipment = createDefaultPlayerEquipmentState();
 
@@ -230,7 +239,7 @@ test("calculateFinalCharacterStats combines base stats and equipment stats", () 
   const equipped = equipItem(stateWithItems([weapon]), weapon.id);
   assertEquipOk(equipped);
 
-  assert.deepEqual(calculateFinalCharacterStats(equipped.state), {
+  assert.deepEqual(baseStats(calculateFinalCharacterStats(equipped.state)), {
     hp: 100,
     attack: 29,
     defense: 0,
@@ -245,7 +254,7 @@ test("buildCharacterCombatLoadout uses final character stats", () => {
 
   const loadout = buildCharacterCombatLoadout(equipped.state);
 
-  assert.deepEqual(loadout.stats, {
+  assert.deepEqual(baseStats(loadout.stats), {
     hp: 130,
     attack: 25,
     defense: 6,

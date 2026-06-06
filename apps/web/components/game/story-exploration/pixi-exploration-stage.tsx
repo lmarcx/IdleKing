@@ -7,7 +7,7 @@ import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
-import { isEnemyInBeam, isEnemyInCircle, isEnemyInFrontalAoe } from "./skills-hit-detection";
+import { isEnemyInFrontalAoe } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   GRUNT_HP,
@@ -29,6 +29,15 @@ import {
   retargetStoryCombatRuntimeEnemy,
   STORY_RUNTIME_VISUAL_PLACEHOLDERS,
 } from "./story-combat-runtime-adapter";
+import {
+  canCastSkill as canCastCanonicalSkill,
+  castSkill as castCanonicalSkill,
+  type SkillCastDamageInput,
+  type SkillCategory,
+  type SkillCooldownState,
+  type SkillDefinition,
+  type SkillId,
+} from "@idleking/game-core/skills";
 
 type PixiExplorationStageProps = {
   inputBlocked?: boolean;
@@ -187,10 +196,13 @@ type PoiVisual = {
   wasNear: boolean;
 };
 
-type SkillId = combat.SkillId;
-type SkillSlot = combat.SkillSlot;
-type SkillCooldownState = combat.SkillCooldownState;
-type VisualActiveSkillEffect = combat.ActiveSkillEffect & {
+type SkillSlot = import("@idleking/game-core").CombatSkillSlot;
+type VisualActiveSkillEffect = {
+  category: SkillCategory;
+  damageInput?: SkillCastDamageInput;
+  endsAtMs: number;
+  skillId: SkillId;
+  startedAtMs: number;
   angle?: number;
   directionX?: number;
   directionY?: number;
@@ -198,7 +210,7 @@ type VisualActiveSkillEffect = combat.ActiveSkillEffect & {
   lastDamageTickAtMs?: number;
   originX?: number;
   originY?: number;
-  skillDef: combat.SkillDef;
+  skillDef: SkillDefinition;
 };
 type CharacterCombatLoadout = import("@idleking/game-core").CharacterCombatLoadout;
 type EquippedCombatSkill = import("@idleking/game-core").EquippedCombatSkill;
@@ -274,6 +286,8 @@ const SKILL_SLOT_BY_KEY: Record<string, SkillSlot> = {
   "3": 3,
   "'": 4,
   "4": 4,
+  "(": 5,
+  "5": 5,
 };
 
 const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
@@ -281,6 +295,7 @@ const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
   Digit2: 2,
   Digit3: 3,
   Digit4: 4,
+  Digit5: 5,
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -645,10 +660,13 @@ export function PixiExplorationStage({
   const inputBlockedRef = useRef(inputBlocked);
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
-  const playerSkills = useGameStore((s) => s.state.skills);
+  const equipment = useGameStore((s) => s.state.equipment);
+  const inventoryItems = useGameStore((s) => s.state.inventory.items);
   const combatLoadout = useMemo(
-    () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
-    [playerSkills]
+    // Loadout derives only from equipment + inventory; read full state fresh so
+    // the dep array stays narrow without changing the computed value.
+    () => buildCombatLoadoutFromGameState(useGameStore.getState().state),
+    [equipment, inventoryItems]
   );
   const initialCombatRuntime = useMemo(
     () => createStoryCombatRuntimeState(combatLoadout, { hp: GRUNT_HP, maxHp: GRUNT_HP }),
@@ -871,41 +889,52 @@ export function PixiExplorationStage({
       const equippedSkill = getEquippedSkillForSlot(slot);
       if (!equippedSkill) return;
 
-      const result = combat.castSkillWithDef({
-        cooldowns: skillCooldowns,
-        nowMs,
-        skillDef: equippedSkill.skillDef,
-      });
+      runtimeState = {
+        ...runtimeState,
+        timers: {
+          ...runtimeState.timers,
+          skillCooldowns,
+        },
+      };
 
-      if (!result.ok) {
+      const castOptions = {
+        nowMs,
+        ringSkillScaling: equippedSkill.ringSkillScaling,
+      };
+      const readiness = canCastCanonicalSkill(runtimeState, equippedSkill.skillId, castOptions);
+      if (!readiness.success) {
         publishSkillsState(nowMs);
         return;
       }
 
-      skillCooldowns = {
-        ...skillCooldowns,
-        [result.skillId]: result.nextAvailableAtMs,
-      };
+      const result = castCanonicalSkill(runtimeState, equippedSkill.skillId, castOptions);
+      if (!result.success) {
+        publishSkillsState(nowMs);
+        return;
+      }
 
-      if (result.activeEffect) {
-        const visualEffect =
-          result.skillId === "royal_beam"
-            ? {
-                ...result.activeEffect,
-                skillDef: equippedSkill.skillDef,
-                ...createDirectionalSnapshot(),
-                lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
-              }
-            : {
-                ...result.activeEffect,
-                skillDef: equippedSkill.skillDef,
-                lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
-              };
-        activeSkillEffects = [...activeSkillEffects, visualEffect];
-      } else if (result.skillId === "royal_strike") {
+      runtimeState = result.updatedState;
+      skillCooldowns = { ...runtimeState.timers.skillCooldowns };
+
+      if (result.damageInput) {
         const snapshot = createDirectionalSnapshot();
-        spawnInstantSkillEffect(player, result.skillId, result.startedAtMs, snapshot);
-        applyRoyalStrikeDamage(equippedSkill.skillDef, snapshot, nowMs);
+        spawnInstantSkillEffect(player, result.skillDef.id, nowMs, snapshot);
+        applyAttackSkillDamage(result.damageInput, snapshot, nowMs);
+      } else {
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: result.skillDef.category,
+            endsAtMs: nowMs + 700,
+            skillDef: result.skillDef,
+            skillId: result.skillDef.id,
+            startedAtMs: nowMs,
+          },
+        ];
+        showDashFeedback(
+          `${result.skillDef.name} — effet complet à venir (Mana consommée, cooldown appliqué)`,
+          nowMs
+        );
       }
 
       publishSkillsState(nowMs);
@@ -1522,17 +1551,14 @@ export function PixiExplorationStage({
     }
 
     function getPlayerDamageMultiplier(effects: VisualActiveSkillEffect[], nowMs: number): number {
-      const warCry = effects.find(
-        (effect) => effect.skillId === "war_cry" && effect.startedAtMs <= nowMs && effect.endsAtMs >= nowMs
-      );
-      return warCry ? 1 + (warCry.bonusDamageMultiplier ?? 0.25) : 1;
+      void effects;
+      void nowMs;
+      return 1;
     }
 
-    function computeSkillDamage(skillDef: combat.SkillDef, nowMs: number): number {
-      if ((skillDef.damageMultiplier ?? 0) <= 0) return 0;
-
-      // Damage math lives in game-core (combat.computeSkillDamage via the adapter).
-      return computeStorySkillDamage(runtimeState, skillDef, {
+    function computeSkillDamage(damageInput: SkillCastDamageInput, nowMs: number): number {
+      if (damageInput.skillDamageMultiplier <= 0) return 0;
+      return computeStorySkillDamage(runtimeState, damageInput, {
         buffMultiplier: getPlayerDamageMultiplier(activeSkillEffects, nowMs),
       });
     }
@@ -1542,10 +1568,8 @@ export function PixiExplorationStage({
       damageActiveEnemy(enemy, damage);
     }
 
-    function applyRoyalStrikeDamage(skillDef: combat.SkillDef, snapshot: DirectionalSkillSnapshot, nowMs: number) {
-      if (skillDef.kind !== "frontal_aoe") return;
-
-      const damage = computeSkillDamage(skillDef, nowMs);
+    function applyAttackSkillDamage(damageInput: SkillCastDamageInput, snapshot: DirectionalSkillSnapshot, nowMs: number) {
+      const damage = computeSkillDamage(damageInput, nowMs);
       const hitEnemyIds = new Set<EnemyId>();
 
       for (const enemy of enemies) {
@@ -1557,8 +1581,8 @@ export function PixiExplorationStage({
             snapshot.originY,
             snapshot.directionX,
             snapshot.directionY,
-            skillDef.range ?? 0,
-            skillDef.width ?? 0
+            260,
+            170
           )
         ) {
           continue;
@@ -1574,52 +1598,7 @@ export function PixiExplorationStage({
     }
 
     function applyActiveSkillEffectDamage(nowMs: number) {
-      let didDamage = false;
-
-      for (const effect of activeSkillEffects) {
-        if (effect.skillId === "war_cry") continue;
-
-        const skillDef = effect.skillDef;
-        const tickIntervalMs = effect.tickIntervalMs ?? skillDef.tickIntervalMs;
-        if (!tickIntervalMs || tickIntervalMs <= 0) continue;
-
-        const lastDamageTickAtMs = effect.lastDamageTickAtMs ?? effect.startedAtMs - tickIntervalMs;
-        if (nowMs - lastDamageTickAtMs < tickIntervalMs) continue;
-
-        effect.lastDamageTickAtMs = nowMs;
-        const damage = computeSkillDamage(skillDef, nowMs);
-        if (damage <= 0) continue;
-
-        const hitEnemyIds = new Set<EnemyId>();
-        for (const enemy of enemies) {
-          if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
-
-          const isHit =
-            effect.skillId === "royal_beam"
-              ? isEnemyInBeam(
-                  enemy,
-                  effect.originX ?? playerPosition.x,
-                  effect.originY ?? playerPosition.y,
-                  effect.directionX ?? playerFacing.x,
-                  effect.directionY ?? playerFacing.y,
-                  skillDef.range ?? effect.range ?? 0,
-                  skillDef.width ?? effect.width ?? 0
-                )
-              : effect.skillId === "king_aura"
-                ? isEnemyInCircle(enemy, playerPosition.x, playerPosition.y, skillDef.radius ?? effect.radius ?? 0)
-                : false;
-
-          if (!isHit) continue;
-
-          hitEnemyIds.add(enemy.id);
-          applySkillDamageToEnemy(enemy, damage);
-          didDamage = true;
-        }
-      }
-
-      if (didDamage) {
-        syncCombatHud();
-      }
+      void nowMs;
     }
 
     function applyMeleeHits(attack: ActiveMeleeAttack) {

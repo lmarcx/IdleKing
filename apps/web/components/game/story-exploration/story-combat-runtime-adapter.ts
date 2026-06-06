@@ -1,4 +1,5 @@
 import { combat, power, random, type CharacterCombatLoadout } from "@idleking/game-core";
+import type { SkillCastDamageInput } from "@idleking/game-core/skills";
 
 import type { StoryLevelEnemy } from "./story-level-combat";
 
@@ -50,13 +51,13 @@ export function createStoryCombatRuntimeState(
     enemy: createRuntimeEnemy(enemy),
     player: {
       attack: derivedStats.base.atk,
-      critChance: derivedStats.advanced.critChance,
+      critChance: combatLoadout.stats.critChance,
       critDamage: derivedStats.advanced.critDamage,
       hpMax: derivedStats.resources.maxHp,
       manaMax: derivedStats.resources.maxMana,
-      manaRegenPerSecond: derivedStats.advanced.manaRegen,
+      manaRegenPerSecond: combatLoadout.stats.manaRegen,
       staminaMax: derivedStats.resources.maxStamina,
-      staminaRegenPerSecond: derivedStats.advanced.staminaRegen,
+      staminaRegenPerSecond: combatLoadout.stats.staminaRegen,
     },
   });
 }
@@ -78,12 +79,12 @@ export function retargetStoryCombatRuntimeEnemy(
  */
 export function computeStorySkillDamage(
   state: combat.CombatRuntimeState,
-  skillDef: combat.SkillDef,
+  damageInput: SkillCastDamageInput,
   options?: { buffMultiplier?: number }
 ): number {
   const result = combat.computeSkillDamage({
     attack: state.player.attack,
-    skillDamageMultiplier: skillDef.damageMultiplier ?? 0,
+    ...damageInput,
     buffMultiplier: options?.buffMultiplier,
     targetDef: STORY_RUNTIME_VISUAL_PLACEHOLDERS.enemyDef,
     attackerStatuses: state.player.statuses,
