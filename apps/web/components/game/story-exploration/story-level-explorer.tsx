@@ -7,12 +7,20 @@ import { useEffect, useMemo, useState } from "react";
 import { CombatHud } from "@/components/game/combat/combat-hud";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
-import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction, type StoryEventDef } from "@idleking/game-core";
+import {
+  STORY_LEVEL_PLACEHOLDER_REWARDS,
+  canEnterDungeon,
+  completeDungeon,
+  completeStoryLevelAction,
+  type RewardBundle,
+  type StoryEventDef,
+} from "@idleking/game-core";
 import type { ResourceStock } from "@idleking/game-core/resources/types.js";
 import { ExplorationHud, type ExplorerHudLevel, type ExplorerHudPoi } from "./exploration-hud";
 import { PixiExplorationStage, type ExplorationCombatHudState, type ExplorationStagePoi } from "./pixi-exploration-stage";
 
 type StoryLevelExplorerProps = {
+  dungeonId?: string;
   level: ExplorerHudLevel & {
     events: Array<Pick<StoryEventDef, "id" | "type">>;
   };
@@ -26,6 +34,8 @@ type ExplorationPoi = ExplorationStagePoi & {
   label: string;
   required: boolean;
 };
+
+type DisplayRewards = Record<string, number>;
 
 function getPoiColor(type: StoryEventDef["type"]): number {
   switch (type) {
@@ -66,18 +76,39 @@ function distanceBetween(a: { x: number; y: number }, b: { x: number; y: number 
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function rewardEntries(rewards: ResourceStock): Array<[string, number]> {
+function rewardEntries(rewards: DisplayRewards): Array<[string, number]> {
   return Object.entries(rewards).filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0);
+}
+
+function resourceStockToDisplayRewards(stock: ResourceStock): DisplayRewards {
+  const rewards: DisplayRewards = {};
+  for (const [resourceId, amount] of Object.entries(stock)) {
+    if (typeof amount === "number") rewards[resourceId] = amount;
+  }
+  return rewards;
+}
+
+function rewardBundleToDisplayRewards(rewards: RewardBundle): DisplayRewards {
+  const stock: DisplayRewards = {};
+  for (const reward of rewards.resources ?? []) {
+    stock[reward.resourceId] = (stock[reward.resourceId] ?? 0) + reward.amount;
+  }
+  for (const reward of rewards.currencies ?? []) {
+    stock[reward.currencyId] = (stock[reward.currencyId] ?? 0) + reward.amount;
+  }
+  return stock;
 }
 
 function CompletionPanel({
   alreadyCompleted,
+  label,
   onReturn,
   rewards,
 }: {
   alreadyCompleted: boolean;
+  label: string;
   onReturn: () => void;
-  rewards: ResourceStock;
+  rewards: DisplayRewards;
 }) {
   return (
     <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
@@ -85,7 +116,7 @@ function CompletionPanel({
         <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">
           {alreadyCompleted ? "Objectifs deja valides" : "Objectifs valides"}
         </p>
-        <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Niveau complété</h2>
+        <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">{label}</h2>
         <div className="mt-5 rounded-md border border-amber-200/18 bg-black/45 p-4 text-left">
           <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-muted-foreground">Rewards placeholder</p>
           <div className="mt-3 grid gap-2 font-ik-body text-sm text-amber-50">
@@ -110,10 +141,36 @@ function CompletionPanel({
   );
 }
 
-export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
+function LockedPanel({ onReturn }: { onReturn: () => void }) {
+  return (
+    <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-lg border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+        <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-amber-200">Verrouille</p>
+        <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Donjon indisponible</h2>
+        <p className="mt-3 font-ik-body text-sm text-muted-foreground">
+          Les prerequis Story ou WorldLevel ne sont pas encore remplis.
+        </p>
+        <button
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
+          onClick={onReturn}
+          type="button"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Retour au Royaume
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps) {
   const router = useRouter();
   const dispatch = useGameStore((s) => s.dispatch);
-  const hasCompletedLevel = useGameStore((s) => s.state.story.completedLevels.has(level.id));
+  const gameState = useGameStore((s) => s.state);
+  const hasCompletedLevel = dungeonId
+    ? gameState.story.completedDungeonIds.has(dungeonId)
+    : gameState.story.completedLevels.has(level.id);
+  const canCompleteDungeon = dungeonId ? canEnterDungeon(gameState, dungeonId) : true;
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const [playerPosition, setPlayerPosition] = useState({
     x: MAP_WIDTH / 2,
@@ -123,7 +180,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   const [discoveredPoiIds, setDiscoveredPoiIds] = useState<Set<string>>(() => new Set());
   const [completion, setCompletion] = useState<{
     alreadyCompleted: boolean;
-    rewards: ResourceStock;
+    rewards: DisplayRewards;
   } | null>(null);
   const [combatHud, setCombatHud] = useState<ExplorationCombatHudState | null>(null);
 
@@ -148,7 +205,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
     setCompletion((current) =>
       current ?? {
         alreadyCompleted: true,
-        rewards: STORY_LEVEL_PLACEHOLDER_REWARDS,
+        rewards: resourceStockToDisplayRewards(STORY_LEVEL_PLACEHOLDER_REWARDS),
       }
     );
   }, [hasCompletedLevel, pointsOfInterest]);
@@ -170,6 +227,18 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   useEffect(() => {
     if (!allRequiredPoisDiscovered || completion || hasCompletedLevel) return;
 
+    if (dungeonId) {
+      const result = completeDungeon(useGameStore.getState().state, dungeonId);
+      if (!result.ok) return;
+
+      dispatch(() => result.next);
+      setCompletion({
+        alreadyCompleted: false,
+        rewards: rewardBundleToDisplayRewards(result.rewards),
+      });
+      return;
+    }
+
     const result = completeStoryLevelAction(useGameStore.getState().state, level.id);
     dispatch(() => result.next);
 
@@ -179,12 +248,12 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
         rewards: result.rewards,
       });
     }
-  }, [allRequiredPoisDiscovered, completion, dispatch, hasCompletedLevel, level.id]);
+  }, [allRequiredPoisDiscovered, completion, dispatch, dungeonId, hasCompletedLevel, level.id]);
 
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
-        inputBlocked={isGameHudOverlayOpen || completion !== null}
+        inputBlocked={isGameHudOverlayOpen || completion !== null || !canCompleteDungeon}
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
@@ -208,10 +277,12 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
       {completion ? (
         <CompletionPanel
           alreadyCompleted={completion.alreadyCompleted}
+          label={dungeonId ? "Donjon complete" : "Niveau complete"}
           onReturn={() => router.push("/game/kingdom")}
           rewards={completion.rewards}
         />
       ) : null}
+      {!canCompleteDungeon ? <LockedPanel onReturn={() => router.push("/game/kingdom")} /> : null}
     </section>
   );
 }

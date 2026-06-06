@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { StoryLevelExplorer } from "@/components/game/story-exploration/story-level-explorer";
-import { getStoryLevelDef } from "@idleking/game-core";
+import { getStoryBossDefinition, getStoryDungeonDefinition, getStoryLevelDef } from "@idleking/game-core";
 
 type StoryLevelPageProps = {
   params: Promise<{
@@ -11,6 +11,29 @@ type StoryLevelPageProps = {
 
 export default async function StoryLevelPage({ params }: StoryLevelPageProps) {
   const { levelId } = await params;
+  const dungeon = getStoryDungeonDefinition(levelId);
+
+  if (dungeon) {
+    const boss = dungeon.bossId ? getStoryBossDefinition(dungeon.bossId) : undefined;
+    const explorerLevel = {
+      chapterId: dungeon.chapterId,
+      description: boss ? `Boss: ${boss.name}` : "Donjon narratif MVP.",
+      events: [
+        { id: `${dungeon.id}.event.1`, type: "exploration" as const },
+        { id: `${dungeon.id}.event.2`, type: dungeon.type === "boss" ? ("boss" as const) : ("encounter" as const) },
+        { id: `${dungeon.id}.event.3`, type: "unlock" as const },
+      ],
+      id: dungeon.id,
+      index: dungeon.order,
+      isRequiredForNarrative: true,
+      kind: dungeon.type === "boss" ? ("special" as const) : ("standard" as const),
+      recommendedPower: (dungeon.unlockConditions.minWorldLevel ?? 1) * 10,
+      title: dungeon.title,
+    };
+
+    return <StoryLevelExplorer dungeonId={dungeon.id} level={explorerLevel} />;
+  }
+
   const level = getStoryLevelDef(levelId);
 
   if (!level) {

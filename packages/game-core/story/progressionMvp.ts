@@ -13,6 +13,19 @@ export type StoryUnlockConditions = Readonly<{
   minWorldLevel?: number;
 }>;
 
+export type StoryUnlockRequirementStatus =
+  | Readonly<{
+      kind: "storyFlag";
+      flag: string;
+      met: boolean;
+    }>
+  | Readonly<{
+      kind: "worldLevel";
+      required: number;
+      current: number;
+      met: boolean;
+    }>;
+
 export type StoryChapterDefinition = Readonly<{
   chapterId: MvpStoryChapterId;
   title: string;
@@ -188,7 +201,7 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
   {
     id: "prologue_wastelands",
     title: "Terres Desolees",
-    era: "prologue",
+    era: "era_funebre",
     chapterId: "prologue",
     order: 0,
     type: "boss",
@@ -276,7 +289,7 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
   {
     id: "royal_abyss",
     title: "Gouffre Royal",
-    era: "era_glaciaire",
+    era: "era_funebre",
     chapterId: "chapter_ii_glaciaire",
     order: 5,
     type: "boss",
@@ -357,6 +370,39 @@ export function getStoryDungeonDefinition(dungeonId: string): StoryDungeonDefini
 
 export function getStoryBossDefinition(bossId: string): StoryBossDefinition | undefined {
   return STORY_BOSS_REGISTRY.find((boss) => boss.id === bossId);
+}
+
+export function getStoryUnlockRequirementStatuses(
+  state: GameState,
+  conditions: StoryUnlockConditions,
+): StoryUnlockRequirementStatus[] {
+  const statuses: StoryUnlockRequirementStatus[] = [];
+  const flags = getStoryFlags(state);
+
+  if (conditions.minWorldLevel !== undefined) {
+    statuses.push({
+      kind: "worldLevel",
+      required: conditions.minWorldLevel,
+      current: state.progression.worldLevel,
+      met: state.progression.worldLevel >= conditions.minWorldLevel,
+    });
+  }
+
+  for (const flag of conditions.storyFlags ?? []) {
+    statuses.push({
+      kind: "storyFlag",
+      flag,
+      met: flags.has(flag),
+    });
+  }
+
+  return statuses;
+}
+
+export function getStoryDungeonLockReasons(state: GameState, dungeonId: string): StoryUnlockRequirementStatus[] {
+  const dungeon = getStoryDungeonDefinition(dungeonId);
+  if (!dungeon) return [];
+  return getStoryUnlockRequirementStatuses(state, dungeon.unlockConditions).filter((requirement) => !requirement.met);
 }
 
 function checkUnlockConditions(state: GameState, conditions: StoryUnlockConditions): "STORY_FLAG_MISSING" | "WORLD_LEVEL_TOO_LOW" | null {

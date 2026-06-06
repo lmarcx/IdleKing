@@ -622,6 +622,8 @@ export {
   getStoryBossDefinition,
   getStoryChapterDefinition,
   getStoryDungeonDefinition,
+  getStoryDungeonLockReasons,
+  getStoryUnlockRequirementStatuses,
   STORY_BOSS_REGISTRY,
   STORY_CHAPTER_REGISTRY,
   STORY_DUNGEON_REGISTRY,
@@ -659,6 +661,7 @@ export type {
   StoryBossDefinition,
   StoryChapterDefinition,
   StoryDungeonDefinition,
+  StoryUnlockRequirementStatus,
   StoryUnlockConditions,
 } from "./story/progressionMvp.js";
 export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";

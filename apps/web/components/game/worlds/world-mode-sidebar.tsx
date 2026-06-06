@@ -1,10 +1,10 @@
 "use client";
 
-import { BookOpen, DoorOpen, type LucideIcon } from "lucide-react";
+import { DoorOpen, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type WorldModeId = "story" | "time_gate";
+export type WorldModeId = "time_gate";
 
 type WorldMode = {
   icon: LucideIcon;
@@ -14,12 +14,6 @@ type WorldMode = {
 };
 
 const WORLD_MODES: WorldMode[] = [
-  {
-    icon: BookOpen,
-    id: "story",
-    label: "Story",
-    status: "Disponible",
-  },
   {
     icon: DoorOpen,
     id: "time_gate",
