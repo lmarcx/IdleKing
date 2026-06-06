@@ -1,5 +1,10 @@
 export type SkillId = "royal_beam" | "king_aura" | "royal_strike" | "war_cry";
 
+/**
+ * @deprecated Legacy active-skill progression path kept for older screens and
+ * tests. Story combat now uses ring-backed SK-001..SK-016 definitions from
+ * packages/game-core/skills with no skill levels, points, or XP.
+ */
 export type SkillKind = "beam" | "aura" | "frontal_aoe" | "buff";
 
 export type SkillSlot = 1 | 2 | 3 | 4;

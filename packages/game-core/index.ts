@@ -559,6 +559,7 @@ export {
   buildCharacterCombatLoadout,
 } from "./character/index.js";
 export type {
+  CombatSkillSlot,
   CharacterCombatLoadout,
   CharacterCombatStats,
   EquippedCombatSkill,

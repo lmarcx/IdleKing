@@ -10,7 +10,8 @@ import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { getResourceAssetPath } from "@/lib/resource-assets";
 import { useGameStore } from "@/store/game-store";
 import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
-import { applyPlayerXpGain, combat, type CharacterCombatLoadout, type EquippedCombatSkill } from "@idleking/game-core";
+import { applyPlayerXpGain, combat, type CharacterCombatLoadout, type CombatSkillSlot, type EquippedCombatSkill } from "@idleking/game-core";
+import type { SkillCooldownState, SkillDefinition, SkillId } from "@idleking/game-core/skills";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
 import {
   RESURRECTED_SCARECROW_BOSS,
@@ -108,17 +109,18 @@ type DuelHudState = {
   playerHp: number;
 };
 
-type SkillId = combat.SkillId;
-type SkillSlot = combat.SkillSlot;
-type SkillCooldownState = combat.SkillCooldownState;
-type ActiveDuelSkillEffect = combat.ActiveSkillEffect & {
+type SkillSlot = CombatSkillSlot;
+type ActiveDuelSkillEffect = {
   directionX?: number;
+  endsAtMs: number;
   directionY?: number;
   hitBoss?: boolean;
   lastDamageTickAtMs?: number;
   originX?: number;
   originY?: number;
-  skillDef: combat.SkillDef;
+  skillDef: SkillDefinition;
+  skillId: SkillId;
+  startedAtMs: number;
 };
 
 type LocalSkillsState = {
@@ -150,6 +152,8 @@ const SKILL_SLOT_BY_KEY: Record<string, SkillSlot> = {
   "3": 3,
   "'": 4,
   "4": 4,
+  "(": 5,
+  "5": 5,
 };
 
 const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
@@ -157,6 +161,7 @@ const SKILL_SLOT_BY_CODE: Record<string, SkillSlot> = {
   Digit2: 2,
   Digit3: 3,
   Digit4: 4,
+  Digit5: 5,
 };
 
 function normalizeVector(vector: DuelVector, fallback: DuelVector = { x: 0, y: -1 }): DuelVector {
@@ -299,22 +304,21 @@ function isBossInsideBeam({
 }
 
 function getActiveDamageMultiplier(effects: ActiveDuelSkillEffect[], nowMs: number) {
-  return effects.reduce((multiplier, effect) => {
-    if (effect.skillId !== "war_cry" || effect.endsAtMs < nowMs) return multiplier;
-    return multiplier + (effect.bonusDamageMultiplier ?? effect.skillDef.bonusDamageMultiplier ?? 0);
-  }, 1);
+  void effects;
+  void nowMs;
+  return 1;
 }
 
 export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(false);
   const dispatch = useGameStore((store) => store.dispatch);
-  const playerSkills = useGameStore((store) => store.state.skills);
+  const gameState = useGameStore((store) => store.state);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const combatLoadout = useMemo(
-    () => buildCombatLoadoutFromGameState({ ...useGameStore.getState().state, skills: playerSkills }),
-    [playerSkills]
+    () => buildCombatLoadoutFromGameState(gameState),
+    [gameState]
   );
   const playerMaxHp = Math.max(1, Math.ceil(combatLoadout.stats.hp));
   const [hudState, setHudState] = useState<DuelHudState>({
@@ -616,7 +620,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       return Math.max(1, Math.round(combatLoadout.stats.attack * multiplier * getActiveDamageMultiplier(activeSkillEffects, nowMs)));
     }
 
-    function applyInstantSkillDamage(skillDef: combat.SkillDef, nowMs: number) {
+    function applyInstantSkillDamage(skillDef: SkillDefinition, nowMs: number) {
       if (
         isPointInsideMeleeCone({
           attackDirection: { ...playerFacing },
@@ -625,7 +629,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
           targetRadius: RESURRECTED_SCARECROW_BOSS.bossRadius,
         })
       ) {
-        damageBoss(getPlayerDamage(skillDef.damageMultiplier ?? 1, nowMs));
+        damageBoss(getPlayerDamage(skillDef.basePower || 1, nowMs));
       }
     }
 
@@ -635,37 +639,33 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       const equippedSkill = getEquippedSkillForSlot(slot);
       if (!equippedSkill) return;
 
-      const result = combat.castSkillWithDef({
-        cooldowns: skillCooldowns,
-        nowMs,
-        skillDef: equippedSkill.skillDef,
-      });
-
-      if (!result.ok) {
+      const nextAvailableAtMs = skillCooldowns[equippedSkill.skillId] ?? 0;
+      if (nextAvailableAtMs > nowMs) {
         publishSkillsState(nowMs);
         return;
       }
 
       skillCooldowns = {
         ...skillCooldowns,
-        [result.skillId]: result.nextAvailableAtMs,
+        [equippedSkill.skillId]: nowMs + equippedSkill.skillDef.cooldownSeconds * 1_000,
       };
 
-      if (result.activeEffect) {
+      if (equippedSkill.skillDef.category !== "attack") {
         const direction = normalizeVector(playerFacing);
         activeSkillEffects = [
           ...activeSkillEffects,
           {
-            ...result.activeEffect,
+            endsAtMs: nowMs + 700,
             directionX: direction.x,
             directionY: direction.y,
-            lastDamageTickAtMs: result.startedAtMs - (result.activeEffect.tickIntervalMs ?? 0),
             originX: playerPosition.x,
             originY: playerPosition.y,
             skillDef: equippedSkill.skillDef,
+            skillId: equippedSkill.skillId,
+            startedAtMs: nowMs,
           },
         ];
-      } else if (result.skillId === "royal_strike") {
+      } else {
         applyInstantSkillDamage(equippedSkill.skillDef, nowMs);
       }
 
@@ -991,49 +991,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
 
     function updateActiveSkillEffects(nowMs: number) {
       removeExpiredSkillEffects(nowMs);
-      let didMutateEffects = false;
-
-      for (const effect of activeSkillEffects) {
-        if (effect.skillId === "war_cry") continue;
-        const interval = effect.tickIntervalMs ?? effect.skillDef.tickIntervalMs ?? 0;
-        if (interval <= 0) continue;
-        if (nowMs - (effect.lastDamageTickAtMs ?? effect.startedAtMs) < interval) continue;
-
-        let isHit = false;
-        if (effect.skillId === "royal_beam") {
-          const direction = normalizeVector({
-            x: effect.directionX ?? playerFacing.x,
-            y: effect.directionY ?? playerFacing.y,
-          });
-          isHit = isBossInsideBeam({
-            bossPosition,
-            direction,
-            origin: {
-              x: effect.originX ?? playerPosition.x,
-              y: effect.originY ?? playerPosition.y,
-            },
-            range: effect.range ?? effect.skillDef.range ?? 0,
-            width: effect.width ?? effect.skillDef.width ?? 0,
-          });
-        } else if (effect.skillId === "king_aura") {
-          isHit = isCircleCollision(
-            playerPosition,
-            effect.radius ?? effect.skillDef.radius ?? 0,
-            bossPosition,
-            RESURRECTED_SCARECROW_BOSS.bossRadius
-          );
-        }
-
-        effect.lastDamageTickAtMs = nowMs;
-        didMutateEffects = true;
-        if (isHit) {
-          damageBoss(getPlayerDamage(effect.damageMultiplier ?? effect.skillDef.damageMultiplier ?? 1, nowMs));
-        }
-      }
-
-      if (didMutateEffects) {
-        publishSkillsState(nowMs);
-      }
+      void nowMs;
     }
 
     function updateRainImpacts(deltaMs: number) {

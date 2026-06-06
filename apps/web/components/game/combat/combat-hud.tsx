@@ -5,13 +5,14 @@ import type { ReactNode } from "react";
 
 import { GameHud, type GameHudResource } from "@/components/game/hud/game-hud";
 import { SkillBar } from "@/components/game/story-exploration/skill-bar";
-import type { CharacterCombatLoadout, combat } from "@idleking/game-core";
+import type { CharacterCombatLoadout } from "@idleking/game-core";
+import type { SkillCooldownState } from "@idleking/game-core/skills";
 
 type CombatHealth = GameHudResource;
 
 type CombatHudSkillBar = {
   combatLoadout: CharacterCombatLoadout;
-  cooldowns: combat.SkillCooldownState;
+  cooldowns: SkillCooldownState;
   currentTimeMs: number;
 };
 

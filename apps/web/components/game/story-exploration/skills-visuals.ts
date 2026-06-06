@@ -1,9 +1,6 @@
 import * as PIXI from "pixi.js";
 
-import { combat } from "@idleking/game-core";
-
-type ActiveSkillEffect = combat.ActiveSkillEffect;
-type SkillId = combat.SkillId;
+import type { SkillCategory, SkillDefinition, SkillId } from "@idleking/game-core/skills";
 
 type DirectionalSkillSnapshot = {
   angle: number;
@@ -13,7 +10,13 @@ type DirectionalSkillSnapshot = {
   originY: number;
 };
 
-type VisualActiveSkillEffect = ActiveSkillEffect & Partial<DirectionalSkillSnapshot>;
+type VisualActiveSkillEffect = Partial<DirectionalSkillSnapshot> & {
+  category: SkillCategory;
+  endsAtMs: number;
+  skillDef: SkillDefinition;
+  skillId: SkillId;
+  startedAtMs: number;
+};
 
 type SkillVisual = {
   graphic: PIXI.Graphics;
@@ -24,7 +27,7 @@ type SkillVisual = {
 type InstantSkillVisual = {
   graphic: PIXI.Graphics;
   snapshot: DirectionalSkillSnapshot;
-  skillId: "royal_strike";
+  skillId: SkillId;
   startedAtMs: number;
 };
 
@@ -61,8 +64,8 @@ function getWorldLayer(player: PIXI.Container): PIXI.Container {
 
 function createSkillVisual(effect: VisualActiveSkillEffect, player: PIXI.Container): SkillVisual {
   const graphic = new PIXI.Graphics();
-  graphic.zIndex = effect.skillId === "king_aura" || effect.skillId === "war_cry" ? -1 : 1;
-  const layer = effect.skillId === "royal_beam" ? getWorldLayer(player) : player;
+  graphic.zIndex = -1;
+  const layer = player;
   layer.addChild(graphic);
   layer.sortableChildren = true;
   return {
@@ -77,44 +80,21 @@ function removeGraphic(graphic: PIXI.Graphics): void {
   graphic.destroy();
 }
 
-function renderRoyalBeam(graphic: PIXI.Graphics, effect: VisualActiveSkillEffect, nowMs: number, player: PIXI.Container): void {
-  const range = effect.range ?? 420;
-  const width = effect.width ?? 72;
+function renderDeferredSkillStub(graphic: PIXI.Graphics, effect: VisualActiveSkillEffect, nowMs: number): void {
   const progress = Math.min(Math.max((nowMs - effect.startedAtMs) / Math.max(effect.endsAtMs - effect.startedAtMs, 1), 0), 1);
-  const alpha = 0.34 + Math.sin(nowMs / 90) * 0.08;
-  const originX = effect.originX ?? player.x;
-  const originY = effect.originY ?? player.y;
-  const angle = effect.angle ?? player.rotation - Math.PI / 2;
-
-  graphic.clear();
-  graphic
-    .roundRect(0, -width / 2, range, width, 14)
-    .fill({ color: 0xff6a2a, alpha: alpha * (1 - progress * 0.22) });
-  graphic.roundRect(0, -width * 0.18, range, width * 0.36, 10).fill({ color: 0xffd36a, alpha: 0.42 });
-  graphic.moveTo(24, 0).lineTo(range, 0).stroke({ color: 0xfff1b8, alpha: 0.55, width: 3 });
-  graphic.position.set(originX, originY);
-  graphic.rotation = angle;
-}
-
-function renderKingAura(graphic: PIXI.Graphics, effect: ActiveSkillEffect, nowMs: number): void {
-  const radius = effect.radius ?? 180;
-  const pulse = 1 + Math.sin((nowMs - effect.startedAtMs) / 180) * 0.06;
+  const pulse = 1 + Math.sin((nowMs - effect.startedAtMs) / 120) * 0.08;
+  const color = effect.category === "movement"
+    ? 0x7dd3fc
+    : effect.category === "defense"
+      ? 0xa7f3d0
+      : effect.category === "summon"
+        ? 0xc084fc
+        : 0xf0c26a;
 
   graphic.clear();
   graphic.scale.set(pulse);
-  graphic.circle(0, 0, radius).fill({ color: 0x7f45ff, alpha: 0.12 });
-  graphic.circle(0, 0, radius * 0.82).stroke({ color: 0xf0c26a, alpha: 0.46, width: 4 });
-  graphic.circle(0, 0, radius).stroke({ color: 0x9d72ff, alpha: 0.42, width: 2 });
-}
-
-function renderWarCry(graphic: PIXI.Graphics, effect: ActiveSkillEffect, nowMs: number): void {
-  const pulse = 1 + Math.sin((nowMs - effect.startedAtMs) / 120) * 0.09;
-
-  graphic.clear();
-  graphic.scale.set(pulse);
-  graphic.circle(0, 0, 78).fill({ color: 0xf0c26a, alpha: 0.16 });
-  graphic.circle(0, 0, 58).stroke({ color: 0xfff1b8, alpha: 0.62, width: 5 });
-  graphic.circle(0, 0, 92).stroke({ color: 0xffb84a, alpha: 0.28, width: 3 });
+  graphic.circle(0, 0, 74).fill({ color, alpha: 0.14 * (1 - progress * 0.4) });
+  graphic.circle(0, 0, 52).stroke({ color, alpha: 0.55 * (1 - progress * 0.25), width: 4 });
 }
 
 function renderActiveVisual(visual: SkillVisual, effect: VisualActiveSkillEffect, nowMs: number, player: PIXI.Container): void {
@@ -122,19 +102,8 @@ function renderActiveVisual(visual: SkillVisual, effect: VisualActiveSkillEffect
   visual.graphic.rotation = 0;
   visual.graphic.scale.set(1);
 
-  if (effect.skillId === "royal_beam") {
-    renderRoyalBeam(visual.graphic, effect, nowMs, player);
-    return;
-  }
-
-  if (effect.skillId === "king_aura") {
-    renderKingAura(visual.graphic, effect, nowMs);
-    return;
-  }
-
-  if (effect.skillId === "war_cry") {
-    renderWarCry(visual.graphic, effect, nowMs);
-  }
+  void player;
+  renderDeferredSkillStub(visual.graphic, effect, nowMs);
 }
 
 function renderInstantVisuals(player: PIXI.Container, nowMs: number): void {
@@ -170,8 +139,6 @@ export function spawnInstantSkillEffect(
   startedAtMs: number,
   snapshot: DirectionalSkillSnapshot,
 ): void {
-  if (skillId !== "royal_strike") return;
-
   const graphic = new PIXI.Graphics();
   graphic.zIndex = 2;
   const layer = getWorldLayer(player);

@@ -2,30 +2,103 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { buildCharacterCombatLoadout } from "../character/index.js";
-import { createInitialGameState } from "../game/state.js";
-import {
-  equipSkill,
-  unlockOrUpgradeSkill,
-  type PlayerSkillsState,
-} from "../combat/index.js";
+import { generateEquipmentItem } from "../equipment/index.js";
+import { createInitialGameState, type GameState } from "../game/state.js";
+import type { SkillId } from "../skills/index.js";
 
-function withSkillPoints(state: PlayerSkillsState, skillPoints: number): PlayerSkillsState {
+function stateWithEquippedRings(skillIds: readonly SkillId[]): GameState {
+  const rings = skillIds.map((skillId, index) =>
+    generateEquipmentItem({
+      id: `ring-${index + 1}`,
+      itemLevel: 10 + index,
+      rarity: index === 0 ? "COMMON" : "RARE",
+      seed: `ring-${skillId}`,
+      skillId,
+      slot: "ring",
+    })
+  );
+
   return {
-    ...state,
-    skillPoints,
-    skills: {
-      royal_beam: { ...state.skills.royal_beam },
-      king_aura: { ...state.skills.king_aura },
-      royal_strike: { ...state.skills.royal_strike },
-      war_cry: { ...state.skills.war_cry },
+    ...createInitialGameState(),
+    equipment: {
+      equipped: {
+        ...createInitialGameState().equipment.equipped,
+        rings: [
+          rings[0]?.id ?? null,
+          rings[1]?.id ?? null,
+          rings[2]?.id ?? null,
+          rings[3]?.id ?? null,
+          rings[4]?.id ?? null,
+        ],
+      },
     },
-    loadout: { ...state.loadout },
+    inventory: { items: rings },
   };
 }
 
-test("default character combat loadout exposes only royal_strike in slot 1", () => {
-  const gameState = createInitialGameState();
+test("character combat loadout reads five equipped rings as active SK slots", () => {
+  const gameState = stateWithEquippedRings(["SK-001", "SK-003", "SK-004", "SK-012", "SK-015"]);
   const loadout = buildCharacterCombatLoadout(gameState);
+
+  assert.ok(loadout.stats.hp >= 100);
+  assert.ok(loadout.stats.attack > 25);
+  assert.ok(loadout.stats.defense > 0);
+  assert.ok(loadout.stats.power > 25);
+  assert.deepEqual(
+    loadout.skills.map((skill) => [skill.slot, skill.skillId]),
+    [
+      [1, "SK-001"],
+      [2, "SK-003"],
+      [3, "SK-004"],
+      [4, "SK-012"],
+      [5, "SK-015"],
+    ]
+  );
+  assert.ok(loadout.skills.every((skill) => skill.skillDef.id === skill.skillId));
+  assert.ok(loadout.skills.every((skill) => skill.ringSkillScaling > 1));
+});
+
+test("character combat loadout rejects unknown equipped ring skillId", () => {
+  const gameState = stateWithEquippedRings(["SK-001"]);
+  const brokenState = {
+    ...gameState,
+    inventory: {
+      items: gameState.inventory.items.map((item) =>
+        "slot" in item && item.slot === "ring" ? { ...item, skillId: "SK-999" } : item
+      ),
+    },
+  } as unknown as GameState;
+
+  assert.throws(() => buildCharacterCombatLoadout(brokenState), /Unknown equipped ring skillId/);
+});
+
+test("character combat loadout rejects duplicate equipped ring skillIds", () => {
+  const gameState = stateWithEquippedRings(["SK-001", "SK-003"]);
+  const duplicateState = {
+    ...gameState,
+    inventory: {
+      items: gameState.inventory.items.map((item, index) =>
+        index === 1 && "slot" in item && item.slot === "ring" ? { ...item, skillId: "SK-001" } : item
+      ),
+    },
+  } as unknown as GameState;
+
+  assert.throws(() => buildCharacterCombatLoadout(duplicateState), /Duplicate equipped ring skillId/);
+});
+
+test("character combat loadout does not require legacy gameState.skills", () => {
+  const gameState = stateWithEquippedRings(["SK-004"]);
+  const withoutLegacySkills = { ...gameState, skills: undefined } as unknown as GameState;
+  const loadout = buildCharacterCombatLoadout(withoutLegacySkills);
+
+  assert.deepEqual(
+    loadout.skills.map((skill) => skill.skillId),
+    ["SK-004"]
+  );
+});
+
+test("empty character combat loadout keeps stats and no active skills", () => {
+  const loadout = buildCharacterCombatLoadout(createInitialGameState());
 
   assert.deepEqual(loadout.stats, {
     hp: 100,
@@ -33,59 +106,5 @@ test("default character combat loadout exposes only royal_strike in slot 1", () 
     defense: 0,
     power: 25,
   });
-  assert.equal(loadout.skills.length, 1);
-  assert.equal(loadout.skills[0].slot, 1);
-  assert.equal(loadout.skills[0].skillId, "royal_strike");
-  assert.equal(loadout.skills[0].level, 1);
-});
-
-test("character combat loadout includes unlocked and equipped upgraded royal_beam", () => {
-  let gameState = createInitialGameState();
-  let skills = withSkillPoints(gameState.skills, 4);
-
-  for (let level = 0; level < 3; level += 1) {
-    const result = unlockOrUpgradeSkill(skills, "royal_beam");
-    if (!result.ok) assert.fail(`Expected royal_beam upgrade, got ${result.reason}`);
-    skills = result.state;
-  }
-
-  const equip = equipSkill(skills, "royal_beam", 2);
-  if (!equip.ok) assert.fail(`Expected royal_beam equip, got ${equip.reason}`);
-  gameState = { ...gameState, skills: equip.state };
-
-  const loadout = buildCharacterCombatLoadout(gameState);
-  const royalBeam = loadout.skills.find((skill) => skill.skillId === "royal_beam");
-
-  assert.equal(royalBeam?.slot, 2);
-  assert.equal(royalBeam?.level, 3);
-  assert.equal(royalBeam?.skillDef.damageMultiplier, 0.495);
-  assert.equal(royalBeam?.skillDef.range, 480);
-});
-
-test("character combat loadout ignores locked skills even if they are present in loadout", () => {
-  const gameState = createInitialGameState();
-  const loadout = buildCharacterCombatLoadout({
-    ...gameState,
-    skills: {
-      ...gameState.skills,
-      loadout: {
-        ...gameState.skills.loadout,
-        2: "royal_beam",
-      },
-    },
-  });
-
-  assert.deepEqual(
-    loadout.skills.map((skill) => skill.skillId),
-    ["royal_strike"],
-  );
-});
-
-test("character combat loadout ignores empty slots", () => {
-  const gameState = createInitialGameState();
-  const loadout = buildCharacterCombatLoadout(gameState);
-
-  assert.equal(loadout.skills.some((skill) => skill.slot === 2), false);
-  assert.equal(loadout.skills.some((skill) => skill.slot === 3), false);
-  assert.equal(loadout.skills.some((skill) => skill.slot === 4), false);
+  assert.deepEqual(loadout.skills, []);
 });
