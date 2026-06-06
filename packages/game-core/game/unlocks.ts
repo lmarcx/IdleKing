@@ -13,9 +13,11 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
     ...state,
     story: {
       completedChapters: new Set(state.story.completedChapters),
+      completedDungeonIds: new Set(state.story.completedDungeonIds),
       completedLevels: new Set(state.story.completedLevels),
       discoveredEvents: new Set(state.story.discoveredEvents),
       completedEvents: new Set(state.story.completedEvents),
+      firstClearFlags: new Set(state.story.firstClearFlags),
       unlocked: new Set(state.story.unlocked),
     },
     buildings: {
@@ -28,6 +30,7 @@ export function applyUnlocks(state: GameState, unlocks: UnlockId[]): GameState {
       kitchen: { ...state.buildings.kitchen },
       forge: { ...state.buildings.forge },
       market: { ...state.buildings.market },
+      timeGate: { ...state.buildings.timeGate },
       worldGate: { ...state.buildings.worldGate },
       bank: { ...state.buildings.bank },
     },

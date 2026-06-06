@@ -48,9 +48,11 @@ export function completeChapter(story: StoryState, chapterId: ChapterId): Comple
 
   const nextStory: StoryState = {
     completedChapters: new Set(story.completedChapters),
+    completedDungeonIds: new Set(story.completedDungeonIds),
     completedLevels: new Set(story.completedLevels),
     discoveredEvents: new Set(story.discoveredEvents),
     completedEvents: new Set(story.completedEvents),
+    firstClearFlags: new Set(story.firstClearFlags),
     unlocked: new Set(story.unlocked),
   };
 

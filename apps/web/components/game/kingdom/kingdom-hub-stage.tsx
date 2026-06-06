@@ -34,10 +34,13 @@ import {
   getBuildCost,
   getCanonicalBuildingStatus,
   getCornucopiaClaimables,
+  getCanonicalForgeRecipeRequiredLevel,
+  getForgeOutputBase,
   getQty,
   hasAtLeast,
   isEquipmentItem,
   isForgeRecipeAvailable,
+  normalizeForgeRecipeIngredients,
   xpNext,
   type BuildingId,
   type BuildingStatus,
@@ -1084,7 +1087,8 @@ export function KingdomHubStage() {
 
   const handleForgeCraft = useCallback(
     (recipe: ForgeRecipe) => {
-      if (!hasAtLeast(useGameStore.getState().state.resources, recipe.cost)) {
+      const ingredients = normalizeForgeRecipeIngredients(recipe.ingredients);
+      if (!hasAtLeast(useGameStore.getState().state.resources, ingredients)) {
         toast.error("Not enough resources");
         return;
       }
@@ -2299,13 +2303,16 @@ export function KingdomHubStage() {
           {effectiveForge.built ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {FORGE_MVP_RECIPES.map((recipe) => {
-                const hasRecipeResources = hasAtLeast(state.resources, recipe.cost);
+                const ingredients = normalizeForgeRecipeIngredients(recipe.ingredients);
+                const outputBase = getForgeOutputBase(recipe.outputBaseId);
+                const requiredForgeLevel = getCanonicalForgeRecipeRequiredLevel(recipe);
+                const hasRecipeResources = hasAtLeast(state.resources, ingredients);
                 const isRecipeAvailable = isForgeRecipeAvailable(state, recipe);
                 const canCraft = hasRecipeResources && isRecipeAvailable;
                 const craftLabel = canCraft
                   ? "Forge"
                   : !isRecipeAvailable
-                    ? `Forge lvl ${recipe.requiredForgeLevel}`
+                    ? `Forge lvl ${requiredForgeLevel}`
                     : !hasRecipeResources
                     ? "Ressources insuffisantes"
                     : "Verrouillé";
@@ -2314,10 +2321,10 @@ export function KingdomHubStage() {
                   <div className="rounded-md border border-amber-200/15 bg-black/35 p-3" key={recipe.id}>
                     <div className="font-ik-title text-sm text-amber-50">{recipe.label}</div>
                     <div className="mt-1 font-ik-body text-xs capitalize text-muted-foreground">
-                      {recipe.slot} · {recipe.rarity.toLowerCase()} · ilvl from World {state.progression.worldLevel}
+                      {outputBase?.slot ?? recipe.category} - rarity roll Forge Lv - ilvl from World {state.progression.worldLevel}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {(Object.entries(recipe.cost) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
+                      {(Object.entries(ingredients) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
                         <span
                           className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
                           key={resourceId}

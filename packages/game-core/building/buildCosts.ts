@@ -28,6 +28,7 @@ export function getBuildCost(buildingId: BuildingId): ResourceStock {
     case "MARKET":
       return { WOOD: 35, STONE: 20, GOLD: 20 };
 
+    case "TIME_GATE":
     case "WORLD_GATE":
       return { STONE: 80, GOLD: 25 };
 

@@ -29,9 +29,6 @@ const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipment["rarity"], ItemRarity>
   rare: "RARE",
   epic: "EPIC",
   legendary: "LEGENDARY",
-  mythic: "MYTHIC",
-  divine: "DIVINE",
-  ancient: "ANCIENT",
 };
 
 const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]> = {
@@ -40,9 +37,6 @@ const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]>
   RARE: "rare",
   EPIC: "epic",
   LEGENDARY: "legendary",
-  MYTHIC: "mythic",
-  DIVINE: "divine",
-  ANCIENT: "ancient",
 };
 
 function getFixturePower(item: CharacterEquipment): number | undefined {
@@ -56,16 +50,43 @@ function getFixturePower(item: CharacterEquipment): number | undefined {
   return power > 0 ? power : undefined;
 }
 
+function toCoreEquipmentSlot(slot: CharacterEquipment["slot"]): EquipmentSlot {
+  if (slot === "weapon") return "main_hand";
+  if (slot === "offhand") return "off_hand";
+  return slot as EquipmentSlot;
+}
+
+function toCharacterEquipmentSlot(slot: EquipmentSlot): EquipmentSlotId {
+  if (slot === "main_hand") return "weapon";
+  if (slot === "off_hand") return "offhand";
+  return slot as EquipmentSlotId;
+}
+
 const DEV_EQUIPMENT_FIXTURES: Array<EquipmentItem & EquipmentMetadata> = FAKE_EQUIPMENT.map((item) => ({
+  affixes: [],
+  baseItemId: item.id,
+  baseStats: {
+    hp: item.stats.hp,
+    attack: item.stats.atk,
+    defense: item.stats.def,
+    power: getFixturePower(item),
+  },
   description: item.description,
   icon: item.icon,
   id: item.id,
   ilvl: item.itemLevel,
+  instanceId: item.id,
   itemLevel: item.itemLevel,
   kind: "equipment",
   name: item.name,
   rarity: CHARACTER_TO_CORE_RARITY[item.rarity],
-  slot: item.slot,
+  rolledStats: {
+    hp: item.stats.hp,
+    attack: item.stats.atk,
+    defense: item.stats.def,
+    power: getFixturePower(item),
+  },
+  slot: toCoreEquipmentSlot(item.slot),
   upgradeLevel: 0,
   stats: {
     hp: item.stats.hp,
@@ -91,7 +112,7 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
     itemLevel,
     name: item.name,
     rarity: getCharacterRarity(item),
-    slot: item.slot,
+    slot: toCharacterEquipmentSlot(item.slot),
     stats: {
       hp: item.stats.hp,
       atk: item.stats.attack,

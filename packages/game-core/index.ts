@@ -17,9 +17,13 @@ export * as items from "./items/index.js";
 export * as story from "./story/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
+export * as resonance from "./resonance/index.js";
+export * as effectSets from "./effectSets/index.js";
+export * as content from "./content/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
+export * as specialItems from "./specialItems/index.js";
 export {
   canSpendCurrency,
   CURRENCIES,
@@ -494,6 +498,64 @@ export type {
   UnequipItemResult,
 } from "./equipment/index.js";
 export {
+  MVP_BOSS_ROSTER,
+  assertValidMvpContentGraph,
+  validateMvpContentGraph,
+} from "./content/index.js";
+export type {
+  MvpBossId,
+  MvpContentGraphValidationInput,
+  MvpContentGraphValidationResult,
+} from "./content/index.js";
+export {
+  EFFECT_SET_BALANCING_PLACEHOLDERS,
+  EFFECT_SET_IDS,
+  EFFECT_SET_REGISTRY,
+  applyNarrativeEffectSetUnlock,
+  calculateEffectSetModifiers,
+  canSlotEffectSet,
+  createDefaultEffectSetsState,
+  getEffectSetDefinition,
+  getUnlockedEffectSets,
+  hasUnlockedEffectSet,
+  isEffectSetId,
+  normalizeEffectSetsState,
+  slotEffectSet,
+  unlockEffectSet,
+  unslotEffectSet,
+  validateEffectSetRegistry,
+} from "./effectSets/index.js";
+export type {
+  EffectSetDefinition,
+  EffectSetId,
+  EffectSetModifiers,
+  EffectSetResonanceContext,
+  EffectSetSource,
+  EffectSetStatModifiers,
+  EffectSetStatusId,
+  EffectSetStatusModifiers,
+  EffectSetTheme,
+  EffectSetTierDefinition,
+  EffectSetsState,
+  SimpleEffect,
+  SlotEffectSetResult,
+  SlottedEffectSet,
+} from "./effectSets/index.js";
+export {
+  calculateEffectSlotCount,
+  calculateResonanceFromEquipment,
+  getResonanceEligibleSlots,
+  getResonanceValueForRarity,
+  RESONANCE_ELIGIBLE_SLOTS,
+  RESONANCE_VALUE_BY_RARITY,
+} from "./resonance/index.js";
+export type {
+  ResonanceBreakdown,
+  ResonanceEquipmentInput,
+  ResonanceSlot,
+  ResonanceSlotBreakdown,
+} from "./resonance/index.js";
+export {
   buildCharacterCombatLoadout,
 } from "./character/index.js";
 export type {
@@ -545,5 +607,55 @@ export {
   getStoryLevelDef,
   getVisibleStoryChaptersWithLevels,
 } from "./story/levels.js";
+export {
+  canEnterDungeon,
+  completeDungeon,
+  completeStoryEvent,
+  applyBossFirstClearSpecialRewards,
+  getAvailableChapters,
+  getAvailableDungeons,
+  applyFirstClearRewards,
+  applyReplayRewards,
+  getStoryBossDefinition,
+  getStoryChapterDefinition,
+  getStoryDungeonDefinition,
+  STORY_BOSS_REGISTRY,
+  STORY_CHAPTER_REGISTRY,
+  STORY_DUNGEON_REGISTRY,
+  validateStoryProgressionRegistry,
+} from "./story/progressionMvp.js";
+export {
+  DEFAULT_UNLOCKED_ERAS,
+  ERA_REGISTRY,
+  canUnlockEraAtTimeGate,
+  createDefaultSpecialItemsState,
+  getEraDefinition,
+  grantFragmentDuTemps,
+  grantKaleidoscope,
+  hasKaleidoscope,
+  isEraPlayable,
+  isEraUnlocked,
+  normalizeSpecialItemsState,
+  spendFragmentDuTemps,
+  unlockEraAtTimeGate,
+  validateSpecialItemsAndEraRegistry,
+} from "./specialItems/index.js";
+export type {
+  EraDefinition,
+  EraId,
+  SpecialItemsState,
+  SpendFragmentDuTempsResult,
+  UnlockEraAtTimeGateResult,
+} from "./specialItems/index.js";
 export type { StoryState } from "./story/state.js";
+export type {
+  DungeonCompletionResult,
+  CompleteDungeonOptions,
+  MvpStoryChapterId,
+  MvpStoryEra,
+  StoryBossDefinition,
+  StoryChapterDefinition,
+  StoryDungeonDefinition,
+  StoryUnlockConditions,
+} from "./story/progressionMvp.js";
 export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";

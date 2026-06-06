@@ -5,6 +5,7 @@ import { MINE_BUILDING } from "./mineBuilding.js";
 import { KITCHEN_BUILDING } from "./kitchenBuilding.js";
 import { FORGE_BUILDING } from "./forgeBuilding.js";
 import { CORNUCOPIA_BUILDING } from "./cornucopiaBuilding.js";
+import { TIME_GATE_BUILDING } from "./timeGateBuilding.js";
 
 export const BUILDINGS: BuildingModule[] = [
   TEMPLE_BUILDING,
@@ -12,5 +13,6 @@ export const BUILDINGS: BuildingModule[] = [
   MINE_BUILDING,
   KITCHEN_BUILDING,
   FORGE_BUILDING,
+  TIME_GATE_BUILDING,
   CORNUCOPIA_BUILDING,
 ];

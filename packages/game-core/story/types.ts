@@ -13,6 +13,7 @@ export type UnlockId =
   | "LABORATORY"
   | "FORTRESS"
   | "MARKET"
+  | "TIME_GATE"
   | "WORLD_GATE"
   | "BANK"
   | "ROYAL_CASTLE"

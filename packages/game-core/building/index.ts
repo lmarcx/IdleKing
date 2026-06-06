@@ -3,6 +3,7 @@ export * from "./registry.js";
 export * from "./tick.js";
 export * from "./temple.js";
 export * from "./templeBuilding.js";
+export * from "./timeGateBuilding.js";
 export * from "./progression.js";
 export * from "./forge/craft.js";
 export * from "./forge/recipes.js";

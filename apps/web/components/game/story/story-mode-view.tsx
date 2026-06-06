@@ -20,7 +20,9 @@ function toSet<T>(value: MaybeSerializedSet<T>): Set<T> {
 function normalizeStoryState(story: Partial<StoryState>): StoryState {
   return {
     completedChapters: toSet(story.completedChapters),
+    completedDungeonIds: toSet(story.completedDungeonIds),
     completedEvents: toSet(story.completedEvents),
+    firstClearFlags: toSet(story.firstClearFlags),
     completedLevels: toSet(story.completedLevels),
     discoveredEvents: toSet(story.discoveredEvents),
     unlocked: toSet<UnlockId>(story.unlocked as MaybeSerializedSet<UnlockId>),
