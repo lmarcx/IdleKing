@@ -369,6 +369,19 @@ export function calculateEffectSetModifiers(slottedEffects: readonly SlottedEffe
   };
 }
 
+export function getEffectiveSlottedEffectSets(
+  state: GameState,
+  resonanceContext: EffectSetResonanceContext,
+): SlottedEffectSet[] {
+  const effectSets = normalizeEffectSetsState(state.effectSets);
+  const effectSlots = getEffectSlotsFromContext(resonanceContext);
+  if (effectSlots <= 0) return [];
+
+  return effectSets.slottedEffects
+    .filter((slot) => effectSets.unlockedEffectSetIds.includes(slot.effectSetId))
+    .slice(0, effectSlots);
+}
+
 export function applyNarrativeEffectSetUnlock(state: GameState, eventIdOrBossId: string): GameState {
   const effectSetId = NARRATIVE_UNLOCK_EVENT_TO_EFFECT_SET[eventIdOrBossId];
   return effectSetId ? unlockEffectSet(state, effectSetId) : state;

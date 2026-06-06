@@ -4,17 +4,13 @@ import {
   calculateRingSkillScaling,
   getEquippedRingItems,
   normalizePlayerEquipmentState,
+  type FinalCharacterStats,
   type RingEquipmentInstance,
 } from "../equipment/index.js";
 import { getSkillDefinition } from "../skills/registry.js";
 import type { SkillDefinition, SkillId } from "../skills/types.js";
 
-export type CharacterCombatStats = {
-  hp: number;
-  attack: number;
-  defense: number;
-  power: number;
-};
+export type CharacterCombatStats = FinalCharacterStats;
 
 export type CombatSkillSlot = 1 | 2 | 3 | 4 | 5;
 

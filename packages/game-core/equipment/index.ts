@@ -26,6 +26,13 @@ import {
 import {
   calculateEquipmentSetModifiersFromItems,
 } from "./sets.js";
+import {
+  calculateEffectSetModifiers,
+  getEffectiveSlottedEffectSets,
+  type EffectSetModifiers,
+} from "../effectSets/index.js";
+import { calculateResonanceFromEquipment } from "../resonance/index.js";
+import { deriveStats } from "../power/statsModel.js";
 import type { StatsModifiers } from "../power/statsModel.js";
 import {
   createEmptyEquippedRingIds,
@@ -75,6 +82,14 @@ export const BASE_CHARACTER_STATS: ResolvedEquipmentStats = {
   defense: 0,
   power: 25,
 } as const;
+
+export type FinalCharacterStats = ResolvedEquipmentStats & {
+  critChance: number;
+  manaRegen: number;
+  staminaRegen: number;
+  combatTags: readonly string[];
+  effectSetModifiers: EffectSetModifiers;
+};
 
 export function createDefaultPlayerEquipmentState(): PlayerEquipmentState {
   return {
@@ -319,15 +334,50 @@ export function calculateEquipmentSetModifiers(gameState: GameState): StatsModif
   return calculateEquipmentSetModifiersFromItems(getEquippedItems(gameState));
 }
 
-export function calculateFinalCharacterStats(gameState: GameState): ResolvedEquipmentStats {
+export function calculateFinalCharacterStats(gameState: GameState): FinalCharacterStats {
   const equipmentStats = calculateEquipmentStats(gameState);
-
-  // TODO: tune base character stats and derived power once combat balancing is revisited.
-  return {
+  const baseStats: ResolvedEquipmentStats = {
     hp: BASE_CHARACTER_STATS.hp + equipmentStats.hp,
     attack: BASE_CHARACTER_STATS.attack + equipmentStats.attack,
     defense: BASE_CHARACTER_STATS.defense + equipmentStats.defense,
     power: BASE_CHARACTER_STATS.power + equipmentStats.power,
+  };
+  const resonance = calculateResonanceFromEquipment({
+    equipped: gameState.equipment,
+    items: gameState.inventory.items,
+  });
+  const slottedEffects = getEffectiveSlottedEffectSets(gameState, { effectSlots: resonance.effectSlots });
+  const effectSetModifiers = calculateEffectSetModifiers(slottedEffects);
+  const statModifiers = effectSetModifiers.statModifiers;
+  const derivedStats = deriveStats(
+    {
+      hp: baseStats.hp,
+      atk: baseStats.attack,
+      def: baseStats.defense,
+      speed: 0,
+    },
+    {
+      base: {
+        def: statModifiers.defense,
+        hp: statModifiers.hp,
+      },
+      advanced: {
+        critChance: statModifiers.critChance,
+        manaRegen: statModifiers.manaRegen,
+        staminaRegen: 0,
+      },
+    }
+  );
+
+  return {
+    ...baseStats,
+    hp: derivedStats.base.hp,
+    defense: derivedStats.base.def,
+    critChance: derivedStats.advanced.critChance,
+    manaRegen: derivedStats.advanced.manaRegen,
+    staminaRegen: derivedStats.advanced.staminaRegen,
+    combatTags: effectSetModifiers.combatTags,
+    effectSetModifiers,
   };
 }
 

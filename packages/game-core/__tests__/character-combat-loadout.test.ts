@@ -6,6 +6,15 @@ import { generateEquipmentItem } from "../equipment/index.js";
 import { createInitialGameState, type GameState } from "../game/state.js";
 import type { SkillId } from "../skills/index.js";
 
+function baseStats(stats: { hp: number; attack: number; defense: number; power: number }) {
+  return {
+    hp: stats.hp,
+    attack: stats.attack,
+    defense: stats.defense,
+    power: stats.power,
+  };
+}
+
 function stateWithEquippedRings(skillIds: readonly SkillId[]): GameState {
   const rings = skillIds.map((skillId, index) =>
     generateEquipmentItem({
@@ -100,7 +109,7 @@ test("character combat loadout does not require legacy gameState.skills", () => 
 test("empty character combat loadout keeps stats and no active skills", () => {
   const loadout = buildCharacterCombatLoadout(createInitialGameState());
 
-  assert.deepEqual(loadout.stats, {
+  assert.deepEqual(baseStats(loadout.stats), {
     hp: 100,
     attack: 25,
     defense: 0,

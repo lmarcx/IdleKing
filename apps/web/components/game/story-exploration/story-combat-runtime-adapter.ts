@@ -51,13 +51,13 @@ export function createStoryCombatRuntimeState(
     enemy: createRuntimeEnemy(enemy),
     player: {
       attack: derivedStats.base.atk,
-      critChance: derivedStats.advanced.critChance,
+      critChance: combatLoadout.stats.critChance,
       critDamage: derivedStats.advanced.critDamage,
       hpMax: derivedStats.resources.maxHp,
       manaMax: derivedStats.resources.maxMana,
-      manaRegenPerSecond: derivedStats.advanced.manaRegen,
+      manaRegenPerSecond: combatLoadout.stats.manaRegen,
       staminaMax: derivedStats.resources.maxStamina,
-      staminaRegenPerSecond: derivedStats.advanced.staminaRegen,
+      staminaRegenPerSecond: combatLoadout.stats.staminaRegen,
     },
   });
 }
