@@ -54,7 +54,10 @@ const ENEMY_ATTACK_ANIM_MS = 200;
 const ENEMY_DEATH_FADE_MS = 260;
 const PLAYER_SHAKE_DURATION_MS = 160;
 const PLAYER_SHAKE_INTENSITY = 5;
+const STRONG_HIT_SHAKE_THRESHOLD_RATIO = 0.22;
 const HIT_PARTICLE_DURATION_MS = 320;
+const DAMAGE_NUMBER_DURATION_MS = 720;
+const TELEGRAPH_DURATION_MS = 420;
 const LOOT_POPUP_DURATION_MS = 900;
 const SPARKLE_BURST_DURATION_MS = 520;
 const POI_HIGHLIGHT_RADIUS = 96;
@@ -63,6 +66,13 @@ const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 const CHECKPOINT_RESPAWN_EVENT = "idleking:story-checkpoint-respawn";
 const DASH_KEY_CODE = "Space";
 const SPRINT_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
+const TELEGRAPH_COLORS = {
+  damage: 0xff9f43,
+  debuff: 0x60a5fa,
+  lethal: 0xef4444,
+  safeHeal: 0x34d399,
+  stun: 0xfacc15,
+} as const;
 
 const EXPLORATION_ASSETS = {
   chest: "/assets/exploration/golden_chest.png",
@@ -114,6 +124,15 @@ type ActiveLootPopup = {
   container: PIXI.Container;
   durationMs: number;
   position: Vector2;
+};
+
+type ActiveTelegraph = {
+  ageMs: number;
+  color: number;
+  durationMs: number;
+  graphic: PIXI.Graphics;
+  position: Vector2;
+  radius: number;
 };
 
 type ActiveSparkleParticle = {
@@ -200,6 +219,7 @@ type LocalSkillsState = {
 };
 
 export type ExplorationCombatHudState = {
+  dashCooldownSeconds: number;
   dashFeedback?: string;
   enemiesRemaining: number;
   isDefeated: boolean;
@@ -215,6 +235,11 @@ export type ExplorationCombatHudState = {
     current: number;
     max: number;
   };
+  securedRewards: Array<{
+    amount: number;
+    id: string;
+    kind: string;
+  }>;
   runtimeEnemyHealth?: {
     current: number;
     max: number;
@@ -641,6 +666,7 @@ export function PixiExplorationStage({
   }));
   const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState<Omit<ExplorationCombatHudState, "skillBar">>({
+    dashCooldownSeconds: 0,
     enemiesRemaining: 0,
     isDefeated: false,
     playerHealth: {
@@ -655,6 +681,7 @@ export function PixiExplorationStage({
       current: initialCombatRuntime.player.staminaCurrent,
       max: initialCombatRuntime.player.staminaMax,
     },
+    securedRewards: [],
   });
 
   useEffect(() => {
@@ -731,9 +758,11 @@ export function PixiExplorationStage({
     const meleeAttacks: ActiveMeleeAttack[] = [];
     const projectiles: ActiveProjectile[] = [];
     const lootPopups: ActiveLootPopup[] = [];
+    const telegraphs: ActiveTelegraph[] = [];
     const sparkleBursts: ActiveSparkleBurst[] = [];
     const hitParticles: ActiveHitParticle[] = [];
     const enemies: ActiveEnemy[] = [];
+    const securedRewards = new Map<string, number>();
     const poiVisuals: PoiVisual[] = [];
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
@@ -748,6 +777,7 @@ export function PixiExplorationStage({
     let hudElapsed = 0;
     let lastUiHeight = 0;
     let lastUiWidth = 0;
+    let playerHitFlashMs = 0;
     let playerShakeMs = 0;
     let skillsHudElapsed = 0;
     let hasPointerWorldPosition = false;
@@ -811,7 +841,10 @@ export function PixiExplorationStage({
         if (result.reason === "NOT_ENOUGH_STAMINA") {
           showDashFeedback("Dash indisponible : Stamina insuffisante", nowMs);
         } else if (result.reason === "COOLDOWN") {
-          showDashFeedback("Dash indisponible : cooldown", nowMs);
+          showDashFeedback(
+            `Dash indisponible : cooldown ${Math.ceil(runtimeState.timers.dashCooldownRemainingSeconds)}s`,
+            nowMs
+          );
         }
         return;
       }
@@ -1153,6 +1186,7 @@ export function PixiExplorationStage({
     }
 
     function addLootToPlayerResources(loot: EnemyLoot) {
+      securedRewards.set(loot.resourceId, (securedRewards.get(loot.resourceId) ?? 0) + loot.amount);
       useGameStore.getState().dispatch((state) => ({
         ...state,
         resources: addQty(state.resources, loot.resourceId, loot.amount),
@@ -1178,6 +1212,58 @@ export function PixiExplorationStage({
           })
         );
       }
+    }
+
+    function createDamageNumber({
+      amount,
+      didCrit = false,
+      isLethal = false,
+      position,
+      target = "enemy",
+    }: {
+      amount: number;
+      didCrit?: boolean;
+      isLethal?: boolean;
+      position: Vector2;
+      target?: "enemy" | "player";
+    }) {
+      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? 0xff6f61 : TELEGRAPH_COLORS.damage;
+      const label = `${didCrit ? "CRIT " : ""}${Math.ceil(amount)}`;
+      const container = new PIXI.Container();
+      const text = new PIXI.Text({
+        text: target === "player" ? `-${label}` : label,
+        style: {
+          fill: color,
+          fontFamily: "Arial",
+          fontSize: didCrit ? 24 : 19,
+          fontWeight: "800",
+          stroke: { color: 0x100805, width: 5 },
+        },
+      });
+      text.anchor.set(0.5, 0.5);
+      container.addChild(text);
+      container.position.set(position.x, position.y);
+      fxLayer.addChild(container);
+      lootPopups.push({
+        ageMs: 0,
+        container,
+        durationMs: DAMAGE_NUMBER_DURATION_MS,
+        position: { ...position },
+      });
+    }
+
+    function createCombatTelegraph(position: Vector2, radius: number, color: number) {
+      const graphic = new PIXI.Graphics();
+      graphic.position.set(position.x, position.y);
+      fxLayer.addChild(graphic);
+      telegraphs.push({
+        ageMs: 0,
+        color,
+        durationMs: TELEGRAPH_DURATION_MS,
+        graphic,
+        position: { ...position },
+        radius,
+      });
     }
 
     function createHitParticles(position: Vector2) {
@@ -1286,6 +1372,26 @@ export function PixiExplorationStage({
       }
     }
 
+    function updateTelegraphs(deltaMs: number) {
+      for (let index = telegraphs.length - 1; index >= 0; index -= 1) {
+        const telegraph = telegraphs[index];
+        telegraph.ageMs += deltaMs;
+        const progress = clamp(telegraph.ageMs / telegraph.durationMs, 0, 1);
+        const alpha = 0.42 * (1 - progress);
+        const radius = telegraph.radius * (0.86 + progress * 0.24);
+
+        telegraph.graphic.clear();
+        telegraph.graphic.circle(0, 0, radius).fill({ color: telegraph.color, alpha: alpha * 0.16 });
+        telegraph.graphic.circle(0, 0, radius).stroke({ color: telegraph.color, alpha, width: 3 });
+        telegraph.graphic.position.set(telegraph.position.x, telegraph.position.y);
+
+        if (telegraph.ageMs < telegraph.durationMs) continue;
+        telegraph.graphic.removeFromParent();
+        telegraph.graphic.destroy();
+        telegraphs.splice(index, 1);
+      }
+    }
+
     function renderPlayer(nowMs: number) {
       player.position.set(playerPosition.x, playerPosition.y);
       player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
@@ -1294,6 +1400,7 @@ export function PixiExplorationStage({
       if (!playerSprite) return;
       const breath = 1 + Math.sin(nowMs / 380) * 0.026;
       playerSprite.scale.set(playerBaseScale * breath, playerBaseScale * (1 / breath));
+      playerSprite.tint = playerHitFlashMs > 0 ? 0xffd0d0 : 0xffffff;
     }
 
     function resizeUiLayer() {
@@ -1333,6 +1440,7 @@ export function PixiExplorationStage({
       }
 
       setCombatHud({
+        dashCooldownSeconds: runtimeState.timers.dashCooldownRemainingSeconds,
         dashFeedback,
         enemiesRemaining: getEnemiesRemaining(),
         isDefeated: isPlayerDefeated,
@@ -1348,6 +1456,18 @@ export function PixiExplorationStage({
           current: runtimeState.player.staminaCurrent,
           max: runtimeState.player.staminaMax,
         },
+        securedRewards: [
+          ...runtimeState.checkpoint.securedRewards.map((reward) => ({
+            amount: reward.amount ?? 1,
+            id: reward.id ?? reward.kind,
+            kind: reward.kind,
+          })),
+          ...[...securedRewards.entries()].map(([resourceId, amount]) => ({
+            amount,
+            id: resourceId,
+            kind: "resource",
+          })),
+        ],
         runtimeEnemyHealth: runtimeEnemyId
           ? {
               current: runtimeState.enemy.hpCurrent,
@@ -1363,13 +1483,28 @@ export function PixiExplorationStage({
       runtimeState = retargetStoryCombatRuntimeEnemy(runtimeState, enemy);
     }
 
-    function damageActiveEnemy(enemy: ActiveEnemy, amount: number) {
+    function damageActiveEnemy(enemy: ActiveEnemy, amount: number, didCrit = false) {
+      const isLethal = amount >= enemy.hp;
       const died = damageEnemy(enemy, amount);
       if (runtimeEnemyId === enemy.id) {
         runtimeState = retargetStoryCombatRuntimeEnemy(runtimeState, enemy);
       }
       enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
+      createDamageNumber({
+        amount,
+        didCrit,
+        isLethal,
+        position: { x: enemy.position.x, y: enemy.position.y - 54 },
+      });
+      createCombatTelegraph(
+        enemy.position,
+        enemy.radius + 18,
+        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      );
       createHitParticles(enemy.position);
+      if (amount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
+        playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+      }
       if (died) {
         enemy.deathFadeMs = 0;
         claimEnemyLoot(enemy);
@@ -1382,7 +1517,7 @@ export function PixiExplorationStage({
       runtimeState = result.next;
       if (!result.ok) return;
 
-      damageActiveEnemy(enemy, result.damage.damage);
+      damageActiveEnemy(enemy, result.damage.damage, result.damage.didCrit);
       syncCombatHud();
     }
 
@@ -1532,13 +1667,27 @@ export function PixiExplorationStage({
       enemy.attackLungeY = (dy / dist) * 18;
 
       const previousHp = runtimeState.player.hpCurrent;
+      const isLethal = enemy.contactDamage >= previousHp;
+      createCombatTelegraph(
+        playerPosition,
+        PLAYER_SIZE * 0.62,
+        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      );
       runtimeState = combat.applyDamageToPlayer(runtimeState, enemy.contactDamage);
       if (runtimeState.player.hpCurrent < previousHp) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+        playerHitFlashMs = ENEMY_HIT_FLASH_MS;
+        createDamageNumber({
+          amount: previousHp - runtimeState.player.hpCurrent,
+          isLethal,
+          position: { x: playerPosition.x, y: playerPosition.y - 64 },
+          target: "player",
+        });
       }
 
       if (combat.isPlayerDead(runtimeState)) {
         isPlayerDefeated = true;
+        playerShakeMs = PLAYER_SHAKE_DURATION_MS * 1.8;
         pressedKeys.clear();
         resetHeldMouseButtons();
       }
@@ -1548,6 +1697,19 @@ export function PixiExplorationStage({
     function handleCheckpointRespawnEvent() {
       runtimeState = combat.handlePlayerDeathAtCheckpoint(runtimeState);
       isPlayerDefeated = combat.isPlayerDead(runtimeState);
+      playerHitFlashMs = 0;
+      playerShakeMs = 0;
+      dashFeedback = undefined;
+      dashFeedbackExpiresAt = 0;
+      createCombatTelegraph(playerPosition, PLAYER_SIZE * 0.72, TELEGRAPH_COLORS.safeHeal);
+      lootPopups.push(
+        createFloatingText({
+          color: TELEGRAPH_COLORS.safeHeal,
+          label: "Checkpoint",
+          layer: lootPopupLayer,
+          position: { x: playerPosition.x, y: playerPosition.y - 74 },
+        })
+      );
       syncCombatHud();
     }
 
@@ -1704,6 +1866,14 @@ export function PixiExplorationStage({
       hitParticles.length = 0;
     }
 
+    function cleanupTelegraphs() {
+      for (const telegraph of telegraphs) {
+        telegraph.graphic.removeFromParent();
+        telegraph.graphic.destroy();
+      }
+      telegraphs.length = 0;
+    }
+
     function cleanupEnemies() {
       for (const enemy of enemies) {
         enemy.container.removeFromParent();
@@ -1766,11 +1936,13 @@ export function PixiExplorationStage({
       updateLootPopups(ticker.deltaMS);
       updateSparkleBursts(ticker.deltaMS);
       updateHitParticles(ticker.deltaMS);
+      updateTelegraphs(ticker.deltaMS);
       renderEnemies();
       renderAttacks();
       renderPlayer(nowMs);
       renderSkillEffects(app, player, activeSkillEffects);
 
+      playerHitFlashMs = Math.max(0, playerHitFlashMs - ticker.deltaMS);
       playerShakeMs = Math.max(0, playerShakeMs - ticker.deltaMS);
       let shakeX = 0;
       let shakeY = 0;
@@ -1923,6 +2095,7 @@ export function PixiExplorationStage({
       cleanupLootPopups();
       cleanupSparkleBursts();
       cleanupHitParticles();
+      cleanupTelegraphs();
       cleanupSkillEffects(player);
       cleanupEnemies();
       destroyPixiApp();
@@ -1946,21 +2119,60 @@ export function PixiExplorationStage({
       <div className="pointer-events-none absolute bottom-24 right-4 z-10 rounded-lg border border-amber-200/20 bg-black/62 px-4 py-3 font-ik-body text-xs text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
         <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.18em] text-amber-200/80">Combat prototype</p>
         <span className="mt-1 block text-xs text-amber-50">Ennemis restants {combatHud.enemiesRemaining}</span>
+        <span className="mt-1 block text-xs text-emerald-100">
+          Dash {combatHud.dashCooldownSeconds > 0 ? `${Math.ceil(combatHud.dashCooldownSeconds)}s` : "pret"} - Stamina sprint/dash
+        </span>
         {combatHud.dashFeedback ? <span className="mt-1 block text-xs text-red-200">{combatHud.dashFeedback}</span> : null}
+      </div>
+      <div className="pointer-events-none absolute bottom-24 left-4 z-10 rounded-lg border border-amber-200/18 bg-black/55 px-3 py-2 font-ik-menu text-[0.58rem] uppercase tracking-[0.1em] text-amber-50 shadow-[0_12px_30px_rgba(0,0,0,0.32)]">
+        <div className="flex flex-wrap gap-2">
+          <span className="text-orange-300">Damage</span>
+          <span className="text-red-300">Lethal</span>
+          <span className="text-yellow-300">Stun</span>
+          <span className="text-blue-300">Debuff</span>
+          <span className="text-emerald-300">Safe/Heal</span>
+        </div>
       </div>
       {combatHud.isDefeated ? (
         <div className="pointer-events-auto absolute inset-0 z-30 grid place-items-center bg-black/68 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-lg border border-red-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+          <div className="w-full max-w-md rounded-lg border border-red-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
             <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-red-200">Defaite</p>
             <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Game Over</h2>
-            <p className="mt-3 font-ik-body text-sm text-muted-foreground">Vous vous êtes fait arrachés...</p>
-            <button
-              className="mt-5 inline-flex w-full items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
-              onClick={() => window.dispatchEvent(new Event(CHECKPOINT_RESPAWN_EVENT))}
-              type="button"
-            >
-              Reprendre au checkpoint
-            </button>
+            <p className="mt-3 font-ik-body text-sm text-muted-foreground">
+              Checkpoint conserve. Les rewards securisees restent acquises.
+            </p>
+            <div className="mt-5 rounded-md border border-amber-200/18 bg-black/45 p-4 text-left">
+              <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                Rewards securisees
+              </p>
+              <div className="mt-3 grid gap-2 font-ik-body text-sm text-amber-50">
+                {combatHud.securedRewards.length > 0 ? (
+                  combatHud.securedRewards.map((reward) => (
+                    <div className="flex items-center justify-between gap-3" key={`${reward.kind}-${reward.id}`}>
+                      <span>{reward.id}</span>
+                      <span className="font-ik-menu text-emerald-200">+{reward.amount}</span>
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-muted-foreground">Aucune reward securisee pour ce checkpoint.</span>
+                )}
+              </div>
+            </div>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button
+                className="inline-flex w-full items-center justify-center rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
+                onClick={() => window.dispatchEvent(new Event(CHECKPOINT_RESPAWN_EVENT))}
+                type="button"
+              >
+                Relancer checkpoint
+              </button>
+              <a
+                className="inline-flex w-full items-center justify-center rounded-md border border-amber-200/24 bg-black/35 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/14"
+                href="/game/kingdom"
+              >
+                Retour Kingdom
+              </a>
+            </div>
           </div>
         </div>
       ) : null}
