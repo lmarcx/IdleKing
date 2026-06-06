@@ -54,6 +54,7 @@ export function WorldModeSidebar({ activeMode, onChangeMode }: WorldModeSidebarP
 
         return (
           <button
+            aria-label={`Open ${mode.label} panel`}
             aria-pressed={isActive}
             className={cn(
               "group grid min-h-24 place-items-center gap-1.5 rounded-lg border bg-black/35 p-2 text-center transition",

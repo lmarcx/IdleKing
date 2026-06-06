@@ -37,7 +37,7 @@ export function ProgressionPanel() {
       </CardHeader>
       <CardContent className="space-y-1.5 text-sm">
         <div className="flex justify-between gap-3">
-          <span className="text-muted-foreground">Player Lvl</span>
+          <span className="text-muted-foreground">Player Level</span>
           <span className="tabular-nums">{progression.playerLevel}</span>
         </div>
         <div className="flex justify-between gap-3">
@@ -45,11 +45,11 @@ export function ProgressionPanel() {
           <span className="tabular-nums">{progression.playerXp}</span>
         </div>
         <div className="flex justify-between gap-3">
-          <span className="text-muted-foreground">World Lvl</span>
+          <span className="text-muted-foreground">World Level</span>
           <span className="tabular-nums">{progression.worldLevel}</span>
         </div>
         <div className="flex justify-between gap-3">
-          <span className="text-muted-foreground">World WXP</span>
+          <span className="text-muted-foreground">WXP</span>
           <span className="tabular-nums">{progression.worldWxp}</span>
         </div>
         <div className="flex justify-between gap-3">

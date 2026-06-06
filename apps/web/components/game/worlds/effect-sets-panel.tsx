@@ -20,7 +20,7 @@ import {
 import { calculateResonanceFromEquipment } from "@idleking/game-core/resonance";
 
 const SLOT_FAILURE_LABELS: Record<string, string> = {
-  EFFECT_SET_LOCKED: "Effect Set verrouille.",
+  EFFECT_SET_LOCKED: "Effect Set verrouillé.",
   EFFECT_SET_NOT_FOUND: "Effect Set inconnu.",
   NO_EFFECT_SLOT_AVAILABLE: "Aucun Effect Slot disponible.",
   TIER_NOT_FOUND: "Tier inconnu.",
@@ -40,6 +40,26 @@ function formatEffect(effect: SimpleEffect): string {
     case "bonus_vs_status":
       return `vs ${effect.status}: ${formatEffectValue(effect.damageBonus)}`;
   }
+}
+
+function getTierDisabledReason({
+  active,
+  availableSlots,
+  canSlot,
+  isReplacing,
+  isUnlocked,
+}: {
+  active: boolean;
+  availableSlots: number;
+  canSlot: boolean;
+  isReplacing: boolean;
+  isUnlocked: boolean;
+}): string | null {
+  if (active) return "Already slotted.";
+  if (!isUnlocked) return "Unlock this Effect Set through its narrative source first.";
+  if (availableSlots <= 0 && !isReplacing) return "No Effect Slot available.";
+  if (!canSlot) return "Required Resonance is missing.";
+  return null;
 }
 
 function EffectSetCard({
@@ -81,13 +101,21 @@ function EffectSetCard({
         {definition.tiers.map((tier) => {
           const canSlot = canSlotEffectSet(state, definition.id, tier.tier, { totalResonance });
           const active = slottedTier === tier.tier;
+          const disabledReason = getTierDisabledReason({
+            active,
+            availableSlots,
+            canSlot,
+            isReplacing: slottedTier !== null,
+            isUnlocked,
+          });
           return (
             <div className="rounded-md border border-amber-200/14 bg-black/28 p-3" key={tier.tier}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-ik-menu text-xs uppercase text-amber-100">Tier {tier.tier}</span>
                 <button
+                  aria-label={`${active ? "Active" : "Slot"} ${definition.name} tier ${tier.tier}`}
                   className="rounded-md border border-amber-200/24 bg-amber-500/12 px-2.5 py-1 font-ik-menu text-[0.65rem] uppercase text-amber-50 transition hover:border-amber-100 disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={!isUnlocked || (!canSlot && !active) || availableSlots <= 0}
+                  disabled={Boolean(disabledReason)}
                   onClick={() => onSlot(definition.id, tier.tier)}
                   type="button"
                 >
@@ -97,6 +125,9 @@ function EffectSetCard({
               <p className="mt-2 font-ik-body text-xs text-muted-foreground">
                 {tier.effects.map(formatEffect).join(", ")}
               </p>
+              {disabledReason ? (
+                <p className="mt-2 font-ik-body text-xs text-amber-100/75">{disabledReason}</p>
+              ) : null}
             </div>
           );
         })}
@@ -104,6 +135,7 @@ function EffectSetCard({
 
       {slottedTier !== null ? (
         <button
+          aria-label={`Unslot ${definition.name}`}
           className="mt-4 w-full rounded-md border border-red-200/30 bg-red-500/10 px-3 py-2 font-ik-menu text-xs uppercase text-red-100 transition hover:border-red-100"
           onClick={() => onUnslot(definition.id)}
           type="button"
@@ -140,26 +172,26 @@ export function EffectSetsPanel() {
     });
     const result = slotEffectSet(current, effectSetId, tier, { totalResonance: currentResonance.totalResonance });
     if (!result.ok) {
-      toast.error(SLOT_FAILURE_LABELS[result.reason] ?? "Slot impossible.");
+      toast.error(SLOT_FAILURE_LABELS[result.reason] ?? "Slot impossible.", { id: `effect-slot-${effectSetId}` });
       return;
     }
 
     dispatch(() => result.state);
-    toast.success("Effect Set slotted");
+    toast.success("Effect Set slotted", { id: `effect-slot-${effectSetId}` });
   }
 
   function handleUnslot(effectSetId: EffectSetId) {
     dispatch((current) => unslotEffectSet(current, effectSetId));
-    toast.success("Effect Set unslotted");
+    toast.success("Effect Set unslotted", { id: `effect-slot-${effectSetId}` });
   }
 
   return (
-    <section className="space-y-4">
+    <section aria-labelledby="effect-sets-title" className="space-y-4">
       <GamePanel className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/80">Narrative unlocks</p>
-            <h2 className="font-ik-title text-3xl font-semibold text-amber-50">Effect Sets</h2>
+            <h2 id="effect-sets-title" className="font-ik-title text-3xl font-semibold text-amber-50">Effect Sets</h2>
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg border border-amber-200/16 bg-black/32 px-4 py-3 text-right">
@@ -167,6 +199,7 @@ export function EffectSetsPanel() {
               <p className="font-ik-title text-2xl text-amber-50">
                 {usedSlots}/{resonance.effectSlots}
               </p>
+              <p className="font-ik-body text-xs text-muted-foreground">{availableSlots} available</p>
             </div>
             <div className="rounded-lg border border-amber-200/16 bg-black/32 px-4 py-3 text-right">
               <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">

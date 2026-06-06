@@ -50,16 +50,17 @@ export function ResonancePanel() {
   const eligibleSlots = useMemo(() => getResonanceEligibleSlots(), []);
   const ringCount = state.equipment.equipped.rings.filter((itemId) => itemId !== null).length;
   const artifactId = state.equipment.equipped.artifact ?? null;
+  const filledContributorSlots = resonance.slots.filter((slot) => slot.itemId !== null).length;
 
   return (
-    <section className="space-y-4">
+    <section aria-labelledby="resonance-title" className="space-y-4">
       <GamePanel className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/80">Derived</p>
-            <h2 className="font-ik-title text-3xl font-semibold text-amber-50">Resonance</h2>
+            <h2 id="resonance-title" className="font-ik-title text-3xl font-semibold text-amber-50">Resonance</h2>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg border border-amber-200/16 bg-black/32 px-4 py-3 text-right">
               <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">Total</p>
               <p className="font-ik-title text-2xl text-amber-50">{resonance.totalResonance}</p>
@@ -70,21 +71,30 @@ export function ResonancePanel() {
               </p>
               <p className="font-ik-title text-2xl text-amber-50">{resonance.effectSlots}</p>
             </div>
+            <div className="rounded-lg border border-amber-200/16 bg-black/32 px-4 py-3 text-right">
+              <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
+                Contributors
+              </p>
+              <p className="font-ik-title text-2xl text-amber-50">{filledContributorSlots}/9</p>
+            </div>
           </div>
         </div>
         <p className="mt-4 font-ik-body text-sm text-muted-foreground">
-          Eligible slots: {eligibleSlots.map(formatSlotLabel).join(", ")}.
+          Contributor slots: {eligibleSlots.map(formatSlotLabel).join(", ")}. Rings and Artifact are excluded.
         </p>
       </GamePanel>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div>
+        <h3 className="mb-3 font-ik-title text-xl text-amber-50">Contributor Slots</h3>
+        <div className="grid gap-3 md:grid-cols-3">
         {resonance.slots.map((slot) => (
           <ResonanceSlotCard itemName={slot.itemId ? itemById.get(slot.itemId) ?? slot.itemId : null} key={slot.slot} slot={slot} />
         ))}
+        </div>
       </div>
 
       <GamePanel className="p-4">
-        <h3 className="font-ik-title text-xl text-amber-50">Excluded</h3>
+        <h3 className="font-ik-title text-xl text-amber-50">Excluded Slots</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-amber-200/16 bg-black/32 p-3">
             <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">Rings</p>

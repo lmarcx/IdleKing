@@ -50,17 +50,17 @@ export function getStoryZoneTitle(chapter: PublicStoryChapterWithLevels): string
 }
 
 export function getStoryZoneDescription(chapter: PublicStoryChapterWithLevels): string {
-  return chapter.levels.find((level) => level.status !== "locked")?.description ?? chapter.levels[0]?.description ?? "Une zone narrative attend d'etre exploree.";
+  return chapter.levels.find((level) => level.status !== "locked")?.description ?? chapter.levels[0]?.description ?? "Une zone narrative attend d'être explorée.";
 }
 
 export function getStoryZoneStatusLabel(status: PublicStoryChapterWithLevels["status"]): string {
   switch (status) {
     case "completed":
-      return "Terminee";
+      return "Terminée";
     case "available":
       return "Disponible";
     case "locked":
     default:
-      return "Verrouillee";
+      return "Verrouillée";
   }
 }

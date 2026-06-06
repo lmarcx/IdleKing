@@ -12,12 +12,12 @@ type StoryLevelListProps = {
 function getStatusLabel(status: PublicStoryLevel["status"]): string {
   switch (status) {
     case "completed":
-      return "Termine";
+      return "Terminé";
     case "available":
       return "Disponible";
     case "locked":
     default:
-      return "Verrouille";
+      return "Verrouillé";
   }
 }
 
@@ -31,6 +31,7 @@ export function StoryLevelList({ levels, selectedLevelId, onSelectLevel }: Story
 
         return (
           <button
+            aria-label={`${level.title} - ${getStatusLabel(level.status)}`}
             aria-pressed={isSelected}
             className={cn(
               "group grid w-full grid-cols-[3rem_1fr_auto] items-center gap-3 rounded-lg border bg-black/35 p-3 text-left transition",
@@ -58,7 +59,7 @@ export function StoryLevelList({ levels, selectedLevelId, onSelectLevel }: Story
             <span className="min-w-0">
               <span className="block truncate font-ik-title text-sm font-semibold tracking-wide text-amber-50">{level.title}</span>
               <span className="mt-1 block font-ik-body text-xs text-muted-foreground">
-                Puissance recommandee : <span className="tabular-nums">{level.recommendedPower}</span>
+                Puissance recommandée : <span className="tabular-nums">{level.recommendedPower}</span>
               </span>
             </span>
 

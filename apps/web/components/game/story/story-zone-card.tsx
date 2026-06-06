@@ -32,9 +32,10 @@ export function StoryZoneCard({ chapter, isSelected, onSelect }: StoryZoneCardPr
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55",
         toneClasses[visual.tone],
         isSelected && "border-amber-200/85 shadow-[0_0_24px_rgba(234,179,8,0.2),inset_0_0_0_1px_rgba(255,244,190,0.12)]",
-        isLocked && "border-zinc-500/25 opacity-55 grayscale",
+        isLocked && "cursor-not-allowed border-zinc-500/25 opacity-55 grayscale",
         isCompleted && "border-emerald-300/45"
       )}
+      disabled={isLocked}
       onClick={() => onSelect(chapter.chapterId)}
       type="button"
     >
