@@ -23,10 +23,7 @@ export type CharacterEquipmentRarity =
   | "uncommon"
   | "rare"
   | "epic"
-  | "legendary"
-  | "mythic"
-  | "divine"
-  | "ancient";
+  | "legendary";
 
 export type CharacterStats = {
   atk: number;
@@ -74,12 +71,6 @@ export function getSlotIconPath(slotId: EquipmentSlotId) {
 
 export function getEquipmentRarityClass(rarity?: CharacterEquipmentRarity) {
   switch (rarity) {
-    case "ancient":
-      return "border-stone-100/80 shadow-[0_0_18px_rgba(250,250,249,0.2)]";
-    case "divine":
-      return "border-yellow-200/80 shadow-[0_0_18px_rgba(254,240,138,0.18)]";
-    case "mythic":
-      return "border-fuchsia-300/75 shadow-[0_0_16px_rgba(240,171,252,0.16)]";
     case "legendary":
       return "border-orange-300/70 shadow-[0_0_14px_rgba(251,146,60,0.16)]";
     case "epic":
@@ -97,12 +88,6 @@ export function getEquipmentRarityClass(rarity?: CharacterEquipmentRarity) {
 
 export function getEquipmentRarityLabel(rarity: CharacterEquipmentRarity) {
   switch (rarity) {
-    case "ancient":
-      return "Ancient";
-    case "divine":
-      return "Divine";
-    case "mythic":
-      return "Mythic";
     case "legendary":
       return "Legendary";
     case "epic":

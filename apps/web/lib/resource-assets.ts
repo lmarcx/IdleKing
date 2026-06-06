@@ -2,7 +2,7 @@ import type { ResourceId } from "@idleking/game-core/resources/types.js";
 
 export const RESOURCE_FALLBACK_ASSET = "/assets/resources/resource.svg";
 
-export const RESOURCE_ASSETS: Record<ResourceId, string> = {
+export const RESOURCE_ASSETS: Partial<Record<ResourceId, string>> = {
   APPLE: "/assets/resources/apple.svg",
   APRICOT: "/assets/resources/apricot.svg",
   BREAD: "/assets/resources/bread.svg",

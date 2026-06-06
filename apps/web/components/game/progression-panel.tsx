@@ -18,7 +18,7 @@ const BUILDING_LABELS: Record<CanonicalBuildingId, string> = {
   MARKET: "Market",
   MINE: "Mine",
   TEMPLE: "Temple",
-  WORLD_GATE: "World Gate",
+  TIME_GATE: "Time Gate",
 };
 
 function formatBuildingStatus(status: string) {

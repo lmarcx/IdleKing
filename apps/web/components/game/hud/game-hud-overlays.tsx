@@ -24,7 +24,7 @@ const OVERLAY_TITLES: Record<GameHudOverlayId, string> = {
   inventory: "Inventory",
   settings: "Settings",
   skills: "Skills",
-  worlds: "World Gate",
+  worlds: "Time Gate",
 };
 
 export function GameHudOverlayProvider({ children }: { children: ReactNode }) {
