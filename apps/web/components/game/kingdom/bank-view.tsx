@@ -64,18 +64,16 @@ function matchesFilter(filter: BankFilter, category: BankItemCategory): boolean 
   return filter === "all" || filter === category;
 }
 
-function getInventoryStacks(items: Item[], resources: ReturnType<typeof useGameStore.getState>["state"]["resources"]): DisplayStack[] {
+function getInventoryStacks(
+  items: Item[],
+  resources: ReturnType<typeof useGameStore.getState>["state"]["resources"],
+): DisplayStack[] {
   const stacks: DisplayStack[] = [];
 
   for (const id of ALL_RESOURCES) {
     const quantity = getQty(resources, id);
     if (quantity <= 0) continue;
-    stacks.push({
-      id,
-      name: formatResourceName(id),
-      category: "resources",
-      quantity,
-    });
+    stacks.push({ id, name: formatResourceName(id), category: "resources", quantity });
   }
 
   for (const item of items) {
@@ -105,12 +103,7 @@ function getInventoryStacks(items: Item[], resources: ReturnType<typeof useGameS
 
     const category = getItemBankCategory(item);
     if (!category) continue;
-    stacks.push({
-      id: item.id,
-      name: item.name,
-      category,
-      quantity: getItemQuantity(item),
-    });
+    stacks.push({ id: item.id, name: item.name, category, quantity: getItemQuantity(item) });
   }
 
   return stacks;
@@ -125,17 +118,12 @@ function getBankStacks(state: ReturnType<typeof useGameStore.getState>["state"])
       current.quantity += stack.quantity;
       continue;
     }
-    map.set(key, {
-      id: stack.id,
-      name: stack.name,
-      category: stack.category,
-      quantity: stack.quantity,
-    });
+    map.set(key, { id: stack.id, name: stack.name, category: stack.category, quantity: stack.quantity });
   }
   return [...map.values()];
 }
 
-export default function BankPage() {
+export function BankView({ embedded = false }: { embedded?: boolean }) {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
   const [filter, setFilter] = useState<BankFilter>("all");
@@ -176,18 +164,8 @@ export default function BankPage() {
       inventory: {
         items: [
           ...current.inventory.items,
-          {
-            id: "dev-bank-potion",
-            kind: "consumable",
-            name: "DEV Smoke Potion",
-            quantity: 5,
-          },
-          {
-            id: "dev-bank-relic-shard",
-            kind: "special",
-            name: "DEV Relic Shard",
-            quantity: 3,
-          },
+          { id: "dev-bank-potion", kind: "consumable", name: "DEV Smoke Potion", quantity: 5 },
+          { id: "dev-bank-relic-shard", kind: "special", name: "DEV Relic Shard", quantity: 3 },
         ],
       },
     }));
@@ -197,12 +175,18 @@ export default function BankPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-ik-title text-2xl font-semibold">Bank</h1>
+        {embedded ? (
           <p className="text-sm text-muted-foreground">
             Stores resources, consumables, and special non-quest items. Currencies stay in wallet.
           </p>
-        </div>
+        ) : (
+          <div>
+            <h1 className="font-ik-title text-2xl font-semibold">Bank</h1>
+            <p className="text-sm text-muted-foreground">
+              Stores resources, consumables, and special non-quest items. Currencies stay in wallet.
+            </p>
+          </div>
+        )}
         {DEV_MODE ? (
           <Button data-testid="bank-dev-smoke-setup" onClick={grantDevBankSmokeSetup} size="sm" type="button" variant="outline">
             DEV: Bank Smoke Setup

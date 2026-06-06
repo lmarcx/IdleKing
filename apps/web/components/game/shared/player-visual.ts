@@ -41,6 +41,18 @@ export type CreatePlayerVisualOptions = {
   shadowAlpha?: number;
   /** Vertical offset of the shadow from the container origin. */
   shadowOffsetY?: number;
+  /**
+   * Combat modes only: render a 360° directional aim arrow orbiting the player.
+   * The standing king sprite cannot point up/down (single front pose), so this
+   * arrow is what communicates the full aim direction to the player.
+   */
+  aimIndicator?: boolean;
+  /** Orbit radius of the aim arrow around the player torso. */
+  aimRadius?: number;
+  /** Vertical center the aim arrow orbits around (negative = up toward torso). */
+  aimCenterY?: number;
+  /** Aim arrow fill color. */
+  aimColor?: number;
 };
 
 function applyDisplayHeight(sprite: PIXI.Sprite, height: number): number {
@@ -57,6 +69,9 @@ export function createPlayerVisual(options: CreatePlayerVisualOptions = {}): Pla
   const shadowHeight = options.shadowHeight ?? 9;
   const shadowAlpha = options.shadowAlpha ?? 0.44;
   const shadowOffsetY = options.shadowOffsetY ?? 24;
+  const aimRadius = options.aimRadius ?? 40;
+  const aimCenterY = options.aimCenterY ?? -30;
+  const aimColor = options.aimColor ?? 0xf0c26a;
 
   const container = new PIXI.Container();
   const shadow = new PIXI.Graphics();
@@ -64,12 +79,28 @@ export function createPlayerVisual(options: CreatePlayerVisualOptions = {}): Pla
 
   shadow.ellipse(0, shadowOffsetY, shadowWidth, shadowHeight).fill({ color: 0x000000, alpha: shadowAlpha });
 
+  // 360° aim arrow (combat modes). Drawn pointing toward +x at rotation 0 and
+  // re-oriented every frame from the facing vector — kept out of `body` so it
+  // never inherits the walk bob / horizontal flip.
+  const aim = options.aimIndicator ? new PIXI.Graphics() : null;
+  if (aim) {
+    aim
+      .moveTo(12, 0)
+      .lineTo(-5, -7)
+      .lineTo(-1, 0)
+      .lineTo(-5, 7)
+      .closePath()
+      .fill({ color: aimColor })
+      .stroke({ color: 0x1a1206, width: 1.5, join: "round" });
+  }
+
   // Placeholder shown until the king texture is loaded.
   const placeholder = new PIXI.Graphics();
   placeholder.roundRect(-16, -42, 32, 46, 9).fill(0x1a2330).stroke({ color: 0xf0c26a, width: 2 });
   body.addChild(placeholder);
 
   container.addChild(shadow, body);
+  if (aim) container.addChild(aim);
 
   let sprite: PIXI.Sprite | null = null;
   let baseScale = 1;
@@ -106,6 +137,15 @@ export function createPlayerVisual(options: CreatePlayerVisualOptions = {}): Pla
       // Shadow tightens and fades a touch as the feet lift on each step.
       shadow.scale.set(moving ? 1 + step * 0.08 : 1 + Math.sin(elapsedSeconds * 2.4 + Math.PI) * 0.04, moving ? 1 - step * 0.16 : 1);
       shadow.alpha = moving ? 1 - step * 0.18 : 1;
+
+      if (aim) {
+        const angle = Math.atan2(facing.y, facing.x);
+        // Orbit the arrow around the torso so it reads as a 360° aim direction,
+        // and give it a subtle in/out pulse for liveliness.
+        const pulse = 1 + Math.sin(elapsedSeconds * 6) * 0.06;
+        aim.rotation = angle;
+        aim.position.set(facing.x * aimRadius * pulse, aimCenterY + facing.y * aimRadius * pulse);
+      }
     },
   };
 }

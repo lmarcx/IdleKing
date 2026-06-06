@@ -55,7 +55,10 @@ function matchesFilter(filter: MarketFilter, category: MarketCategory): boolean 
   return filter === "all" || filter === category;
 }
 
-function getSellStacks(items: Item[], resources: ReturnType<typeof useGameStore.getState>["state"]["resources"]): SellStack[] {
+function getSellStacks(
+  items: Item[],
+  resources: ReturnType<typeof useGameStore.getState>["state"]["resources"],
+): SellStack[] {
   const stacks: SellStack[] = [];
 
   for (const id of ALL_RESOURCES) {
@@ -114,7 +117,7 @@ function getSellStacks(items: Item[], resources: ReturnType<typeof useGameStore.
   return stacks;
 }
 
-export default function MarketPage() {
+export function MarketView({ embedded = false }: { embedded?: boolean }) {
   const state = useGameStore((s) => s.state);
   const dispatch = useGameStore((s) => s.dispatch);
   const [filter, setFilter] = useState<MarketFilter>("all");
@@ -163,13 +166,7 @@ export default function MarketPage() {
       inventory: {
         items: [
           ...current.inventory.items,
-          {
-            id: "healing_potion",
-            kind: "consumable",
-            name: "Healing Potion",
-            quantity: 2,
-            value: 10,
-          },
+          { id: "healing_potion", kind: "consumable", name: "Healing Potion", quantity: 2, value: 10 },
           {
             ...generateEquipmentItem({
               id: "market_basic_sword_dev",
@@ -189,10 +186,14 @@ export default function MarketPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-ik-title text-2xl font-semibold">Market</h1>
+        {embedded ? (
           <p className="text-sm text-muted-foreground">MVP trading uses ECU only. Vendor stock is infinite.</p>
-        </div>
+        ) : (
+          <div>
+            <h1 className="font-ik-title text-2xl font-semibold">Market</h1>
+            <p className="text-sm text-muted-foreground">MVP trading uses ECU only. Vendor stock is infinite.</p>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           <div className="rounded border px-3 py-2 text-sm" data-testid="market-ecu-balance">
             ECU {ecu}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AvailableEquipmentPanel } from "@/components/game/character/available-equipment-panel";
@@ -8,14 +8,26 @@ import { CharacterStatsPanel } from "@/components/game/character/character-stats
 import { EquipmentDoll } from "@/components/game/character/equipment-doll";
 import { FAKE_EQUIPMENT } from "@/components/game/character/fake-equipment";
 import type { CharacterEquipment, CharacterStat, EquipmentSlotId, EquippedItems } from "@/components/game/character/types";
+import { EffectSetsPanel } from "@/components/game/worlds/effect-sets-panel";
+import { ResonancePanel } from "@/components/game/worlds/resonance-panel";
+import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
 import {
   calculateFinalCharacterStats,
   getEquippedItems,
+  normalizePlayerEquipmentState,
   type EquipmentItem,
   type EquipmentSlot,
 } from "@idleking/game-core";
 import { normalizeEquipmentItem, type ItemRarity } from "@idleking/game-core/items";
+
+type CharacterTab = "equipment" | "resonance" | "effects";
+
+const CHARACTER_TABS: { id: CharacterTab; label: string }[] = [
+  { id: "equipment", label: "Equipment" },
+  { id: "resonance", label: "Resonance" },
+  { id: "effects", label: "Effect Sets" },
+];
 
 type EquipmentMetadata = {
   description?: string;
@@ -142,10 +154,26 @@ export function CharacterView() {
         .map(toCharacterEquipment),
     [state.inventory.items]
   );
+  const equippedCoreItems = useMemo(() => getEquippedItems(state), [state]);
+  const equippedById = useMemo(
+    () => new Map(equippedCoreItems.map((item) => [item.id, toCharacterEquipment(item)] as const)),
+    [equippedCoreItems],
+  );
+  const equippedItemIds = useMemo(() => new Set(equippedCoreItems.map((item) => item.id)), [equippedCoreItems]);
   const equippedItems = useMemo<EquippedItems>(() => {
-    const entries = getEquippedItems(state).map((item) => [item.slot, toCharacterEquipment(item)] as const);
+    const entries = equippedCoreItems
+      .filter((item) => item.slot !== "ring")
+      .map((item) => [toCharacterEquipmentSlot(item.slot), equippedById.get(item.id)!] as const);
     return Object.fromEntries(entries) as EquippedItems;
-  }, [state]);
+  }, [equippedCoreItems, equippedById]);
+  const ringSlotIds = useMemo(
+    () => normalizePlayerEquipmentState(state.equipment).equipped.rings,
+    [state.equipment],
+  );
+  const equippedRings = useMemo<(CharacterEquipment | null)[]>(
+    () => ringSlotIds.map((itemId) => (itemId ? equippedById.get(itemId) ?? null : null)),
+    [equippedById, ringSlotIds],
+  );
 
   useEffect(() => {
     if (!hydrated || process.env.NODE_ENV === "production") return;

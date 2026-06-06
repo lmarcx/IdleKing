@@ -6,6 +6,7 @@ import {
   world as worldCore,
   equipItem as equipCoreItem,
   unequipItem as unequipCoreItem,
+  unequipRingItem as unequipCoreRingItem,
   type EquipmentSlot,
   type EquipItemResult,
   type UnequipItemResult,
@@ -31,6 +32,7 @@ type GameStore = {
   dispatch: (actionFn: (state: GameState) => GameState) => void;
   equipPlayerItem: (itemId: string) => EquipItemResult;
   unequipPlayerItem: (slot: EquipmentSlot) => UnequipItemResult;
+  unequipPlayerRing: (slotIndex: number) => UnequipItemResult;
 };
 
 const SAVE_KEY = "idle_king_save_v1";
@@ -109,6 +111,21 @@ export const useGameStore = create<GameStore>((set) => ({
     });
 
     return result ?? unequipCoreItem(fallbackState, slot);
+  },
+  unequipPlayerRing: (slotIndex) => {
+    let result: UnequipItemResult | undefined;
+    let fallbackState = createInitialGameState();
+    set((current) => {
+      fallbackState = current.state;
+      result = unequipCoreRingItem(current.state, slotIndex);
+      if (!result.ok) return {};
+
+      return {
+        state: result.state,
+      };
+    });
+
+    return result ?? unequipCoreRingItem(fallbackState, slotIndex);
   },
 }));
 

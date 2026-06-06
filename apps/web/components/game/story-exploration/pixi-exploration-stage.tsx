@@ -747,7 +747,15 @@ export function PixiExplorationStage({
     const attackLayer = new PIXI.Container();
     const lootPopupLayer = new PIXI.Container();
     const player = new PIXI.Container();
-    const playerVisual = createPlayerVisual({ displayHeight: 82, shadowOffsetY: 14, shadowWidth: 22, shadowHeight: 8 });
+    const playerVisual = createPlayerVisual({
+      displayHeight: 82,
+      shadowOffsetY: 14,
+      shadowWidth: 22,
+      shadowHeight: 8,
+      aimIndicator: true,
+      aimRadius: 42,
+      aimCenterY: -26,
+    });
     const playerPosition = {
       x: mapWidth / 2,
       y: mapHeight / 2,

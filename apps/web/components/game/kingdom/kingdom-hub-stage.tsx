@@ -49,6 +49,8 @@ import {
   type TempleXpTarget,
 } from "@idleking/game-core";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
+import { BankView } from "./bank-view";
+import { MarketView } from "./market-view";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 import { KingdomOverlay } from "./kingdom-overlay";
 
@@ -1820,25 +1822,6 @@ export function KingdomHubStage() {
         </div>
       ) : null}
 
-      <div className="absolute bottom-3 right-3 z-20 flex flex-wrap gap-2 rounded-md border border-amber-200/20 bg-black/70 p-2 shadow-[0_0_24px_rgba(240,194,106,0.12)]">
-        <button
-          className="rounded border border-blue-200/35 bg-blue-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.12em] text-blue-50 transition hover:border-blue-200 hover:bg-blue-500/20"
-          data-testid="kingdom-access-bank"
-          onClick={openBank}
-          type="button"
-        >
-          Bank
-        </button>
-        <button
-          className="rounded border border-amber-200/35 bg-amber-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.12em] text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/20"
-          data-testid="kingdom-access-market"
-          onClick={openMarket}
-          type="button"
-        >
-          Market
-        </button>
-      </div>
-
       {activeDialogue ? (
         <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />
       ) : null}
@@ -2356,7 +2339,13 @@ export function KingdomHubStage() {
           if (!open) closeBankModal();
         }}
       >
-        <DialogContent className="max-w-md border-blue-200/25 bg-zinc-950 text-blue-50" data-testid="kingdom-bank-dialog">
+        <DialogContent
+          className={cn(
+            "border-blue-200/25 bg-zinc-950 text-blue-50",
+            effectiveBank.built ? "max-h-[92vh] max-w-4xl overflow-y-auto" : "max-w-md",
+          )}
+          data-testid="kingdom-bank-dialog"
+        >
           <DialogHeader>
             <DialogTitle>Bank</DialogTitle>
             <DialogDescription>Store resources, consumables, and special non-quest items.</DialogDescription>
@@ -2401,8 +2390,8 @@ export function KingdomHubStage() {
               </button>
             </div>
           ) : (
-            <div className="mt-3 rounded-md border border-blue-200/20 bg-blue-400/10 p-3 font-ik-body text-sm text-blue-50">
-              Bank storage is available from the dedicated Kingdom Bank page.
+            <div className="mt-3">
+              <BankView embedded />
             </div>
           )}
 
@@ -2414,16 +2403,6 @@ export function KingdomHubStage() {
             >
               Close
             </button>
-            <a
-              className={cn(
-                "rounded-md border border-blue-300/45 bg-blue-500/14 px-4 py-2 font-ik-menu text-sm text-blue-50 transition hover:border-blue-200 hover:bg-blue-500/20",
-                !effectiveBank.built && "pointer-events-none opacity-50",
-              )}
-              data-testid="kingdom-open-bank-page"
-              href="/game/kingdom/bank"
-            >
-              Open Bank
-            </a>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2434,7 +2413,13 @@ export function KingdomHubStage() {
           if (!open) closeMarketModal();
         }}
       >
-        <DialogContent className="max-w-md border-amber-200/25 bg-zinc-950 text-amber-50" data-testid="kingdom-market-dialog">
+        <DialogContent
+          className={cn(
+            "border-amber-200/25 bg-zinc-950 text-amber-50",
+            effectiveMarket.built ? "max-h-[92vh] max-w-4xl overflow-y-auto" : "max-w-md",
+          )}
+          data-testid="kingdom-market-dialog"
+        >
           <DialogHeader>
             <DialogTitle>Market</DialogTitle>
             <DialogDescription>Buy and sell MVP goods with ECU.</DialogDescription>
@@ -2479,8 +2464,8 @@ export function KingdomHubStage() {
               </button>
             </div>
           ) : (
-            <div className="mt-3 rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">
-              Market trading is available from the dedicated Kingdom Market page.
+            <div className="mt-3">
+              <MarketView embedded />
             </div>
           )}
 
@@ -2492,16 +2477,6 @@ export function KingdomHubStage() {
             >
               Close
             </button>
-            <a
-              className={cn(
-                "rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24",
-                !effectiveMarket.built && "pointer-events-none opacity-50",
-              )}
-              data-testid="kingdom-open-market-page"
-              href="/game/kingdom/market"
-            >
-              Open Market
-            </a>
           </DialogFooter>
         </DialogContent>
       </Dialog>

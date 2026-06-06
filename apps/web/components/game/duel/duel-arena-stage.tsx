@@ -365,7 +365,12 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     const attackLayer = new PIXI.Container();
     const entityLayer = new PIXI.Container();
     const fxLayer = new PIXI.Container();
-    const playerVisual = createPlayerVisual({ displayHeight: 88 });
+    const playerVisual = createPlayerVisual({
+      displayHeight: 88,
+      aimIndicator: true,
+      aimRadius: 44,
+      aimCenterY: -28,
+    });
     const player = playerVisual.container;
     const bossPosition = {
       x: mapWidth / 2,
