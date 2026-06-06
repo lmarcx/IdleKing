@@ -4,20 +4,18 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { GamePanel } from "@/components/ui/game-panel";
+import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
 import {
   SKILL_DEFS,
-  SKILL_UPGRADE_COST_BY_LEVEL,
-  SKILL_UPGRADE_DEFS,
   createDefaultPlayerSkillsState,
-  getEffectiveSkillDef,
-  getSkillProgress,
+  equipSkill,
   isSkillUnlocked,
+  unequipSkill,
   type PlayerSkillsState,
   type SkillDef,
   type SkillId,
   type SkillSlot,
-  type SkillUpgradeEffect,
 } from "@idleking/game-core";
 
 const SKILL_IDS = Object.keys(SKILL_DEFS) as SkillId[];
@@ -33,12 +31,6 @@ function getSafeSkillsState(skills: PlayerSkillsState | undefined): PlayerSkills
   return skills ?? createDefaultPlayerSkillsState();
 }
 
-function getNextLevelCost(skills: PlayerSkillsState, skillId: SkillId): number | null {
-  const level = getSkillProgress(skills, skillId)?.level ?? 0;
-  if (level >= 5) return null;
-  return SKILL_UPGRADE_COST_BY_LEVEL[(level + 1) as keyof typeof SKILL_UPGRADE_COST_BY_LEVEL];
-}
-
 function formatMs(ms: number | undefined): string | null {
   if (ms === undefined) return null;
   if (ms >= 1000) return `${Number((ms / 1000).toFixed(1))}s`;
@@ -48,12 +40,6 @@ function formatMs(ms: number | undefined): string | null {
 function formatMultiplier(value: number | undefined): string | null {
   if (value === undefined) return null;
   return `x${Number(value.toFixed(3))}`;
-}
-
-function getStatusLabel(level: number): string {
-  if (level <= 0) return "Verrouillé";
-  if (level >= 5) return "Max";
-  return "Débloqué";
 }
 
 function getKindLabel(kind: SkillDef["kind"]): string {
@@ -73,41 +59,15 @@ function getFailureMessage(reason: string): string {
   switch (reason) {
     case "ALREADY_EQUIPPED":
       return "Ce skill est déjà équipé.";
-    case "INSUFFICIENT_SKILL_POINTS":
-      return "Pas assez de points de compétence.";
     case "INVALID_SLOT":
       return "Slot invalide.";
     case "LOCKED_SKILL":
-      return "Ce skill est verrouillé.";
-    case "MAX_LEVEL":
-      return "Ce skill est déjà au niveau maximum.";
+      return "Action verrouillée : équipez un ring qui porte ce skill.";
     case "UNKNOWN_SKILL":
       return "Skill inconnu.";
     default:
       return "Action impossible.";
   }
-}
-
-function formatEffect(effect: SkillUpgradeEffect): string {
-  const statLabel: Record<SkillUpgradeEffect["stat"], string> = {
-    bonusDamageMultiplier: "Bonus dégâts",
-    cooldownMs: "Cooldown",
-    damageMultiplier: "Dégâts",
-    durationMs: "Durée",
-    radius: "Rayon",
-    range: "Portée",
-    tickIntervalMs: "Tick",
-    width: "Largeur",
-  };
-  const value =
-    effect.stat.endsWith("Ms")
-      ? formatMs(Math.abs(effect.value))
-      : effect.op === "multiply"
-        ? `x${effect.value}`
-        : `${effect.value > 0 ? "+" : ""}${effect.value}`;
-  const sign = effect.stat.endsWith("Ms") && effect.value < 0 ? "-" : effect.stat.endsWith("Ms") ? "+" : "";
-
-  return `${statLabel[effect.stat]} ${effect.op === "multiply" ? value : `${sign}${value}`}`;
 }
 
 function getPrimaryStats(def: SkillDef): Array<[string, string]> {
@@ -125,114 +85,80 @@ function getPrimaryStats(def: SkillDef): Array<[string, string]> {
 
 export function SkillsView() {
   const storedSkills = useGameStore((s) => s.state.skills);
-  const unlockOrUpgradePlayerSkill = useGameStore((s) => s.unlockOrUpgradePlayerSkill);
-  const equipPlayerSkill = useGameStore((s) => s.equipPlayerSkill);
-  const unequipPlayerSkill = useGameStore((s) => s.unequipPlayerSkill);
-  const respecPlayerSkills = useGameStore((s) => s.respecPlayerSkills);
-  const addDevSkillPoint = useGameStore((s) => s.addDevSkillPoint);
+  const dispatch = useGameStore((s) => s.dispatch);
   const skills = getSafeSkillsState(storedSkills);
   const [selectedSkillId, setSelectedSkillId] = useState<SkillId>("royal_strike");
-  const selectedDef = getEffectiveSkillDef(selectedSkillId, skills);
-  const selectedProgress = getSkillProgress(skills, selectedSkillId);
-  const selectedLevel = selectedProgress?.level ?? 0;
+  const selectedDef = SKILL_DEFS[selectedSkillId];
   const selectedUnlocked = isSkillUnlocked(skills, selectedSkillId);
-  const selectedNextCost = getNextLevelCost(skills, selectedSkillId);
   const selectedEquippedSlot = SKILL_SLOTS.find((slot) => skills.loadout[slot] === selectedSkillId);
   const detailStats = useMemo(() => getPrimaryStats(selectedDef), [selectedDef]);
 
-  function handleUpgrade(skillId: SkillId) {
-    const result = unlockOrUpgradePlayerSkill(skillId);
-    if (!result.ok) {
-      toast.error(getFailureMessage(result.reason));
-      return;
-    }
-
-    toast.success(result.previousLevel === 0 ? "Skill débloqué" : "Skill amélioré");
-  }
-
   function handleEquip(slot: SkillSlot) {
-    const result = equipPlayerSkill(selectedSkillId, slot);
+    const result = equipSkill(skills, selectedSkillId, slot);
     if (!result.ok) {
-      toast.error(getFailureMessage(result.reason));
+      toast.error(getFailureMessage(result.reason), { id: `skill-equip-${selectedSkillId}` });
       return;
     }
 
-    toast.success(`Skill équipé en slot ${slot}`);
+    dispatch((current) => ({
+      ...current,
+      skills: result.state,
+    }));
+    toast.success(`Skill équipé en slot ${slot}`, { id: `skill-equip-${selectedSkillId}` });
   }
 
   function handleUnequip(slot: SkillSlot) {
-    const result = unequipPlayerSkill(slot);
+    const result = unequipSkill(skills, slot);
     if (!result.ok) {
-      toast.error(getFailureMessage(result.reason));
+      toast.error(getFailureMessage(result.reason), { id: `skill-unequip-${slot}` });
       return;
     }
 
-    toast.success(`Slot ${slot} vidé`);
-  }
-
-  function handleRespec() {
-    const result = respecPlayerSkills();
-    toast.success(`Respec effectué, ${result.refundedSkillPoints} point(s) remboursé(s)`);
+    dispatch((current) => ({
+      ...current,
+      skills: result.state,
+    }));
+    toast.success(`Slot ${slot} vidé`, { id: `skill-unequip-${slot}` });
   }
 
   return (
-    <div className="space-y-5">
+    <section aria-labelledby="skills-title" className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/80">Character</p>
-          <h1 className="font-ik-title text-3xl font-semibold text-amber-50">Skills</h1>
+          <h1 id="skills-title" className="font-ik-title text-3xl font-semibold text-amber-50">Skills</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-md border border-amber-200/25 bg-black/45 px-3 py-2 font-ik-menu text-sm text-amber-50">
-            Points: {skills.skillPoints}
-          </span>
-          {process.env.NODE_ENV !== "production" ? (
-            <button
-              className="rounded-md border border-cyan-200/35 bg-cyan-500/12 px-3 py-2 font-ik-menu text-xs uppercase text-cyan-100 transition hover:border-cyan-100"
-              onClick={() => addDevSkillPoint(1)}
-              type="button"
-            >
-              +1 point de compétence
-            </button>
-          ) : null}
-          <button
-            className="rounded-md border border-red-200/30 bg-red-500/10 px-3 py-2 font-ik-menu text-xs uppercase text-red-100 transition hover:border-red-100"
-            onClick={handleRespec}
-            type="button"
-          >
-            Respec gratuit
-          </button>
-        </div>
+        <span className="rounded-md border border-amber-200/25 bg-black/45 px-3 py-2 font-ik-menu text-sm text-amber-50">
+          Ring Skills
+        </span>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <GamePanel className="p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="font-ik-title text-xl text-amber-50">Skill Tree</h2>
-            <span className="font-ik-body text-xs text-muted-foreground">Niveau max 5</span>
+            <h2 className="font-ik-title text-xl text-amber-50">Skill Codex</h2>
+            <span className="font-ik-body text-xs text-muted-foreground">MVP</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             {SKILL_IDS.map((skillId) => {
               const baseDef = SKILL_DEFS[skillId];
-              const effectiveDef = getEffectiveSkillDef(skillId, skills);
-              const progress = getSkillProgress(skills, skillId);
-              const level = progress?.level ?? 0;
-              const nextCost = getNextLevelCost(skills, skillId);
+              const unlocked = isSkillUnlocked(skills, skillId);
               const isSelected = selectedSkillId === skillId;
-              const isMax = level >= 5;
-              const canAfford = nextCost !== null && skills.skillPoints >= nextCost;
 
               return (
-                <div
-                  className={[
-                    "rounded-lg border bg-black/35 p-4 text-left transition",
+                <button
+                  aria-label={`${baseDef.name} - ${unlocked ? "Unlocked" : "Locked"}`}
+                  aria-pressed={isSelected}
+                  className={cn(
+                    "rounded-lg border bg-black/35 p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45",
                     isSelected
                       ? "border-amber-200/70 shadow-[0_0_28px_rgba(240,194,106,0.14)]"
-                      : "border-amber-200/18 hover:border-amber-200/45",
-                  ].join(" ")}
+                      : "border-amber-200/18 hover:border-amber-200/45"
+                  )}
                   data-testid={`skill-card-${skillId}`}
                   key={skillId}
                   onClick={() => setSelectedSkillId(skillId)}
+                  type="button"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -241,13 +167,18 @@ export function SkillsView() {
                         {getKindLabel(baseDef.kind)}
                       </p>
                     </div>
-                    <span className="rounded-sm border border-amber-200/20 bg-amber-200/10 px-2 py-1 font-ik-menu text-[0.65rem] text-amber-50">
-                      {level}/5
+                    <span
+                      className={cn(
+                        "rounded-sm border px-2 py-1 font-ik-menu text-[0.65rem]",
+                        unlocked ? "border-emerald-300/30 text-emerald-100" : "border-zinc-400/25 text-zinc-400"
+                      )}
+                    >
+                      {unlocked ? "Unlocked" : "Locked"}
                     </span>
                   </div>
                   <p className="mt-3 min-h-10 font-ik-body text-sm text-muted-foreground">{baseDef.description}</p>
                   <div className="mt-3 flex flex-wrap gap-2 font-ik-body text-xs text-amber-50/85">
-                    {getPrimaryStats(effectiveDef)
+                    {getPrimaryStats(baseDef)
                       .slice(0, 4)
                       .map(([label, value]) => (
                         <span className="rounded border border-amber-200/14 bg-black/35 px-2 py-1" key={label}>
@@ -255,25 +186,7 @@ export function SkillsView() {
                         </span>
                       ))}
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-2">
-                    <span className="font-ik-menu text-xs uppercase text-amber-100/75">{getStatusLabel(level)}</span>
-                    <span className="font-ik-body text-xs text-muted-foreground">
-                      {nextCost === null ? "Coût: -" : `Coût: ${nextCost}`}
-                    </span>
-                  </div>
-                  <button
-                    className="mt-3 w-full rounded-md border border-amber-200/30 bg-amber-500/14 px-3 py-2 font-ik-menu text-xs uppercase text-amber-50 transition hover:border-amber-100 disabled:cursor-not-allowed disabled:opacity-45"
-                    data-testid={`skill-upgrade-${skillId}`}
-                    disabled={isMax || !canAfford}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleUpgrade(skillId);
-                    }}
-                    type="button"
-                  >
-                    {level <= 0 ? "Débloquer" : "Améliorer"}
-                  </button>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -287,8 +200,13 @@ export function SkillsView() {
                 {getKindLabel(selectedDef.kind)}
               </p>
             </div>
-            <span className="rounded-md border border-amber-200/25 bg-black/45 px-3 py-2 font-ik-menu text-sm text-amber-50">
-              {selectedLevel}/5
+            <span
+              className={cn(
+                "rounded-md border bg-black/45 px-3 py-2 font-ik-menu text-sm",
+                selectedUnlocked ? "border-emerald-300/30 text-emerald-100" : "border-zinc-400/25 text-zinc-400"
+              )}
+            >
+              {selectedUnlocked ? "Unlocked" : "Locked"}
             </span>
           </div>
           <p className="mt-4 font-ik-body text-sm leading-6 text-muted-foreground">{selectedDef.description}</p>
@@ -300,32 +218,6 @@ export function SkillsView() {
               </div>
             ))}
           </div>
-          <div className="mt-5">
-            <h3 className="font-ik-title text-lg text-amber-50">Upgrades</h3>
-            <div className="mt-3 grid gap-2">
-              {SKILL_UPGRADE_DEFS[selectedSkillId].map((upgrade) => (
-                <div
-                  className={[
-                    "rounded-md border px-3 py-2",
-                    selectedLevel >= upgrade.level
-                      ? "border-emerald-200/25 bg-emerald-500/8"
-                      : "border-amber-200/14 bg-black/30",
-                  ].join(" ")}
-                  key={upgrade.level}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-ik-menu text-xs uppercase text-amber-50">Niveau {upgrade.level}</span>
-                    <span className="font-ik-body text-xs text-muted-foreground">
-                      {selectedLevel >= upgrade.level ? "Actif" : "À venir"}
-                    </span>
-                  </div>
-                  <p className="mt-1 font-ik-body text-sm text-muted-foreground">
-                    {upgrade.effects.map(formatEffect).join(", ")}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
         </GamePanel>
       </div>
 
@@ -334,7 +226,7 @@ export function SkillsView() {
           <div>
             <h2 className="font-ik-title text-xl text-amber-50">Loadout</h2>
             <p className="font-ik-body text-sm text-muted-foreground">
-              Skill sélectionné: {selectedDef.name} {selectedUnlocked ? "" : "(verrouillé)"}
+              Skill sélectionné: {selectedDef.name} {selectedUnlocked ? "" : "(locked)"}
             </p>
           </div>
           {selectedEquippedSlot ? (
@@ -359,6 +251,7 @@ export function SkillsView() {
                 </p>
                 <div className="mt-3 grid gap-2">
                   <button
+                    aria-label={`Equip selected skill in slot ${slot}`}
                     className="rounded-md border border-cyan-200/30 bg-cyan-500/10 px-3 py-2 font-ik-menu text-xs uppercase text-cyan-50 transition hover:border-cyan-100 disabled:cursor-not-allowed disabled:opacity-45"
                     data-testid={`skill-equip-slot-${slot}`}
                     disabled={!selectedUnlocked || selectedEquippedSlot === slot}
@@ -368,6 +261,7 @@ export function SkillsView() {
                     Équiper sélection
                   </button>
                   <button
+                    aria-label={`Unequip skill from slot ${slot}`}
                     className="rounded-md border border-amber-200/20 bg-black/25 px-3 py-2 font-ik-menu text-xs uppercase text-amber-50 transition hover:border-amber-100 disabled:cursor-not-allowed disabled:opacity-45"
                     data-testid={`skill-unequip-slot-${slot}`}
                     disabled={!equippedSkillId}
@@ -382,6 +276,6 @@ export function SkillsView() {
           })}
         </div>
       </GamePanel>
-    </div>
+    </section>
   );
 }

@@ -17,10 +17,17 @@ function getDefaultSelectedLevel(levels: PublicStoryLevel[]): string | null {
 }
 
 function getActionLabel(level: PublicStoryLevel | undefined): string {
-  if (!level) return "Selectionnez un niveau";
-  if (level.status === "completed") return "Niveau termine";
-  if (level.status === "locked") return "Verrouille";
+  if (!level) return "Sélectionnez un niveau";
+  if (level.status === "completed") return "Niveau terminé";
+  if (level.status === "locked") return "Verrouillé";
   return "Entrer dans le donjon";
+}
+
+function getActionHelp(level: PublicStoryLevel | undefined): string {
+  if (!level) return "Sélectionnez un niveau disponible.";
+  if (level.status === "completed") return "Ce niveau est terminé. Les récompenses uniques ne sont pas rejouées.";
+  if (level.status === "locked") return "Action verrouillée : terminez les niveaux précédents pour débloquer celui-ci.";
+  return "Disponible.";
 }
 
 export function StoryZoneDetailPanel({ chapter, onExplore }: StoryZoneDetailPanelProps) {
@@ -38,7 +45,7 @@ export function StoryZoneDetailPanel({ chapter, onExplore }: StoryZoneDetailPane
   if (!chapter) {
     return (
       <section className="ik-story-detail-panel flex min-h-[34rem] items-center justify-center rounded-xl border border-amber-200/20 bg-black/45 p-6">
-        <p className="font-ik-body text-sm text-muted-foreground">Selectionnez une zone.</p>
+        <p className="font-ik-body text-sm text-muted-foreground">Sélectionnez une zone.</p>
       </section>
     );
   }
@@ -70,6 +77,7 @@ export function StoryZoneDetailPanel({ chapter, onExplore }: StoryZoneDetailPane
 
         <div className="mt-5 border-t border-amber-200/20 pt-4">
           <button
+            aria-label={selectedLevel ? `${getActionLabel(selectedLevel)} - ${selectedLevel.title}` : "Sélectionnez un niveau"}
             className={cn(
               "w-full rounded-lg border px-4 py-3 font-ik-menu text-sm transition",
               canExplore && "border-amber-200/55 bg-amber-500/20 text-amber-50 hover:border-amber-100 hover:bg-amber-500/25",
@@ -85,7 +93,7 @@ export function StoryZoneDetailPanel({ chapter, onExplore }: StoryZoneDetailPane
             {getActionLabel(selectedLevel)}
           </button>
           <p className="mt-3 font-ik-body text-xs text-muted-foreground">
-            Terminez les niveaux precedents pour debloquer les suivants.
+            {getActionHelp(selectedLevel)}
           </p>
         </div>
       </div>
