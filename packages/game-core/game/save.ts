@@ -2,7 +2,7 @@ import type { GameState } from "./state.js";
 import { createInitialGameState } from "./state.js";
 import { applyOfflineProgress } from "./offlineProgress.js";
 import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
-import { normalizePlayerEquipmentState } from "../equipment/index.js";
+import { ensureMvpStarterRing, normalizePlayerEquipmentState } from "../equipment/index.js";
 import { normalizeEquipmentItem, type Item } from "../items/types.js";
 import { normalizeWalletState } from "../currencies/index.js";
 import { normalizeWorldResourcesState } from "../world/worldResources.js";
@@ -116,7 +116,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     completedEvents.add(`boss:${bossId}:defeated`);
   }
 
-  return {
+  const revived: GameState = {
     progression,
     story: {
       ...defaults.story,
@@ -144,6 +144,8 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
       list: Array.isArray(rawState.villagers?.list) ? rawState.villagers.list : defaults.villagers.list,
     },
   };
+
+  return ensureMvpStarterRing(revived);
 }
 
 /**

@@ -6,17 +6,22 @@ import {
   calculateEquipmentStats,
   calculateFinalCharacterStats,
   createDefaultPlayerEquipmentState,
+  ensureMvpStarterRing,
   equipItem,
   generateEquipmentItem,
   generateEquipmentLootDrop,
   type EquipItemResult,
   getEquippedItemIds,
   getEquippedItems,
+  getEquippedRingItems,
+  MVP_STARTER_RING_ID,
+  MVP_STARTER_RING_SKILL_ID,
   unequipItem,
 } from "../equipment/index.js";
 import { createInitialGameState, type GameState } from "../game/state.js";
 import { loadGame } from "../game/save.js";
 import { EQUIPMENT_SLOTS, isEquipmentItem, type EquipmentItem, type NonEquipmentItem } from "../items/types.js";
+import { isSkillId } from "../skills/index.js";
 
 function equipmentItem(overrides: Partial<EquipmentItem> & Pick<EquipmentItem, "id" | "name" | "slot">): EquipmentItem {
   const stats = overrides.stats ?? {};
@@ -67,6 +72,58 @@ test("default player equipment state initializes active slots and five ring slot
   }
   assert.deepEqual(equipment.equipped.rings, [null, null, null, null, null]);
   assert.deepEqual(getEquippedItemIds(equipment), []);
+});
+
+test("new game state starts with one equipped MVP starter ring skill", () => {
+  const state = createInitialGameState();
+  const equippedRing = getEquippedRingItems(state)[0];
+
+  assert.equal(state.equipment.equipped.rings[0], MVP_STARTER_RING_ID);
+  assert.ok(equippedRing);
+  assert.equal(equippedRing.skillId, MVP_STARTER_RING_SKILL_ID);
+  assert.equal(equippedRing.rarity, "COMMON");
+  assert.equal(equippedRing.ilvl, 1);
+  assert.equal(equippedRing.upgradeLevel, 0);
+  assert.ok(isSkillId(equippedRing.skillId));
+});
+
+test("buildCharacterCombatLoadout exposes a castable ring-backed skill without legacy skill state", () => {
+  const state = createInitialGameState();
+  const stateWithoutLegacySkills = {
+    ...state,
+    skills: undefined,
+  } as unknown as GameState;
+  const loadout = buildCharacterCombatLoadout(stateWithoutLegacySkills);
+
+  assert.equal(loadout.skills.length >= 1, true);
+  assert.equal(loadout.skills[0].skillId, MVP_STARTER_RING_SKILL_ID);
+  assert.equal(loadout.skills[0].slot, 1);
+  assert.equal(loadout.skills[0].ring.instanceId, MVP_STARTER_RING_ID);
+});
+
+test("starter ring helper is idempotent and does not mint skill points", () => {
+  const once = ensureMvpStarterRing(createInitialGameState());
+  const twice = ensureMvpStarterRing(once);
+
+  assert.deepEqual(twice.equipment.equipped.rings, once.equipment.equipped.rings);
+  assert.equal(twice.inventory.items.filter((item) => item.id === MVP_STARTER_RING_ID).length, 1);
+  assert.equal(twice.skills.skillPoints, 0);
+  assert.equal("skillPoints" in twice.inventory.items[0], false);
+  assert.equal("skillLevel" in twice.inventory.items[0], false);
+});
+
+test("starter ring helper auto-equips an existing skill ring instead of duplicating starter", () => {
+  const existingRing = generateEquipmentItem({ slot: "ring", itemLevel: 4, id: "found-skill-ring", skillId: "SK-001" });
+  const state = {
+    ...createInitialGameState(),
+    inventory: { items: [existingRing] },
+    equipment: createDefaultPlayerEquipmentState(),
+  };
+  const normalized = ensureMvpStarterRing(state);
+
+  assert.equal(normalized.equipment.equipped.rings[0], existingRing.id);
+  assert.equal(normalized.inventory.items.some((item) => item.id === MVP_STARTER_RING_ID), false);
+  assert.equal(normalized.inventory.items.filter((item) => item.id === existingRing.id).length, 1);
 });
 
 test("generateEquipmentItem produces valid equipment for every active slot", () => {
@@ -140,7 +197,8 @@ test("old save without equipment revives with default equipment state", () => {
 
     const loaded = loadGame();
     assert.ok(loaded);
-    assert.deepEqual(loaded.equipment, createDefaultPlayerEquipmentState());
+    assert.equal(loaded.equipment.equipped.rings[0], MVP_STARTER_RING_ID);
+    assert.equal(getEquippedRingItems(loaded)[0]?.skillId, MVP_STARTER_RING_SKILL_ID);
   } finally {
     Object.defineProperty(globalThis, "localStorage", {
       configurable: true,

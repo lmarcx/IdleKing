@@ -37,10 +37,12 @@ import type { StatsModifiers } from "../power/statsModel.js";
 import {
   createEmptyEquippedRingIds,
   equipRing,
+  isSkillBearingRing,
   MAX_EQUIPPED_RINGS,
   type EquippedRingIds,
   type RingEquipmentInstance,
 } from "./rings.js";
+import type { SkillId } from "../skills/types.js";
 
 export type PlayerEquipmentState = {
   equipped: Record<EquipmentSlot, string | null> & {
@@ -82,6 +84,45 @@ export const BASE_CHARACTER_STATS: ResolvedEquipmentStats = {
   defense: 0,
   power: 25,
 } as const;
+
+export const MVP_STARTER_RING_ID = "mvp-starter-ring-arcane-bolt";
+export const MVP_STARTER_RING_SKILL_ID = "SK-004" satisfies SkillId;
+
+export const MVP_STARTER_RING: EquipmentItem = {
+  affixes: [],
+  baseItemId: "starter_arcane_ring",
+  baseStats: {
+    hp: 0,
+    attack: 0,
+    defense: 0,
+    power: 0,
+  },
+  id: MVP_STARTER_RING_ID,
+  ilvl: 1,
+  instanceId: MVP_STARTER_RING_ID,
+  itemLevel: 1,
+  kind: "equipment",
+  name: "Starter Arcane Ring",
+  rarity: "COMMON",
+  rolledStats: {
+    hp: 0,
+    attack: 0,
+    defense: 0,
+    power: 0,
+  },
+  skillId: MVP_STARTER_RING_SKILL_ID,
+  slot: "ring",
+  stats: {
+    hp: 0,
+    attack: 0,
+    defense: 0,
+    power: 0,
+  },
+  upgradeLevel: 0,
+  value: 1,
+};
+
+type InventorySkillRing = EquipmentItem & RingEquipmentInstance;
 
 export type FinalCharacterStats = ResolvedEquipmentStats & {
   critChance: number;
@@ -303,6 +344,71 @@ export function getEquippedRingItems(gameState: GameState): Array<RingEquipmentI
     const item = getInventoryEquipmentItem(gameState, itemId);
     return item?.slot === "ring" ? item as RingEquipmentInstance : null;
   });
+}
+
+function getInventorySkillRings(gameState: GameState): InventorySkillRing[] {
+  return gameState.inventory.items.flatMap((item): InventorySkillRing[] => {
+    const normalized = normalizeEquipmentItem(item);
+    if (!normalized || normalized.slot !== "ring" || !isSkillBearingRing(normalized)) return [];
+    return [normalized as InventorySkillRing];
+  });
+}
+
+function hasEquippedSkillRing(gameState: GameState): boolean {
+  return getEquippedRingItems(gameState).some((ring) => ring !== null && isSkillBearingRing(ring));
+}
+
+function hasInventoryItem(gameState: GameState, itemId: string): boolean {
+  return gameState.inventory.items.some((item) => item.id === itemId);
+}
+
+export function ensureMvpStarterRing(gameState: GameState): GameState {
+  const equipment = normalizePlayerEquipmentState(gameState.equipment);
+  const inventory = {
+    items: gameState.inventory.items.flatMap((item): EquipmentItem[] | [typeof item] => {
+      if (!item || typeof item !== "object" || !("slot" in item)) return [item];
+      const normalized = normalizeEquipmentItem(item);
+      return normalized ? [normalized] : [];
+    }),
+  };
+  const normalizedState = {
+    ...gameState,
+    inventory,
+    equipment,
+  };
+
+  if (hasEquippedSkillRing(normalizedState)) return normalizedState;
+
+  const inventorySkillRing = getInventorySkillRings(normalizedState)[0];
+  const ringToEquip = inventorySkillRing ?? MVP_STARTER_RING;
+  const inventoryWithStarter = inventorySkillRing || hasInventoryItem(normalizedState, MVP_STARTER_RING_ID)
+    ? normalizedState.inventory
+    : {
+        items: [...normalizedState.inventory.items, MVP_STARTER_RING],
+      };
+  const nextState = {
+    ...normalizedState,
+    inventory: inventoryWithStarter,
+  };
+
+  if (equipment.equipped.rings.some((itemId) => itemId === ringToEquip.id)) {
+    return nextState;
+  }
+
+  const slotIndex = equipment.equipped.rings.findIndex((itemId) => itemId === null);
+  if (slotIndex < 0) return nextState;
+
+  const rings = [...equipment.equipped.rings] as EquippedRingIds;
+  rings[slotIndex] = ringToEquip.id;
+  return {
+    ...nextState,
+    equipment: {
+      equipped: {
+        ...equipment.equipped,
+        rings,
+      },
+    },
+  };
 }
 
 export function unequipRingItem(gameState: GameState, slotIndex: number): UnequipItemResult {
