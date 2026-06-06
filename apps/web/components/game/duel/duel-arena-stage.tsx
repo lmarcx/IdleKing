@@ -313,12 +313,15 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(false);
   const dispatch = useGameStore((store) => store.dispatch);
-  const gameState = useGameStore((store) => store.state);
+  const equipment = useGameStore((store) => store.state.equipment);
+  const inventoryItems = useGameStore((store) => store.state.inventory.items);
   const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const combatLoadout = useMemo(
-    () => buildCombatLoadoutFromGameState(gameState),
-    [gameState]
+    // Loadout derives only from equipment + inventory; read full state fresh so
+    // the dep array stays narrow without changing the computed value.
+    () => buildCombatLoadoutFromGameState(useGameStore.getState().state),
+    [equipment, inventoryItems]
   );
   const playerMaxHp = Math.max(1, Math.ceil(combatLoadout.stats.hp));
   const [hudState, setHudState] = useState<DuelHudState>({

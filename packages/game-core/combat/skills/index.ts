@@ -76,6 +76,11 @@ export type PlayerSkillProgress = {
   unlocked: boolean;
 };
 
+/**
+ * @deprecated Legacy player skill progression state (skill points, per-skill
+ * levels, loadout). Not used by Story combat or the ring-backed loadout. Use the
+ * canonical SK-001..SK-016 system in packages/game-core/skills instead.
+ */
 export type PlayerSkillsState = {
   skillPoints: number;
   skills: Record<SkillId, PlayerSkillProgress>;
@@ -293,6 +298,10 @@ export function canUnlockOrUpgradeSkill(state: PlayerSkillsState, skillId: Skill
   return getSkillUpgradePlan(state, skillId);
 }
 
+/**
+ * @deprecated Legacy skill points / skill levels path. Removed from the MVP
+ * (ring-scaling pure). Use packages/game-core/skills (ring-backed SK-001..SK-016).
+ */
 export function unlockOrUpgradeSkill(state: PlayerSkillsState, skillId: SkillId | string): SkillUpgradeResult {
   const plan = getSkillUpgradePlan(state, skillId);
   if (!plan.ok) return plan;
@@ -318,6 +327,10 @@ export function unlockOrUpgradeSkill(state: PlayerSkillsState, skillId: SkillId 
   };
 }
 
+/**
+ * @deprecated Legacy 4-slot skill loadout. Story combat now derives active skills
+ * from equipped rings (packages/game-core/skills). Kept for non-MVP screens/tests.
+ */
 export function equipSkill(
   state: PlayerSkillsState,
   skillId: SkillId | string,
@@ -356,6 +369,10 @@ export function equipSkill(
   };
 }
 
+/**
+ * @deprecated Legacy 4-slot skill loadout. See equipSkill. Use the ring-backed
+ * system in packages/game-core/skills instead.
+ */
 export function unequipSkill(state: PlayerSkillsState, slot: SkillSlot | number): SkillEquipResult {
   if (!isValidSkillSlot(slot)) {
     return { ok: false, state, slot, reason: "INVALID_SLOT" };
@@ -375,6 +392,10 @@ export function unequipSkill(state: PlayerSkillsState, slot: SkillSlot | number)
   };
 }
 
+/**
+ * @deprecated Legacy skill-point respec. Removed from the MVP (no skill points).
+ * Use packages/game-core/skills (ring-scaling, no respec).
+ */
 export function respecSkills(state: PlayerSkillsState): SkillRespecResult {
   const refundedSkillPoints = getSpentSkillPoints(state);
   const nextState = createDefaultPlayerSkillsState();

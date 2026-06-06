@@ -660,10 +660,13 @@ export function PixiExplorationStage({
   const inputBlockedRef = useRef(inputBlocked);
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
-  const gameState = useGameStore((s) => s.state);
+  const equipment = useGameStore((s) => s.state.equipment);
+  const inventoryItems = useGameStore((s) => s.state.inventory.items);
   const combatLoadout = useMemo(
-    () => buildCombatLoadoutFromGameState(gameState),
-    [gameState]
+    // Loadout derives only from equipment + inventory; read full state fresh so
+    // the dep array stays narrow without changing the computed value.
+    () => buildCombatLoadoutFromGameState(useGameStore.getState().state),
+    [equipment, inventoryItems]
   );
   const initialCombatRuntime = useMemo(
     () => createStoryCombatRuntimeState(combatLoadout, { hp: GRUNT_HP, maxHp: GRUNT_HP }),
@@ -929,7 +932,7 @@ export function PixiExplorationStage({
           },
         ];
         showDashFeedback(
-          `${result.skillDef.id} ${result.skillDef.category} TODO DEFERRED: coût Mana et cooldown appliqués`,
+          `${result.skillDef.name} — effet complet à venir (Mana consommée, cooldown appliqué)`,
           nowMs
         );
       }
