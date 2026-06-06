@@ -35,8 +35,9 @@ function formatEraStatus(state: ReturnType<typeof useGameStore.getState>["state"
 }
 
 function getEraTitle(era: EraDefinition): string {
-  if (era.id === "era_funebre") return "Era Funèbre";
-  if (era.id === "era_glaciaire") return "Era Glaciaire";
+  if (era.id === "era_funebre") return "Ère Funèbre";
+  if (era.id === "era_glaciaire") return "Ère Glaciaire";
+  if (era.id === "era_deluge") return "Déluge";
   return era.title;
 }
 
@@ -175,13 +176,13 @@ export function TimeGatePanel() {
             <RequirementList era={era} state={state} />
             {era.id === "era_glaciaire" && !unlocked ? (
               <button
-                aria-label="Unlock Era Glaciaire at the Time Gate"
+                aria-label="Unlock Ère Glaciaire at the Time Gate"
                 className="mt-4 w-full rounded-md border border-cyan-200/32 bg-cyan-500/12 px-3 py-2 font-ik-menu text-xs uppercase text-cyan-50 transition hover:border-cyan-100 disabled:cursor-not-allowed disabled:opacity-45"
                 disabled={!canUnlock}
                 onClick={() => handleUnlockEra(era.id)}
                 type="button"
               >
-                Unlock Era Glaciaire
+                Unlock Ère Glaciaire
               </button>
             ) : null}
             {era.teaser ? (
