@@ -1,0 +1,98 @@
+{
+  "map": {
+    "width": 1800,
+    "height": 1200
+  },
+  "playerSpawn": {
+    "x": 900,
+    "y": 600
+  },
+  "walkBounds": {
+    "x": 24,
+    "y": 24,
+    "width": 1752,
+    "height": 1152
+  },
+  "criticalWalkablePoints": [
+    {
+      "id": "spawn",
+      "x": 900,
+      "y": 600
+    },
+    {
+      "id": "north-pad-path",
+      "x": 900,
+      "y": 395
+    },
+    {
+      "id": "south-pad-path",
+      "x": 900,
+      "y": 805
+    },
+    {
+      "id": "west-pad-path",
+      "x": 600,
+      "y": 600
+    },
+    {
+      "id": "east-pad-path",
+      "x": 1200,
+      "y": 600
+    },
+    {
+      "id": "forge-approach",
+      "x": 1250,
+      "y": 820
+    },
+    {
+      "id": "market-approach",
+      "x": 360,
+      "y": 680
+    }
+  ],
+  "blockers": [
+    {
+      "x": 392,
+      "y": 564,
+      "width": 76,
+      "height": 36,
+      "id": "prop-column-nw"
+    },
+    {
+      "x": 1194,
+      "y": 452,
+      "width": 92,
+      "height": 34,
+      "id": "prop-wall-ne"
+    },
+    {
+      "x": 1336,
+      "y": 722,
+      "width": 84,
+      "height": 42,
+      "id": "prop-root-east"
+    },
+    {
+      "x": 440,
+      "y": 850,
+      "width": 60,
+      "height": 32,
+      "id": "prop-marker-sw"
+    },
+    {
+      "x": 1227,
+      "y": 875,
+      "width": 78,
+      "height": 38,
+      "id": "prop-blocks-se"
+    },
+    {
+      "x": 868,
+      "y": 247,
+      "width": 72,
+      "height": 34,
+      "id": "prop-root-north"
+    }
+  ],
+  "runtimeNote": "Kingdom integration uses existing building colliders. These generated prop blockers are metadata-only unless explicitly wired in later."
+}

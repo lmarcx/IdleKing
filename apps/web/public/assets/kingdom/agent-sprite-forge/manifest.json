@@ -1,0 +1,32 @@
+{
+  "id": "agent-sprite-forge",
+  "title": "Kingdom Hub - Agent Sprite Forge Experimental Map",
+  "mapMode": "scene_mode",
+  "visualModel": "layered_raster",
+  "runtimeObjectModel": "y_sorted_props",
+  "collisionModel": "coarse_shapes",
+  "engineTarget": "project-native-pixi",
+  "size": {
+    "width": 1800,
+    "height": 1200
+  },
+  "assets": {
+    "groundBackgroundLayer": "/assets/kingdom/agent-sprite-forge/kingdom-hub-base.png",
+    "rawPropSheet": "/assets/kingdom/agent-sprite-forge/kingdom-hub-props-sheet-raw.png",
+    "preview": "/assets/kingdom/agent-sprite-forge/kingdom-hub-layered-preview.png",
+    "propsManifest": "/assets/kingdom/agent-sprite-forge/kingdom-hub-props.json",
+    "collision": "/assets/kingdom/agent-sprite-forge/kingdom-hub-collision.json",
+    "zones": "/assets/kingdom/agent-sprite-forge/kingdom-hub-zones.json"
+  },
+  "prompts": {
+    "base": "/assets/kingdom/agent-sprite-forge/kingdom-hub-base.prompt.txt",
+    "props": "/assets/kingdom/agent-sprite-forge/kingdom-hub-props-sheet.prompt.txt"
+  },
+  "integration": {
+    "component": "apps/web/components/game/kingdom/kingdom-hub-stage.tsx",
+    "flag": "KINGDOM_HUB_MAP_VARIANT",
+    "fallbackVariant": "default",
+    "activeVariant": "agent-sprite-forge",
+    "runtimeCollision": "existing-building-colliders"
+  }
+}

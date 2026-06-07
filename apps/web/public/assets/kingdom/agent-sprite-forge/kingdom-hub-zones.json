@@ -1,0 +1,71 @@
+{
+  "map": {
+    "width": 1800,
+    "height": 1200
+  },
+  "zones": [
+    {
+      "id": "forum",
+      "center": {
+        "x": 900,
+        "y": 430
+      },
+      "radius": 118,
+      "role": "building-pad"
+    },
+    {
+      "id": "temple",
+      "center": {
+        "x": 1230,
+        "y": 390
+      },
+      "radius": 112,
+      "role": "building-pad"
+    },
+    {
+      "id": "bank",
+      "center": {
+        "x": 1420,
+        "y": 560
+      },
+      "radius": 96,
+      "role": "building-pad"
+    },
+    {
+      "id": "market",
+      "center": {
+        "x": 360,
+        "y": 685
+      },
+      "radius": 112,
+      "role": "building-pad"
+    },
+    {
+      "id": "forge",
+      "center": {
+        "x": 1250,
+        "y": 820
+      },
+      "radius": 112,
+      "role": "building-pad"
+    },
+    {
+      "id": "time-gate-ruins",
+      "center": {
+        "x": 445,
+        "y": 975
+      },
+      "radius": 108,
+      "role": "building-pad"
+    },
+    {
+      "id": "central-plaza",
+      "center": {
+        "x": 900,
+        "y": 600
+      },
+      "radius": 178,
+      "role": "walkable-plaza"
+    }
+  ]
+}

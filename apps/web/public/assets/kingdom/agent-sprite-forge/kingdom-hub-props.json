@@ -1,0 +1,297 @@
+{
+  "props": [
+    {
+      "id": "broken-column-stump",
+      "sourceCell": {
+        "column": 0,
+        "row": 0,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 98,
+        "y": 76,
+        "width": 281,
+        "height": 309
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/broken-column-stump.png",
+      "size": {
+        "width": 281,
+        "height": 309
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "cracked-wall-fragment",
+      "sourceCell": {
+        "column": 1,
+        "row": 0,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 64,
+        "y": 112,
+        "width": 292,
+        "height": 278
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/cracked-wall-fragment.png",
+      "size": {
+        "width": 292,
+        "height": 278
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "small-rubble-pile",
+      "sourceCell": {
+        "column": 2,
+        "row": 0,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 26,
+        "y": 178,
+        "width": 290,
+        "height": 187
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/small-rubble-pile.png",
+      "size": {
+        "width": 290,
+        "height": 187
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "loose-paving-stones",
+      "sourceCell": {
+        "column": 0,
+        "row": 1,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 77,
+        "y": 103,
+        "width": 303,
+        "height": 216
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/loose-paving-stones.png",
+      "size": {
+        "width": 303,
+        "height": 216
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "torch-brazier",
+      "sourceCell": {
+        "column": 1,
+        "row": 1,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 80,
+        "y": 41,
+        "width": 248,
+        "height": 286
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/torch-brazier.png",
+      "size": {
+        "width": 248,
+        "height": 286
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "dead-root-knot",
+      "sourceCell": {
+        "column": 2,
+        "row": 1,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 18,
+        "y": 58,
+        "width": 318,
+        "height": 274
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/dead-root-knot.png",
+      "size": {
+        "width": 318,
+        "height": 274
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "gold-inlaid-stone-marker",
+      "sourceCell": {
+        "column": 0,
+        "row": 2,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 89,
+        "y": 6,
+        "width": 268,
+        "height": 285
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/gold-inlaid-stone-marker.png",
+      "size": {
+        "width": 268,
+        "height": 285
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "collapsed-stone-block-stack",
+      "sourceCell": {
+        "column": 1,
+        "row": 2,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 48,
+        "y": 14,
+        "width": 311,
+        "height": 281
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/collapsed-stone-block-stack.png",
+      "size": {
+        "width": 311,
+        "height": 281
+      },
+      "edgeTouch": false
+    },
+    {
+      "id": "root-rubble-cluster",
+      "sourceCell": {
+        "column": 2,
+        "row": 2,
+        "width": 418,
+        "height": 418
+      },
+      "trimmedSourceRect": {
+        "x": 18,
+        "y": 14,
+        "width": 321,
+        "height": 279
+      },
+      "image": "/assets/kingdom/agent-sprite-forge/props/root-rubble-cluster.png",
+      "size": {
+        "width": 321,
+        "height": 279
+      },
+      "edgeTouch": false
+    }
+  ],
+  "placements": [
+    {
+      "id": "prop-column-nw",
+      "propId": "broken-column-stump",
+      "x": 430,
+      "y": 555,
+      "scale": 0.42,
+      "layer": "decor",
+      "collision": {
+        "x": 392,
+        "y": 564,
+        "width": 76,
+        "height": 36
+      }
+    },
+    {
+      "id": "prop-wall-ne",
+      "propId": "cracked-wall-fragment",
+      "x": 1240,
+      "y": 445,
+      "scale": 0.34,
+      "layer": "decor",
+      "collision": {
+        "x": 1194,
+        "y": 452,
+        "width": 92,
+        "height": 34
+      }
+    },
+    {
+      "id": "prop-rubble-west",
+      "propId": "small-rubble-pile",
+      "x": 618,
+      "y": 472,
+      "scale": 0.3,
+      "layer": "ground",
+      "collision": null
+    },
+    {
+      "id": "prop-paving-south",
+      "propId": "loose-paving-stones",
+      "x": 900,
+      "y": 925,
+      "scale": 0.32,
+      "layer": "ground",
+      "collision": null
+    },
+    {
+      "id": "prop-root-east",
+      "propId": "dead-root-knot",
+      "x": 1378,
+      "y": 710,
+      "scale": 0.34,
+      "layer": "decor",
+      "collision": {
+        "x": 1336,
+        "y": 722,
+        "width": 84,
+        "height": 42
+      }
+    },
+    {
+      "id": "prop-marker-sw",
+      "propId": "gold-inlaid-stone-marker",
+      "x": 470,
+      "y": 845,
+      "scale": 0.3,
+      "layer": "decor",
+      "collision": {
+        "x": 440,
+        "y": 850,
+        "width": 60,
+        "height": 32
+      }
+    },
+    {
+      "id": "prop-blocks-se",
+      "propId": "collapsed-stone-block-stack",
+      "x": 1266,
+      "y": 862,
+      "scale": 0.32,
+      "layer": "decor",
+      "collision": {
+        "x": 1227,
+        "y": 875,
+        "width": 78,
+        "height": 38
+      }
+    },
+    {
+      "id": "prop-root-north",
+      "propId": "root-rubble-cluster",
+      "x": 904,
+      "y": 235,
+      "scale": 0.26,
+      "layer": "decor",
+      "collision": {
+        "x": 868,
+        "y": 247,
+        "width": 72,
+        "height": 34
+      }
+    }
+  ]
+}
