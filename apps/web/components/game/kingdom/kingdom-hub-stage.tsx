@@ -56,15 +56,15 @@ import { KingdomOverlay } from "./kingdom-overlay";
 
 const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
-const PLAYER_SIZE = 48;
 const PLAYER_DISPLAY_HEIGHT = 104;
 const PLAYER_SPEED = 310;
 const PLAYER_COLLIDER = { height: 28, offsetY: 10, width: 32 } as const;
 const SHOW_HUB_COLLIDER_DEBUG = false;
 type KingdomHubMapVariant = "default" | "agent-sprite-forge";
-const KINGDOM_HUB_MAP_VARIANT: KingdomHubMapVariant = "default";
-const AGENT_SPRITE_FORGE_QUERY_FLAG = "agentSpriteForgeMap";
-const KINGDOM_HUB_MAP_QUERY_PARAM = "kingdomMap";
+const KINGDOM_HUB_MAP_VARIANT: KingdomHubMapVariant = "agent-sprite-forge";
+const CAMERA_ZOOM = 1.45;
+const MAP_WALK_BOUNDS = { height: 1152, width: 1752, x: 24, y: 24 } as const;
+const PLAYER_START_POSITION = { x: 900, y: 640 } as const;
 const AGENT_SPRITE_FORGE_MANIFEST_PATH = "/assets/kingdom/agent-sprite-forge/manifest.json";
 const HUB_ASSETS = {
   circleTile: "/assets/kingdom-hub/tile_circular_pattern.png",
@@ -82,15 +82,24 @@ const HUB_ASSETS = {
   sparkle: "/assets/kingdom-hub/fx_sparkle_particles.png",
   temple: "/assets/kingdom-hub/building_temple.png",
 } as const;
-const FORUM_POSITION = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 - 170 };
-const TEMPLE_POSITION = { x: MAP_WIDTH / 2 + 330, y: MAP_HEIGHT / 2 - 210 };
-const MINE_POSITION = { x: MAP_WIDTH / 2 - 350, y: MAP_HEIGHT / 2 - 160 };
-const KITCHEN_POSITION = { x: MAP_WIDTH / 2 - 70, y: MAP_HEIGHT / 2 + 270 };
-const FORGE_POSITION = { x: MAP_WIDTH / 2 + 350, y: MAP_HEIGHT / 2 + 220 };
-const BANK_POSITION = { x: MAP_WIDTH / 2 + 520, y: MAP_HEIGHT / 2 - 40 };
-const MARKET_POSITION = { x: MAP_WIDTH / 2 - 540, y: MAP_HEIGHT / 2 + 85 };
-const CORNUCOPIA_POSITION = { x: MAP_WIDTH / 2 + 245, y: MAP_HEIGHT / 2 + 15 };
-const PORTAL_POSITION = { x: MAP_WIDTH / 2 - 455, y: MAP_HEIGHT / 2 + 375 };
+const KINGDOM_HUB_LAYOUT = {
+  centralPlaza: { x: 900, y: 600 },
+  eastNortheastPlaza: { x: 1416, y: 338 },
+  northPlaza: { x: 900, y: 170 },
+  southPlaza: { x: 900, y: 1015 },
+  southeastPlaza: { x: 1418, y: 835 },
+  southwestPlaza: { x: 376, y: 835 },
+  westPlaza: { x: 376, y: 338 },
+} as const;
+const FORUM_POSITION = { x: KINGDOM_HUB_LAYOUT.southPlaza.x, y: KINGDOM_HUB_LAYOUT.southPlaza.y + 18 };
+const TEMPLE_POSITION = { x: KINGDOM_HUB_LAYOUT.southeastPlaza.x, y: KINGDOM_HUB_LAYOUT.southeastPlaza.y + 22 };
+const MINE_POSITION = { x: KINGDOM_HUB_LAYOUT.northPlaza.x - 135, y: KINGDOM_HUB_LAYOUT.northPlaza.y + 62 };
+const KITCHEN_POSITION = { x: 585, y: 540 };
+const FORGE_POSITION = { x: KINGDOM_HUB_LAYOUT.northPlaza.x + 135, y: KINGDOM_HUB_LAYOUT.northPlaza.y + 62 };
+const BANK_POSITION = { x: KINGDOM_HUB_LAYOUT.eastNortheastPlaza.x, y: KINGDOM_HUB_LAYOUT.eastNortheastPlaza.y + 18 };
+const MARKET_POSITION = { x: KINGDOM_HUB_LAYOUT.southwestPlaza.x, y: KINGDOM_HUB_LAYOUT.southwestPlaza.y + 14 };
+const CORNUCOPIA_POSITION = { x: KINGDOM_HUB_LAYOUT.centralPlaza.x + 112, y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 20 };
+const PORTAL_POSITION = { x: KINGDOM_HUB_LAYOUT.centralPlaza.x - 128, y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 22 };
 const HUB_DISPLAY_HEIGHTS = {
   cornucopia: 134,
   farm: 226,
@@ -104,21 +113,21 @@ const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
   label: "Farm",
-  x: MAP_WIDTH / 2 - 340,
-  y: MAP_HEIGHT / 2 + 150,
+  x: 1210,
+  y: 662,
 } as const;
 const VILLAGER_NPC = {
   id: "npc_villager_01",
   label: "Villageois Errant",
   text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
-  x: MAP_WIDTH / 2 - 105,
-  y: MAP_HEIGHT / 2 + 75,
+  x: KINGDOM_HUB_LAYOUT.centralPlaza.x - 46,
+  y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 126,
 } as const;
 const BOTO_NPC = {
   id: "npc_boto",
   label: "Boto",
-  x: MAP_WIDTH / 2 + 95,
-  y: MAP_HEIGHT / 2 + 88,
+  x: KINGDOM_HUB_LAYOUT.centralPlaza.x + 58,
+  y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 130,
 } as const;
 const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
@@ -234,6 +243,7 @@ type AgentSpriteForgePropPlacement = {
 
 type AgentSpriteForgeMetadata = {
   background: string;
+  colliders: HubCollider[];
   placements: AgentSpriteForgePropPlacement[];
   props: AgentSpriteForgePropDefinition[];
 };
@@ -267,14 +277,7 @@ function getHubAssetPaths(variant = KINGDOM_HUB_MAP_VARIANT, agentSpriteForge?: 
 }
 
 function getRequestedHubMapVariant(): KingdomHubMapVariant {
-  if (KINGDOM_HUB_MAP_VARIANT === "agent-sprite-forge") return "agent-sprite-forge";
-  if (typeof window === "undefined") return "default";
-
-  const params = new URLSearchParams(window.location.search);
-  const requestedVariant = params.get(KINGDOM_HUB_MAP_QUERY_PARAM);
-  if (requestedVariant === "agent-sprite-forge") return "agent-sprite-forge";
-
-  return params.get(AGENT_SPRITE_FORGE_QUERY_FLAG) === "1" ? "agent-sprite-forge" : "default";
+  return KINGDOM_HUB_MAP_VARIANT;
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -303,7 +306,49 @@ function assertAgentSpriteForgeTexturesLoaded(
   }
 }
 
-function normalizeAgentSpriteForgeMetadata(manifest: unknown, propsManifest: unknown): AgentSpriteForgeMetadata {
+function normalizeAgentSpriteForgeCollision(collisionManifest: unknown): HubCollider[] {
+  if (
+    typeof collisionManifest !== "object" ||
+    collisionManifest === null ||
+    !("blockers" in collisionManifest) ||
+    !Array.isArray(collisionManifest.blockers)
+  ) {
+    throw new Error("Agent Sprite Forge collision manifest has an invalid shape.");
+  }
+
+  return collisionManifest.blockers.map((blocker) => {
+    if (
+      typeof blocker !== "object" ||
+      blocker === null ||
+      !("id" in blocker) ||
+      typeof blocker.id !== "string" ||
+      !("x" in blocker) ||
+      !isFiniteNumber(blocker.x) ||
+      !("y" in blocker) ||
+      !isFiniteNumber(blocker.y) ||
+      !("width" in blocker) ||
+      !isFiniteNumber(blocker.width) ||
+      !("height" in blocker) ||
+      !isFiniteNumber(blocker.height)
+    ) {
+      throw new Error("Agent Sprite Forge collision blocker has an invalid shape.");
+    }
+
+    return {
+      height: blocker.height,
+      id: `agent-sprite-forge:${blocker.id}`,
+      width: blocker.width,
+      x: blocker.x,
+      y: blocker.y,
+    };
+  });
+}
+
+function normalizeAgentSpriteForgeMetadata(
+  manifest: unknown,
+  propsManifest: unknown,
+  collisionManifest: unknown,
+): AgentSpriteForgeMetadata {
   const background =
     typeof manifest === "object" &&
     manifest !== null &&
@@ -380,7 +425,7 @@ function normalizeAgentSpriteForgeMetadata(manifest: unknown, propsManifest: unk
     };
   });
 
-  return { background, placements, props };
+  return { background, colliders: normalizeAgentSpriteForgeCollision(collisionManifest), placements, props };
 }
 
 async function fetchJson(path: string): Promise<unknown> {
@@ -404,13 +449,30 @@ async function loadAgentSpriteForgeMetadata(): Promise<AgentSpriteForgeMetadata>
     typeof manifest.assets.propsManifest === "string"
       ? manifest.assets.propsManifest
       : null;
+  const collisionManifestPath =
+    typeof manifest === "object" &&
+    manifest !== null &&
+    "assets" in manifest &&
+    typeof manifest.assets === "object" &&
+    manifest.assets !== null &&
+    "collision" in manifest.assets &&
+    typeof manifest.assets.collision === "string"
+      ? manifest.assets.collision
+      : null;
 
   if (!propsManifestPath) {
     throw new Error("Agent Sprite Forge manifest is missing assets.propsManifest.");
   }
 
-  const propsManifest = await fetchJson(propsManifestPath);
-  return normalizeAgentSpriteForgeMetadata(manifest, propsManifest);
+  if (!collisionManifestPath) {
+    throw new Error("Agent Sprite Forge manifest is missing assets.collision.");
+  }
+
+  const [propsManifest, collisionManifest] = await Promise.all([
+    fetchJson(propsManifestPath),
+    fetchJson(collisionManifestPath),
+  ]);
+  return normalizeAgentSpriteForgeMetadata(manifest, propsManifest, collisionManifest);
 }
 
 type HubSpriteOptions = {
@@ -449,6 +511,13 @@ function distanceBetween(a: Vector2, b: Vector2): number {
 
 function rectsOverlap(a: HubCollider, b: HubCollider): boolean {
   return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function getCameraViewport(screenWidth: number, screenHeight: number) {
+  return {
+    height: screenHeight / CAMERA_ZOOM,
+    width: screenWidth / CAMERA_ZOOM,
+  };
 }
 
 function isInteractionKey(event: KeyboardEvent): boolean {
@@ -1391,7 +1460,7 @@ export function KingdomHubStage() {
     const uiLayer = new PIXI.Container();
     const playerVisual = createPlayerVisual({ displayHeight: PLAYER_DISPLAY_HEIGHT });
     const player = playerVisual.container;
-    const playerPosition = { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 };
+    const playerPosition: Vector2 = { ...PLAYER_START_POSITION };
     const playerFacing = { x: 0, y: -1 };
     const poiVisuals = new Map<string, PoiVisual>();
     const floatingTexts: FloatingTextFx[] = [];
@@ -1542,12 +1611,20 @@ export function KingdomHubStage() {
     }
 
     function movePlayerWithCollisions(deltaX: number, deltaY: number) {
-      const nextX = clamp(playerPosition.x + deltaX, PLAYER_SIZE / 2, MAP_WIDTH - PLAYER_SIZE / 2);
+      const nextX = clamp(
+        playerPosition.x + deltaX,
+        MAP_WALK_BOUNDS.x,
+        MAP_WALK_BOUNDS.x + MAP_WALK_BOUNDS.width,
+      );
       if (!collidesWithBuilding({ x: nextX, y: playerPosition.y })) {
         playerPosition.x = nextX;
       }
 
-      const nextY = clamp(playerPosition.y + deltaY, PLAYER_SIZE / 2, MAP_HEIGHT - PLAYER_SIZE / 2);
+      const nextY = clamp(
+        playerPosition.y + deltaY,
+        MAP_WALK_BOUNDS.y,
+        MAP_WALK_BOUNDS.y + MAP_WALK_BOUNDS.height,
+      );
       if (!collidesWithBuilding({ x: playerPosition.x, y: nextY })) {
         playerPosition.y = nextY;
       }
@@ -1738,6 +1815,7 @@ export function KingdomHubStage() {
 
       resizeTarget.appendChild(app.canvas);
       app.stage.addChild(world, uiLayer);
+      world.scale.set(CAMERA_ZOOM);
       world.addChild(backgroundLayer, entityLayer, fxLayer);
       entityLayer.sortableChildren = true;
       drawWorld(backgroundLayer, textures, mapVariant);
@@ -1824,6 +1902,12 @@ export function KingdomHubStage() {
           widthRatio: 0.68,
         }),
       );
+      if (mapVariant === "agent-sprite-forge" && agentSpriteForgeMetadata) {
+        solidColliders.push(...agentSpriteForgeMetadata.colliders);
+        if (DEV_MODE) {
+          console.info(`[KingdomHub] Agent Sprite Forge prop colliders active: ${agentSpriteForgeMetadata.colliders.length}`);
+        }
+      }
 
       if (DEV_MODE && SHOW_HUB_COLLIDER_DEBUG) {
         entityLayer.addChild(drawColliderDebug(solidColliders));
@@ -2019,9 +2103,19 @@ export function KingdomHubStage() {
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;
-        const cameraX = clamp(playerPosition.x - screenWidth / 2, 0, Math.max(0, MAP_WIDTH - screenWidth));
-        const cameraY = clamp(playerPosition.y - screenHeight / 2, 0, Math.max(0, MAP_HEIGHT - screenHeight));
-        world.position.set(-cameraX, -cameraY);
+        const cameraViewport = getCameraViewport(screenWidth, screenHeight);
+        const cameraX = clamp(
+          playerPosition.x - cameraViewport.width / 2,
+          0,
+          Math.max(0, MAP_WIDTH - cameraViewport.width),
+        );
+        const cameraY = clamp(
+          playerPosition.y - cameraViewport.height / 2,
+          0,
+          Math.max(0, MAP_HEIGHT - cameraViewport.height),
+        );
+        world.scale.set(CAMERA_ZOOM);
+        world.position.set(-cameraX * CAMERA_ZOOM, -cameraY * CAMERA_ZOOM);
         player.zIndex = playerPosition.y;
       };
 
