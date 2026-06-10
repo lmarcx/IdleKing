@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, graph-rework]
+  pull_request:
+
+# Annule un run en cours si un nouveau commit arrive sur la même ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # game-core est compilé en `dist/` (non commité) et doit l'être
+      # avant le typecheck/build du web qui importe @idleking/game-core.
+      - name: Build game-core
+        run: npm run build --workspace=@idleking/game-core
+
+      - name: Typecheck (game-core + web)
+        run: npm run typecheck
+
+      - name: Build web (next build)
+        run: npm run build --workspace=@idleking/web
+        env:
+          NEXT_PUBLIC_DEV_MODE: "false"
