@@ -1,6 +1,6 @@
 {
   "id": "agent-sprite-forge",
-  "title": "Kingdom Hub - Agent Sprite Forge Experimental Map",
+  "title": "Kingdom Hub - Canonical Map",
   "mapMode": "scene_mode",
   "visualModel": "layered_raster",
   "runtimeObjectModel": "y_sorted_props",
@@ -24,9 +24,7 @@
   },
   "integration": {
     "component": "apps/web/components/game/kingdom/kingdom-hub-stage.tsx",
-    "flag": "KINGDOM_HUB_MAP_VARIANT",
-    "fallbackVariant": "default",
-    "activeVariant": "agent-sprite-forge",
-    "runtimeCollision": "existing-building-colliders"
+    "activeStage": "KingdomHubStage",
+    "runtimeCollision": "building-and-prop-colliders"
   }
 }

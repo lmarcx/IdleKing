@@ -60,24 +60,19 @@ const PLAYER_DISPLAY_HEIGHT = 104;
 const PLAYER_SPEED = 310;
 const PLAYER_COLLIDER = { height: 28, offsetY: 10, width: 32 } as const;
 const SHOW_HUB_COLLIDER_DEBUG = false;
-type KingdomHubMapVariant = "default" | "agent-sprite-forge";
-const KINGDOM_HUB_MAP_VARIANT: KingdomHubMapVariant = "agent-sprite-forge";
 const CAMERA_ZOOM = 1.45;
 const MAP_WALK_BOUNDS = { height: 1152, width: 1752, x: 24, y: 24 } as const;
 const PLAYER_START_POSITION = { x: 900, y: 640 } as const;
 const AGENT_SPRITE_FORGE_MANIFEST_PATH = "/assets/kingdom/agent-sprite-forge/manifest.json";
 const HUB_ASSETS = {
-  circleTile: "/assets/kingdom-hub/tile_circular_pattern.png",
   cornucopia: "/assets/kingdom-hub/cornucopia_magical.png",
   farm: "/assets/kingdom-hub/building_farm.png",
-  floor: "/assets/kingdom-hub/tile_royal_stone_floor.png",
   forge: "/assets/kingdom-hub/building_forge.png",
   forum: "/assets/kingdom-hub/building_forum.png",
   kitchen: "/assets/kingdom-hub/building_kitchen.png",
   mine: "/assets/kingdom-hub/building_mine.png",
   npcVillager: "/assets/kingdom-hub/npc_villager.png",
   player: "/assets/exploration/player_king.png",
-  runeTile: "/assets/kingdom-hub/tile_engraved_runes.png",
   softGlow: "/assets/kingdom-hub/fx_soft_glow_aura.png",
   sparkle: "/assets/kingdom-hub/fx_sparkle_particles.png",
   temple: "/assets/kingdom-hub/building_temple.png",
@@ -251,33 +246,24 @@ type AgentSpriteForgeMetadata = {
 type LoadedTextureAssets = Record<string, PIXI.Texture>;
 
 type HubTextures = {
-  agentSpriteForgeBackground?: PIXI.Texture;
+  agentSpriteForgeBackground: PIXI.Texture;
   agentSpriteForgeProps: Map<string, PIXI.Texture>;
-  circleTile: PIXI.Texture;
   cornucopia: PIXI.Texture;
   farm: PIXI.Texture;
-  floor: PIXI.Texture;
   forge: PIXI.Texture;
   forum: PIXI.Texture;
   kitchen: PIXI.Texture;
   mine: PIXI.Texture;
   npcVillager: PIXI.Texture;
   player: PIXI.Texture;
-  runeTile: PIXI.Texture;
   softGlow: PIXI.Texture;
   sparkle: PIXI.Texture;
   temple: PIXI.Texture;
 };
 
-function getHubAssetPaths(variant = KINGDOM_HUB_MAP_VARIANT, agentSpriteForge?: AgentSpriteForgeMetadata | null): string[] {
+function getHubAssetPaths(agentSpriteForge: AgentSpriteForgeMetadata): string[] {
   const coreAssets = Object.values(HUB_ASSETS);
-  if (variant !== "agent-sprite-forge" || !agentSpriteForge) return coreAssets;
-
   return [...coreAssets, agentSpriteForge.background, ...agentSpriteForge.props.map((prop) => prop.image)];
-}
-
-function getRequestedHubMapVariant(): KingdomHubMapVariant {
-  return KINGDOM_HUB_MAP_VARIANT;
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -291,6 +277,15 @@ function isPixiTexture(value: unknown): value is PIXI.Texture {
 function getLoadedTexture(loadedAssets: LoadedTextureAssets | null | undefined, assetPath: string): PIXI.Texture | undefined {
   const asset = loadedAssets?.[assetPath];
   return isPixiTexture(asset) ? asset : undefined;
+}
+
+function getRequiredLoadedTexture(loadedAssets: LoadedTextureAssets, assetPath: string): PIXI.Texture {
+  const texture = getLoadedTexture(loadedAssets, assetPath);
+  if (!texture) {
+    throw new Error(`Kingdom hub asset did not load: ${assetPath}`);
+  }
+
+  return texture;
 }
 
 function assertAgentSpriteForgeTexturesLoaded(
@@ -626,93 +621,38 @@ function createInteractionHint(offsetY = -100): PIXI.Text {
   return hint;
 }
 
-function getHubTextures(
-  variant = KINGDOM_HUB_MAP_VARIANT,
-  agentSpriteForge?: AgentSpriteForgeMetadata | null,
-  loadedAssets?: LoadedTextureAssets | null,
-): HubTextures {
+function getHubTextures(agentSpriteForge: AgentSpriteForgeMetadata, loadedAssets: LoadedTextureAssets): HubTextures {
   const agentSpriteForgeProps = new Map<string, PIXI.Texture>();
-  if (variant === "agent-sprite-forge" && agentSpriteForge) {
-    for (const prop of agentSpriteForge.props) {
-      const texture = getLoadedTexture(loadedAssets, prop.image);
-      if (texture) {
-        agentSpriteForgeProps.set(prop.id, texture);
-      }
-    }
+  for (const prop of agentSpriteForge.props) {
+    agentSpriteForgeProps.set(prop.id, getRequiredLoadedTexture(loadedAssets, prop.image));
   }
 
   return {
-    agentSpriteForgeBackground:
-      variant === "agent-sprite-forge" && agentSpriteForge
-        ? getLoadedTexture(loadedAssets, agentSpriteForge.background)
-        : undefined,
+    agentSpriteForgeBackground: getRequiredLoadedTexture(loadedAssets, agentSpriteForge.background),
     agentSpriteForgeProps,
-    circleTile: PIXI.Texture.from(HUB_ASSETS.circleTile),
     cornucopia: PIXI.Texture.from(HUB_ASSETS.cornucopia),
     farm: PIXI.Texture.from(HUB_ASSETS.farm),
-    floor: PIXI.Texture.from(HUB_ASSETS.floor),
     forge: PIXI.Texture.from(HUB_ASSETS.forge),
     forum: PIXI.Texture.from(HUB_ASSETS.forum),
     kitchen: PIXI.Texture.from(HUB_ASSETS.kitchen),
     mine: PIXI.Texture.from(HUB_ASSETS.mine),
     npcVillager: PIXI.Texture.from(HUB_ASSETS.npcVillager),
     player: PIXI.Texture.from(HUB_ASSETS.player),
-    runeTile: PIXI.Texture.from(HUB_ASSETS.runeTile),
     softGlow: PIXI.Texture.from(HUB_ASSETS.softGlow),
     sparkle: PIXI.Texture.from(HUB_ASSETS.sparkle),
     temple: PIXI.Texture.from(HUB_ASSETS.temple),
   };
 }
 
-function createTileAccent(texture: PIXI.Texture, x: number, y: number, alpha = 0.82, scale = 1): PIXI.Sprite {
-  const tile = new PIXI.Sprite(texture);
-  tile.anchor.set(0.5);
-  tile.alpha = alpha;
-  tile.position.set(x, y);
-  tile.roundPixels = true;
-  tile.scale.set(scale);
-  return tile;
-}
-
-function drawWorld(container: PIXI.Container, textures: HubTextures, variant = KINGDOM_HUB_MAP_VARIANT) {
+function drawWorld(container: PIXI.Container, textures: HubTextures) {
   const fallback = new PIXI.Graphics();
   fallback.rect(0, 0, MAP_WIDTH, MAP_HEIGHT).fill(0x050711);
 
-  if (variant === "agent-sprite-forge" && textures.agentSpriteForgeBackground) {
-    const generatedBackground = new PIXI.Sprite(textures.agentSpriteForgeBackground);
-    generatedBackground.width = MAP_WIDTH;
-    generatedBackground.height = MAP_HEIGHT;
-    generatedBackground.roundPixels = true;
-    container.addChild(fallback, generatedBackground);
-    return;
-  }
-
-  const floor = new PIXI.TilingSprite({
-    height: MAP_HEIGHT,
-    roundPixels: true,
-    texture: textures.floor,
-    width: MAP_WIDTH,
-  });
-  floor.alpha = 0.96;
-
-  const tileVariations = [
-    createTileAccent(textures.circleTile, FORUM_POSITION.x, FORUM_POSITION.y + 28, 0.92, 1.35),
-    createTileAccent(textures.circleTile, TEMPLE_POSITION.x, TEMPLE_POSITION.y + 34, 0.82, 1.18),
-    createTileAccent(textures.circleTile, CORNUCOPIA_POSITION.x, CORNUCOPIA_POSITION.y + 16, 0.9, 1.08),
-    createTileAccent(textures.circleTile, PORTAL_POSITION.x, PORTAL_POSITION.y + 30, 0.78, 1.1),
-    createTileAccent(textures.runeTile, 360, 274, 0.72),
-    createTileAccent(textures.runeTile, 604, 658, 0.64),
-    createTileAccent(textures.runeTile, 1148, 816, 0.66),
-    createTileAccent(textures.runeTile, 1416, 454, 0.58),
-    createTileAccent(textures.runeTile, 836, 1008, 0.52),
-  ];
-
-  const haze = new PIXI.Graphics();
-  haze.circle(MAP_WIDTH * 0.3, MAP_HEIGHT * 0.22, 340).fill({ color: 0x33235f, alpha: 0.12 });
-  haze.circle(MAP_WIDTH * 0.76, MAP_HEIGHT * 0.68, 420).fill({ color: 0x062f38, alpha: 0.11 });
-  haze.circle(MAP_WIDTH * 0.5, MAP_HEIGHT * 0.5, 560).stroke({ color: 0x7b5dde, alpha: 0.08, width: 2 });
-
-  container.addChild(fallback, floor, ...tileVariations, haze);
+  const generatedBackground = new PIXI.Sprite(textures.agentSpriteForgeBackground);
+  generatedBackground.width = MAP_WIDTH;
+  generatedBackground.height = MAP_HEIGHT;
+  generatedBackground.roundPixels = true;
+  container.addChild(fallback, generatedBackground);
 }
 
 function drawAgentSpriteForgeProps(
@@ -1768,44 +1708,13 @@ export function KingdomHubStage() {
         return;
       }
 
-      let mapVariant = getRequestedHubMapVariant();
-      let agentSpriteForgeMetadata: AgentSpriteForgeMetadata | null = null;
-      let loadedAssets: LoadedTextureAssets | null = null;
-      try {
-        if (mapVariant === "agent-sprite-forge") {
-          agentSpriteForgeMetadata = await loadAgentSpriteForgeMetadata();
-        }
-        loadedAssets = (await PIXI.Assets.load(
-          getHubAssetPaths(mapVariant, agentSpriteForgeMetadata),
-        )) as LoadedTextureAssets;
-        if (mapVariant === "agent-sprite-forge" && agentSpriteForgeMetadata) {
-          assertAgentSpriteForgeTexturesLoaded(agentSpriteForgeMetadata, loadedAssets);
-        }
-        if (DEV_MODE) {
-          console.info(`[KingdomHub] map variant active: ${mapVariant}`);
-          if (mapVariant === "agent-sprite-forge") {
-            console.info(
-              `[KingdomHub] Agent Sprite Forge assets loaded: ${agentSpriteForgeMetadata?.props.length ?? 0} props`,
-            );
-          }
-        }
-      } catch (error) {
-        if (mapVariant !== "agent-sprite-forge") {
-          throw error;
-        }
-        if (DEV_MODE) {
-          console.warn("[KingdomHub] Failed to load Agent Sprite Forge map; falling back to default.", error);
-        }
-        mapVariant = "default";
-        agentSpriteForgeMetadata = null;
-        loadedAssets = (await PIXI.Assets.load(
-          getHubAssetPaths(mapVariant, agentSpriteForgeMetadata),
-        )) as LoadedTextureAssets;
-        if (DEV_MODE) {
-          console.info("[KingdomHub] map variant active: default");
-        }
+      const agentSpriteForgeMetadata = await loadAgentSpriteForgeMetadata();
+      const loadedAssets = (await PIXI.Assets.load(getHubAssetPaths(agentSpriteForgeMetadata))) as LoadedTextureAssets;
+      assertAgentSpriteForgeTexturesLoaded(agentSpriteForgeMetadata, loadedAssets);
+      if (DEV_MODE) {
+        console.info(`[KingdomHub] Agent Sprite Forge assets loaded: ${agentSpriteForgeMetadata.props.length} props`);
       }
-      const textures = getHubTextures(mapVariant, agentSpriteForgeMetadata, loadedAssets);
+      const textures = getHubTextures(agentSpriteForgeMetadata, loadedAssets);
       sparkleTexture = textures.sparkle;
 
       if (cancelled) {
@@ -1818,10 +1727,8 @@ export function KingdomHubStage() {
       world.scale.set(CAMERA_ZOOM);
       world.addChild(backgroundLayer, entityLayer, fxLayer);
       entityLayer.sortableChildren = true;
-      drawWorld(backgroundLayer, textures, mapVariant);
-      if (mapVariant === "agent-sprite-forge" && agentSpriteForgeMetadata) {
-        drawAgentSpriteForgeProps(entityLayer, textures, agentSpriteForgeMetadata);
-      }
+      drawWorld(backgroundLayer, textures);
+      drawAgentSpriteForgeProps(entityLayer, textures, agentSpriteForgeMetadata);
 
       solidColliders.push(
         createGroundCollider({
@@ -1902,11 +1809,9 @@ export function KingdomHubStage() {
           widthRatio: 0.68,
         }),
       );
-      if (mapVariant === "agent-sprite-forge" && agentSpriteForgeMetadata) {
-        solidColliders.push(...agentSpriteForgeMetadata.colliders);
-        if (DEV_MODE) {
-          console.info(`[KingdomHub] Agent Sprite Forge prop colliders active: ${agentSpriteForgeMetadata.colliders.length}`);
-        }
+      solidColliders.push(...agentSpriteForgeMetadata.colliders);
+      if (DEV_MODE) {
+        console.info(`[KingdomHub] Agent Sprite Forge prop colliders active: ${agentSpriteForgeMetadata.colliders.length}`);
       }
 
       if (DEV_MODE && SHOW_HUB_COLLIDER_DEBUG) {

@@ -8,9 +8,10 @@
     "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\"",
     "dev:clean": "npm run clean && next dev",
     "build:game-core": "tsc -p ../../packages/game-core/tsconfig.json",
-    "build": "npm run build:game-core && next build",
+    "build": "npm run verify:kingdom-route && npm run build:game-core && next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:kingdom-route": "node scripts/assert-kingdom-route.mjs"
   },
   "dependencies": {
     "@idleking/game-core": "file:../../packages/game-core",
