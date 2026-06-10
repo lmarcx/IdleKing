@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build:game-core": "tsc -p ../../packages/game-core/tsconfig.json",
+    "build:game-core": "tsc -p ../../packages/game-core/tsconfig.json --typeRoots ./node_modules/@types",
     "build": "npm run build:game-core && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit"
