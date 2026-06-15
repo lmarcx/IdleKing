@@ -8,7 +8,6 @@ export * as rewards from "./rewards/index.js";
 export * as world from "./world/index.js";
 export * as minigames from "./minigames/index.js";
 export * as player from "./player/index.js";
-export * as expedition from "./expedition/index.js";
 export * as combat from "./combat/index.js";
 export * as building from "./building/index.js";
 export * as bank from "./bank/index.js";
