@@ -40,6 +40,7 @@ import {
   hasAtLeast,
   isEquipmentItem,
   isForgeRecipeAvailable,
+  isPrologueComplete,
   normalizeForgeRecipeIngredients,
   xpNext,
   type BuildingId,
@@ -898,6 +899,69 @@ function createPortalVisual(textures: HubTextures): PoiVisual {
       innerRing.alpha = (isNear ? 0.88 : 0.64) - pulse;
       glow.alpha = (isNear ? 0.54 : 0.24) + Math.sin(elapsedSeconds * 2.1) * 0.035;
       hint.alpha = isNear ? 1 : 0;
+    },
+  };
+}
+
+type BillyCompanion = {
+  container: PIXI.Container;
+  update: (deltaSeconds: number, elapsedSeconds: number, target: Vector2) => void;
+};
+
+const BILLY_FOLLOW_GAP = 74;
+const BILLY_CATCHUP_SPEED = 360;
+
+/**
+ * Billy, the king's first companion. Joins at the end of the prologue and only
+ * follows the player around the Kingdom hub (never in combat / other modes).
+ * Procedural sprite (no dedicated asset yet) that lags behind the player and
+ * trots to catch up when the gap grows.
+ */
+function createBillyCompanion(start: Vector2): BillyCompanion {
+  const container = new PIXI.Container();
+  const shadow = createHubShadow(20, 7, 0.4);
+  shadow.position.set(0, 10);
+
+  const body = new PIXI.Container();
+  const dog = new PIXI.Graphics();
+  dog.ellipse(-15, -12, 8, 5).fill({ color: 0x3a2a22 }); // tail base
+  dog.ellipse(0, -10, 16, 10).fill({ color: 0x46332a }); // body
+  dog.rect(-9, -3, 4, 9).fill({ color: 0x2c2019 }); // back leg
+  dog.rect(7, -3, 4, 9).fill({ color: 0x2c2019 }); // front leg
+  dog.ellipse(14, -17, 9, 8).fill({ color: 0x46332a }); // head
+  dog.poly([7, -24, 12, -15, 16, -23]).fill({ color: 0x2c2019 }); // ear
+  dog.ellipse(21, -15, 4, 3).fill({ color: 0x2c2019 }); // snout
+  dog.circle(16, -18, 1.4).fill({ color: 0xf0c26a }); // eye
+  body.addChild(dog);
+
+  container.addChild(shadow, body);
+  container.position.set(start.x, start.y);
+  container.zIndex = start.y;
+
+  const pos: Vector2 = { ...start };
+  let facingX = 1;
+
+  return {
+    container,
+    update: (deltaSeconds: number, elapsedSeconds: number, target: Vector2) => {
+      const dx = target.x - pos.x;
+      const dy = target.y - pos.y;
+      const dist = Math.hypot(dx, dy);
+      let moving = false;
+
+      if (dist > BILLY_FOLLOW_GAP) {
+        const step = Math.min(dist - BILLY_FOLLOW_GAP, BILLY_CATCHUP_SPEED * deltaSeconds);
+        pos.x += (dx / dist) * step;
+        pos.y += (dy / dist) * step;
+        moving = step > 0.5;
+        if (Math.abs(dx) > 2) facingX = dx > 0 ? 1 : -1;
+      }
+
+      const bob = moving ? Math.abs(Math.sin(elapsedSeconds * 11)) * 3 : Math.sin(elapsedSeconds * 2.4) * 1;
+      body.position.y = -bob;
+      body.scale.set(facingX, 1);
+      container.position.set(pos.x, pos.y);
+      container.zIndex = pos.y;
     },
   };
 }
@@ -1964,6 +2028,14 @@ export function KingdomHubStage() {
       playerVisual.setSprite(textures.player);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
+
+      // Billy follows the king around the Kingdom once he has joined (prologue done).
+      let billy: BillyCompanion | null = null;
+      if (isPrologueComplete(useGameStore.getState().state)) {
+        billy = createBillyCompanion({ x: playerPosition.x - 70, y: playerPosition.y });
+        entityLayer.addChild(billy.container);
+      }
+
       spawnWorldFxRef.current = spawnWorldFx;
       updateNearbyInteractable();
 
@@ -2000,6 +2072,7 @@ export function KingdomHubStage() {
         }
 
         playerVisual.update({ elapsedSeconds, facing: playerFacing, moving });
+        if (billy) billy.update(deltaSeconds, elapsedSeconds, playerPosition);
 
         for (const visual of poiVisuals.values()) {
           visual.update(elapsedSeconds);
