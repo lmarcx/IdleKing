@@ -2264,7 +2264,7 @@ export function PixiExplorationStage({
           worldLayer,
         })
       );
-      enemies.push(...createInitialEnemies().map((enemy) => createEnemyGraphics(enemy, textures.enemy)));
+      enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy, textures.enemy)));
       for (const enemy of enemies) {
         renderEnemy(enemy);
         enemyLayer.addChild(enemy.container);

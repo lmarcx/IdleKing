@@ -9,6 +9,8 @@ import {
   hasSeenIntro,
   isPrologueComplete,
   markIntroSeen,
+  markKingdomArrivalSeen,
+  shouldShowKingdomArrival,
   PROLOGUE_AWAKENING,
 } from "../index.js";
 import { createInitialGameState } from "../game/state.js";
@@ -56,6 +58,20 @@ test("prologue cannot be skipped: completing it without the intro still gates on
   assert.equal(result.ok, true);
   if (!result.ok) throw new Error("prologue completion should succeed");
   assert.equal(getStartFlowStep(result.next), "cinematic");
+});
+
+test("the Kingdom arrival dialogue shows once after the prologue, then never again", () => {
+  const fresh = createInitialGameState();
+  assert.equal(shouldShowKingdomArrival(fresh), false, "not before the prologue");
+
+  const cleared = completeDungeon(markIntroSeen(fresh), "prologue_wastelands");
+  assert.equal(cleared.ok, true);
+  if (!cleared.ok) throw new Error("prologue completion should succeed");
+  assert.equal(shouldShowKingdomArrival(cleared.next), true, "shown on first kingdom arrival");
+
+  const seen = markKingdomArrivalSeen(cleared.next);
+  assert.equal(shouldShowKingdomArrival(seen), false, "not shown again");
+  assert.equal(markKingdomArrivalSeen(seen), seen, "idempotent");
 });
 
 test("the prologue awakening cinematic is registered and non-empty", () => {

@@ -12,10 +12,13 @@ import {
   canEnterDungeon,
   completeDungeon,
   completeStoryLevelAction,
+  getLevelScript,
+  type LevelBeat,
   type RewardBundle,
   type StoryEventDef,
 } from "@idleking/game-core";
 import type { ResourceStock } from "@idleking/game-core/resources/types.js";
+import { KingdomDialogueBox } from "@/components/game/kingdom/kingdom-dialogue-box";
 import { ExplorationHud, type ExplorerHudLevel, type ExplorerHudPoi } from "./exploration-hud";
 import { PixiExplorationStage, type ExplorationCombatHudState, type ExplorationStagePoi } from "./pixi-exploration-stage";
 
@@ -33,6 +36,7 @@ const DISCOVERY_RADIUS = 86;
 type ExplorationPoi = ExplorationStagePoi & {
   label: string;
   required: boolean;
+  beat?: LevelBeat;
 };
 
 type DisplayRewards = Record<string, number>;
@@ -50,14 +54,79 @@ function getPoiColor(type: StoryEventDef["type"]): number {
   }
 }
 
-function createExplorationPois(level: StoryLevelExplorerProps["level"]): ExplorationPoi[] {
-  const fallbackPositions = [
-    { x: 420, y: 360 },
-    { x: 1180, y: 520 },
-    { x: 1840, y: 980 },
-    { x: 720, y: 1260 },
-    { x: 1580, y: 1320 },
-  ];
+function getBeatColor(kind: LevelBeat["kind"]): number {
+  switch (kind) {
+    case "boss":
+      return 0xef4444;
+    case "spawn_wave":
+      return 0xc9a654;
+    case "companion_join":
+      return 0x34d399;
+    case "acquire_item":
+      return 0x8a5cff;
+    default:
+      return 0x2fd8c8;
+  }
+}
+
+// Hand-placed path of beats for the prologue, from the spawn toward the boss.
+const BEAT_POSITIONS: Record<string, { x: number; y: number }> = {
+  ruins: { x: 720, y: 700 },
+  find_dog: { x: 520, y: 1060 },
+  feed: { x: 780, y: 1290 },
+  shadows: { x: 1200, y: 1080 },
+  amalgam: { x: 1980, y: 760 },
+  drop_of_darkness: { x: 2090, y: 600 },
+  billy_joins: { x: 1820, y: 520 },
+  kingdom_found: { x: 1480, y: 360 },
+};
+
+const BEAT_FALLBACK_POSITIONS = [
+  { x: 420, y: 360 },
+  { x: 1180, y: 520 },
+  { x: 1840, y: 980 },
+  { x: 720, y: 1260 },
+  { x: 1580, y: 1320 },
+];
+
+function createBeatPois(beats: readonly LevelBeat[]): ExplorationPoi[] {
+  return beats.map((beat, index) => {
+    const position = BEAT_POSITIONS[beat.id] ?? BEAT_FALLBACK_POSITIONS[index % BEAT_FALLBACK_POSITIONS.length];
+    return {
+      beat,
+      color: getBeatColor(beat.kind),
+      id: beat.id,
+      label: beat.speaker ?? beatLabel(beat.kind),
+      required: true,
+      x: position.x,
+      y: position.y,
+    };
+  });
+}
+
+function beatLabel(kind: LevelBeat["kind"]): string {
+  switch (kind) {
+    case "boss":
+      return "Boss";
+    case "spawn_wave":
+      return "Combat";
+    case "companion_join":
+      return "Compagnon";
+    case "acquire_item":
+      return "Découverte";
+    default:
+      return "Récit";
+  }
+}
+
+function createExplorationPois(
+  level: StoryLevelExplorerProps["level"],
+  dungeonId?: string,
+): ExplorationPoi[] {
+  const script = dungeonId ? getLevelScript(dungeonId) : undefined;
+  if (script) return createBeatPois(script.beats);
+
+  const fallbackPositions = BEAT_FALLBACK_POSITIONS;
 
   return level.events.map((event, index) => {
     const position = fallbackPositions[index % fallbackPositions.length];
@@ -176,8 +245,14 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
     x: MAP_WIDTH / 2,
     y: MAP_HEIGHT / 2,
   });
-  const pointsOfInterest = useMemo(() => createExplorationPois(level), [level]);
+  const pointsOfInterest = useMemo(() => createExplorationPois(level, dungeonId), [level, dungeonId]);
+  const hasBossBeat = useMemo(
+    () => pointsOfInterest.some((point) => point.beat?.kind === "boss"),
+    [pointsOfInterest]
+  );
   const [discoveredPoiIds, setDiscoveredPoiIds] = useState<Set<string>>(() => new Set());
+  const [dialogueQueue, setDialogueQueue] = useState<LevelBeat[]>([]);
+  const [activeDialogue, setActiveDialogue] = useState<LevelBeat | null>(null);
   const [completion, setCompletion] = useState<{
     alreadyCompleted: boolean;
     rewards: DisplayRewards;
@@ -185,19 +260,40 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
   const [combatHud, setCombatHud] = useState<ExplorationCombatHudState | null>(null);
 
   useEffect(() => {
+    const newlyDiscovered = pointsOfInterest.filter(
+      (point) => !discoveredPoiIds.has(point.id) && distanceBetween(playerPosition, point) <= DISCOVERY_RADIUS
+    );
+    if (newlyDiscovered.length === 0) return;
+
     setDiscoveredPoiIds((current) => {
-      let next: Set<string> | null = null;
-
-      for (const point of pointsOfInterest) {
-        if (current.has(point.id)) continue;
-        if (distanceBetween(playerPosition, point) > DISCOVERY_RADIUS) continue;
-        next ??= new Set(current);
-        next.add(point.id);
-      }
-
-      return next ?? current;
+      const next = new Set(current);
+      for (const point of newlyDiscovered) next.add(point.id);
+      return next;
     });
-  }, [playerPosition, pointsOfInterest]);
+
+    const beats = newlyDiscovered.flatMap((point) => (point.beat ? [point.beat] : []));
+    if (beats.length > 0) setDialogueQueue((queue) => [...queue, ...beats]);
+  }, [playerPosition, pointsOfInterest, discoveredPoiIds]);
+
+  // Promote the next queued beat into the active dialogue box.
+  useEffect(() => {
+    if (activeDialogue || dialogueQueue.length === 0) return;
+    setActiveDialogue(dialogueQueue[0]);
+    setDialogueQueue((queue) => queue.slice(1));
+  }, [activeDialogue, dialogueQueue]);
+
+  // Advance the active dialogue with keyboard (movement is blocked meanwhile).
+  useEffect(() => {
+    if (!activeDialogue) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (["Enter", " ", "Escape", "f", "F"].includes(event.key)) {
+        event.preventDefault();
+        setActiveDialogue(null);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [activeDialogue]);
 
   useEffect(() => {
     if (!hasCompletedLevel) return;
@@ -224,8 +320,13 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
   const allRequiredPoisDiscovered =
     pointsOfInterest.length > 0 && pointsOfInterest.every((point) => !point.required || discoveredPoiIds.has(point.id));
 
+  // A scripted boss level only completes once the boss (and Shadows) are down.
+  const bossDefeated = !hasBossBeat || (combatHud?.enemiesRemaining ?? 1) === 0;
+  const dialoguesDrained = activeDialogue === null && dialogueQueue.length === 0;
+  const readyToComplete = allRequiredPoisDiscovered && bossDefeated && dialoguesDrained;
+
   useEffect(() => {
-    if (!allRequiredPoisDiscovered || completion || hasCompletedLevel) return;
+    if (!readyToComplete || completion || hasCompletedLevel) return;
 
     if (dungeonId) {
       const result = completeDungeon(useGameStore.getState().state, dungeonId);
@@ -248,12 +349,12 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
         rewards: result.rewards,
       });
     }
-  }, [allRequiredPoisDiscovered, completion, dispatch, dungeonId, hasCompletedLevel, level.id]);
+  }, [readyToComplete, completion, dispatch, dungeonId, hasCompletedLevel, level.id]);
 
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
-        inputBlocked={isGameHudOverlayOpen || completion !== null || !canCompleteDungeon}
+        inputBlocked={isGameHudOverlayOpen || completion !== null || !canCompleteDungeon || activeDialogue !== null}
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
@@ -274,6 +375,13 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
       <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
         Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace.
       </div>
+      {activeDialogue && !completion ? (
+        <KingdomDialogueBox
+          name={activeDialogue.speaker ?? beatLabel(activeDialogue.kind)}
+          text={activeDialogue.text}
+          onClose={() => setActiveDialogue(null)}
+        />
+      ) : null}
       {completion ? (
         <CompletionPanel
           alreadyCompleted={completion.alreadyCompleted}

@@ -6,5 +6,6 @@ export * from "./levels.js";
 export * from "./progressionMvp.js";
 export * from "./startFlow.js";
 export * from "./cinematics.js";
+export * from "./levelScripts.js";
 export * from "./scripts/index.js";
 export * from "./scripts/types.js";

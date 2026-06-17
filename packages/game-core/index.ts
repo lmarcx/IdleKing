@@ -631,10 +631,14 @@ export {
 export {
   INTRO_SEEN_FLAG,
   PROLOGUE_COMPLETE_FLAG,
+  KINGDOM_DISCOVERED_FLAG,
+  KINGDOM_ARRIVAL_SEEN_FLAG,
   getStartFlowStep,
   hasSeenIntro,
   isPrologueComplete,
   markIntroSeen,
+  markKingdomArrivalSeen,
+  shouldShowKingdomArrival,
 } from "./story/startFlow.js";
 export type { StartFlowStep } from "./story/startFlow.js";
 export {
@@ -643,6 +647,14 @@ export {
   getCinematicScript,
 } from "./story/cinematics.js";
 export type { CinematicScript, CinematicSlide } from "./story/cinematics.js";
+export {
+  LEVEL_SCRIPT_REGISTRY,
+  PROLOGUE_WASTELANDS_SCRIPT,
+  getLevelScript,
+  getLevelScriptBossId,
+  validateLevelScriptRegistry,
+} from "./story/levelScripts.js";
+export type { LevelBeat, LevelBeatKind, LevelScript } from "./story/levelScripts.js";
 export {
   DEFAULT_UNLOCKED_ERAS,
   ERA_REGISTRY,
