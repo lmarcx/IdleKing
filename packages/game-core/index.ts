@@ -629,6 +629,21 @@ export {
   validateStoryProgressionRegistry,
 } from "./story/progressionMvp.js";
 export {
+  INTRO_SEEN_FLAG,
+  PROLOGUE_COMPLETE_FLAG,
+  getStartFlowStep,
+  hasSeenIntro,
+  isPrologueComplete,
+  markIntroSeen,
+} from "./story/startFlow.js";
+export type { StartFlowStep } from "./story/startFlow.js";
+export {
+  CINEMATIC_REGISTRY,
+  PROLOGUE_AWAKENING,
+  getCinematicScript,
+} from "./story/cinematics.js";
+export type { CinematicScript, CinematicSlide } from "./story/cinematics.js";
+export {
   DEFAULT_UNLOCKED_ERAS,
   ERA_REGISTRY,
   canUnlockEraAtTimeGate,
