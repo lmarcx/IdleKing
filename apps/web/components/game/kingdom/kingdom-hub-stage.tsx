@@ -66,6 +66,7 @@ const MAP_WALK_BOUNDS = { height: 1152, width: 1752, x: 24, y: 24 } as const;
 const PLAYER_START_POSITION = { x: 900, y: 640 } as const;
 const AGENT_SPRITE_FORGE_MANIFEST_PATH = "/assets/kingdom/agent-sprite-forge/manifest.json";
 const HUB_ASSETS = {
+  billy: "/assets/kingdom-hub/npc_billy.png",
   cornucopia: "/assets/kingdom-hub/cornucopia_magical.png",
   farm: "/assets/kingdom-hub/building_farm.png",
   forge: "/assets/kingdom-hub/building_forge.png",
@@ -249,6 +250,7 @@ type LoadedTextureAssets = Record<string, PIXI.Texture>;
 type HubTextures = {
   agentSpriteForgeBackground: PIXI.Texture;
   agentSpriteForgeProps: Map<string, PIXI.Texture>;
+  billy: PIXI.Texture;
   cornucopia: PIXI.Texture;
   farm: PIXI.Texture;
   forge: PIXI.Texture;
@@ -631,6 +633,7 @@ function getHubTextures(agentSpriteForge: AgentSpriteForgeMetadata, loadedAssets
   return {
     agentSpriteForgeBackground: getRequiredLoadedTexture(loadedAssets, agentSpriteForge.background),
     agentSpriteForgeProps,
+    billy: PIXI.Texture.from(HUB_ASSETS.billy),
     cornucopia: PIXI.Texture.from(HUB_ASSETS.cornucopia),
     farm: PIXI.Texture.from(HUB_ASSETS.farm),
     forge: PIXI.Texture.from(HUB_ASSETS.forge),
@@ -910,29 +913,24 @@ type BillyCompanion = {
 
 const BILLY_FOLLOW_GAP = 74;
 const BILLY_CATCHUP_SPEED = 360;
+const BILLY_DISPLAY_HEIGHT = 66;
 
 /**
  * Billy, the king's first companion. Joins at the end of the prologue and only
  * follows the player around the Kingdom hub (never in combat / other modes).
- * Procedural sprite (no dedicated asset yet) that lags behind the player and
- * trots to catch up when the gap grows.
+ * Uses the hand-generated npc_billy sprite (faces right; flipped for left).
  */
-function createBillyCompanion(start: Vector2): BillyCompanion {
+function createBillyCompanion(texture: PIXI.Texture, start: Vector2): BillyCompanion {
   const container = new PIXI.Container();
-  const shadow = createHubShadow(20, 7, 0.4);
-  shadow.position.set(0, 10);
+  const shadow = createHubShadow(22, 7, 0.4);
+  shadow.position.set(0, 8);
 
   const body = new PIXI.Container();
-  const dog = new PIXI.Graphics();
-  dog.ellipse(-15, -12, 8, 5).fill({ color: 0x3a2a22 }); // tail base
-  dog.ellipse(0, -10, 16, 10).fill({ color: 0x46332a }); // body
-  dog.rect(-9, -3, 4, 9).fill({ color: 0x2c2019 }); // back leg
-  dog.rect(7, -3, 4, 9).fill({ color: 0x2c2019 }); // front leg
-  dog.ellipse(14, -17, 9, 8).fill({ color: 0x46332a }); // head
-  dog.poly([7, -24, 12, -15, 16, -23]).fill({ color: 0x2c2019 }); // ear
-  dog.ellipse(21, -15, 4, 3).fill({ color: 0x2c2019 }); // snout
-  dog.circle(16, -18, 1.4).fill({ color: 0xf0c26a }); // eye
-  body.addChild(dog);
+  const sprite = new PIXI.Sprite(texture);
+  sprite.anchor.set(0.5, 0.9);
+  sprite.roundPixels = true;
+  const baseScale = setSpriteDisplayHeight(sprite, BILLY_DISPLAY_HEIGHT);
+  body.addChild(sprite);
 
   container.addChild(shadow, body);
   container.position.set(start.x, start.y);
@@ -959,7 +957,7 @@ function createBillyCompanion(start: Vector2): BillyCompanion {
 
       const bob = moving ? Math.abs(Math.sin(elapsedSeconds * 11)) * 3 : Math.sin(elapsedSeconds * 2.4) * 1;
       body.position.y = -bob;
-      body.scale.set(facingX, 1);
+      sprite.scale.set(baseScale * facingX, baseScale);
       container.position.set(pos.x, pos.y);
       container.zIndex = pos.y;
     },
@@ -2032,7 +2030,7 @@ export function KingdomHubStage() {
       // Billy follows the king around the Kingdom once he has joined (prologue done).
       let billy: BillyCompanion | null = null;
       if (isPrologueComplete(useGameStore.getState().state)) {
-        billy = createBillyCompanion({ x: playerPosition.x - 70, y: playerPosition.y });
+        billy = createBillyCompanion(textures.billy, { x: playerPosition.x - 70, y: playerPosition.y });
         entityLayer.addChild(billy.container);
       }
 

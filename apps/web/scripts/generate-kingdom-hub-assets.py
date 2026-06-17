@@ -86,6 +86,12 @@ P = {
     "cloth_hi": (110, 110, 146, 255),
     "cloak": (58, 44, 92, 255),
     "cloak_hi": (92, 72, 138, 255),
+    # companion (Billy the dog)
+    "dog_hi": (134, 95, 64, 255),
+    "dog": (98, 67, 44, 255),
+    "dog_dark": (66, 44, 29, 255),
+    "dog_deep": (42, 28, 18, 255),
+    "dog_belly": (158, 122, 86, 255),
 }
 
 
@@ -575,6 +581,55 @@ def villager() -> Image.Image:
     return im
 
 
+def billy() -> Image.Image:
+    """Billy, the king's first companion. Side profile facing right so the hub
+    stage can horizontal-flip it for left movement."""
+    im = img()
+    d = ImageDraw.Draw(im, "RGBA")
+    ground_shadow(d, 64, 95, 30, 7, 82)
+
+    # tail (back, upper-left), wagging up
+    d.polygon([(28, 70), (38, 58), (44, 66), (40, 76)], fill=P["dog_dark"], outline=P["edge"])
+    d.polygon([(32, 68), (39, 60), (42, 67)], fill=P["dog"])
+
+    # far legs (drawn first, darker for depth)
+    rect(d, (54, 82, 60, 95), P["dog_deep"], P["edge"])
+    rect(d, (76, 82, 82, 95), P["dog_deep"], P["edge"])
+
+    # body
+    d.ellipse((36, 56, 88, 88), fill=P["dog"], outline=P["edge"])
+    d.ellipse((42, 58, 82, 76), fill=P["dog_hi"])      # lit top
+    d.ellipse((46, 74, 86, 90), fill=P["dog_belly"])   # belly
+
+    # near legs (lighter, in front)
+    rect(d, (50, 80, 57, 95), P["dog"], P["edge"])
+    rect(d, (70, 80, 77, 95), P["dog"], P["edge"])
+    rect(d, (51, 91, 57, 95), P["dog_belly"])          # paw
+    rect(d, (71, 91, 77, 95), P["dog_belly"])          # paw
+
+    # neck + head (right)
+    d.ellipse((74, 44, 102, 72), fill=P["dog"], outline=P["edge"])
+    d.ellipse((78, 46, 98, 62), fill=P["dog_hi"])
+
+    # ear flopping down
+    d.polygon([(80, 46), (76, 30), (90, 42)], fill=P["dog_dark"], outline=P["edge"])
+
+    # snout
+    d.ellipse((92, 56, 110, 70), fill=P["dog"], outline=P["edge"])
+    d.ellipse((94, 58, 106, 66), fill=P["dog_belly"])
+    d.ellipse((104, 60, 110, 66), fill=P["dog_deep"])  # nose
+    d.line((97, 67, 106, 67), fill=P["dog_deep"])      # mouth
+
+    # eye (warm gold like the king's accents)
+    d.ellipse((86, 51, 92, 57), fill=P["gold_hi"], outline=P["gold_deep"])
+    rect(d, (88, 53, 90, 55), P["edge"])               # pupil
+
+    # gold collar tying Billy to the king
+    d.line((76, 66, 86, 72), fill=P["gold"], width=2)
+    d.ellipse((80, 70, 84, 74), fill=P["gold_hi"], outline=P["gold_deep"])
+    return im
+
+
 def aura() -> Image.Image:
     im = img()
     d = ImageDraw.Draw(im, "RGBA")
@@ -613,6 +668,7 @@ def main() -> None:
         "building_kitchen": kitchen(),
         "building_forge": forge(),
         "npc_villager": villager(),
+        "npc_billy": billy(),
         "cornucopia_magical": cornucopia(),
         "fx_soft_glow_aura": aura(),
         "fx_sparkle_particles": sparkles(),
