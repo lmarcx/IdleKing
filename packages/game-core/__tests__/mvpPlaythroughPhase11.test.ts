@@ -105,7 +105,8 @@ test("full MVP playthrough succeeds from Prologue to Chapter II end", () => {
   assertBossDefeated(state, "dark_amalgam");
   assert.equal(state.story.completedEvents.has("kingdom_discovered"), true);
   assert.equal(state.story.completedEvents.has("prologue_complete"), true);
-  assert.equal(state.specialItems.kaleidoscopeOwned, true);
+  assert.equal(state.specialItems.dropOfDarknessOwned, true);
+  assert.equal(state.specialItems.kaleidoscopeOwned, false);
   assert.equal(state.specialItems.fragmentDuTemps, 0);
   assert.equal(getCurrencyBalance(state.wallet, "BOSS_TOKEN"), 1);
   assert.equal(getCanonicalResourceQuantity(state.resources, "dark_amalgam_core"), 1);
@@ -115,7 +116,7 @@ test("full MVP playthrough succeeds from Prologue to Chapter II end", () => {
   assert.equal(replay.ok, true);
   if (!replay.ok) return;
   assert.equal(replay.firstClear, false);
-  assert.equal(replay.next.specialItems.kaleidoscopeOwned, true);
+  assert.equal(replay.next.specialItems.dropOfDarknessOwned, true);
   assert.equal(replay.next.specialItems.fragmentDuTemps, 0);
   assert.equal(getCurrencyBalance(replay.next.wallet, "BOSS_TOKEN"), 1);
   assert.equal(getCanonicalResourceQuantity(replay.next.resources, "dark_amalgam_core"), 1);
@@ -127,6 +128,7 @@ test("full MVP playthrough succeeds from Prologue to Chapter II end", () => {
   assertBossDefeated(state, "dragon_shadow");
   assert.equal(state.story.completedEvents.has("chapter_i_complete"), true);
   assert.equal(state.story.completedEvents.has("kaleidoscope_chapter_i_component_ready"), true);
+  assert.equal(state.specialItems.kaleidoscopeOwned, true);
   assert.equal(state.specialItems.fragmentDuTemps, 1);
 
   state = withWorldLevelFixture(state, 5);

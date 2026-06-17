@@ -1,6 +1,6 @@
 import type { GameState } from "../game/state.js";
 import { grantRewardBundle, type RewardBundle } from "../rewards/index.js";
-import { grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
+import { grantDropOfDarkness, grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
 import { applyNarrativeEffectSetUnlock } from "../effectSets/index.js";
 import type { StoryState } from "./state.js";
 
@@ -79,9 +79,13 @@ export type CompleteDungeonOptions = Readonly<{
   forceReplay?: boolean;
 }>;
 
-const BOSS_FIRST_CLEAR_SPECIAL_REWARDS: Readonly<Record<string, Readonly<{ kaleidoscope?: true; fragmentDuTemps?: number }>>> = {
-  dark_amalgam: { kaleidoscope: true },
-  dragon_shadow: { fragmentDuTemps: 1 },
+const BOSS_FIRST_CLEAR_SPECIAL_REWARDS: Readonly<
+  Record<string, Readonly<{ kaleidoscope?: true; dropOfDarkness?: true; fragmentDuTemps?: number }>>
+> = {
+  // Prologue: the Amalgame des Ténèbres drops the Drop of Darkness (canon).
+  dark_amalgam: { dropOfDarkness: true },
+  // Chapter I: the Ombre du Dragon yields the Kaléidoscope + first Fragment du Temps (era traversal).
+  dragon_shadow: { kaleidoscope: true, fragmentDuTemps: 1 },
   allaeva: { fragmentDuTemps: 1 },
 };
 
@@ -471,6 +475,7 @@ export function applyBossFirstClearSpecialRewards(state: GameState, bossId: stri
 
   let next = state;
   if (rewards.kaleidoscope) next = grantKaleidoscope(next);
+  if (rewards.dropOfDarkness) next = grantDropOfDarkness(next);
   if (rewards.fragmentDuTemps) next = grantFragmentDuTemps(next, rewards.fragmentDuTemps);
   return next;
 }

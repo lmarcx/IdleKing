@@ -16,6 +16,8 @@ export type EraDefinition = Readonly<{
 
 export type SpecialItemsState = {
   kaleidoscopeOwned: boolean;
+  /** Drop of Darkness (Goutte de Ténèbres) — narrative item from the prologue boss. */
+  dropOfDarknessOwned: boolean;
   fragmentDuTemps: number;
   // Era-progression unlocks. Per DATA_MODEL these belong to Time Gate / era-progression state,
   // not to "special items". Co-located here as a brownfield pragmatic choice: there is no
@@ -85,6 +87,7 @@ const ERA_BY_ID = new Map<EraId, EraDefinition>(ERA_REGISTRY.map((era) => [era.i
 export function createDefaultSpecialItemsState(): SpecialItemsState {
   return {
     kaleidoscopeOwned: false,
+    dropOfDarknessOwned: false,
     fragmentDuTemps: 0,
     unlockedEras: [...DEFAULT_UNLOCKED_ERAS],
   };
@@ -99,6 +102,7 @@ export function normalizeSpecialItemsState(raw: Partial<SpecialItemsState> | und
 
   return {
     kaleidoscopeOwned: raw?.kaleidoscopeOwned === true,
+    dropOfDarknessOwned: raw?.dropOfDarknessOwned === true,
     fragmentDuTemps: Math.max(0, Math.floor(raw?.fragmentDuTemps ?? 0)),
     unlockedEras: [...unlocked],
   };
@@ -115,6 +119,21 @@ export function grantKaleidoscope<T extends Pick<GameState, "specialItems">>(sta
     specialItems: {
       ...state.specialItems,
       kaleidoscopeOwned: true,
+    },
+  };
+}
+
+export function hasDropOfDarkness(state: Pick<GameState, "specialItems">): boolean {
+  return state.specialItems.dropOfDarknessOwned;
+}
+
+export function grantDropOfDarkness<T extends Pick<GameState, "specialItems">>(state: T): T {
+  if (state.specialItems.dropOfDarknessOwned) return state;
+  return {
+    ...state,
+    specialItems: {
+      ...state.specialItems,
+      dropOfDarknessOwned: true,
     },
   };
 }
