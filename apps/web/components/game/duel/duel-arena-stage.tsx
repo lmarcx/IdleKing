@@ -5,6 +5,7 @@ import Link from "next/link";
 import * as PIXI from "pixi.js";
 
 import { CombatHud } from "@/components/game/combat/combat-hud";
+import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
@@ -40,8 +41,6 @@ const RANGED_ATTACK_COOLDOWN_MS = 450;
 const PLAYER_PROJECTILE_MAX_RANGE = 620;
 const PLAYER_PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
-const SCARECROW_ASSET = "/assets/exploration/resurrected_scarecrow.png";
-const KING_ASSET = "/assets/exploration/player_king.png";
 
 type ActiveMeleeAttack = {
   ageMs: number;
@@ -177,70 +176,69 @@ function normalizeVector(vector: DuelVector, fallback: DuelVector = { x: 0, y: -
 
 function drawArenaWorld(container: PIXI.Container, mapWidth: number, mapHeight: number) {
   const background = new PIXI.Graphics();
-  background.rect(0, 0, mapWidth, mapHeight).fill(0x06080d);
+  background.rect(0, 0, mapWidth, mapHeight).fill(BW.black);
 
   for (let y = 0; y < mapHeight; y += 80) {
     for (let x = 0; x < mapWidth; x += 80) {
-      const tone = (x / 80 + y / 80) % 2 === 0 ? 0x10131c : 0x0b0e16;
-      background.rect(x, y, 80, 80).fill({ color: tone, alpha: 0.46 });
+      const tone = (x / 80 + y / 80) % 2 === 0 ? BW.gray0 : BW.black;
+      background.rect(x, y, 80, 80).fill({ color: tone, alpha: 0.6 });
     }
   }
 
   for (let x = 0; x <= mapWidth; x += 120) {
-    background.moveTo(x, 0).lineTo(x, mapHeight).stroke({ color: 0x6b5b92, alpha: 0.14, width: 1 });
+    background.moveTo(x, 0).lineTo(x, mapHeight).stroke({ color: BW.gray2, alpha: 0.18, width: 1 });
   }
 
   for (let y = 0; y <= mapHeight; y += 120) {
-    background.moveTo(0, y).lineTo(mapWidth, y).stroke({ color: 0x6b5b92, alpha: 0.14, width: 1 });
+    background.moveTo(0, y).lineTo(mapWidth, y).stroke({ color: BW.gray2, alpha: 0.18, width: 1 });
   }
 
   const center = { x: mapWidth / 2, y: mapHeight / 2 };
-  background.circle(center.x, center.y, 520).stroke({ color: 0xc9a654, alpha: 0.22, width: 2 });
-  background.circle(center.x, center.y, 230).stroke({ color: 0xc9a654, alpha: 0.28, width: 2 });
-  background.circle(center.x, center.y, 128).stroke({ color: 0x38bdf8, alpha: 0.22, width: 1 });
-  background.moveTo(center.x - 420, center.y).lineTo(center.x + 420, center.y).stroke({ color: 0xc9a654, alpha: 0.18, width: 1 });
-  background.moveTo(center.x, center.y - 420).lineTo(center.x, center.y + 420).stroke({ color: 0xc9a654, alpha: 0.18, width: 1 });
+  background.circle(center.x, center.y, 520).stroke({ color: BW.gray3, alpha: 0.3, width: 2 });
+  background.circle(center.x, center.y, 230).stroke({ color: BW.gray4, alpha: 0.34, width: 2 });
+  background.circle(center.x, center.y, 128).stroke({ color: BW.white, alpha: 0.24, width: 1 });
+  background.moveTo(center.x - 420, center.y).lineTo(center.x + 420, center.y).stroke({ color: BW.gray3, alpha: 0.22, width: 1 });
+  background.moveTo(center.x, center.y - 420).lineTo(center.x, center.y + 420).stroke({ color: BW.gray3, alpha: 0.22, width: 1 });
 
   container.addChild(background);
 }
 
 
-function drawBoss(texture: PIXI.Texture) {
+function drawBoss() {
   const container = new PIXI.Container();
   const shadow = new PIXI.Graphics();
   const aura = new PIXI.Graphics();
-  const sprite = new PIXI.Sprite(texture);
   const displayHeight = 210;
-  const scale = displayHeight / texture.height;
+  const figure = createFigureGraphics("hostile");
 
-  shadow.ellipse(0, 64, 118, 34).fill({ color: 0x000000, alpha: 0.46 });
-  aura.circle(0, 18, 118).fill({ color: 0x7f1d1d, alpha: 0.1 });
-  aura.circle(0, 18, 76).stroke({ color: 0xf0c26a, alpha: 0.2, width: 3 });
-  sprite.anchor.set(0.5, 0.78);
-  sprite.scale.set(scale);
+  shadow.ellipse(0, 64, 118, 34).fill({ color: BW.gray1, alpha: 0.5 });
+  aura.circle(0, 18, 118).stroke({ color: BW.gray2, alpha: 0.3, width: 2 });
+  aura.circle(0, 18, 76).stroke({ color: BW.white, alpha: 0.2, width: 3 });
+  figure.scale.set(figureScaleFor(displayHeight));
+  figure.position.y = 64;
 
-  container.addChild(shadow, aura, sprite);
-  return { aura, container, sprite };
+  container.addChild(shadow, aura, figure);
+  return { aura, container, sprite: figure };
 }
 
 function drawPlayerProjectile(): PIXI.Graphics {
   const graphic = new PIXI.Graphics();
-  graphic.circle(0, 0, 8).fill({ color: 0x7df7ff, alpha: 0.92 });
-  graphic.circle(0, 0, 14).fill({ color: 0x62d8ff, alpha: 0.22 });
+  graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
+  graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
   return graphic;
 }
 
-function drawBossProjectile(color = 0xd95c36): PIXI.Graphics {
+function drawBossProjectile(color: number = BW.gray4): PIXI.Graphics {
   const graphic = new PIXI.Graphics();
-  graphic.circle(0, 0, 13).fill({ color, alpha: 0.96 });
-  graphic.circle(0, 0, 22).stroke({ color: 0xffd58a, alpha: 0.34, width: 2 });
+  graphic.circle(0, 0, 13).stroke({ color, alpha: 0.96, width: 3 });
+  graphic.circle(0, 0, 5).fill({ color, alpha: 0.9 });
   return graphic;
 }
 
 function drawColumnLane(x: number, mapHeight: number): PIXI.Graphics {
   const lane = new PIXI.Graphics();
-  lane.rect(-34, 0, 68, mapHeight).fill({ color: 0x7dd3fc, alpha: 0.055 });
-  lane.rect(-34, 0, 68, mapHeight).stroke({ color: 0x7dd3fc, alpha: 0.18, width: 2 });
+  lane.rect(-34, 0, 68, mapHeight).fill({ color: BW.white, alpha: 0.05 });
+  lane.rect(-34, 0, 68, mapHeight).stroke({ color: BW.white, alpha: 0.25, width: 2 });
   lane.position.set(x, 0);
   return lane;
 }
@@ -693,7 +691,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       const projectile: BossProjectile = {
         damage: RESURRECTED_SCARECROW_BOSS.columnDamage,
         direction: { x: 0, y: 1 },
-        graphic: drawBossProjectile(column.label === "fast" ? 0xef4444 : column.label === "medium" ? 0xf59e0b : 0x38bdf8),
+        graphic: drawBossProjectile(column.label === "fast" ? BW.white : column.label === "medium" ? BW.gray3 : BW.gray2),
         position: { x: mapWidth * column.xRatio, y: -30 },
         radius: RESURRECTED_SCARECROW_BOSS.columnProjectileRadius,
         speed: column.speed,
@@ -1020,8 +1018,8 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
           .moveTo(0, 0)
           .arc(0, 0, MELEE_RANGE, -0.72, 0.72)
           .lineTo(0, 0)
-          .fill({ color: 0xf0c26a, alpha: alpha * 0.42 });
-        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: 0xfff1b8, alpha, width: 5 });
+          .fill({ color: BW.gray4, alpha: alpha * 0.35 });
+        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: BW.white, alpha, width: 5 });
         attack.graphic.position.set(attack.position.x, attack.position.y);
         attack.graphic.rotation = angle;
       }
@@ -1043,12 +1041,12 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         if (!impact.hasImpacted) {
           const progress = clamp(impact.ageMs / impact.warningMs, 0, 1);
           const radius = impact.radius * (0.28 + progress * 0.72);
-          impact.graphic.circle(0, 0, radius).fill({ color: 0xf97316, alpha: 0.12 + progress * 0.18 });
-          impact.graphic.circle(0, 0, radius).stroke({ color: 0xffd58a, alpha: 0.38 + progress * 0.34, width: 3 });
+          impact.graphic.circle(0, 0, radius).fill({ color: BW.gray2, alpha: 0.12 + progress * 0.18 });
+          impact.graphic.circle(0, 0, radius).stroke({ color: BW.white, alpha: 0.38 + progress * 0.34, width: 3 });
         } else {
           const progress = clamp((impact.ageMs - impact.warningMs) / 230, 0, 1);
-          impact.graphic.circle(0, 0, impact.radius * (1 + progress * 0.18)).fill({ color: 0xffd58a, alpha: 0.34 * (1 - progress) });
-          impact.graphic.circle(0, 0, impact.radius * 0.58).fill({ color: 0xef4444, alpha: 0.26 * (1 - progress) });
+          impact.graphic.circle(0, 0, impact.radius * (1 + progress * 0.18)).fill({ color: BW.gray4, alpha: 0.34 * (1 - progress) });
+          impact.graphic.circle(0, 0, impact.radius * 0.58).fill({ color: BW.white, alpha: 0.3 * (1 - progress) });
         }
       }
     }
@@ -1057,7 +1055,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       if (!bossVisual) return;
       bossHitFlashMs = Math.max(0, bossHitFlashMs - deltaMs);
       const flash = bossHitFlashMs > 0;
-      bossVisual.sprite.tint = flash ? 0xfff1b8 : 0xffffff;
+      bossVisual.sprite.tint = flash ? 0x555555 : 0xffffff;
       bossVisual.sprite.x = flash ? Math.sin(bossHitFlashMs * 0.45) * 3 : 0;
       bossVisual.aura.alpha = bossHp <= 0 ? 0.04 : 0.9;
       bossVisual.container.alpha = bossHp <= 0 ? 0.42 : 1;
@@ -1069,7 +1067,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         elapsedSeconds: nowMs / 1000,
         facing: playerFacing,
         moving,
-        flashTint: playerHitFlashMs > 0 ? 0xff7272 : null,
+        flashTint: playerHitFlashMs > 0 ? 0x666666 : null,
       });
     }
 
@@ -1100,17 +1098,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         return;
       }
 
-      const [bossTexture, playerTexture] = await Promise.all([
-        PIXI.Assets.load(SCARECROW_ASSET),
-        PIXI.Assets.load(KING_ASSET),
-      ]);
-      if (cancelled) {
-        destroyPixiApp();
-        return;
-      }
-
-      bossVisual = drawBoss(bossTexture);
-      playerVisual.setSprite(playerTexture);
+      bossVisual = drawBoss();
       canvasElement = app.canvas;
       hostElement.appendChild(canvasElement);
       canvasElement.addEventListener("contextmenu", handleContextMenu);

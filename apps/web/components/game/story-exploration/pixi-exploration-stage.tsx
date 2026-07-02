@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
+import {
+  createPoiIconGraphics,
+  createPoiRingGraphics,
+  createSparkGraphics,
+  drawGroundGrid,
+} from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
@@ -78,28 +85,14 @@ const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 const CHECKPOINT_RESPAWN_EVENT = "idleking:story-checkpoint-respawn";
 const DASH_KEY_CODE = "Space";
 const SPRINT_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
+// Grayscale telegraph language: lethal reads brightest, ambient states darker.
 const TELEGRAPH_COLORS = {
-  damage: 0xff9f43,
-  debuff: 0x60a5fa,
-  lethal: 0xef4444,
-  safeHeal: 0x34d399,
-  stun: 0xfacc15,
+  damage: BW.gray3,
+  debuff: BW.gray2,
+  lethal: BW.white,
+  safeHeal: BW.gray1,
+  stun: BW.gray4,
 } as const;
-
-const EXPLORATION_ASSETS = {
-  chest: "/assets/exploration/golden_chest.png",
-  crackedFloor: "/assets/exploration/cracked_stone_floor_tile.png",
-  enemy: "/assets/exploration/resurrected_scarecrow.png",
-  floor: "/assets/exploration/dark_stone_floor_tile.png",
-  glow: "/assets/exploration/subtle_magic_glow.png",
-  player: "/assets/exploration/player_king.png",
-  rune: "/assets/exploration/ancient_rune.png",
-  shrine: "/assets/exploration/healing_shrine.png",
-  sparkle: "/assets/exploration/small_gold_sparkle.png",
-} as const;
-
-type ExplorationAssetKey = keyof typeof EXPLORATION_ASSETS;
-type ExplorationTextures = Record<ExplorationAssetKey, PIXI.Texture>;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -149,7 +142,7 @@ type ActiveTelegraph = {
 
 type ActiveSparkleParticle = {
   lifeOffset: number;
-  sprite: PIXI.Sprite;
+  sprite: PIXI.Graphics;
   velocity: Vector2;
 };
 
@@ -175,7 +168,7 @@ type ActiveEnemy = StoryLevelEnemy & {
   attackLungeX: number;
   attackLungeY: number;
   baseScale: number;
-  body: PIXI.Sprite;
+  body: PIXI.Graphics;
   container: PIXI.Container;
   debugScenario?: boolean;
   deathFadeMs: number;
@@ -189,13 +182,13 @@ type PoiKind = "chest" | "rune" | "shrine";
 type PoiVisual = {
   baseScale: number;
   container: PIXI.Container;
-  glow: PIXI.Sprite;
+  glow: PIXI.Graphics;
   hint: PIXI.Text;
   id: string;
   kind: PoiKind;
   point: ExplorationStagePoi;
   pulseOffset: number;
-  sprite: PIXI.Sprite;
+  sprite: PIXI.Graphics;
   wasNear: boolean;
 };
 
@@ -322,15 +315,8 @@ function normalizeVector(vector: Vector2, fallback: Vector2 = { x: 0, y: -1 }): 
 
 function createShadow(width: number, height: number, alpha = 0.42): PIXI.Graphics {
   const shadow = new PIXI.Graphics();
-  shadow.ellipse(0, 0, width, height).fill({ color: 0x020307, alpha });
+  shadow.ellipse(0, 0, width, height).fill({ color: BW.gray1, alpha });
   return shadow;
-}
-
-function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
-  const textureHeight = Math.max(sprite.texture.height, 1);
-  const scale = height / textureHeight;
-  sprite.scale.set(scale);
-  return scale;
 }
 
 function createFloatingText({
@@ -349,10 +335,10 @@ function createFloatingText({
     text: label,
     style: {
       fill: color,
-      fontFamily: "Arial",
+      fontFamily: "monospace",
       fontSize: 17,
       fontWeight: "700",
-      stroke: { color: 0x100805, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
   });
   text.anchor.set(0.5, 0.5);
@@ -371,24 +357,19 @@ function createFloatingText({
 function createSparkleBurst({
   layer,
   position,
-  texture,
 }: {
   layer: PIXI.Container;
   position: Vector2;
-  texture: PIXI.Texture;
 }): ActiveSparkleBurst {
   const container = new PIXI.Container();
   const particles: ActiveSparkleParticle[] = [];
   const particleCount = 8;
 
   for (let index = 0; index < particleCount; index += 1) {
-    const sprite = new PIXI.Sprite(texture);
+    const sprite = createSparkGraphics(4 + (index % 2) * 2);
     const angle = (Math.PI * 2 * index) / particleCount + (index % 2) * 0.22;
     const speed = 48 + (index % 3) * 18;
-    sprite.anchor.set(0.5);
-    sprite.scale.set(0.08 + (index % 2) * 0.025);
     sprite.alpha = 0.92;
-    sprite.roundPixels = true;
     container.addChild(sprite);
     particles.push({
       lifeOffset: index * 18,
@@ -414,9 +395,9 @@ function createSparkleBurst({
 
 function createVignette(width: number, height: number): PIXI.Graphics {
   const vignette = new PIXI.Graphics();
-  vignette.rect(0, 0, width, height).stroke({ color: 0x010104, alpha: 0.55, width: 64 });
+  vignette.rect(0, 0, width, height).stroke({ color: BW.black, alpha: 0.55, width: 64 });
   vignette.rect(18, 18, Math.max(0, width - 36), Math.max(0, height - 36)).stroke({
-    color: 0x090219,
+    color: BW.gray0,
     alpha: 0.22,
     width: 34,
   });
@@ -429,31 +410,26 @@ function getPoiKind(point: ExplorationStagePoi): PoiKind {
   return "chest";
 }
 
-function createPoiSprite(point: ExplorationStagePoi, textures: ExplorationTextures): PoiVisual {
+function createPoiSprite(point: ExplorationStagePoi): PoiVisual {
   const kind = getPoiKind(point);
   const container = new PIXI.Container();
-  const glow = new PIXI.Sprite(textures.glow);
-  const sprite = new PIXI.Sprite(textures[kind]);
+  const glow = createPoiRingGraphics(kind === "chest" ? 30 : 36);
+  const sprite = createPoiIconGraphics(kind);
   const hint = new PIXI.Text({
     text: "Nearby",
     style: {
-      fill: 0xfff1b8,
-      fontFamily: "Arial",
+      fill: BW.white,
+      fontFamily: "monospace",
       fontSize: 14,
       fontWeight: "700",
-      stroke: { color: 0x120c07, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
   });
 
-  glow.anchor.set(0.5);
   glow.alpha = kind === "chest" ? 0.24 : 0.34;
-  setSpriteDisplayHeight(glow, kind === "chest" ? 86 : 104);
-  glow.tint = kind === "shrine" ? 0x7dffad : kind === "rune" ? 0x86a0ff : 0xffd36a;
+  glow.position.y = 4;
 
-  sprite.anchor.set(0.5, 0.76);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, kind === "chest" ? 62 : 76);
-  sprite.tint = kind === "shrine" ? 0xa4ffd0 : kind === "rune" ? 0xc5c7ff : 0xffffff;
+  const baseScale = 1;
 
   hint.anchor.set(0.5, 0.5);
   hint.position.set(0, -72);
@@ -484,47 +460,19 @@ function drawWorld({
   mapHeight,
   mapWidth,
   pointsOfInterest,
-  textures,
   worldLayer,
 }: {
   backgroundLayer: PIXI.Container;
   mapHeight: number;
   mapWidth: number;
   pointsOfInterest: ExplorationStagePoi[];
-  textures: ExplorationTextures;
   worldLayer: PIXI.Container;
 }): PoiVisual[] {
-  const fallback = new PIXI.Graphics();
-  fallback.rect(0, 0, mapWidth, mapHeight).fill(0x050711);
-  backgroundLayer.addChild(fallback);
+  const ground = new PIXI.Graphics();
+  drawGroundGrid(ground, mapWidth, mapHeight);
+  backgroundLayer.addChild(ground);
 
-  const tileScale = 96 / Math.max(textures.floor.width, 1);
-  const floor = new PIXI.TilingSprite({
-    height: mapHeight,
-    roundPixels: true,
-    texture: textures.floor,
-    tileScale: { x: tileScale, y: tileScale },
-    width: mapWidth,
-  });
-  floor.alpha = 0.92;
-  backgroundLayer.addChild(floor);
-
-  const haze = new PIXI.Graphics();
-  haze.rect(0, 0, mapWidth, mapHeight).fill({ color: 0x120728, alpha: 0.2 });
-  backgroundLayer.addChild(haze);
-
-  const crackScale = 92 / Math.max(textures.crackedFloor.height, 1);
-  for (let index = 0; index < 34; index += 1) {
-    const crack = new PIXI.Sprite(textures.crackedFloor);
-    crack.anchor.set(0.5);
-    crack.scale.set(crackScale * (index % 3 === 0 ? 1.18 : 1));
-    crack.alpha = 0.16 + (index % 4) * 0.035;
-    crack.rotation = ((index * 37) % 4) * (Math.PI / 2);
-    crack.position.set((index * 397) % mapWidth, (index * 251 + 140) % mapHeight);
-    backgroundLayer.addChild(crack);
-  }
-
-  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point, textures));
+  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point));
   for (const visual of poiVisuals) {
     worldLayer.addChild(visual.container);
   }
@@ -532,15 +480,15 @@ function drawWorld({
   return poiVisuals;
 }
 
-function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): ActiveEnemy {
+function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
   const container = new PIXI.Container();
   const shadow = createShadow(enemy.radius * 0.95, enemy.radius * 0.34, 0.45);
-  const body = new PIXI.Sprite(texture);
+  const body = createFigureGraphics("hostile");
   const hpBar = new PIXI.Graphics();
-  const baseScale = setSpriteDisplayHeight(body, enemy.radius * 3.2);
+  const baseScale = figureScaleFor(enemy.radius * 3.2);
 
-  body.anchor.set(0.5, 0.82);
-  body.roundPixels = true;
+  body.scale.set(baseScale);
+  body.position.y = enemy.radius * 0.48;
   shadow.position.set(0, enemy.radius * 0.48);
   container.addChild(shadow);
   container.addChild(body);
@@ -603,16 +551,17 @@ function renderEnemy(enemy: ActiveEnemy) {
     enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.16 : 1 + (isAttacking ? 0.14 : isChasing ? 0.03 : 0);
   enemy.body.scale.set(enemy.baseScale * scale);
   enemy.body.tint =
-    enemy.hitFlashMs > 0 ? 0xffd0d0 : isAttacking ? 0xff7050 : isChasing ? 0xffb0a0 : 0xffffff;
+    enemy.hitFlashMs > 0 ? 0x555555 : isAttacking ? 0x8f8f8f : isChasing ? 0xcfcfcf : 0xffffff;
   enemy.shadow.alpha = enemy.state === "dead" ? 0.16 : 0.45;
 
   const barWidth = enemy.radius * 2.3;
   const hpRatio = enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0;
   enemy.hpBar.clear();
   if (enemy.state !== "dead") {
-    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth, 5, 2).fill({ color: 0x130808, alpha: 0.82 });
-    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth * hpRatio, 5, 2).fill({
-      color: hpRatio > 0.45 ? 0xff6b58 : 0xffc857,
+    enemy.hpBar.rect(-barWidth / 2, -enemy.radius - 14, barWidth, 5).fill({ color: BW.gray0, alpha: 0.92 });
+    enemy.hpBar.rect(-barWidth / 2, -enemy.radius - 14, barWidth, 5).stroke({ color: BW.gray2, width: 1 });
+    enemy.hpBar.rect(-barWidth / 2, -enemy.radius - 14, barWidth * hpRatio, 5).fill({
+      color: BW.white,
       alpha: 0.95,
     });
   }
@@ -621,13 +570,13 @@ function renderEnemy(enemy: ActiveEnemy) {
 function getLootPopupColor(resourceId: ResourceId): number {
   switch (resourceId) {
     case "MEAT":
-      return 0xff7b5d;
+      return BW.gray4;
     case "WOOD":
-      return 0x8bd46e;
+      return BW.gray3;
     case "STONE":
-      return 0xb8c0cc;
+      return BW.gray2;
     default:
-      return 0xfff1b8;
+      return BW.white;
   }
 }
 
@@ -786,8 +735,6 @@ export function PixiExplorationStage({
     const poiVisuals: PoiVisual[] = [];
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
-    let enemyTexture: PIXI.Texture | null = null;
-    let sparkleTexture: PIXI.Texture | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
     let dashFeedback: string | undefined;
@@ -1218,8 +1165,8 @@ export function PixiExplorationStage({
         playerFacing
       );
       const graphic = new PIXI.Graphics();
-      graphic.circle(0, 0, 8).fill({ color: 0x7df7ff, alpha: 0.92 });
-      graphic.circle(0, 0, 14).fill({ color: 0x62d8ff, alpha: 0.22 });
+      graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
+      graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
 
       const projectile: ActiveProjectile = {
         direction,
@@ -1355,7 +1302,7 @@ export function PixiExplorationStage({
       ];
 
       for (const enemyDef of debugEnemies) {
-        const enemy = createEnemyGraphics(enemyDef, enemyTexture ?? PIXI.Texture.EMPTY);
+        const enemy = createEnemyGraphics(enemyDef);
         enemy.debugScenario = true;
         renderEnemy(enemy);
         enemies.push(enemy);
@@ -1387,15 +1334,12 @@ export function PixiExplorationStage({
         })
       );
 
-      if (sparkleTexture) {
-        sparkleBursts.push(
-          createSparkleBurst({
-            layer: fxLayer,
-            position: { x: position.x, y: position.y - 24 },
-            texture: sparkleTexture,
-          })
-        );
-      }
+      sparkleBursts.push(
+        createSparkleBurst({
+          layer: fxLayer,
+          position: { x: position.x, y: position.y - 24 },
+        })
+      );
     }
 
     function createDamageNumber({
@@ -1411,17 +1355,17 @@ export function PixiExplorationStage({
       position: Vector2;
       target?: "enemy" | "player";
     }) {
-      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? 0xff6f61 : TELEGRAPH_COLORS.damage;
+      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? BW.white : TELEGRAPH_COLORS.damage;
       const label = `${didCrit ? "CRIT " : ""}${Math.ceil(amount)}`;
       const container = new PIXI.Container();
       const text = new PIXI.Text({
         text: target === "player" ? `-${label}` : label,
         style: {
           fill: color,
-          fontFamily: "Arial",
+          fontFamily: "monospace",
           fontSize: didCrit ? 24 : 19,
           fontWeight: "800",
-          stroke: { color: 0x100805, width: 5 },
+          stroke: { color: BW.black, width: 5 },
         },
       });
       text.anchor.set(0.5, 0.5);
@@ -1455,7 +1399,7 @@ export function PixiExplorationStage({
       for (let index = 0; index < particleCount; index += 1) {
         const graphic = new PIXI.Graphics();
         const size = 2 + Math.random() * 4;
-        const color = index % 2 === 0 ? 0xfff1b8 : 0xff7b5d;
+        const color = index % 2 === 0 ? BW.white : BW.gray3;
         graphic.rect(-size / 2, -size / 2, size, size).fill({ color, alpha: 0.9 });
         graphic.position.set(position.x, position.y - 12);
         fxLayer.addChild(graphic);
@@ -1477,22 +1421,19 @@ export function PixiExplorationStage({
     function spawnPoiDiscoveryFeedback(visual: PoiVisual) {
       lootPopups.push(
         createFloatingText({
-          color: visual.kind === "chest" ? 0xffe08a : visual.kind === "shrine" ? 0x8dffbd : 0xaeb4ff,
+          color: BW.white,
           label: "Discovered",
           layer: lootPopupLayer,
           position: { x: visual.point.x, y: visual.point.y - 74 },
         })
       );
 
-      if (sparkleTexture) {
-        sparkleBursts.push(
-          createSparkleBurst({
-            layer: fxLayer,
-            position: { x: visual.point.x, y: visual.point.y - 18 },
-            texture: sparkleTexture,
-          })
-        );
-      }
+      sparkleBursts.push(
+        createSparkleBurst({
+          layer: fxLayer,
+          position: { x: visual.point.x, y: visual.point.y - 18 },
+        })
+      );
     }
 
     function updatePoiVisuals(nowMs: number) {
@@ -1526,7 +1467,7 @@ export function PixiExplorationStage({
           const progress = clamp(age / Math.max(1, burst.durationMs - particle.lifeOffset), 0, 1);
           particle.sprite.position.set(particle.velocity.x * progress * 0.55, particle.velocity.y * progress * 0.55);
           particle.sprite.rotation += deltaMs * 0.003;
-          particle.sprite.scale.set((0.08 + progress * 0.035) * (1 - progress * 0.35));
+          particle.sprite.scale.set(1 - progress * 0.45);
           particle.sprite.alpha = 1 - progress;
         }
 
@@ -1583,7 +1524,7 @@ export function PixiExplorationStage({
         elapsedSeconds: nowMs / 1000,
         facing: playerFacing,
         moving,
-        flashTint: playerHitFlashMs > 0 ? 0xffd0d0 : null,
+        flashTint: playerHitFlashMs > 0 ? 0x666666 : null,
       });
     }
 
@@ -1592,20 +1533,6 @@ export function PixiExplorationStage({
       const screenWidth = app.renderer.width / app.renderer.resolution;
       const screenHeight = app.renderer.height / app.renderer.resolution;
       uiLayer.addChild(createVignette(screenWidth, screenHeight));
-    }
-
-    function getTextures(): ExplorationTextures {
-      return {
-        chest: PIXI.Texture.from(EXPLORATION_ASSETS.chest),
-        crackedFloor: PIXI.Texture.from(EXPLORATION_ASSETS.crackedFloor),
-        enemy: PIXI.Texture.from(EXPLORATION_ASSETS.enemy),
-        floor: PIXI.Texture.from(EXPLORATION_ASSETS.floor),
-        glow: PIXI.Texture.from(EXPLORATION_ASSETS.glow),
-        player: PIXI.Texture.from(EXPLORATION_ASSETS.player),
-        rune: PIXI.Texture.from(EXPLORATION_ASSETS.rune),
-        shrine: PIXI.Texture.from(EXPLORATION_ASSETS.shrine),
-        sparkle: PIXI.Texture.from(EXPLORATION_ASSETS.sparkle),
-      };
     }
 
     function claimEnemyLoot(enemy: ActiveEnemy) {
@@ -2029,8 +1956,8 @@ export function PixiExplorationStage({
           .moveTo(0, 0)
           .arc(0, 0, MELEE_RANGE, -0.72, 0.72)
           .lineTo(0, 0)
-          .fill({ color: 0xf0c26a, alpha: alpha * 0.42 });
-        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: 0xfff1b8, alpha, width: 5 });
+          .fill({ color: BW.gray4, alpha: alpha * 0.35 });
+        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: BW.white, alpha, width: 5 });
         attack.graphic.position.set(attack.position.x, attack.position.y);
         attack.graphic.rotation = angle;
       }
@@ -2224,17 +2151,7 @@ export function PixiExplorationStage({
         return;
       }
 
-      await PIXI.Assets.load(Object.values(EXPLORATION_ASSETS));
-      const textures = getTextures();
-      enemyTexture = textures.enemy;
-      sparkleTexture = textures.sparkle;
-      playerVisual.setSprite(textures.player);
       player.addChild(playerVisual.container);
-
-      if (cancelled) {
-        destroyPixiApp();
-        return;
-      }
 
       canvasElement = app.canvas;
       hostElement.appendChild(canvasElement);
@@ -2260,11 +2177,10 @@ export function PixiExplorationStage({
           mapHeight,
           mapWidth,
           pointsOfInterest,
-          textures,
           worldLayer,
         })
       );
-      enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy, textures.enemy)));
+      enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy)));
       for (const enemy of enemies) {
         renderEnemy(enemy);
         enemyLayer.addChild(enemy.container);

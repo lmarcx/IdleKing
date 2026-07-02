@@ -1,5 +1,6 @@
 import * as PIXI from "pixi.js";
 
+import { BW } from "@/components/game/shared/geometric-figure";
 import type { SkillCategory, SkillDefinition, SkillId } from "@idleking/game-core/skills";
 
 type DirectionalSkillSnapshot = {
@@ -89,12 +90,12 @@ function renderDeferredSkillStub(graphic: PIXI.Graphics, effect: VisualActiveSki
   const progress = Math.min(Math.max((nowMs - effect.startedAtMs) / Math.max(effect.endsAtMs - effect.startedAtMs, 1), 0), 1);
   const pulse = 1 + Math.sin((nowMs - effect.startedAtMs) / 120) * 0.08;
   const color = effect.category === "movement"
-    ? 0x7dd3fc
+    ? BW.gray4
     : effect.category === "defense"
-      ? 0xa7f3d0
+      ? BW.gray3
       : effect.category === "summon"
-        ? 0xc084fc
-        : 0xf0c26a;
+        ? BW.gray2
+        : BW.white;
 
   graphic.clear();
   graphic.scale.set(pulse);
@@ -145,8 +146,8 @@ function renderInstantVisuals(player: PIXI.Container, nowMs: number): void {
         .moveTo(0, 0)
         .arc(0, 0, 170, -0.54, 0.54)
         .lineTo(0, 0)
-        .fill({ color: 0xf0c26a, alpha: alpha * 0.34 });
-      visual.graphic.arc(0, 0, 170, -0.5, 0.5).stroke({ color: 0xfff1b8, alpha, width: 7 });
+        .fill({ color: BW.gray4, alpha: alpha * 0.3 });
+      visual.graphic.arc(0, 0, 170, -0.5, 0.5).stroke({ color: BW.white, alpha, width: 7 });
       visual.graphic.position.set(visual.snapshot.originX, visual.snapshot.originY);
       visual.graphic.rotation = visual.snapshot.angle;
       continue;
@@ -154,24 +155,24 @@ function renderInstantVisuals(player: PIXI.Container, nowMs: number): void {
 
     if (visual.skillDef.targeting === "line") {
       visual.graphic
-        .roundRect(0, -24, 360, 48, 22)
-        .fill({ color: 0x9fe7ff, alpha: alpha * 0.24 })
-        .stroke({ color: 0xd6fbff, alpha, width: 5 });
+        .rect(0, -24, 360, 48)
+        .fill({ color: BW.gray4, alpha: alpha * 0.2 })
+        .stroke({ color: BW.white, alpha, width: 5 });
       visual.graphic.position.set(visual.snapshot.originX, visual.snapshot.originY);
       visual.graphic.rotation = visual.snapshot.angle;
       continue;
     }
 
     if (visual.skillDef.targeting === "aoe" || visual.skillDef.targeting === "enemy_cast") {
-      visual.graphic.circle(0, 0, visual.skillDef.targeting === "aoe" ? 92 : 76).fill({ color: 0xff9f43, alpha: alpha * 0.24 });
-      visual.graphic.circle(0, 0, visual.skillDef.targeting === "aoe" ? 92 : 76).stroke({ color: 0xffd19b, alpha, width: 5 });
+      visual.graphic.circle(0, 0, visual.skillDef.targeting === "aoe" ? 92 : 76).fill({ color: BW.gray3, alpha: alpha * 0.2 });
+      visual.graphic.circle(0, 0, visual.skillDef.targeting === "aoe" ? 92 : 76).stroke({ color: BW.white, alpha, width: 5 });
       visual.graphic.position.set(visual.snapshot.targetX, visual.snapshot.targetY);
       visual.graphic.rotation = 0;
       continue;
     }
 
-    visual.graphic.circle(0, 0, 34).fill({ color: 0xd8d4ff, alpha: alpha * 0.28 });
-    visual.graphic.circle(0, 0, 48).stroke({ color: 0xffffff, alpha, width: 4 });
+    visual.graphic.circle(0, 0, 34).fill({ color: BW.gray4, alpha: alpha * 0.25 });
+    visual.graphic.circle(0, 0, 48).stroke({ color: BW.white, alpha, width: 4 });
     visual.graphic.position.set(visual.snapshot.targetX, visual.snapshot.targetY);
     visual.graphic.rotation = 0;
   }
