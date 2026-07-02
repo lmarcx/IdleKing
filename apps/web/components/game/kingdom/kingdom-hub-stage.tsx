@@ -714,7 +714,6 @@ export function KingdomHubStage() {
   const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
   const [cornucopiaClaimAmount, setCornucopiaClaimAmount] = useState(100);
   const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
-  const [nearbyInteractableId, setNearbyInteractableId] = useState<string | null>(null);
 
   const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
   const selectedResource = selectedCornucopiaResource;
@@ -1224,7 +1223,6 @@ export function KingdomHubStage() {
       for (const [visualId, visual] of poiVisuals) {
         visual.setNear(visualId === id);
       }
-      setNearbyInteractableId(id);
     }
 
     function getNearbyInteractable() {
@@ -1585,7 +1583,7 @@ export function KingdomHubStage() {
         shadowWidth: 24,
       });
       const botoVisual = createHubSpriteVisual({
-        content: createNpcContent("companion", 78),
+        content: createNpcContent("robot", 78),
         hintOffsetY: -78,
         position: BOTO_NPC,
         shadowHeight: 10,
@@ -1726,12 +1724,6 @@ export function KingdomHubStage() {
           onOpenWorlds={() => openGlobalHudOverlay("worlds")}
         />
       </div>
-
-      {nearbyInteractableId ? (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-20 rounded-md border border-amber-200/45 bg-black/70 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-50 shadow-[0_0_24px_rgba(242,242,242,0.14)]">
-          Press F
-        </div>
-      ) : null}
 
       {activeDialogue ? (
         <KingdomDialogueBox name={activeDialogue.name} onClose={closeDialogue} text={activeDialogue.text} />

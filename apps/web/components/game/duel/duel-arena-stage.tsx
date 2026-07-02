@@ -1221,20 +1221,22 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
-      <CombatHud
-        bossHealth={{ current: hudState.bossHp, max: RESURRECTED_SCARECROW_BOSS.hp }}
-        bossLabel="Epouvantail Ressuscite"
-        mode="duel"
-        playerEnergy={{ current: 100, max: 100 }}
-        playerHealth={{ current: hudState.playerHp, max: playerMaxHp }}
-        skillBar={{
-          combatLoadout: skillsState.combatLoadout,
-          cooldowns: skillsState.cooldowns,
-          currentTimeMs: skillsState.currentTimeMs,
-        }}
-        subtitle="Boss d'entrainement"
-        title="Epouvantail Ressuscite"
-      />
+      {hudState.outcome === "fighting" ? (
+        <CombatHud
+          bossHealth={{ current: hudState.bossHp, max: RESURRECTED_SCARECROW_BOSS.hp }}
+          bossLabel="Epouvantail Ressuscite"
+          mode="duel"
+          playerEnergy={{ current: 100, max: 100 }}
+          playerHealth={{ current: hudState.playerHp, max: playerMaxHp }}
+          skillBar={{
+            combatLoadout: skillsState.combatLoadout,
+            cooldowns: skillsState.cooldowns,
+            currentTimeMs: skillsState.currentTimeMs,
+          }}
+          subtitle="Boss d'entrainement"
+          title="Epouvantail Ressuscite"
+        />
+      ) : null}
 
       {hudState.outcome === "victory" ? (
         <DuelVictoryScreen durationMs={hudState.durationMs} playerHp={hudState.playerHp} playerMaxHp={playerMaxHp} />

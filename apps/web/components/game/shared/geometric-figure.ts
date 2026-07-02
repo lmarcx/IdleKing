@@ -25,7 +25,7 @@ export const BW = {
   white: 0xf2f2f2,
 } as const;
 
-export type FigureVariant = "king" | "companion" | "villager" | "hostile";
+export type FigureVariant = "king" | "companion" | "villager" | "hostile" | "robot";
 
 function drawKing(g: PIXI.Graphics): void {
   // Legs — two solid pillars.
@@ -73,6 +73,28 @@ function drawCompanion(g: PIXI.Graphics): void {
   g.circle(0, -89, 3).fill(BW.white);
 }
 
+function drawRobot(g: PIXI.Graphics): void {
+  // Boto: boxy silhouette matching the DOM boto-unit icon (square head,
+  // horizontal eye bar, antenna) — deliberately distinct from the round
+  // "companion" figure so it never gets mistaken for Billy in the hub.
+  g.rect(-9, -22, 8, 22).fill(BW.gray3);
+  g.rect(1, -22, 8, 22).fill(BW.gray3);
+
+  g.rect(-15, -56, 30, 34).fill(BW.gray3);
+
+  // Shoulder blocks.
+  g.rect(-19, -54, 4, 12).fill(BW.gray2);
+  g.rect(15, -54, 4, 12).fill(BW.gray2);
+
+  // Head — square, offset eye bar toward +x for facing readability.
+  g.rect(-13, -80, 26, 22).fill(BW.gray3);
+  g.rect(-8, -72, 18, 6).fill(BW.black);
+
+  // Antenna.
+  g.moveTo(0, -80).lineTo(0, -88).stroke({ color: BW.gray4, width: 2 });
+  g.circle(0, -91, 3).fill(BW.white);
+}
+
 function drawVillager(g: PIXI.Graphics): void {
   // Outline-only king without the crown: background cast.
   g.rect(-8, -22, 6, 22).stroke({ color: BW.gray3, width: 2 });
@@ -112,6 +134,7 @@ const FIGURE_DRAWERS: Record<FigureVariant, (g: PIXI.Graphics) => void> = {
   companion: drawCompanion,
   villager: drawVillager,
   hostile: drawHostile,
+  robot: drawRobot,
 };
 
 /** Local-space height of the drawing box (feet at 0, top at -100). */

@@ -351,6 +351,11 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
     }
   }, [readyToComplete, completion, dispatch, dungeonId, hasCompletedLevel, level.id]);
 
+  // Once a full-screen resolution panel (completion / locked) takes over, the
+  // gameplay HUD underneath is hidden — otherwise its own exit link and
+  // title/objectives panels stack behind the panel's own "Retour au Royaume".
+  const isPlaying = completion === null && canCompleteDungeon;
+
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
@@ -362,19 +367,23 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
         onPlayerMoveAction={setPlayerPosition}
         pointsOfInterest={pointsOfInterest}
       />
-      <CombatHud
-        mode="story"
-        playerHealth={combatHud?.playerHealth}
-        playerMana={combatHud?.playerMana}
-        playerStamina={combatHud?.playerStamina}
-        skillBar={combatHud?.skillBar}
-        subtitle={`Power ${level.recommendedPower}`}
-        title={level.title}
-      />
-      <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
-      <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
-        Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace.
-      </div>
+      {isPlaying ? (
+        <>
+          <CombatHud
+            mode="story"
+            playerHealth={combatHud?.playerHealth}
+            playerMana={combatHud?.playerMana}
+            playerStamina={combatHud?.playerStamina}
+            skillBar={combatHud?.skillBar}
+            subtitle={`Power ${level.recommendedPower}`}
+            title={level.title}
+          />
+          <ExplorationHud playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
+          <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
+            Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace.
+          </div>
+        </>
+      ) : null}
       {activeDialogue && !completion ? (
         <KingdomDialogueBox
           name={activeDialogue.speaker ?? beatLabel(activeDialogue.kind)}
