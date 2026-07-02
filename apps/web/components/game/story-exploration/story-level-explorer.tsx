@@ -374,7 +374,10 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
             playerHealth={combatHud?.playerHealth}
             playerMana={combatHud?.playerMana}
             playerStamina={combatHud?.playerStamina}
-            skillBar={combatHud?.skillBar}
+            // The dialogue box takes the same bottom-4 strip and already
+            // blocks input while open — drop the skill bar instead of
+            // letting it render on top of the dialogue text.
+            skillBar={activeDialogue ? undefined : combatHud?.skillBar}
             subtitle={`Power ${level.recommendedPower}`}
             title={level.title}
           />

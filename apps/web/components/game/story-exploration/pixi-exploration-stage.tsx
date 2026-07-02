@@ -487,9 +487,11 @@ function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
   const hpBar = new PIXI.Graphics();
   const baseScale = figureScaleFor(enemy.radius * 3.2);
 
+  // Figures are drawn feet-at-0 (see geometric-figure.ts) — leave body at the
+  // container origin so the fixed-offset HP bar below actually clears the
+  // head, and drop the shadow only a hair below the feet for ground contact.
   body.scale.set(baseScale);
-  body.position.y = enemy.radius * 0.48;
-  shadow.position.set(0, enemy.radius * 0.48);
+  shadow.position.set(0, 4);
   container.addChild(shadow);
   container.addChild(body);
   container.addChild(hpBar);
@@ -555,12 +557,15 @@ function renderEnemy(enemy: ActiveEnemy) {
   enemy.shadow.alpha = enemy.state === "dead" ? 0.16 : 0.45;
 
   const barWidth = enemy.radius * 2.3;
+  // Figure top sits at -(radius * 3.2) in this same container space (see
+  // createEnemyGraphics) — clear it with a small margin above the head.
+  const barY = -enemy.radius * 3.2 - 14;
   const hpRatio = enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0;
   enemy.hpBar.clear();
   if (enemy.state !== "dead") {
-    enemy.hpBar.rect(-barWidth / 2, -enemy.radius - 14, barWidth, 5).fill({ color: BW.gray0, alpha: 0.92 });
-    enemy.hpBar.rect(-barWidth / 2, -enemy.radius - 14, barWidth, 5).stroke({ color: BW.gray2, width: 1 });
-    enemy.hpBar.rect(-barWidth / 2, -enemy.radius - 14, barWidth * hpRatio, 5).fill({
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth, 5).fill({ color: BW.gray0, alpha: 0.92 });
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth, 5).stroke({ color: BW.gray2, width: 1 });
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth * hpRatio, 5).fill({
       color: BW.white,
       alpha: 0.95,
     });
