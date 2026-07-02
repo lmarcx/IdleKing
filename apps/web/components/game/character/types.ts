@@ -72,15 +72,15 @@ export function getSlotIconPath(slotId: EquipmentSlotId) {
 export function getEquipmentRarityClass(rarity?: CharacterEquipmentRarity) {
   switch (rarity) {
     case "legendary":
-      return "border-orange-300/70 shadow-[0_0_14px_rgba(251,146,60,0.16)]";
+      return "border-white/80 shadow-[0_0_14px_rgba(242,242,242,0.30)]";
     case "epic":
-      return "border-violet-300/65 shadow-[0_0_14px_rgba(196,181,253,0.13)]";
+      return "border-[#f2f2f2]/65 shadow-[0_0_14px_rgba(242,242,242,0.18)]";
     case "rare":
-      return "border-sky-300/65 shadow-[0_0_14px_rgba(125,211,252,0.12)]";
+      return "border-[#c9c9c9]/65 shadow-[0_0_14px_rgba(242,242,242,0.12)]";
     case "uncommon":
-      return "border-emerald-300/60 shadow-[0_0_14px_rgba(110,231,183,0.10)]";
+      return "border-[#9a9a9a]/60 shadow-[0_0_14px_rgba(242,242,242,0.08)]";
     case "common":
-      return "border-slate-300/45";
+      return "border-[#6a6a6a]/45";
     default:
       return "border-border/70";
   }

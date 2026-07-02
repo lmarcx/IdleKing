@@ -151,7 +151,7 @@ function InventoryItemTooltip({ anchorRect, item }: { anchorRect: DOMRect | null
   return createPortal(
     <div
       ref={tooltipRef}
-      className="pointer-events-none fixed z-[1000] w-48 rounded-md border border-amber-300/30 bg-[#090d10]/95 p-3 text-left shadow-[0_0_18px_rgba(56,189,248,0.12)] backdrop-blur-sm"
+      className="pointer-events-none fixed z-[1000] w-48 rounded-md border border-amber-300/30 bg-[#0a0a0a]/95 p-3 text-left shadow-[0_0_18px_rgba(242,242,242,0.12)] backdrop-blur-sm"
       style={position}
     >
       <div className="font-ik-title text-sm font-semibold text-foreground">{item.name}</div>
@@ -215,7 +215,7 @@ function InventorySlot({ item }: { item: InventoryDisplayItem }) {
     <button
       ref={slotRef}
       aria-label={`${item.name}, ${item.category}, quantite ${item.quantity}`}
-      className="relative aspect-square min-h-14 appearance-none rounded-lg border border-border/70 bg-muted/25 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:border-amber-300/45 hover:bg-muted/35 hover:shadow-[0_0_16px_rgba(201,166,84,0.12),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:border-amber-300/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35"
+      className="relative aspect-square min-h-14 appearance-none rounded-lg border border-border/70 bg-muted/25 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:border-amber-300/45 hover:bg-muted/35 hover:shadow-[0_0_16px_rgba(242,242,242,0.12),inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:border-amber-300/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35"
       onBlur={() => setAnchorRect(null)}
       onFocus={updateAnchorRect}
       onMouseEnter={updateAnchorRect}

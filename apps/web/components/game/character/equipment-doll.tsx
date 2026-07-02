@@ -54,7 +54,7 @@ export function EquipmentDoll({
             </div>
             <img
               alt="Roi dark fantasy"
-              className="mt-10 h-[min(64vw,300px)] max-h-[300px] w-full max-w-[210px] object-contain drop-shadow-[0_0_14px_rgba(201,166,84,0.12)]"
+              className="mt-10 h-[min(64vw,300px)] max-h-[300px] w-full max-w-[210px] object-contain drop-shadow-[0_0_14px_rgba(242,242,242,0.12)]"
               src="/assets/character/character-placeholder.svg"
             />
           </div>

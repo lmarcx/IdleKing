@@ -31,7 +31,7 @@ export function ResourceGainPopup({ onDone, popup }: ResourceGainPopupProps) {
         x: popup.xOffset,
         y: popup.yOffset,
       }}
-      className="absolute left-1/2 top-1/2 flex items-center gap-2 rounded-full border border-amber-200/30 bg-[#0b0f14]/85 px-4 py-2 font-ik-title text-lg font-semibold text-amber-100 shadow-[0_0_28px_rgba(201,166,84,0.26)] backdrop-blur-sm"
+      className="absolute left-1/2 top-1/2 flex items-center gap-2 rounded-full border border-amber-200/30 bg-[#0a0a0a]/85 px-4 py-2 font-ik-title text-lg font-semibold text-amber-100 shadow-[0_0_28px_rgba(242,242,242,0.22)] backdrop-blur-sm"
       data-testid="resource-gain-popup"
       exit={{
         opacity: 0,
@@ -54,7 +54,7 @@ export function ResourceGainPopup({ onDone, popup }: ResourceGainPopupProps) {
       <span className="tabular-nums">+{popup.amount}</span>
       <img
         alt={`Icône ${popup.resourceId}`}
-        className="h-7 w-7 object-contain drop-shadow-[0_0_8px_rgba(255,224,145,0.28)]"
+        className="h-7 w-7 object-contain drop-shadow-[0_0_8px_rgba(242,242,242,0.28)]"
         draggable={false}
         onError={handleIconError}
         src={getResourceAssetPath(popup.resourceId)}

@@ -76,7 +76,7 @@ export function EquipmentTooltip({
 
   return createPortal(
     <div
-      className="fixed z-[1000] w-64 rounded-md border border-amber-300/30 bg-[#090d10]/95 p-3 text-left shadow-[0_0_22px_rgba(56,189,248,0.14)] backdrop-blur-sm"
+      className="fixed z-[1000] w-64 rounded-md border border-amber-300/30 bg-[#0a0a0a]/95 p-3 text-left shadow-[0_0_22px_rgba(242,242,242,0.14)] backdrop-blur-sm"
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       ref={tooltipRef}

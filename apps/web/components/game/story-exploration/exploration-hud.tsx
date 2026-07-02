@@ -46,7 +46,7 @@ export function ExplorationHud({ level, playerPosition, pointsOfInterest }: Expl
                 aria-hidden="true"
                 className={
                   point.discovered
-                    ? "h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.55)]"
+                    ? "h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(242,242,242,0.55)]"
                     : "h-2 w-2 rounded-full border border-amber-200/35 bg-black"
                 }
               />

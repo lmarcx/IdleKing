@@ -49,8 +49,8 @@ function HudBar({ label, value, max, tint }: { label: string; max: number; tint:
           {value}/{max}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full border border-amber-200/16 bg-black/55">
-        <div className={`h-full rounded-full ${tint}`} style={{ width: `${percent}%` }} />
+      <div className="h-1.5 overflow-hidden border border-foreground/25 bg-black/55">
+        <div className={`h-full ${tint}`} style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
@@ -74,10 +74,10 @@ export function CombatResourceBars({
 
   return (
     <div className="flex flex-wrap items-center gap-2.5">
-      <HudBar label="HP" max={health.max} value={health.current} tint="bg-red-400" />
-      {energy ? <HudBar label="Energy" max={energy.max} value={energy.current} tint="bg-cyan-300" /> : null}
-      {mana ? <HudBar label="Mana" max={mana.max} value={mana.current} tint="bg-blue-300" /> : null}
-      {stamina ? <HudBar label="Stamina" max={stamina.max} value={stamina.current} tint="bg-emerald-300" /> : null}
+      <HudBar label="HP" max={health.max} value={health.current} tint="bg-foreground" />
+      {energy ? <HudBar label="Energy" max={energy.max} value={energy.current} tint="bg-neutral-300" /> : null}
+      {mana ? <HudBar label="Mana" max={mana.max} value={mana.current} tint="bg-neutral-400" /> : null}
+      {stamina ? <HudBar label="Stamina" max={stamina.max} value={stamina.current} tint="bg-neutral-500" /> : null}
     </div>
   );
 }
@@ -175,8 +175,8 @@ export function GameHud({
           playerStamina={playerStamina}
         />
         <div className="flex flex-wrap items-center gap-2.5">
-          <HudBar label="World EN" max={worldEnergy.max} value={worldEnergy.current} tint="bg-emerald-300" />
-          <HudBar label="World HP" max={worldHp.max} value={worldHp.current} tint="bg-violet-300" />
+          <HudBar label="World EN" max={worldEnergy.max} value={worldEnergy.current} tint="bg-neutral-400" />
+          <HudBar label="World HP" max={worldHp.max} value={worldHp.current} tint="bg-neutral-500" />
         </div>
       </div>
 

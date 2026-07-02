@@ -1728,7 +1728,7 @@ export function KingdomHubStage() {
       </div>
 
       {nearbyInteractableId ? (
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-20 rounded-md border border-amber-200/45 bg-black/70 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-50 shadow-[0_0_24px_rgba(240,194,106,0.16)]">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-20 rounded-md border border-amber-200/45 bg-black/70 px-4 py-2 font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-50 shadow-[0_0_24px_rgba(242,242,242,0.14)]">
           Press F
         </div>
       ) : null}
@@ -1947,7 +1947,7 @@ export function KingdomHubStage() {
                     <button
                       className={`flex w-full items-center gap-3 rounded px-3 py-2 text-left transition ${
                         isSelected
-                          ? "border border-amber-200/55 bg-amber-500/18 text-amber-50 shadow-[0_0_18px_rgba(240,194,106,0.12)]"
+                          ? "border border-amber-200/55 bg-amber-500/18 text-amber-50 shadow-[0_0_18px_rgba(242,242,242,0.12)]"
                           : "border border-transparent text-muted-foreground hover:border-amber-200/20 hover:bg-amber-500/8 hover:text-amber-50"
                       }`}
                       key={resourceId}

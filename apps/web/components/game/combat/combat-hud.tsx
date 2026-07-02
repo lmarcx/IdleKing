@@ -93,11 +93,8 @@ export function CombatHud({
               {Math.max(0, Math.ceil(bossHealth.current))}/{bossHealth.max}
             </span>
           </div>
-          <div className="mt-3 h-3 overflow-hidden rounded-full border border-red-200/24 bg-black/55">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-red-700 via-red-500 to-amber-300"
-              style={{ width: `${healthPercent(bossHealth)}%` }}
-            />
+          <div className="mt-3 h-3 overflow-hidden border border-foreground/40 bg-black/55">
+            <div className="h-full bg-foreground" style={{ width: `${healthPercent(bossHealth)}%` }} />
           </div>
         </div>
       ) : null}

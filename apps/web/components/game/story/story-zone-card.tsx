@@ -11,10 +11,10 @@ type StoryZoneCardProps = {
 };
 
 const toneClasses = {
-  ember: "hover:border-amber-300/65 hover:shadow-[0_0_24px_rgba(217,119,6,0.18)]",
-  frost: "hover:border-cyan-200/60 hover:shadow-[0_0_24px_rgba(34,211,238,0.15)]",
-  void: "hover:border-violet-300/60 hover:shadow-[0_0_24px_rgba(168,85,247,0.16)]",
-  gold: "hover:border-yellow-200/60 hover:shadow-[0_0_24px_rgba(234,179,8,0.15)]",
+  ember: "hover:border-amber-300/65 hover:shadow-[0_0_24px_rgba(242,242,242,0.16)]",
+  frost: "hover:border-cyan-200/60 hover:shadow-[0_0_24px_rgba(242,242,242,0.16)]",
+  void: "hover:border-violet-300/60 hover:shadow-[0_0_24px_rgba(242,242,242,0.16)]",
+  gold: "hover:border-yellow-200/60 hover:shadow-[0_0_24px_rgba(242,242,242,0.16)]",
 } as const;
 
 export function StoryZoneCard({ chapter, isSelected, onSelect }: StoryZoneCardProps) {
@@ -31,7 +31,7 @@ export function StoryZoneCard({ chapter, isSelected, onSelect }: StoryZoneCardPr
         "shadow-[inset_0_0_0_1px_rgba(255,255,255,0.035),0_12px_28px_rgba(0,0,0,0.32)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55",
         toneClasses[visual.tone],
-        isSelected && "border-amber-200/85 shadow-[0_0_24px_rgba(234,179,8,0.2),inset_0_0_0_1px_rgba(255,244,190,0.12)]",
+        isSelected && "border-amber-200/85 shadow-[0_0_24px_rgba(242,242,242,0.18),inset_0_0_0_1px_rgba(242,242,242,0.12)]",
         isLocked && "cursor-not-allowed border-zinc-500/25 opacity-55 grayscale",
         isCompleted && "border-emerald-300/45"
       )}

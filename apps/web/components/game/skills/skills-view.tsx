@@ -152,7 +152,7 @@ export function SkillsView() {
                   className={cn(
                     "rounded-lg border bg-black/35 p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/45",
                     isSelected
-                      ? "border-amber-200/70 shadow-[0_0_28px_rgba(240,194,106,0.14)]"
+                      ? "border-amber-200/70 shadow-[0_0_28px_rgba(242,242,242,0.14)]"
                       : "border-amber-200/18 hover:border-amber-200/45"
                   )}
                   data-testid={`skill-card-${skillId}`}

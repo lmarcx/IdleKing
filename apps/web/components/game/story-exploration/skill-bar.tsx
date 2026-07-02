@@ -25,15 +25,15 @@ type RingSkillSlot = {
 const SKILL_SLOTS: readonly SkillSlot[] = [1, 2, 3, 4, 5] as const;
 
 const ELEMENT_ICONS: Record<SkillElement, string> = {
-  dark: "radial-gradient(circle, rgba(191,145,255,0.96) 0 20%, rgba(42,20,77,0.82) 22% 58%, transparent 60%)",
-  electricity: "conic-gradient(from 210deg, transparent 0 20%, rgba(255,238,125,0.95) 21% 34%, rgba(100,220,255,0.82) 35% 47%, transparent 48%)",
-  fire: "radial-gradient(circle, rgba(255,225,130,0.96) 0 18%, rgba(255,87,42,0.82) 20% 48%, transparent 50%)",
-  ground: "radial-gradient(circle, rgba(195,160,104,0.96) 0 22%, rgba(85,63,31,0.82) 24% 54%, transparent 56%)",
-  ice: "linear-gradient(135deg, transparent 0 20%, rgba(190,244,255,0.94) 22% 48%, rgba(95,164,255,0.72) 50% 68%, transparent 70%)",
-  light: "radial-gradient(circle, rgba(255,248,190,0.98) 0 24%, rgba(240,194,106,0.72) 26% 52%, transparent 54%)",
-  neutral: "radial-gradient(circle, rgba(232,226,212,0.92) 0 18%, rgba(127,139,158,0.62) 20% 48%, transparent 50%)",
-  water: "radial-gradient(circle, rgba(125,225,255,0.96) 0 18%, rgba(28,103,184,0.76) 20% 52%, transparent 54%)",
-  wind: "conic-gradient(from 260deg, transparent 0 18%, rgba(170,255,210,0.92) 20% 36%, rgba(84,201,164,0.62) 38% 52%, transparent 54%)",
+  dark: "radial-gradient(circle, rgba(106,106,106,0.96) 0 20%, rgba(26,26,26,0.82) 22% 58%, transparent 60%)",
+  electricity: "conic-gradient(from 210deg, transparent 0 20%, rgba(242,242,242,0.95) 21% 34%, rgba(154,154,154,0.82) 35% 47%, transparent 48%)",
+  fire: "radial-gradient(circle, rgba(242,242,242,0.96) 0 18%, rgba(106,106,106,0.82) 20% 48%, transparent 50%)",
+  ground: "radial-gradient(circle, rgba(154,154,154,0.96) 0 22%, rgba(58,58,58,0.82) 24% 54%, transparent 56%)",
+  ice: "linear-gradient(135deg, transparent 0 20%, rgba(242,242,242,0.94) 22% 48%, rgba(154,154,154,0.72) 50% 68%, transparent 70%)",
+  light: "radial-gradient(circle, rgba(242,242,242,0.98) 0 24%, rgba(201,201,201,0.72) 26% 52%, transparent 54%)",
+  neutral: "radial-gradient(circle, rgba(201,201,201,0.92) 0 18%, rgba(106,106,106,0.62) 20% 48%, transparent 50%)",
+  water: "radial-gradient(circle, rgba(201,201,201,0.96) 0 18%, rgba(58,58,58,0.76) 20% 52%, transparent 54%)",
+  wind: "conic-gradient(from 260deg, transparent 0 18%, rgba(201,201,201,0.92) 20% 36%, rgba(106,106,106,0.62) 38% 52%, transparent 54%)",
 };
 
 function formatSeconds(seconds: number): string {
