@@ -49,7 +49,10 @@ import {
   type ResourceId,
   type TempleXpTarget,
 } from "@idleking/game-core";
+import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
+import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
+import { BUILDING_SIZES, createBuildingGraphics, type HubBuildingKind } from "./geometric-buildings";
 import { BankView } from "./bank-view";
 import { MarketView } from "./market-view";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
@@ -64,21 +67,6 @@ const SHOW_HUB_COLLIDER_DEBUG = false;
 const CAMERA_ZOOM = 1.45;
 const MAP_WALK_BOUNDS = { height: 1152, width: 1752, x: 24, y: 24 } as const;
 const PLAYER_START_POSITION = { x: 900, y: 640 } as const;
-const AGENT_SPRITE_FORGE_MANIFEST_PATH = "/assets/kingdom/agent-sprite-forge/manifest.json";
-const HUB_ASSETS = {
-  billy: "/assets/kingdom-hub/npc_billy.png",
-  cornucopia: "/assets/kingdom-hub/cornucopia_magical.png",
-  farm: "/assets/kingdom-hub/building_farm.png",
-  forge: "/assets/kingdom-hub/building_forge.png",
-  forum: "/assets/kingdom-hub/building_forum.png",
-  kitchen: "/assets/kingdom-hub/building_kitchen.png",
-  mine: "/assets/kingdom-hub/building_mine.png",
-  npcVillager: "/assets/kingdom-hub/npc_villager.png",
-  player: "/assets/exploration/player_king.png",
-  softGlow: "/assets/kingdom-hub/fx_soft_glow_aura.png",
-  sparkle: "/assets/kingdom-hub/fx_sparkle_particles.png",
-  temple: "/assets/kingdom-hub/building_temple.png",
-} as const;
 const KINGDOM_HUB_LAYOUT = {
   centralPlaza: { x: 900, y: 600 },
   eastNortheastPlaza: { x: 1416, y: 338 },
@@ -97,15 +85,6 @@ const BANK_POSITION = { x: KINGDOM_HUB_LAYOUT.eastNortheastPlaza.x, y: KINGDOM_H
 const MARKET_POSITION = { x: KINGDOM_HUB_LAYOUT.southwestPlaza.x, y: KINGDOM_HUB_LAYOUT.southwestPlaza.y + 14 };
 const CORNUCOPIA_POSITION = { x: KINGDOM_HUB_LAYOUT.centralPlaza.x + 112, y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 20 };
 const PORTAL_POSITION = { x: KINGDOM_HUB_LAYOUT.centralPlaza.x - 128, y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 22 };
-const HUB_DISPLAY_HEIGHTS = {
-  cornucopia: 134,
-  farm: 226,
-  forge: 222,
-  forum: 292,
-  kitchen: 208,
-  mine: 220,
-  temple: 248,
-} as const;
 const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
@@ -159,23 +138,19 @@ type PlaceholderBuildingStatus = {
 const PLACEHOLDER_BUILDINGS: Record<
   PlaceholderBuildingId,
   {
-    asset: string;
     label: string;
     position: Vector2;
   }
 > = {
   forum: {
-    asset: HUB_ASSETS.forum,
     label: "Forum",
     position: FORUM_POSITION,
   },
   kitchen: {
-    asset: HUB_ASSETS.kitchen,
     label: "Kitchen",
     position: KITCHEN_POSITION,
   },
   mine: {
-    asset: HUB_ASSETS.mine,
     label: "Mine",
     position: MINE_POSITION,
   },
@@ -224,266 +199,14 @@ type HubCollider = {
   y: number;
 };
 
-type AgentSpriteForgePropDefinition = {
-  id: string;
-  image: string;
-};
-
-type AgentSpriteForgePropPlacement = {
-  id: string;
-  layer: "decor" | "ground";
-  propId: string;
-  scale: number;
-  x: number;
-  y: number;
-};
-
-type AgentSpriteForgeMetadata = {
-  background: string;
-  colliders: HubCollider[];
-  placements: AgentSpriteForgePropPlacement[];
-  props: AgentSpriteForgePropDefinition[];
-};
-
-type LoadedTextureAssets = Record<string, PIXI.Texture>;
-
-type HubTextures = {
-  agentSpriteForgeBackground: PIXI.Texture;
-  agentSpriteForgeProps: Map<string, PIXI.Texture>;
-  billy: PIXI.Texture;
-  cornucopia: PIXI.Texture;
-  farm: PIXI.Texture;
-  forge: PIXI.Texture;
-  forum: PIXI.Texture;
-  kitchen: PIXI.Texture;
-  mine: PIXI.Texture;
-  npcVillager: PIXI.Texture;
-  player: PIXI.Texture;
-  softGlow: PIXI.Texture;
-  sparkle: PIXI.Texture;
-  temple: PIXI.Texture;
-};
-
-function getHubAssetPaths(agentSpriteForge: AgentSpriteForgeMetadata): string[] {
-  const coreAssets = Object.values(HUB_ASSETS);
-  return [...coreAssets, agentSpriteForge.background, ...agentSpriteForge.props.map((prop) => prop.image)];
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function isPixiTexture(value: unknown): value is PIXI.Texture {
-  return value instanceof PIXI.Texture;
-}
-
-function getLoadedTexture(loadedAssets: LoadedTextureAssets | null | undefined, assetPath: string): PIXI.Texture | undefined {
-  const asset = loadedAssets?.[assetPath];
-  return isPixiTexture(asset) ? asset : undefined;
-}
-
-function getRequiredLoadedTexture(loadedAssets: LoadedTextureAssets, assetPath: string): PIXI.Texture {
-  const texture = getLoadedTexture(loadedAssets, assetPath);
-  if (!texture) {
-    throw new Error(`Kingdom hub asset did not load: ${assetPath}`);
-  }
-
-  return texture;
-}
-
-function assertAgentSpriteForgeTexturesLoaded(
-  agentSpriteForge: AgentSpriteForgeMetadata,
-  loadedAssets: LoadedTextureAssets,
-) {
-  const missingAssets = [agentSpriteForge.background, ...agentSpriteForge.props.map((prop) => prop.image)].filter(
-    (assetPath) => !getLoadedTexture(loadedAssets, assetPath),
-  );
-
-  if (missingAssets.length > 0) {
-    throw new Error(`Agent Sprite Forge assets did not load: ${missingAssets.join(", ")}`);
-  }
-}
-
-function normalizeAgentSpriteForgeCollision(collisionManifest: unknown): HubCollider[] {
-  if (
-    typeof collisionManifest !== "object" ||
-    collisionManifest === null ||
-    !("blockers" in collisionManifest) ||
-    !Array.isArray(collisionManifest.blockers)
-  ) {
-    throw new Error("Agent Sprite Forge collision manifest has an invalid shape.");
-  }
-
-  return collisionManifest.blockers.map((blocker) => {
-    if (
-      typeof blocker !== "object" ||
-      blocker === null ||
-      !("id" in blocker) ||
-      typeof blocker.id !== "string" ||
-      !("x" in blocker) ||
-      !isFiniteNumber(blocker.x) ||
-      !("y" in blocker) ||
-      !isFiniteNumber(blocker.y) ||
-      !("width" in blocker) ||
-      !isFiniteNumber(blocker.width) ||
-      !("height" in blocker) ||
-      !isFiniteNumber(blocker.height)
-    ) {
-      throw new Error("Agent Sprite Forge collision blocker has an invalid shape.");
-    }
-
-    return {
-      height: blocker.height,
-      id: `agent-sprite-forge:${blocker.id}`,
-      width: blocker.width,
-      x: blocker.x,
-      y: blocker.y,
-    };
-  });
-}
-
-function normalizeAgentSpriteForgeMetadata(
-  manifest: unknown,
-  propsManifest: unknown,
-  collisionManifest: unknown,
-): AgentSpriteForgeMetadata {
-  const background =
-    typeof manifest === "object" &&
-    manifest !== null &&
-    "assets" in manifest &&
-    typeof manifest.assets === "object" &&
-    manifest.assets !== null &&
-    "groundBackgroundLayer" in manifest.assets &&
-    typeof manifest.assets.groundBackgroundLayer === "string"
-      ? manifest.assets.groundBackgroundLayer
-      : null;
-
-  if (!background) {
-    throw new Error("Agent Sprite Forge manifest is missing assets.groundBackgroundLayer.");
-  }
-
-  if (
-    typeof propsManifest !== "object" ||
-    propsManifest === null ||
-    !("props" in propsManifest) ||
-    !Array.isArray(propsManifest.props) ||
-    !("placements" in propsManifest) ||
-    !Array.isArray(propsManifest.placements)
-  ) {
-    throw new Error("Agent Sprite Forge props manifest has an invalid shape.");
-  }
-
-  const props = propsManifest.props.map((prop) => {
-    if (
-      typeof prop !== "object" ||
-      prop === null ||
-      !("id" in prop) ||
-      typeof prop.id !== "string" ||
-      !("image" in prop) ||
-      typeof prop.image !== "string"
-    ) {
-      throw new Error("Agent Sprite Forge prop entry has an invalid shape.");
-    }
-
-    return {
-      id: prop.id,
-      image: prop.image,
-    };
-  });
-
-  const propIds = new Set(props.map((prop) => prop.id));
-  const placements = propsManifest.placements.map((placement) => {
-    if (
-      typeof placement !== "object" ||
-      placement === null ||
-      !("id" in placement) ||
-      typeof placement.id !== "string" ||
-      !("propId" in placement) ||
-      typeof placement.propId !== "string" ||
-      !propIds.has(placement.propId) ||
-      !("x" in placement) ||
-      !isFiniteNumber(placement.x) ||
-      !("y" in placement) ||
-      !isFiniteNumber(placement.y) ||
-      !("scale" in placement) ||
-      !isFiniteNumber(placement.scale)
-    ) {
-      throw new Error("Agent Sprite Forge prop placement has an invalid shape.");
-    }
-
-    const layer: AgentSpriteForgePropPlacement["layer"] = placement.layer === "ground" ? "ground" : "decor";
-
-    return {
-      id: placement.id,
-      layer,
-      propId: placement.propId,
-      scale: placement.scale,
-      x: placement.x,
-      y: placement.y,
-    };
-  });
-
-  return { background, colliders: normalizeAgentSpriteForgeCollision(collisionManifest), placements, props };
-}
-
-async function fetchJson(path: string): Promise<unknown> {
-  const response = await fetch(path, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Failed to load ${path}: ${response.status}`);
-  }
-
-  return response.json();
-}
-
-async function loadAgentSpriteForgeMetadata(): Promise<AgentSpriteForgeMetadata> {
-  const manifest = await fetchJson(AGENT_SPRITE_FORGE_MANIFEST_PATH);
-  const propsManifestPath =
-    typeof manifest === "object" &&
-    manifest !== null &&
-    "assets" in manifest &&
-    typeof manifest.assets === "object" &&
-    manifest.assets !== null &&
-    "propsManifest" in manifest.assets &&
-    typeof manifest.assets.propsManifest === "string"
-      ? manifest.assets.propsManifest
-      : null;
-  const collisionManifestPath =
-    typeof manifest === "object" &&
-    manifest !== null &&
-    "assets" in manifest &&
-    typeof manifest.assets === "object" &&
-    manifest.assets !== null &&
-    "collision" in manifest.assets &&
-    typeof manifest.assets.collision === "string"
-      ? manifest.assets.collision
-      : null;
-
-  if (!propsManifestPath) {
-    throw new Error("Agent Sprite Forge manifest is missing assets.propsManifest.");
-  }
-
-  if (!collisionManifestPath) {
-    throw new Error("Agent Sprite Forge manifest is missing assets.collision.");
-  }
-
-  const [propsManifest, collisionManifest] = await Promise.all([
-    fetchJson(propsManifestPath),
-    fetchJson(collisionManifestPath),
-  ]);
-  return normalizeAgentSpriteForgeMetadata(manifest, propsManifest, collisionManifest);
-}
-
 type HubSpriteOptions = {
-  displayHeight: number;
-  glowHeight?: number;
-  glowTint?: number;
+  /** Pre-sized drawn visual with its ground anchor at (0, 0). */
+  content: PIXI.Container;
   hintOffsetY?: number;
-  important?: boolean;
   position: Vector2;
   shadowAlpha?: number;
   shadowHeight?: number;
   shadowWidth?: number;
-  texture: PIXI.Texture;
 };
 
 const KEY_DIRECTIONS: Record<string, Vector2> = {
@@ -522,38 +245,25 @@ function isInteractionKey(event: KeyboardEvent): boolean {
   return event.code === "KeyF";
 }
 
-function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
-  const textureHeight = Math.max(sprite.texture.height, 1);
-  const scale = height / textureHeight;
-  sprite.scale.set(scale);
-  return scale;
-}
-
-function getTextureDisplayWidth(texture: PIXI.Texture, displayHeight: number): number {
-  return (Math.max(texture.width, 1) / Math.max(texture.height, 1)) * displayHeight;
-}
-
 function createGroundCollider({
-  displayHeight,
+  building,
   heightRatio = 0.32,
   id,
   offsetY,
   position,
-  texture,
   widthRatio = 0.68,
 }: {
-  displayHeight: number;
+  building: HubBuildingKind;
   heightRatio?: number;
   id: string;
   offsetY?: number;
   position: Vector2;
-  texture: PIXI.Texture;
   widthRatio?: number;
 }): HubCollider {
-  const displayWidth = getTextureDisplayWidth(texture, displayHeight);
-  const width = displayWidth * widthRatio;
-  const height = displayHeight * heightRatio;
-  const centerY = position.y + (offsetY ?? displayHeight * 0.08);
+  const size = BUILDING_SIZES[building];
+  const width = size.width * widthRatio;
+  const height = size.height * heightRatio;
+  const centerY = position.y + (offsetY ?? size.height * 0.08);
 
   return {
     height,
@@ -582,8 +292,8 @@ function drawColliderDebug(colliders: HubCollider[]): PIXI.Container {
     const rect = new PIXI.Graphics();
     rect
       .rect(collider.x, collider.y, collider.width, collider.height)
-      .fill({ alpha: 0.08, color: 0x83f7ff })
-      .stroke({ alpha: 0.38, color: 0x83f7ff, width: 1 });
+      .fill({ alpha: 0.06, color: BW.white })
+      .stroke({ alpha: 0.4, color: BW.white, width: 1 });
     layer.addChild(rect);
   }
 
@@ -592,28 +302,18 @@ function drawColliderDebug(colliders: HubCollider[]): PIXI.Container {
 
 function createHubShadow(width: number, height: number, alpha = 0.4): PIXI.Graphics {
   const shadow = new PIXI.Graphics();
-  shadow.ellipse(0, 0, width, height).fill({ color: 0x010208, alpha });
+  shadow.ellipse(0, 0, width, height).fill({ color: BW.gray1, alpha });
   return shadow;
-}
-
-function createGlowSprite(texture: PIXI.Texture, height: number, tint = 0xffffff, alpha = 0.34): PIXI.Sprite {
-  const glow = new PIXI.Sprite(texture);
-  glow.anchor.set(0.5);
-  glow.alpha = alpha;
-  glow.tint = tint;
-  glow.roundPixels = true;
-  setSpriteDisplayHeight(glow, height);
-  return glow;
 }
 
 function createInteractionHint(offsetY = -100): PIXI.Text {
   const hint = new PIXI.Text({
     style: {
-      fill: 0xfff0b8,
-      fontFamily: "Arial",
+      fill: BW.white,
+      fontFamily: "monospace",
       fontSize: 13,
       fontWeight: "700",
-      stroke: { color: 0x100805, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
     text: "Press F",
   });
@@ -624,100 +324,45 @@ function createInteractionHint(offsetY = -100): PIXI.Text {
   return hint;
 }
 
-function getHubTextures(agentSpriteForge: AgentSpriteForgeMetadata, loadedAssets: LoadedTextureAssets): HubTextures {
-  const agentSpriteForgeProps = new Map<string, PIXI.Texture>();
-  for (const prop of agentSpriteForge.props) {
-    agentSpriteForgeProps.set(prop.id, getRequiredLoadedTexture(loadedAssets, prop.image));
+function drawWorld(container: PIXI.Container) {
+  const ground = new PIXI.Graphics();
+  drawGroundGrid(ground, MAP_WIDTH, MAP_HEIGHT);
+
+  // Plaza markers: one ring per layout anchor, larger for the central plaza.
+  for (const [key, plaza] of Object.entries(KINGDOM_HUB_LAYOUT)) {
+    const isCentral = key === "centralPlaza";
+    ground.circle(plaza.x, plaza.y, isCentral ? 190 : 120).stroke({ color: BW.gray1, alpha: 0.9, width: 2 });
+    ground.circle(plaza.x, plaza.y, isCentral ? 160 : 96).stroke({ color: BW.gray0, alpha: 0.9, width: 1 });
   }
 
-  return {
-    agentSpriteForgeBackground: getRequiredLoadedTexture(loadedAssets, agentSpriteForge.background),
-    agentSpriteForgeProps,
-    billy: PIXI.Texture.from(HUB_ASSETS.billy),
-    cornucopia: PIXI.Texture.from(HUB_ASSETS.cornucopia),
-    farm: PIXI.Texture.from(HUB_ASSETS.farm),
-    forge: PIXI.Texture.from(HUB_ASSETS.forge),
-    forum: PIXI.Texture.from(HUB_ASSETS.forum),
-    kitchen: PIXI.Texture.from(HUB_ASSETS.kitchen),
-    mine: PIXI.Texture.from(HUB_ASSETS.mine),
-    npcVillager: PIXI.Texture.from(HUB_ASSETS.npcVillager),
-    player: PIXI.Texture.from(HUB_ASSETS.player),
-    softGlow: PIXI.Texture.from(HUB_ASSETS.softGlow),
-    sparkle: PIXI.Texture.from(HUB_ASSETS.sparkle),
-    temple: PIXI.Texture.from(HUB_ASSETS.temple),
-  };
+  container.addChild(ground);
 }
-
-function drawWorld(container: PIXI.Container, textures: HubTextures) {
-  const fallback = new PIXI.Graphics();
-  fallback.rect(0, 0, MAP_WIDTH, MAP_HEIGHT).fill(0x050711);
-
-  const generatedBackground = new PIXI.Sprite(textures.agentSpriteForgeBackground);
-  generatedBackground.width = MAP_WIDTH;
-  generatedBackground.height = MAP_HEIGHT;
-  generatedBackground.roundPixels = true;
-  container.addChild(fallback, generatedBackground);
-}
-
-function drawAgentSpriteForgeProps(
-  container: PIXI.Container,
-  textures: HubTextures,
-  agentSpriteForge: AgentSpriteForgeMetadata,
-) {
-  for (const placement of agentSpriteForge.placements) {
-    const texture = textures.agentSpriteForgeProps.get(placement.propId);
-    if (!texture) continue;
-
-    const prop = new PIXI.Sprite(texture);
-    prop.anchor.set(0.5, placement.layer === "ground" ? 0.68 : 0.78);
-    prop.roundPixels = true;
-    prop.scale.set(placement.scale);
-    prop.position.set(placement.x, placement.y);
-    prop.zIndex = placement.layer === "ground" ? placement.y - 120 : placement.y - 1;
-    container.addChild(prop);
-  }
-}
-
 
 function createHubSprite({
-  displayHeight,
-  glowTexture,
-  glowHeight,
-  glowTint = 0xffffff,
+  content,
   hintOffsetY,
-  important = false,
   position,
   shadowAlpha = 0.42,
   shadowHeight = 16,
   shadowWidth = 44,
-  texture,
-}: HubSpriteOptions & { glowTexture?: PIXI.Texture }): PoiVisual & { sprite: PIXI.Sprite } {
+}: HubSpriteOptions): PoiVisual & { sprite: PIXI.Container } {
   const container = new PIXI.Container();
-  const glow = glowHeight && glowTexture ? createGlowSprite(glowTexture, glowHeight, glowTint, important ? 0.34 : 0.22) : null;
   const shadow = createHubShadow(shadowWidth, shadowHeight, shadowAlpha);
-  const sprite = new PIXI.Sprite(texture);
   const hint = hintOffsetY === undefined ? null : createInteractionHint(hintOffsetY);
+  const baseScaleX = content.scale.x;
+  const baseScaleY = content.scale.y;
   let isNear = false;
 
   shadow.position.set(0, 18);
-  sprite.anchor.set(0.5, 0.78);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, displayHeight);
-  const baseGlowScale = glow?.scale.x ?? 1;
-  if (glow) {
-    glow.anchor.set(0.5, 0.72);
-    glow.blendMode = "add";
-  }
 
-  if (glow) container.addChild(glow);
-  container.addChild(shadow, sprite);
+  container.addChild(shadow, content);
   if (hint) container.addChild(hint);
   container.position.set(position.x, position.y);
   container.zIndex = position.y;
 
   return {
     container,
-    sprite,
+    sprite: content,
     setNear: (near: boolean) => {
       isNear = near;
       if (hint) {
@@ -725,13 +370,10 @@ function createHubSprite({
       }
     },
     update: (elapsedSeconds: number) => {
+      void elapsedSeconds;
       const hover = isNear ? 1.07 : 1;
-      sprite.scale.set(baseScale * hover);
+      content.scale.set(baseScaleX * hover, baseScaleY * hover);
       shadow.scale.set(isNear ? 1.04 : 1, 1);
-      if (glow) {
-        glow.alpha = (isNear ? 0.5 : important ? 0.22 : 0.14) + Math.sin(elapsedSeconds * 2.2) * 0.025;
-        glow.scale.set(baseGlowScale);
-      }
       if (hint) {
         hint.alpha = isNear ? 1 : 0;
       }
@@ -739,65 +381,67 @@ function createHubSprite({
   };
 }
 
-function createHubSpriteVisual(options: HubSpriteOptions & { glowTexture?: PIXI.Texture }): PoiVisual {
+function createHubSpriteVisual(options: HubSpriteOptions): PoiVisual {
   return createHubSprite(options);
+}
+
+/** NPC figure pre-scaled to a display height, ground anchor at (0, 0). */
+function createNpcContent(variant: Parameters<typeof createFigureGraphics>[0], displayHeight: number): PIXI.Graphics {
+  const figure = createFigureGraphics(variant);
+  figure.scale.set(figureScaleFor(displayHeight));
+  return figure;
 }
 
 function isBuiltVisualState(state: BuildingStatus) {
   return state === "built" || state === "upgradeable" || state === "maxed";
 }
 
-function renderFarmSlot(foundation: PIXI.Graphics, sprite: PIXI.Sprite, state: BuildingStatus) {
+function renderFarmSlot(foundation: PIXI.Graphics, building: PIXI.Graphics, state: BuildingStatus) {
   const isBuilt = isBuiltVisualState(state);
   foundation.clear();
-  foundation.roundRect(-86, -60, 172, 112, 8).fill({
-    alpha: isBuilt ? 0.12 : state === "unlocked" ? 0.22 : 0.12,
-    color: state === "locked" ? 0x111111 : 0x243c30,
+  foundation.rect(-86, -60, 172, 112).fill({
+    alpha: isBuilt ? 0.1 : state === "unlocked" ? 0.18 : 0.1,
+    color: BW.gray0,
   });
-  foundation.roundRect(-86, -60, 172, 112, 8).stroke({
-    alpha: isBuilt ? 0.34 : state === "unlocked" ? 0.58 : 0.3,
-    color: state === "locked" ? 0x5e5e5e : 0xf0c26a,
+  foundation.rect(-86, -60, 172, 112).stroke({
+    alpha: isBuilt ? 0.34 : state === "unlocked" ? 0.7 : 0.3,
+    color: state === "locked" ? BW.gray2 : BW.white,
     width: 2,
   });
-  sprite.alpha = isBuilt ? 1 : state === "unlocked" ? 0.78 : 0.42;
-  sprite.tint = state === "locked" ? 0x777777 : 0xffffff;
+  building.alpha = isBuilt ? 1 : state === "unlocked" ? 0.72 : 0.4;
+  building.tint = state === "locked" ? 0x777777 : 0xffffff;
 }
 
-function createFarmSlotVisual(textures: HubTextures, state: BuildingStatus) {
+function createFarmSlotVisual(state: BuildingStatus) {
+  const building = createBuildingGraphics("farm");
   const visual = createHubSprite({
-    displayHeight: HUB_DISPLAY_HEIGHTS.farm,
-    glowHeight: 154,
-    glowTexture: textures.softGlow,
-    glowTint: 0x9fdc76,
+    content: building,
     hintOffsetY: -134,
     position: FARM_SLOT,
     shadowAlpha: 0.45,
     shadowHeight: 24,
     shadowWidth: 104,
-    texture: textures.farm,
   });
   const foundation = new PIXI.Graphics();
   visual.container.addChildAt(foundation, 0);
-  renderFarmSlot(foundation, visual.sprite, state);
+  renderFarmSlot(foundation, building, state);
   return {
     container: visual.container,
-    render: (nextState: BuildingStatus) => renderFarmSlot(foundation, visual.sprite, nextState),
+    render: (nextState: BuildingStatus) => renderFarmSlot(foundation, building, nextState),
     setNear: visual.setNear,
     update: visual.update,
   };
 }
 
-function createBuildingSprite(options: HubSpriteOptions & { glowTexture?: PIXI.Texture }): PoiVisual {
+function createBuildingSprite(options: HubSpriteOptions): PoiVisual {
   return createHubSpriteVisual(options);
 }
 
 function createServiceBuildingVisual({
-  accent,
   label,
   position,
   variant,
 }: {
-  accent: number;
   label: string;
   position: Vector2;
   variant: "bank" | "market";
@@ -812,30 +456,30 @@ function createServiceBuildingVisual({
 
   if (variant === "bank") {
     const base = new PIXI.Graphics();
-    base.roundRect(-76, -78, 152, 118, 8).fill(0x182033).stroke({ color: accent, alpha: 0.7, width: 3 });
-    base.rect(-88, -86, 176, 20).fill(0x283247).stroke({ color: accent, alpha: 0.48, width: 2 });
-    base.rect(-48, -40, 96, 80).fill(0x111722).stroke({ color: 0x8392ad, alpha: 0.6, width: 2 });
-    base.circle(0, 0, 15).fill(0x0a0e15).stroke({ color: accent, alpha: 0.72, width: 3 });
-    base.rect(-62, -58, 24, 18).fill(0x24304a);
-    base.rect(38, -58, 24, 18).fill(0x24304a);
+    base.rect(-76, -78, 152, 118).fill(BW.gray0).stroke({ color: BW.white, width: 3 });
+    base.rect(-88, -86, 176, 20).fill(BW.gray1).stroke({ color: BW.gray4, width: 2 });
+    base.rect(-48, -40, 96, 80).fill(BW.black).stroke({ color: BW.gray3, width: 2 });
+    base.circle(0, 0, 15).fill(BW.black).stroke({ color: BW.white, width: 3 });
+    base.rect(-62, -58, 24, 18).fill(BW.gray1);
+    base.rect(38, -58, 24, 18).fill(BW.gray1);
     building.addChild(base);
   } else {
     const stall = new PIXI.Graphics();
-    stall.roundRect(-82, -56, 164, 96, 8).fill(0x241b16).stroke({ color: accent, alpha: 0.68, width: 3 });
-    stall.rect(-92, -86, 184, 32).fill(0x5c2530).stroke({ color: accent, alpha: 0.55, width: 2 });
+    stall.rect(-82, -56, 164, 96).fill(BW.gray0).stroke({ color: BW.white, width: 3 });
+    stall.rect(-92, -86, 184, 32).fill(BW.gray1).stroke({ color: BW.gray4, width: 2 });
     for (let index = 0; index < 5; index++) {
-      stall.rect(-88 + index * 36, -84, 30, 28).fill(index % 2 === 0 ? 0xf0c26a : 0x8f2d3b);
+      stall.rect(-88 + index * 36, -84, 30, 28).fill(index % 2 === 0 ? BW.gray4 : BW.gray1);
     }
-    stall.rect(-54, -30, 38, 70).fill(0x130f0c);
-    stall.rect(18, -20, 52, 34).fill(0x3b2a18).stroke({ color: 0xf0c26a, alpha: 0.42, width: 2 });
+    stall.rect(-54, -30, 38, 70).fill(BW.black);
+    stall.rect(18, -20, 52, 34).fill(BW.gray1).stroke({ color: BW.gray4, width: 2 });
     building.addChild(stall);
   }
 
   const sign = new PIXI.Text({
     text: label,
     style: {
-      fill: 0xfff3c4,
-      fontFamily: "serif",
+      fill: BW.white,
+      fontFamily: "monospace",
       fontSize: 18,
       fontWeight: "700",
     },
@@ -862,9 +506,8 @@ function createServiceBuildingVisual({
   };
 }
 
-function createPortalVisual(textures: HubTextures): PoiVisual {
+function createPortalVisual(): PoiVisual {
   const container = new PIXI.Container();
-  const glow = createGlowSprite(textures.softGlow, 190, 0x83f7ff, 0.24);
   const shadow = createHubShadow(86, 24, 0.46);
   const portal = new PIXI.Container();
   const base = new PIXI.Graphics();
@@ -874,18 +517,16 @@ function createPortalVisual(textures: HubTextures): PoiVisual {
   const hint = createInteractionHint(-88);
   let isNear = false;
 
-  glow.blendMode = "add";
-  glow.anchor.set(0.5, 0.58);
   shadow.position.set(0, 24);
-  base.ellipse(0, 24, 72, 31).fill({ color: 0x06151f, alpha: 0.9 });
-  base.ellipse(0, 24, 72, 31).stroke({ color: 0xf0c26a, alpha: 0.5, width: 3 });
-  outerRing.ellipse(0, 0, 54, 78).stroke({ color: 0x83f7ff, alpha: 0.76, width: 5 });
-  innerRing.ellipse(0, 0, 34, 55).stroke({ color: 0xb18cff, alpha: 0.72, width: 3 });
-  core.ellipse(0, 0, 24, 42).fill({ color: 0x15427d, alpha: 0.38 });
-  core.ellipse(0, 0, 18, 34).fill({ color: 0x83f7ff, alpha: 0.22 });
+  base.ellipse(0, 24, 72, 31).fill({ color: BW.gray0, alpha: 0.9 });
+  base.ellipse(0, 24, 72, 31).stroke({ color: BW.gray3, alpha: 0.8, width: 3 });
+  outerRing.ellipse(0, 0, 54, 78).stroke({ color: BW.white, alpha: 0.85, width: 5 });
+  innerRing.ellipse(0, 0, 34, 55).stroke({ color: BW.gray4, alpha: 0.72, width: 3 });
+  core.ellipse(0, 0, 24, 42).fill({ color: BW.gray1, alpha: 0.5 });
+  core.ellipse(0, 0, 18, 34).fill({ color: BW.gray2, alpha: 0.35 });
   portal.position.set(0, -22);
   portal.addChild(core, outerRing, innerRing);
-  container.addChild(glow, shadow, base, portal, hint);
+  container.addChild(shadow, base, portal, hint);
   container.position.set(PORTAL_POSITION.x, PORTAL_POSITION.y);
   container.zIndex = PORTAL_POSITION.y;
 
@@ -900,7 +541,6 @@ function createPortalVisual(textures: HubTextures): PoiVisual {
       portal.scale.set(isNear ? 1.08 : 1);
       outerRing.alpha = (isNear ? 0.95 : 0.72) + pulse;
       innerRing.alpha = (isNear ? 0.88 : 0.64) - pulse;
-      glow.alpha = (isNear ? 0.54 : 0.24) + Math.sin(elapsedSeconds * 2.1) * 0.035;
       hint.alpha = isNear ? 1 : 0;
     },
   };
@@ -918,18 +558,17 @@ const BILLY_DISPLAY_HEIGHT = 66;
 /**
  * Billy, the king's first companion. Joins at the end of the prologue and only
  * follows the player around the Kingdom hub (never in combat / other modes).
- * Uses the hand-generated npc_billy sprite (faces right; flipped for left).
+ * Drawn as the "companion" geometric silhouette (faces right; flipped for left).
  */
-function createBillyCompanion(texture: PIXI.Texture, start: Vector2): BillyCompanion {
+function createBillyCompanion(start: Vector2): BillyCompanion {
   const container = new PIXI.Container();
   const shadow = createHubShadow(22, 7, 0.4);
   shadow.position.set(0, 8);
 
   const body = new PIXI.Container();
-  const sprite = new PIXI.Sprite(texture);
-  sprite.anchor.set(0.5, 0.9);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, BILLY_DISPLAY_HEIGHT);
+  const sprite = createFigureGraphics("companion");
+  const baseScale = figureScaleFor(BILLY_DISPLAY_HEIGHT);
+  sprite.scale.set(baseScale);
   body.addChild(sprite);
 
   container.addChild(shadow, body);
@@ -1160,7 +799,7 @@ export function KingdomHubStage() {
 
   const openCornucopia = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, undefined, 0x55d979);
+    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, undefined, 0xf2f2f2);
     isModalOpenRef.current = true;
     setIsCornucopiaOpen(true);
   }, []);
@@ -1222,14 +861,14 @@ export function KingdomHubStage() {
   const openPlaceholderBuilding = useCallback((buildingId: PlaceholderBuildingId) => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
     const building = PLACEHOLDER_BUILDINGS[buildingId];
-    spawnWorldFxRef.current?.(building.position, undefined, 0xf0c26a);
+    spawnWorldFxRef.current?.(building.position, undefined, 0xf2f2f2);
     isModalOpenRef.current = true;
     setPlaceholderBuildingId(buildingId);
   }, []);
 
   const openTemple = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(TEMPLE_POSITION, undefined, 0x83f7ff);
+    spawnWorldFxRef.current?.(TEMPLE_POSITION, undefined, 0xc9c9c9);
     setTempleFeedback(null);
     isModalOpenRef.current = true;
     setIsTempleOpen(true);
@@ -1237,7 +876,7 @@ export function KingdomHubStage() {
 
   const openForge = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(FORGE_POSITION, undefined, 0xf0c26a);
+    spawnWorldFxRef.current?.(FORGE_POSITION, undefined, 0xf2f2f2);
     setForgeFeedback(null);
     isModalOpenRef.current = true;
     setIsForgeOpen(true);
@@ -1245,14 +884,14 @@ export function KingdomHubStage() {
 
   const openBank = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(BANK_POSITION, undefined, 0x9fb7ff);
+    spawnWorldFxRef.current?.(BANK_POSITION, undefined, 0xc9c9c9);
     isModalOpenRef.current = true;
     setIsBankOpen(true);
   }, []);
 
   const openMarket = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(MARKET_POSITION, undefined, 0xf0c26a);
+    spawnWorldFxRef.current?.(MARKET_POSITION, undefined, 0xf2f2f2);
     isModalOpenRef.current = true;
     setIsMarketOpen(true);
   }, []);
@@ -1261,12 +900,12 @@ export function KingdomHubStage() {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
 
     if (farmStateRef.current === "locked") {
-      spawnWorldFxRef.current?.(FARM_SLOT, undefined, 0x777777);
+      spawnWorldFxRef.current?.(FARM_SLOT, undefined, 0x6a6a6a);
       toast.error("Building not unlocked");
       return;
     }
 
-    spawnWorldFxRef.current?.(FARM_SLOT, undefined, 0xb18cff);
+    spawnWorldFxRef.current?.(FARM_SLOT, undefined, 0xc9c9c9);
     isModalOpenRef.current = true;
     setFarmModal({ state: farmStateRef.current });
   }, []);
@@ -1282,7 +921,7 @@ export function KingdomHubStage() {
     dispatch(() => result.next);
     farmStateRef.current = result.next.buildings.farm.status;
     renderFarmSlotRef.current?.(result.next.buildings.farm.status);
-    spawnWorldFxRef.current?.(FARM_SLOT, "Built", 0xf0c26a);
+    spawnWorldFxRef.current?.(FARM_SLOT, "Built", 0xf2f2f2);
     setFarmState(result.next.buildings.farm.status);
     setFarmModal(null);
     isModalOpenRef.current = false;
@@ -1317,7 +956,7 @@ export function KingdomHubStage() {
             : buildingId === "BANK"
               ? "Bank built"
               : "Market built";
-      spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" || buildingId === "BANK" ? 0x83f7ff : 0xf0c26a);
+      spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" || buildingId === "BANK" ? 0xc9c9c9 : 0xf2f2f2);
 
       if (buildingId === "FORUM") {
         setForumFeedback(label);
@@ -1339,7 +978,7 @@ export function KingdomHubStage() {
     }
 
     dispatch(() => result.next);
-    spawnWorldFxRef.current?.(FORUM_POSITION, "Rank up", 0xf0c26a);
+    spawnWorldFxRef.current?.(FORUM_POSITION, "Rank up", 0xf2f2f2);
     const feedback = `World level increased to ${result.next.progression.worldLevel}.`;
     setForumFeedback(feedback);
     toast.success(feedback);
@@ -1360,7 +999,7 @@ export function KingdomHubStage() {
       }
 
       dispatch(() => result.next);
-      spawnWorldFxRef.current?.(TEMPLE_POSITION, `-${result.amount} XP`, target === "playerXp" ? 0x83f7ff : 0xb18cff);
+      spawnWorldFxRef.current?.(TEMPLE_POSITION, `-${result.amount} XP`, target === "playerXp" ? 0xf2f2f2 : 0xc9c9c9);
       const feedback =
         target === "playerXp"
           ? `Converted ${result.amount} XP_GLOBAL to Player XP${
@@ -1390,7 +1029,7 @@ export function KingdomHubStage() {
 
       const createdItem = result.next.inventory.items.find((item) => item.id === result.createdItemId);
       dispatch(() => result.next);
-      spawnWorldFxRef.current?.(FORGE_POSITION, "Forged", 0xf0c26a);
+      spawnWorldFxRef.current?.(FORGE_POSITION, "Forged", 0xf2f2f2);
 
       if (createdItem && isEquipmentItem(createdItem)) {
         const feedback = `${createdItem.name} crafted (${createdItem.slot}, ilvl ${createdItem.itemLevel ?? createdItem.ilvl ?? 1}).`;
@@ -1407,7 +1046,7 @@ export function KingdomHubStage() {
 
   const openVillagerDialogue = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(VILLAGER_NPC, undefined, 0x7df7ff);
+    spawnWorldFxRef.current?.(VILLAGER_NPC, undefined, 0xc9c9c9);
     isDialogueOpenRef.current = true;
     setActiveDialogue({
       name: VILLAGER_NPC.label,
@@ -1440,7 +1079,7 @@ export function KingdomHubStage() {
 
     dispatch(() => result.next);
     showResourceGain({ amount: result.amount, resourceId: result.resourceId });
-    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, `+${result.amount} ${result.resourceId}`, 0x55d979);
+    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, `+${result.amount} ${result.resourceId}`, 0xf2f2f2);
     toast.success(`Claimed ${result.amount} ${result.resourceId}`);
     isClaimingCornucopiaRef.current = false;
     setIsClaimingCornucopia(false);
@@ -1468,7 +1107,6 @@ export function KingdomHubStage() {
     const floatingTexts: FloatingTextFx[] = [];
     const particles: ParticleFx[] = [];
     const solidColliders: HubCollider[] = [];
-    let sparkleTexture: PIXI.Texture | null = null;
     const interactables: Interactable[] = [
       {
         id: "forum",
@@ -1666,21 +1304,16 @@ export function KingdomHubStage() {
       pressedKeys.clear();
     }
 
-    function spawnWorldFx(position: Vector2, label?: string, color = 0xf0c26a) {
+    function spawnWorldFx(position: Vector2, label?: string, color: number = BW.white) {
       if (label) {
         const text = new PIXI.Text({
           style: {
             align: "center",
-            dropShadow: {
-              alpha: 0.85,
-              blur: 3,
-              color: 0x000000,
-              distance: 2,
-            },
             fill: color,
-            fontFamily: "serif",
+            fontFamily: "monospace",
             fontSize: 16,
             fontWeight: "700",
+            stroke: { color: BW.black, width: 4 },
           },
           text: label,
         });
@@ -1693,14 +1326,8 @@ export function KingdomHubStage() {
       for (let i = 0; i < 14; i += 1) {
         const angle = (Math.PI * 2 * i) / 14;
         const speed = 42 + (i % 4) * 18;
-        const particle = sparkleTexture ? new PIXI.Sprite(sparkleTexture) : new PIXI.Graphics();
-        if (particle instanceof PIXI.Sprite) {
-          particle.anchor.set(0.5);
-          particle.tint = color;
-          particle.scale.set(0.09 + (i % 3) * 0.018);
-        } else {
-          particle.circle(0, 0, 3 + (i % 3)).fill({ color, alpha: 0.82 });
-        }
+        const particle = createSparkGraphics(3 + (i % 3));
+        particle.tint = color;
         particle.position.set(position.x, position.y);
         fxLayer.addChild(particle);
         particles.push({
@@ -1770,72 +1397,52 @@ export function KingdomHubStage() {
         return;
       }
 
-      const agentSpriteForgeMetadata = await loadAgentSpriteForgeMetadata();
-      const loadedAssets = (await PIXI.Assets.load(getHubAssetPaths(agentSpriteForgeMetadata))) as LoadedTextureAssets;
-      assertAgentSpriteForgeTexturesLoaded(agentSpriteForgeMetadata, loadedAssets);
-      if (DEV_MODE) {
-        console.info(`[KingdomHub] Agent Sprite Forge assets loaded: ${agentSpriteForgeMetadata.props.length} props`);
-      }
-      const textures = getHubTextures(agentSpriteForgeMetadata, loadedAssets);
-      sparkleTexture = textures.sparkle;
-
-      if (cancelled) {
-        destroyPixiApp();
-        return;
-      }
-
       resizeTarget.appendChild(app.canvas);
       app.stage.addChild(world, uiLayer);
       world.scale.set(CAMERA_ZOOM);
       world.addChild(backgroundLayer, entityLayer, fxLayer);
       entityLayer.sortableChildren = true;
-      drawWorld(backgroundLayer, textures);
-      drawAgentSpriteForgeProps(entityLayer, textures, agentSpriteForgeMetadata);
+      drawWorld(backgroundLayer);
 
       solidColliders.push(
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.forum,
+          building: "forum",
           heightRatio: 0.3,
           id: "forum",
           offsetY: 26,
           position: FORUM_POSITION,
-          texture: textures.forum,
           widthRatio: 0.72,
         }),
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.temple,
+          building: "temple",
           heightRatio: 0.34,
           id: "temple",
           offsetY: 22,
           position: TEMPLE_POSITION,
-          texture: textures.temple,
           widthRatio: 0.66,
         }),
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.mine,
+          building: "mine",
           heightRatio: 0.34,
           id: "mine",
           offsetY: 18,
           position: MINE_POSITION,
-          texture: textures.mine,
           widthRatio: 0.74,
         }),
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.kitchen,
+          building: "kitchen",
           heightRatio: 0.32,
           id: "kitchen",
           offsetY: 18,
           position: KITCHEN_POSITION,
-          texture: textures.kitchen,
           widthRatio: 0.68,
         }),
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.forge,
+          building: "forge",
           heightRatio: 0.34,
           id: "forge",
           offsetY: 20,
           position: FORGE_POSITION,
-          texture: textures.forge,
           widthRatio: 0.7,
         }),
         {
@@ -1853,103 +1460,83 @@ export function KingdomHubStage() {
           y: MARKET_POSITION.y - 12,
         },
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.farm,
+          building: "farm",
           heightRatio: 0.3,
           id: FARM_SLOT.id,
           offsetY: 20,
           position: FARM_SLOT,
-          texture: textures.farm,
           widthRatio: 0.72,
         }),
         createGroundCollider({
-          displayHeight: HUB_DISPLAY_HEIGHTS.cornucopia,
+          building: "cornucopia",
           heightRatio: 0.34,
           id: "cornucopia",
           offsetY: 12,
           position: CORNUCOPIA_POSITION,
-          texture: textures.cornucopia,
           widthRatio: 0.68,
         }),
       );
-      solidColliders.push(...agentSpriteForgeMetadata.colliders);
-      if (DEV_MODE) {
-        console.info(`[KingdomHub] Agent Sprite Forge prop colliders active: ${agentSpriteForgeMetadata.colliders.length}`);
-      }
 
       if (DEV_MODE && SHOW_HUB_COLLIDER_DEBUG) {
         entityLayer.addChild(drawColliderDebug(solidColliders));
       }
 
       const forumVisual = createBuildingSprite({
-        displayHeight: HUB_DISPLAY_HEIGHTS.forum,
-        glowHeight: 238,
-        glowTexture: textures.softGlow,
-        glowTint: 0xb18cff,
+        content: createBuildingGraphics("forum"),
         hintOffsetY: -168,
-        important: true,
         position: FORUM_POSITION,
         shadowAlpha: 0.48,
         shadowHeight: 30,
         shadowWidth: 132,
-        texture: textures.forum,
       });
       poiVisuals.set("forum", forumVisual);
       entityLayer.addChild(forumVisual.container);
 
       const templeVisual = createBuildingSprite({
-        displayHeight: HUB_DISPLAY_HEIGHTS.temple,
-        glowHeight: 206,
-        glowTexture: textures.softGlow,
-        glowTint: 0x83f7ff,
+        content: createBuildingGraphics("temple"),
         hintOffsetY: -142,
-        important: true,
         position: TEMPLE_POSITION,
         shadowAlpha: 0.45,
         shadowHeight: 25,
         shadowWidth: 104,
-        texture: textures.temple,
       });
       poiVisuals.set("temple", templeVisual);
       entityLayer.addChild(templeVisual.container);
 
       const mineVisual = createBuildingSprite({
-        displayHeight: HUB_DISPLAY_HEIGHTS.mine,
+        content: createBuildingGraphics("mine"),
         hintOffsetY: -126,
         position: MINE_POSITION,
         shadowAlpha: 0.48,
         shadowHeight: 24,
         shadowWidth: 108,
-        texture: textures.mine,
       });
       poiVisuals.set("mine", mineVisual);
       entityLayer.addChild(mineVisual.container);
 
       const kitchenVisual = createBuildingSprite({
-        displayHeight: HUB_DISPLAY_HEIGHTS.kitchen,
+        content: createBuildingGraphics("kitchen"),
         hintOffsetY: -120,
         position: KITCHEN_POSITION,
         shadowAlpha: 0.45,
         shadowHeight: 23,
         shadowWidth: 96,
-        texture: textures.kitchen,
       });
       poiVisuals.set("kitchen", kitchenVisual);
       entityLayer.addChild(kitchenVisual.container);
 
       const forgeVisual = createBuildingSprite({
-        displayHeight: HUB_DISPLAY_HEIGHTS.forge,
+        content: createBuildingGraphics("forge"),
         hintOffsetY: -128,
         position: FORGE_POSITION,
         shadowAlpha: 0.48,
         shadowHeight: 24,
         shadowWidth: 106,
-        texture: textures.forge,
       });
       poiVisuals.set("forge", forgeVisual);
       entityLayer.addChild(forgeVisual.container);
 
       const bankVisual = createServiceBuildingVisual({
-        accent: 0x9fb7ff,
         label: "Bank",
         position: BANK_POSITION,
         variant: "bank",
@@ -1961,7 +1548,6 @@ export function KingdomHubStage() {
       entityLayer.addChild(bankVisual.container);
 
       const marketVisual = createServiceBuildingVisual({
-        accent: 0xf0c26a,
         label: "Market",
         position: MARKET_POSITION,
         variant: "market",
@@ -1973,64 +1559,50 @@ export function KingdomHubStage() {
       entityLayer.addChild(marketVisual.container);
 
       const cornucopiaVisual = createHubSpriteVisual({
-        displayHeight: HUB_DISPLAY_HEIGHTS.cornucopia,
-        glowHeight: 146,
-        glowTexture: textures.softGlow,
-        glowTint: 0xd2a4ff,
+        content: createBuildingGraphics("cornucopia"),
         hintOffsetY: -84,
-        important: true,
         position: CORNUCOPIA_POSITION,
         shadowHeight: 16,
         shadowWidth: 62,
-        texture: textures.cornucopia,
       });
       poiVisuals.set("cornucopia", cornucopiaVisual);
       entityLayer.addChild(cornucopiaVisual.container);
 
-      const portalVisual = createPortalVisual(textures);
+      const portalVisual = createPortalVisual();
       poiVisuals.set("portal", portalVisual);
       entityLayer.addChild(portalVisual.container);
 
-      const farmSlot = createFarmSlotVisual(textures, farmStateRef.current);
+      const farmSlot = createFarmSlotVisual(farmStateRef.current);
       renderFarmSlotRef.current = farmSlot.render;
       poiVisuals.set(FARM_SLOT.id, farmSlot);
       entityLayer.addChild(farmSlot.container);
 
       const villagerVisual = createHubSpriteVisual({
-        displayHeight: 70,
-        glowHeight: 82,
-        glowTexture: textures.softGlow,
-        glowTint: 0x7df7ff,
+        content: createNpcContent("villager", 70),
         hintOffsetY: -72,
         position: VILLAGER_NPC,
         shadowHeight: 9,
         shadowWidth: 24,
-        texture: textures.npcVillager,
       });
       const botoVisual = createHubSpriteVisual({
-        displayHeight: 78,
-        glowHeight: 92,
-        glowTexture: textures.softGlow,
-        glowTint: 0x55d979,
+        content: createNpcContent("companion", 78),
         hintOffsetY: -78,
         position: BOTO_NPC,
         shadowHeight: 10,
         shadowWidth: 28,
-        texture: textures.npcVillager,
       });
       poiVisuals.set(BOTO_NPC.id, botoVisual);
       entityLayer.addChild(botoVisual.container);
 
       poiVisuals.set(VILLAGER_NPC.id, villagerVisual);
       entityLayer.addChild(villagerVisual.container);
-      playerVisual.setSprite(textures.player);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
 
       // Billy follows the king around the Kingdom once he has joined (prologue done).
       let billy: BillyCompanion | null = null;
       if (isPrologueComplete(useGameStore.getState().state)) {
-        billy = createBillyCompanion(textures.billy, { x: playerPosition.x - 70, y: playerPosition.y });
+        billy = createBillyCompanion({ x: playerPosition.x - 70, y: playerPosition.y });
         entityLayer.addChild(billy.container);
       }
 
@@ -2236,12 +1808,29 @@ export function KingdomHubStage() {
           {placeholderBuilding ? (
             <div className="mt-4 space-y-4">
               <div className="flex justify-center rounded-md border border-amber-200/15 bg-black/35 p-5">
-                <img
-                  alt=""
-                  aria-hidden="true"
-                  className="h-32 w-auto object-contain drop-shadow-[0_18px_28px_rgba(0,0,0,0.45)]"
-                  src={placeholderBuilding.asset}
-                />
+                <svg aria-hidden="true" className="h-32 w-auto text-foreground" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 96 96">
+                  {placeholderBuildingId === "mine" ? (
+                    <>
+                      <path d="M12 84 L34 22 H62 L84 84 Z" />
+                      <path d="M36 84 L40 58 H56 L60 84 Z" fill="currentColor" fillOpacity={0.15} />
+                      <path d="M40 40 L56 48 M56 40 L40 48" />
+                    </>
+                  ) : placeholderBuildingId === "kitchen" ? (
+                    <>
+                      <rect height="36" width="52" x="22" y="48" />
+                      <path d="M16 48 L48 24 L80 48" />
+                      <rect height="20" width="14" x="34" y="64" />
+                      <circle cx="62" cy="60" r="6" />
+                    </>
+                  ) : (
+                    <>
+                      <rect height="40" width="60" x="18" y="44" />
+                      <path d="M10 44 L48 18 L86 44" />
+                      <path d="M28 44 V84 M48 44 V84 M68 44 V84" />
+                      <circle cx="48" cy="32" r="4" />
+                    </>
+                  )}
+                </svg>
               </div>
 
               {placeholderBuildingState ? (
