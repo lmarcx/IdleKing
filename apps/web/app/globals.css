@@ -4,30 +4,30 @@
 @tailwind utilities;
 
 :root {
-  --ik-font-body: var(--font-ik-body), ui-sans-serif, system-ui, sans-serif;
-  --ik-font-title: var(--font-ik-title), Georgia, "Times New Roman", serif;
-  --ik-font-menu: var(--font-ik-menu), ui-sans-serif, system-ui, sans-serif;
-  --ik-font-boto: var(--font-ik-boto), ui-sans-serif, system-ui, sans-serif;
-  --background: 215 28% 10%;
-  --foreground: 210 40% 96%;
-  --card: 218 24% 14%;
-  --card-foreground: 210 40% 96%;
-  --popover: 218 24% 14%;
-  --popover-foreground: 210 40% 96%;
-  --primary: 24 90% 54%;
-  --primary-foreground: 0 0% 10%;
-  --secondary: 213 20% 24%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 214 17% 20%;
-  --muted-foreground: 215 16% 70%;
-  --accent: 194 70% 34%;
-  --accent-foreground: 210 40% 96%;
-  --destructive: 0 75% 45%;
-  --destructive-foreground: 210 40% 96%;
-  --border: 215 18% 26%;
-  --input: 215 18% 26%;
-  --ring: 24 90% 54%;
-  --radius: 0.75rem;
+  --ik-font-body: var(--font-ik-body), ui-monospace, monospace;
+  --ik-font-title: var(--font-ik-title), ui-monospace, monospace;
+  --ik-font-menu: var(--font-ik-body), ui-monospace, monospace;
+  --ik-font-boto: var(--font-ik-body), ui-monospace, monospace;
+  --background: 0 0% 4%;
+  --foreground: 0 0% 95%;
+  --card: 0 0% 7%;
+  --card-foreground: 0 0% 95%;
+  --popover: 0 0% 7%;
+  --popover-foreground: 0 0% 95%;
+  --primary: 0 0% 95%;
+  --primary-foreground: 0 0% 4%;
+  --secondary: 0 0% 16%;
+  --secondary-foreground: 0 0% 95%;
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%;
+  --accent: 0 0% 23%;
+  --accent-foreground: 0 0% 95%;
+  --destructive: 0 0% 79%;
+  --destructive-foreground: 0 0% 4%;
+  --border: 0 0% 23%;
+  --input: 0 0% 23%;
+  --ring: 0 0% 95%;
+  --radius: 0;
 }
 
 * {
@@ -37,9 +37,6 @@
 body {
   @apply bg-background text-foreground;
   font-family: var(--ik-font-body);
-  font-feature-settings: "tnum" 1, "cv02" 1, "cv03" 1, "cv04" 1;
-  background-image: radial-gradient(circle at 10% 0%, rgba(255, 140, 40, 0.12), transparent 45%),
-    radial-gradient(circle at 90% 100%, rgba(0, 200, 255, 0.08), transparent 40%);
   min-height: 100vh;
 }
 
@@ -54,8 +51,8 @@ a {
 
 .font-ik-title {
   font-family: var(--ik-font-title);
-  font-weight: 600;
-  letter-spacing: 0.035em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
 }
 
 .font-ik-menu {
@@ -63,33 +60,28 @@ a {
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  font-feature-settings: "tnum" 1;
 }
 
 .font-ik-boto {
   font-family: var(--ik-font-boto);
   letter-spacing: 0.04em;
-  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
 .ik-story-mode {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--ik-font-body);
 }
 
 .ik-story-title,
 .ik-story-heading {
-  font-family: var(--ik-font-title), Georgia, "Times New Roman", serif;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-family: var(--ik-font-title);
+  font-weight: 400;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-shadow:
-    0 0 16px rgba(198, 168, 91, 0.18),
-    0 2px 0 rgba(0, 0, 0, 0.65);
 }
 
 .ik-story-title {
-  font-size: clamp(2.4rem, 5vw, 4.1rem);
-  line-height: 1;
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  line-height: 1.25;
 }
 
 .ik-story-detail-panel {
@@ -100,7 +92,7 @@ a {
   content: "";
   position: absolute;
   inset: 10px;
-  border: 1px solid rgba(198, 168, 91, 0.18);
+  border: 1px solid var(--ik-gray-2);
   pointer-events: none;
   z-index: 2;
 }

@@ -1,30 +1,19 @@
 import type { Metadata } from "next";
-import { Cinzel, Inter, Orbitron, Oxanium } from "next/font/google";
+import { Pixelify_Sans, Press_Start_2P } from "next/font/google";
 import "./globals.css";
 
 import { Providers } from "./providers";
 
-const inter = Inter({
+const pixelifySans = Pixelify_Sans({
   subsets: ["latin"],
   variable: "--font-ik-body",
   display: "swap",
 });
 
-const cinzel = Cinzel({
+const pressStart2P = Press_Start_2P({
   subsets: ["latin"],
+  weight: "400",
   variable: "--font-ik-title",
-  display: "swap",
-});
-
-const oxanium = Oxanium({
-  subsets: ["latin"],
-  variable: "--font-ik-menu",
-  display: "swap",
-});
-
-const orbitron = Orbitron({
-  subsets: ["latin"],
-  variable: "--font-ik-boto",
   display: "swap",
 });
 
@@ -36,7 +25,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${cinzel.variable} ${oxanium.variable} ${orbitron.variable}`}>
+      <body className={`${pixelifySans.variable} ${pressStart2P.variable}`}>
         <Providers>{children}</Providers>
       </body>
     </html>
