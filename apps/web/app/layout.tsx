@@ -24,8 +24,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${pixelifySans.variable} ${pressStart2P.variable}`}>
+    <html lang="en" className={`${pixelifySans.variable} ${pressStart2P.variable}`}>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>
