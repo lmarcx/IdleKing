@@ -19,6 +19,7 @@ export * as equipment from "./equipment/index.js";
 export * as resonance from "./resonance/index.js";
 export * as effectSets from "./effectSets/index.js";
 export * as content from "./content/index.js";
+export * as levelEditor from "./level-editor/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";

@@ -1,0 +1,153 @@
+{
+  "id": "test_map_01",
+  "name": "Test Map 01",
+  "version": 1,
+  "world": "kingdom",
+  "mode": "story",
+  "chapter": "chapter_01",
+  "grid": {
+    "width": 20,
+    "height": 14,
+    "cellSize": 32
+  },
+  "topography": {
+    "cells": [
+      { "x": 0, "y": 0, "state": "boundary" },
+      { "x": 1, "y": 0, "state": "boundary" },
+      { "x": 2, "y": 0, "state": "boundary" },
+      { "x": 3, "y": 0, "state": "boundary" },
+      { "x": 4, "y": 0, "state": "boundary" },
+      { "x": 5, "y": 0, "state": "boundary" },
+      { "x": 6, "y": 0, "state": "boundary" },
+      { "x": 7, "y": 0, "state": "boundary" },
+      { "x": 8, "y": 0, "state": "boundary" },
+      { "x": 9, "y": 0, "state": "boundary" },
+      { "x": 10, "y": 0, "state": "boundary" },
+      { "x": 11, "y": 0, "state": "boundary" },
+      { "x": 12, "y": 0, "state": "boundary" },
+      { "x": 13, "y": 0, "state": "boundary" },
+      { "x": 14, "y": 0, "state": "boundary" },
+      { "x": 15, "y": 0, "state": "boundary" },
+      { "x": 16, "y": 0, "state": "boundary" },
+      { "x": 17, "y": 0, "state": "boundary" },
+      { "x": 18, "y": 0, "state": "boundary" },
+      { "x": 19, "y": 0, "state": "boundary" },
+      { "x": 8, "y": 6, "state": "dead" },
+      { "x": 9, "y": 6, "state": "dead" },
+      { "x": 10, "y": 6, "state": "dead" },
+      { "x": 16, "y": 10, "state": "void" }
+    ]
+  },
+  "tiles": [
+    { "x": 1, "y": 1, "textureId": "grass", "walkable": true },
+    { "x": 2, "y": 1, "textureId": "grass", "walkable": true },
+    { "x": 3, "y": 2, "textureId": "grass", "walkable": true },
+    { "x": 6, "y": 4, "textureId": "stone", "walkable": true },
+    { "x": 8, "y": 6, "textureId": "water", "walkable": false },
+    { "x": 9, "y": 6, "textureId": "water", "walkable": false },
+    { "x": 10, "y": 6, "textureId": "water", "walkable": false },
+    { "x": 14, "y": 9, "textureId": "sand", "walkable": true },
+    { "x": 4, "y": 11, "textureId": "dirt", "walkable": true },
+    { "x": 18, "y": 1, "textureId": "rock", "walkable": false }
+  ],
+  "objects": [
+    {
+      "id": "tree_01",
+      "assetId": "tree_simple_01",
+      "kind": "nature",
+      "x": 96,
+      "y": 96,
+      "rotation": 0,
+      "interaction": { "type": "inspect", "label": "Old tree" }
+    },
+    {
+      "id": "rock_01",
+      "assetId": "rock_simple_01",
+      "kind": "nature",
+      "x": 460,
+      "y": 116,
+      "rotation": 0
+    },
+    {
+      "id": "chest_01",
+      "assetId": "chest_simple_01",
+      "kind": "object",
+      "x": 486,
+      "y": 326,
+      "rotation": 0,
+      "interaction": { "type": "inspect", "target": "starter_chest", "label": "Open chest" }
+    }
+  ],
+  "buildings": [
+    {
+      "id": "house_01",
+      "assetId": "house_small_01",
+      "function": "quest_location",
+      "x": 176,
+      "y": 128,
+      "collision": { "type": "box", "x": 176, "y": 148, "width": 80, "height": 60 },
+      "interaction": { "type": "open_menu", "target": "house_01_menu", "label": "Enter house" }
+    }
+  ],
+  "npcs": [
+    {
+      "id": "npc_mira",
+      "assetId": "villager_simple_01",
+      "name": "Mira",
+      "type": "guide",
+      "behavior": "dialogue_only",
+      "interaction": "dialogue",
+      "x": 246,
+      "y": 292
+    }
+  ],
+  "enemies": [
+    {
+      "id": "enemy_shard_alpha",
+      "assetId": "enemy_shard_01",
+      "enemyId": "shard_alpha",
+      "name": "Shard Alpha",
+      "stats": { "hp": 30, "attack": 5, "defense": 1, "speed": 70 },
+      "behavior": "guard_area",
+      "aggroRadius": 120,
+      "loot": ["stone"],
+      "deathEvent": "enemy_group_01_defeated",
+      "x": 456,
+      "y": 256
+    }
+  ],
+  "collisions": [
+    { "id": "manual_wall_01", "type": "box", "x": 352, "y": 64, "width": 32, "height": 160 },
+    { "id": "water_block_01", "type": "box", "x": 256, "y": 192, "width": 96, "height": 32 }
+  ],
+  "triggers": [
+    { "id": "exit_north", "type": "enter_map", "x": 288, "y": 32, "width": 64, "height": 24, "target": "next_test_map" }
+  ],
+  "puzzles": [
+    {
+      "id": "lever_01_opens_gate_01",
+      "sourceId": "lever_01",
+      "action": "opens",
+      "targetId": "gate_01",
+      "condition": "inspect lever_01"
+    },
+    {
+      "id": "enemy_group_opens_gate_01",
+      "sourceId": "enemy_group_01",
+      "action": "opens",
+      "targetId": "gate_01",
+      "condition": "enemy_group_01 defeated"
+    }
+  ],
+  "spawns": [
+    {
+      "id": "player_start",
+      "x": 64,
+      "y": 64
+    }
+  ],
+  "metadata": {
+    "createdWith": "AWorldDreamtLevelEditor",
+    "style": "minimal-geometric"
+  }
+}

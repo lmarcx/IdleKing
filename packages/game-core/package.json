@@ -15,6 +15,7 @@
     "./resonance": "./dist/resonance/index.js",
     "./effectSets": "./dist/effectSets/index.js",
     "./content": "./dist/content/index.js",
+    "./level-editor": "./dist/level-editor/index.js",
     "./random": "./dist/random/index.js",
     "./registry": "./dist/registry/index.js",
     "./skills": "./dist/skills/index.js",
