@@ -35,6 +35,8 @@
       { "x": 8, "y": 6, "state": "dead" },
       { "x": 9, "y": 6, "state": "dead" },
       { "x": 10, "y": 6, "state": "dead" },
+      { "x": 12, "y": 4, "state": "dead" },
+      { "x": 13, "y": 4, "state": "dead" },
       { "x": 16, "y": 10, "state": "void" }
     ]
   },
@@ -46,6 +48,10 @@
     { "x": 8, "y": 6, "textureId": "water", "walkable": false },
     { "x": 9, "y": 6, "textureId": "water", "walkable": false },
     { "x": 10, "y": 6, "textureId": "water", "walkable": false },
+    { "x": 4, "y": 9, "textureId": "ice", "walkable": true, "movementModifier": 1.15 },
+    { "x": 5, "y": 9, "textureId": "ice", "walkable": true, "movementModifier": 1.15 },
+    { "x": 12, "y": 4, "textureId": "lava", "walkable": false, "damage": 10 },
+    { "x": 13, "y": 4, "textureId": "lava", "walkable": false, "damage": 10 },
     { "x": 14, "y": 9, "textureId": "sand", "walkable": true },
     { "x": 4, "y": 11, "textureId": "dirt", "walkable": true },
     { "x": 18, "y": 1, "textureId": "rock", "walkable": false }

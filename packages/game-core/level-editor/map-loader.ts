@@ -23,7 +23,11 @@ export function getTopographyCellState(map: PlayableMap, x: number, y: number): 
 }
 
 export function getMapTile(map: PlayableMap, x: number, y: number): MapTile | undefined {
-  return map.tiles.find((tile) => tile.x === x && tile.y === y);
+  for (let index = map.tiles.length - 1; index >= 0; index -= 1) {
+    const tile = map.tiles[index];
+    if (tile.x === x && tile.y === y) return tile;
+  }
+  return undefined;
 }
 
 export function isMapCellWalkable(map: PlayableMap, x: number, y: number): boolean {

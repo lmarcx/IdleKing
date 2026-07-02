@@ -64,6 +64,32 @@ function isInsideRect(point: Vector2, rect: { x: number; y: number; width: numbe
   );
 }
 
+function getMapTile(map: PlayableMap, x: number, y: number) {
+  for (let index = map.tiles.length - 1; index >= 0; index -= 1) {
+    const tile = map.tiles[index];
+    if (tile.x === x && tile.y === y) return tile;
+  }
+  return undefined;
+}
+
+function drawTileDetail(g: PIXI.Graphics, textureId: string, x: number, y: number, size: number): void {
+  if (textureId === "water") {
+    for (let offset = 8; offset < size; offset += 10) {
+      g.moveTo(x + 5, y + offset).lineTo(x + size - 5, y + offset - 3).stroke({ color: 0xbddff0, alpha: 0.35, width: 1 });
+    }
+  } else if (textureId === "lava") {
+    g.moveTo(x + 6, y + size - 8).lineTo(x + size / 2, y + 7).lineTo(x + size - 7, y + size - 10).stroke({ color: 0xf0b19d, alpha: 0.55, width: 2 });
+  } else if (textureId === "ice") {
+    g.moveTo(x + 6, y + size - 6).lineTo(x + size - 6, y + 6).stroke({ color: 0xe8fbff, alpha: 0.35, width: 1 });
+  } else if (textureId === "stone" || textureId === "rock") {
+    g.rect(x + 6, y + 6, size - 12, size - 12).stroke({ color: 0xf2f2f2, alpha: textureId === "rock" ? 0.22 : 0.16, width: 1 });
+  } else if (textureId === "grass") {
+    g.moveTo(x + 9, y + size - 7).lineTo(x + 12, y + size - 14).moveTo(x + 18, y + size - 7).lineTo(x + 18, y + size - 15).stroke({ color: 0xd8ead8, alpha: 0.25, width: 1 });
+  } else if (textureId === "sand" || textureId === "dirt") {
+    g.circle(x + 10, y + 12, 1.4).circle(x + size - 12, y + size - 10, 1.2).fill({ color: 0xf2f2f2, alpha: textureId === "sand" ? 0.3 : 0.18 });
+  }
+}
+
 export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
 
@@ -87,19 +113,23 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
       const defaultTexture = GROUND_TEXTURES[0];
       for (let y = 0; y < map.grid.height; y += 1) {
         for (let x = 0; x < map.grid.width; x += 1) {
-          const tile = map.tiles.find((item) => item.x === x && item.y === y);
+          const tile = getMapTile(map, x, y);
           const texture = getGroundTexture(tile?.textureId ?? defaultTexture.id) ?? defaultTexture;
           const px = x * map.grid.cellSize;
           const py = y * map.grid.cellSize;
           g.rect(px, py, map.grid.cellSize, map.grid.cellSize)
             .fill({ color: color(texture.fill), alpha: 1 })
-            .stroke({ color: color(texture.stroke), alpha: 0.24, width: 1 });
+            .stroke({ color: color(texture.stroke), alpha: 0.34, width: 1 });
+          drawTileDetail(g, texture.id, px, py, map.grid.cellSize);
         }
       }
 
       for (const cellKey of loaded.blockingCells) {
         const [x, y] = cellKey.split(":").map(Number);
-        g.rect(x * map.grid.cellSize, y * map.grid.cellSize, map.grid.cellSize, map.grid.cellSize).fill({ color: 0x050505, alpha: 0.55 });
+        const px = x * map.grid.cellSize;
+        const py = y * map.grid.cellSize;
+        g.rect(px, py, map.grid.cellSize, map.grid.cellSize).fill({ color: 0x050505, alpha: 0.68 });
+        g.moveTo(px + 5, py + 5).lineTo(px + map.grid.cellSize - 5, py + map.grid.cellSize - 5).moveTo(px + map.grid.cellSize - 5, py + 5).lineTo(px + 5, py + map.grid.cellSize - 5).stroke({ color: 0xf2f2f2, alpha: 0.42, width: 2 });
       }
 
       world.addChild(g);
@@ -130,26 +160,51 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
       if (label) addText(label, x + 32, y - 8);
     }
 
+    function addBadge(kind: string, x: number, y: number, colorValue: number) {
+      const badge = new PIXI.Graphics();
+      badge.circle(x, y, 12).fill({ color: 0x050505, alpha: 0.9 }).stroke({ color: colorValue, alpha: 0.95, width: 2 });
+      world.addChild(badge);
+      addText(kind, x, y + 1);
+    }
+
     function drawEntities() {
       world.sortableChildren = true;
-      for (const object of map.objects) addAsset(object.assetId, object.x, object.y, object.interaction?.label ?? object.id);
-      for (const building of map.buildings) addAsset(building.assetId, building.x, building.y, building.interaction?.label ?? building.function);
-      for (const npc of map.npcs) addAsset(npc.assetId, npc.x, npc.y, npc.name);
+      for (const spawn of map.spawns) {
+        const spawnMarker = new PIXI.Graphics();
+        spawnMarker.circle(spawn.x, spawn.y, 18).stroke({ color: 0xffe4a0, alpha: 0.95, width: 3 });
+        spawnMarker.moveTo(spawn.x - 22, spawn.y).lineTo(spawn.x + 22, spawn.y).moveTo(spawn.x, spawn.y - 22).lineTo(spawn.x, spawn.y + 22).stroke({ color: 0xffe4a0, alpha: 0.65, width: 1 });
+        world.addChild(spawnMarker);
+        addText("spawn", spawn.x + 34, spawn.y - 14);
+      }
+      for (const object of map.objects) {
+        addAsset(object.assetId, object.x, object.y, object.interaction?.label ?? object.id);
+        addBadge(object.kind === "nature" ? "N" : "O", object.x + 8, object.y + 8, object.kind === "nature" ? 0x9ce0a4 : 0xf2f2f2);
+      }
+      for (const building of map.buildings) {
+        addAsset(building.assetId, building.x, building.y, building.interaction?.label ?? building.function);
+        addBadge("B", building.x + 8, building.y + 8, 0xffffff);
+      }
+      for (const npc of map.npcs) {
+        addAsset(npc.assetId, npc.x, npc.y, npc.name);
+        addBadge("P", npc.x + 8, npc.y + 8, 0xa7dcff);
+      }
       for (const enemy of map.enemies) {
         addAsset(enemy.assetId, enemy.x, enemy.y, enemy.name);
+        addBadge("E", enemy.x + 8, enemy.y + 8, 0xffb0b0);
         const aggro = new PIXI.Graphics();
         aggro.circle(enemy.x + 24, enemy.y + 32, enemy.aggroRadius).stroke({ color: 0xf2f2f2, alpha: 0.14, width: 1 });
         world.addChild(aggro);
       }
       for (const collision of map.collisions) {
         const g = new PIXI.Graphics();
-        g.rect(collision.x, collision.y, collision.width, collision.height).stroke({ color: 0xf2f2f2, alpha: 0.75, width: 2 });
+        g.rect(collision.x, collision.y, collision.width, collision.height).fill({ color: 0xffffff, alpha: 0.04 }).stroke({ color: 0xf2f2f2, alpha: 0.75, width: 2 });
         world.addChild(g);
       }
       for (const trigger of map.triggers) {
         const g = new PIXI.Graphics();
-        g.rect(trigger.x, trigger.y, trigger.width, trigger.height).stroke({ color: 0x9ad9ff, alpha: 0.75, width: 2 });
+        g.rect(trigger.x, trigger.y, trigger.width, trigger.height).fill({ color: 0x9ad9ff, alpha: 0.07 }).stroke({ color: 0x9ad9ff, alpha: 0.85, width: 2 });
         world.addChild(g);
+        addText("trigger", trigger.x + trigger.width / 2, trigger.y + trigger.height / 2);
       }
     }
 
@@ -239,5 +294,21 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
     };
   }, [map]);
 
-  return <div ref={hostRef} className="h-full min-h-[620px] w-full" />;
+  return (
+    <div className="relative h-full min-h-[620px] w-full">
+      <div ref={hostRef} className="h-full min-h-[620px] w-full" />
+      <div className="pointer-events-none absolute right-4 top-4 z-10 w-64 rounded-md border border-zinc-700 bg-black/82 p-3 font-ik-body text-xs text-zinc-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+        <div className="font-ik-menu text-[0.65rem] text-zinc-400">Map Debug</div>
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+          <span className="text-zinc-500">id</span><span>{map.id}</span>
+          <span className="text-zinc-500">grid</span><span>{map.grid.width}x{map.grid.height} / {map.grid.cellSize}</span>
+          <span className="text-zinc-500">objects</span><span>{map.objects.length}</span>
+          <span className="text-zinc-500">NPC</span><span>{map.npcs.length}</span>
+          <span className="text-zinc-500">enemies</span><span>{map.enemies.length}</span>
+          <span className="text-zinc-500">collisions</span><span>{map.collisions.length}</span>
+          <span className="text-zinc-500">triggers</span><span>{map.triggers.length}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
