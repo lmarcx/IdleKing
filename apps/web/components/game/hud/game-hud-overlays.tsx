@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { Grid2X2, Settings } from "lucide-react";
 
 import { CharacterView } from "@/components/game/character/character-view";
 import { InventoryView } from "@/components/game/inventory/inventory-view";
@@ -112,10 +114,40 @@ function GameHudOverlayLayer({
 
       {activeOverlay === "settings" ? (
         <GameOverlay onClose={closeOverlay} open title={OVERLAY_TITLES.settings}>
-          <div className="grid min-h-56 place-items-center rounded-lg border border-amber-200/18 bg-black/35 p-6 text-center">
+          <div className="grid gap-4 rounded-lg border border-amber-200/18 bg-black/35 p-5">
             <div>
               <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/70">Settings</p>
-              <h3 className="mt-2 font-ik-title text-2xl text-amber-50">Coming Soon</h3>
+              <h3 className="mt-2 font-ik-title text-2xl text-amber-50">Game Tools</h3>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link
+                className="group rounded-md border border-amber-200/28 bg-amber-500/14 p-4 text-left transition hover:border-amber-100 hover:bg-amber-500/22"
+                href="/editor"
+                onClick={closeOverlay}
+              >
+                <span className="flex items-center gap-2 font-ik-menu text-sm text-amber-50">
+                  <Grid2X2 className="h-4 w-4" />
+                  Mode editeur
+                </span>
+                <span className="mt-2 block font-ik-body text-sm text-amber-100/68">
+                  Ouvre le Level Editor pour creer des assets et des maps custom.
+                </span>
+              </Link>
+
+              <Link
+                className="group rounded-md border border-amber-200/20 bg-black/32 p-4 text-left transition hover:border-amber-100 hover:bg-amber-500/12"
+                href="/game/settings"
+                onClick={closeOverlay}
+              >
+                <span className="flex items-center gap-2 font-ik-menu text-sm text-amber-50">
+                  <Settings className="h-4 w-4" />
+                  Settings complets
+                </span>
+                <span className="mt-2 block font-ik-body text-sm text-amber-100/58">
+                  Accede a la page settings avec les actions de sauvegarde.
+                </span>
+              </Link>
             </div>
           </div>
         </GameOverlay>
