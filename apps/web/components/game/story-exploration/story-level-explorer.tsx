@@ -382,7 +382,7 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
             title={level.title}
           />
           <ExplorationHud playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
-          <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
+          <div className="pointer-events-none absolute left-4 bottom-40 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
             Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace. Interagir : F.
           </div>
         </>
