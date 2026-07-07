@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
+import { cn } from "@/lib/utils";
 import {
   type CharacterCombatLoadout,
   type CombatSkillSlot,
@@ -57,7 +60,7 @@ export function SkillBar({ combatLoadout, cooldowns, currentTimeMs }: SkillBarPr
   return (
     <div
       aria-label="Barre de skills rings equipes, slots 1 a 5 castables"
-      className="pointer-events-none relative flex items-center justify-center gap-2 rounded-lg border border-amber-200/25 bg-black/68 px-3 py-2 shadow-[0_14px_42px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+      className="pointer-events-none relative flex items-center justify-center gap-2 border-2 border-neutral-700 bg-black/72 px-3 py-2 shadow-[4px_4px_0_rgba(0,0,0,0.55)] backdrop-blur-sm"
     >
       {SKILL_SLOTS.map((slot) => {
         const skill = ringSkillSlots[slot - 1];
@@ -83,10 +86,10 @@ function EmptySkillSlot({ slot }: { slot: SkillSlot }) {
   return (
     <div
       aria-label={`Slot ${slot} vide`}
-      className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-md border border-amber-200/15 bg-zinc-950/55 text-amber-50/35 shadow-inner"
+      className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden border border-dashed border-neutral-800 bg-zinc-950/55 text-neutral-600"
     >
-      <span className="absolute left-1.5 top-1 font-ik-menu text-[0.65rem] leading-none text-amber-100/45">{slot}</span>
-      <span className="h-8 w-8 rounded-full border border-dashed border-amber-100/15 bg-black/25" aria-hidden="true" />
+      <span className="absolute left-1.5 top-1 font-ik-menu text-[0.65rem] leading-none text-neutral-600">{slot}</span>
+      <span className="h-8 w-8 rounded-full border border-dashed border-neutral-800 bg-black/25" aria-hidden="true" />
     </div>
   );
 }
@@ -101,26 +104,63 @@ function EquippedSkillSlot({
   skill: RingSkillSlot & { skillDef: SkillDefinition };
 }) {
   const cooldownMs = Math.max(0, (cooldowns[skill.skillDef.id] ?? 0) - currentTimeMs);
-  const cooldownLabel = cooldownMs > 0 ? formatSeconds(cooldownMs / 1_000) : null;
+  const totalCooldownMs = Math.max(1, skill.skillDef.cooldownSeconds * 1000);
+  const cooldownRatio = Math.min(1, cooldownMs / totalCooldownMs);
+  const isCooling = cooldownMs > 0;
+  const cooldownLabel = isCooling ? formatSeconds(cooldownMs / 1_000) : null;
+
+  // Edge detection: flash on cast (0 → cooling), pop when back to ready.
+  const previousCooling = useRef(isCooling);
+  const [pulse, setPulse] = useState<"cast" | "ready" | null>(null);
+  useEffect(() => {
+    if (isCooling !== previousCooling.current) {
+      setPulse(isCooling ? "cast" : "ready");
+      previousCooling.current = isCooling;
+      const timeout = window.setTimeout(() => setPulse(null), 360);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [isCooling]);
 
   return (
     <div
       aria-label={`Ring slot ${skill.slot}: ${skill.skillDef.id} ${skill.skillDef.name}, ${skill.skillDef.element}, cooldown ${formatSeconds(skill.skillDef.cooldownSeconds)}, mana ${skill.skillDef.manaCost}`}
-      className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-md border border-amber-200/30 bg-zinc-950/88 text-amber-50 shadow-inner"
+      className={cn(
+        "relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden border bg-zinc-950/88 text-neutral-100",
+        isCooling ? "border-neutral-800" : "border-neutral-500",
+        pulse === "cast" && "ik-skill-cast-flash"
+      )}
       title={`${skill.skillDef.id} - ${skill.skillDef.name} | ${skill.skillDef.element} | CD ${formatSeconds(skill.skillDef.cooldownSeconds)} | Mana ${skill.skillDef.manaCost}`}
     >
-      <span className="absolute left-1.5 top-1 font-ik-menu text-[0.65rem] leading-none text-amber-100/80">
+      <span className="absolute left-1.5 top-1 z-10 font-ik-menu text-[0.65rem] leading-none text-neutral-400">
         {skill.slot}
       </span>
       <span
         aria-hidden="true"
-        className="h-8 w-8 rounded-full border border-amber-100/20"
+        className={cn(
+          "h-8 w-8 rounded-full border border-neutral-700 transition-opacity",
+          isCooling && "opacity-40",
+          pulse === "ready" && "ik-skill-ready-pop"
+        )}
         style={{ background: ELEMENT_ICONS[skill.skillDef.element] }}
       />
-      <span className="absolute bottom-1 left-1 rounded-sm bg-black/58 px-1 font-ik-menu text-[0.5rem] leading-3 text-cyan-100">
-        {skill.skillDef.element}
-      </span>
-      <span className="absolute bottom-1 right-1 rounded-sm bg-amber-200/18 px-1 font-ik-menu text-[0.5rem] leading-3 text-amber-50">
+
+      {/* Radial cooldown sweep — shaded wedge shrinks as the skill recharges. */}
+      {isCooling ? (
+        <span
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            background: `conic-gradient(rgba(10,10,10,0.82) ${cooldownRatio * 360}deg, transparent ${cooldownRatio * 360}deg)`,
+          }}
+        />
+      ) : null}
+
+      <span
+        className={cn(
+          "absolute bottom-1 right-1 z-10 px-1 font-ik-menu text-[0.5rem] leading-3",
+          isCooling ? "bg-black/70 text-neutral-100 tabular-nums" : "bg-neutral-800/80 text-neutral-400"
+        )}
+      >
         {cooldownLabel ?? `M${skill.skillDef.manaCost}`}
       </span>
     </div>

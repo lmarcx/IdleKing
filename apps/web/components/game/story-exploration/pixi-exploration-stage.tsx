@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
+import { createCombatFxManager, renderMeleeSweep } from "@/components/game/shared/combat-fx";
 import {
   createPoiIconGraphics,
   createPoiRingGraphics,
@@ -74,7 +75,6 @@ const ENEMY_DEATH_FADE_MS = 260;
 const PLAYER_SHAKE_DURATION_MS = 160;
 const PLAYER_SHAKE_INTENSITY = 5;
 const STRONG_HIT_SHAKE_THRESHOLD_RATIO = 0.22;
-const HIT_PARTICLE_DURATION_MS = 320;
 const DAMAGE_NUMBER_DURATION_MS = 720;
 const TELEGRAPH_DURATION_MS = 420;
 const LOOT_POPUP_DURATION_MS = 900;
@@ -154,13 +154,6 @@ type ActiveSparkleBurst = {
   position: Vector2;
 };
 
-type ActiveHitParticle = {
-  ageMs: number;
-  durationMs: number;
-  graphic: PIXI.Graphics;
-  velocity: Vector2;
-};
-
 type ActiveMouseAction = "melee" | "ranged" | null;
 
 type ActiveEnemy = StoryLevelEnemy & {
@@ -175,6 +168,7 @@ type ActiveEnemy = StoryLevelEnemy & {
   hitFlashMs: number;
   hpBar: PIXI.Graphics;
   shadow: PIXI.Graphics;
+  wasChasing: boolean;
 };
 
 type PoiKind = "chest" | "rune" | "shrine";
@@ -510,6 +504,7 @@ function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
     hitFlashMs: 0,
     hpBar,
     shadow,
+    wasChasing: false,
   };
 }
 
@@ -734,7 +729,7 @@ export function PixiExplorationStage({
     const lootPopups: ActiveLootPopup[] = [];
     const telegraphs: ActiveTelegraph[] = [];
     const sparkleBursts: ActiveSparkleBurst[] = [];
-    const hitParticles: ActiveHitParticle[] = [];
+    const combatFx = createCombatFxManager(fxLayer);
     const enemies: ActiveEnemy[] = [];
     const securedRewards = new Map<string, number>();
     const poiVisuals: PoiVisual[] = [];
@@ -1399,30 +1394,6 @@ export function PixiExplorationStage({
       });
     }
 
-    function createHitParticles(position: Vector2) {
-      const particleCount = 4 + Math.floor(Math.random() * 3);
-      for (let index = 0; index < particleCount; index += 1) {
-        const graphic = new PIXI.Graphics();
-        const size = 2 + Math.random() * 4;
-        const color = index % 2 === 0 ? BW.white : BW.gray3;
-        graphic.rect(-size / 2, -size / 2, size, size).fill({ color, alpha: 0.9 });
-        graphic.position.set(position.x, position.y - 12);
-        fxLayer.addChild(graphic);
-
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 40 + Math.random() * 80;
-        hitParticles.push({
-          ageMs: 0,
-          durationMs: HIT_PARTICLE_DURATION_MS,
-          graphic,
-          velocity: {
-            x: Math.cos(angle) * speed,
-            y: Math.sin(angle) * speed,
-          },
-        });
-      }
-    }
-
     function spawnPoiDiscoveryFeedback(visual: PoiVisual) {
       lootPopups.push(
         createFloatingText({
@@ -1480,25 +1451,6 @@ export function PixiExplorationStage({
         burst.container.removeFromParent();
         burst.container.destroy({ children: true });
         sparkleBursts.splice(index, 1);
-      }
-    }
-
-    function updateHitParticles(deltaMs: number) {
-      const deltaSeconds = deltaMs / 1000;
-      for (let index = hitParticles.length - 1; index >= 0; index -= 1) {
-        const particle = hitParticles[index];
-        particle.ageMs += deltaMs;
-
-        const progress = clamp(particle.ageMs / particle.durationMs, 0, 1);
-        particle.graphic.position.x += particle.velocity.x * deltaSeconds;
-        particle.graphic.position.y += particle.velocity.y * deltaSeconds;
-        particle.graphic.alpha = 1 - progress;
-        particle.graphic.scale.set(1 - progress * 0.5);
-
-        if (particle.ageMs < particle.durationMs) continue;
-        particle.graphic.removeFromParent();
-        particle.graphic.destroy();
-        hitParticles.splice(index, 1);
       }
     }
 
@@ -1613,17 +1565,16 @@ export function PixiExplorationStage({
         isLethal,
         position: { x: enemy.position.x, y: enemy.position.y - 54 },
       });
-      createCombatTelegraph(
-        enemy.position,
-        enemy.radius + 18,
-        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      combatFx.spawnImpactBurst(
+        { x: enemy.position.x, y: enemy.position.y - 14 },
+        { crit: didCrit, lethal: isLethal, radius: enemy.radius + 8 }
       );
-      createHitParticles(enemy.position);
       if (finalAmount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
       }
       if (died) {
         enemy.deathFadeMs = 0;
+        combatFx.spawnDeathBurst({ x: enemy.position.x, y: enemy.position.y - 10 }, enemy.radius + 8);
         claimEnemyLoot(enemy);
       }
     }
@@ -1805,10 +1756,9 @@ export function PixiExplorationStage({
       const previousHp = runtimeState.player.hpCurrent;
       const incomingDamage = Math.max(0, Math.round(enemy.contactDamage * getIncomingPlayerDamageMultiplier(now)));
       const isLethal = incomingDamage >= previousHp;
-      createCombatTelegraph(
-        playerPosition,
-        PLAYER_SIZE * 0.62,
-        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      combatFx.spawnImpactBurst(
+        { x: playerPosition.x, y: playerPosition.y - 20 },
+        { lethal: isLethal, radius: PLAYER_SIZE * 0.5 }
       );
       runtimeState = combat.applyDamageToPlayer(runtimeState, incomingDamage);
       if (runtimeState.player.hpCurrent < previousHp) {
@@ -1888,6 +1838,17 @@ export function PixiExplorationStage({
         enemy.attackAnimMs = Math.max(0, enemy.attackAnimMs - deltaMs);
         updateEnemyMovement(enemy, playerPosition, deltaSeconds);
 
+        // Aggro telegraph — a converging ring locks onto the enemy the moment
+        // it starts chasing, so incoming pressure reads before the first hit.
+        const isChasingNow = enemy.state === "chasing";
+        if (isChasingNow && !enemy.wasChasing) {
+          combatFx.spawnWindupRing({ ...enemy.position }, enemy.radius + 14, 460, {
+            follow: () => ({ x: enemy.position.x, y: enemy.position.y }),
+            lethal: enemy.isBoss === true,
+          });
+        }
+        enemy.wasChasing = isChasingNow;
+
         if (isCircleIntersectingCircle(enemy.position, enemy.radius, playerPosition, PLAYER_SIZE / 2)) {
           damagePlayerFromEnemy(enemy, now);
         }
@@ -1938,6 +1899,11 @@ export function PixiExplorationStage({
         projectile.position.y += projectile.direction.y * step;
         projectile.distanceTravelled += step;
 
+        // Fading diamond trail roughly every 36px of travel.
+        if (Math.floor(projectile.distanceTravelled / 36) > Math.floor((projectile.distanceTravelled - step) / 36)) {
+          combatFx.spawnTrailDot({ ...projectile.position }, 9);
+        }
+
         const isOutOfBounds =
           projectile.position.x < 0 ||
           projectile.position.x > mapWidth ||
@@ -1953,18 +1919,12 @@ export function PixiExplorationStage({
     function renderAttacks() {
       for (const attack of meleeAttacks) {
         const progress = clamp(attack.ageMs / attack.durationMs, 0, 1);
-        const angle = Math.atan2(attack.direction.y, attack.direction.x);
-        const alpha = 0.62 * (1 - progress);
-
-        attack.graphic.clear();
-        attack.graphic
-          .moveTo(0, 0)
-          .arc(0, 0, MELEE_RANGE, -0.72, 0.72)
-          .lineTo(0, 0)
-          .fill({ color: BW.gray4, alpha: alpha * 0.35 });
-        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: BW.white, alpha, width: 5 });
+        renderMeleeSweep(attack.graphic, progress, {
+          halfAngle: MELEE_ATTACK_HALF_ANGLE_RADIANS,
+          range: MELEE_RANGE,
+        });
         attack.graphic.position.set(attack.position.x, attack.position.y);
-        attack.graphic.rotation = angle;
+        attack.graphic.rotation = Math.atan2(attack.direction.y, attack.direction.x);
       }
 
       for (const projectile of projectiles) {
@@ -2014,14 +1974,6 @@ export function PixiExplorationStage({
         burst.container.destroy({ children: true });
       }
       sparkleBursts.length = 0;
-    }
-
-    function cleanupHitParticles() {
-      for (const particle of hitParticles) {
-        particle.graphic.removeFromParent();
-        particle.graphic.destroy();
-      }
-      hitParticles.length = 0;
     }
 
     function cleanupTelegraphs() {
@@ -2094,7 +2046,7 @@ export function PixiExplorationStage({
       updatePoiVisuals(nowMs);
       updateLootPopups(ticker.deltaMS);
       updateSparkleBursts(ticker.deltaMS);
-      updateHitParticles(ticker.deltaMS);
+      combatFx.update(ticker.deltaMS);
       updateTelegraphs(ticker.deltaMS);
       renderEnemies();
       renderAttacks();
@@ -2241,7 +2193,7 @@ export function PixiExplorationStage({
       cleanupAttacks();
       cleanupLootPopups();
       cleanupSparkleBursts();
-      cleanupHitParticles();
+      combatFx.cleanup();
       cleanupTelegraphs();
       cleanupSkillEffects(player);
       cleanupEnemies();

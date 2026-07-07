@@ -712,3 +712,457 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* =========================================
+   MOTION PRIMITIVES — HUD / MENUS REDESIGN
+   Flat B&W, hard edges, snappy steps
+   ========================================= */
+
+@keyframes ik-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ik-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ik-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  70% {
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes ik-pulse-border {
+  0%,
+  100% {
+    border-color: var(--ik-white);
+  }
+  50% {
+    border-color: var(--ik-gray-2);
+  }
+}
+
+@keyframes ik-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes ik-spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ik-spin-slow-rev {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes ik-float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.ik-anim-fade-in {
+  animation: ik-fade-in 160ms ease-out both;
+}
+
+.ik-anim-rise-in {
+  animation: ik-rise-in 240ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ik-anim-pop-in {
+  animation: ik-pop-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+/* Staggered entrance for lists of cards */
+.ik-stagger > * {
+  animation: ik-rise-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ik-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.ik-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.ik-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.ik-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.ik-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.ik-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.ik-stagger > *:nth-child(7) { animation-delay: 240ms; }
+.ik-stagger > *:nth-child(8) { animation-delay: 280ms; }
+
+/* =========================
+   OVERLAY SHELL
+   ========================= */
+
+.ik-overlay-backdrop {
+  animation: ik-fade-in 150ms ease-out both;
+}
+
+.ik-overlay-panel {
+  border: var(--ik-stroke) solid var(--ik-gray-2);
+  border-radius: 0;
+  background: var(--ik-bg-1);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.65);
+  animation: ik-rise-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+.ik-overlay-close {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: var(--ik-stroke) solid var(--ik-gray-2);
+  background: var(--ik-black);
+  color: var(--ik-text-0);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease;
+}
+
+.ik-overlay-close:hover {
+  border-color: var(--ik-white);
+  background: var(--ik-gray-1);
+  transform: rotate(90deg);
+}
+
+.ik-overlay-close:focus-visible {
+  outline: 2px solid var(--ik-white);
+  outline-offset: 2px;
+}
+
+/* =========================
+   HUD ICON BUTTON + TOOLTIP
+   ========================= */
+
+.ik-hud-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: var(--ik-stroke) solid var(--ik-gray-2);
+  border-radius: 0;
+  background: var(--ik-black);
+  color: var(--ik-text-1);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+  transition:
+    border-color 120ms ease,
+    color 120ms ease,
+    background 120ms ease,
+    transform 100ms ease,
+    box-shadow 100ms ease;
+}
+
+.ik-hud-btn:hover:not(:disabled) {
+  border-color: var(--ik-white);
+  color: var(--ik-white);
+  background: var(--ik-gray-0);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+}
+
+.ik-hud-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.ik-hud-btn:focus-visible {
+  outline: 2px solid var(--ik-white);
+  outline-offset: 2px;
+}
+
+.ik-hud-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Tooltip below any element carrying data-ik-tip */
+[data-ik-tip] {
+  position: relative;
+}
+
+[data-ik-tip]:hover::after,
+[data-ik-tip]:focus-visible::after {
+  content: attr(data-ik-tip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  white-space: pre;
+  padding: 5px 9px;
+  border: 1px solid var(--ik-gray-3);
+  background: var(--ik-black);
+  color: var(--ik-text-0);
+  font-family: var(--ik-font-menu);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+  animation: ik-fade-in 120ms ease-out both;
+}
+
+[data-ik-tip][data-ik-tip-pos="top"]:hover::after,
+[data-ik-tip][data-ik-tip-pos="top"]:focus-visible::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+/* =========================
+   ANIMATED BARS
+   ========================= */
+
+.ik-bar {
+  position: relative;
+  height: 8px;
+  border: 1px solid var(--ik-gray-2);
+  background: var(--ik-black);
+  overflow: hidden;
+}
+
+.ik-bar__fill {
+  height: 100%;
+  background: var(--ik-white);
+  transition: width 420ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+.ik-bar__fill--dim {
+  background: var(--ik-gray-3);
+}
+
+.ik-bar__fill--low {
+  animation: ik-blink 900ms steps(2, start) infinite;
+}
+
+/* =========================
+   INTERACTIVE CARDS
+   ========================= */
+
+.ik-card-hover {
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.ik-card-hover:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--ik-white);
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.6);
+}
+
+.ik-card-hover:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translate(0, 0);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+.ik-card-hover:focus-visible {
+  outline: 2px solid var(--ik-white);
+  outline-offset: 2px;
+}
+
+.ik-ready-pulse {
+  animation: ik-pulse-border 1.6s ease-in-out infinite;
+}
+
+/* =========================
+   SEGMENTED TABS
+   ========================= */
+
+.ik-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border: var(--ik-stroke) solid var(--ik-gray-2);
+  background: var(--ik-black);
+}
+
+.ik-seg__tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: var(--ik-text-2);
+  font-family: var(--ik-font-menu);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 0;
+  background: transparent;
+  transition:
+    background 130ms ease,
+    color 130ms ease;
+}
+
+.ik-seg__tab + .ik-seg__tab {
+  border-left: 1px solid var(--ik-gray-1);
+}
+
+.ik-seg__tab:hover {
+  color: var(--ik-text-0);
+  background: var(--ik-gray-0);
+}
+
+.ik-seg__tab[aria-pressed="true"],
+.ik-seg__tab[aria-selected="true"] {
+  color: var(--ik-black);
+  background: var(--ik-white);
+}
+
+.ik-seg__tab:focus-visible {
+  outline: 2px solid var(--ik-white);
+  outline-offset: -4px;
+}
+
+/* =========================
+   TIME GATE PORTAL GLYPH
+   ========================= */
+
+.ik-portal-ring-outer {
+  transform-origin: center;
+  animation: ik-spin-slow 24s linear infinite;
+}
+
+.ik-portal-ring-inner {
+  transform-origin: center;
+  animation: ik-spin-slow-rev 14s linear infinite;
+}
+
+.ik-portal-core {
+  transform-origin: center;
+  animation: ik-float-y 3.2s ease-in-out infinite;
+}
+
+/* =========================
+   STATUS DOTS (levels / pips)
+   ========================= */
+
+.ik-pip {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--ik-gray-2);
+  background: var(--ik-black);
+}
+
+.ik-pip--on {
+  border-color: var(--ik-white);
+  background: var(--ik-white);
+}
+
+/* =========================
+   COMBAT SCREEN FX
+   ========================= */
+
+@keyframes ik-hit-vignette {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.ik-hit-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 3px rgba(242, 242, 242, 0.5),
+    inset 0 0 110px rgba(0, 0, 0, 0.85);
+  animation: ik-hit-vignette 400ms ease-out both;
+}
+
+@keyframes ik-skill-cast-flash {
+  from {
+    box-shadow: 0 0 0 3px rgba(242, 242, 242, 0.55);
+    border-color: var(--ik-white);
+  }
+  to {
+    box-shadow: 0 0 0 0 rgba(242, 242, 242, 0);
+  }
+}
+
+.ik-skill-cast-flash {
+  animation: ik-skill-cast-flash 340ms ease-out both;
+}
+
+@keyframes ik-skill-ready-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.ik-skill-ready-pop {
+  animation: ik-skill-ready-pop 300ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ik-anim-fade-in,
+  .ik-anim-rise-in,
+  .ik-anim-pop-in,
+  .ik-stagger > *,
+  .ik-overlay-backdrop,
+  .ik-overlay-panel,
+  .ik-hit-vignette,
+  .ik-skill-cast-flash,
+  .ik-skill-ready-pop {
+    animation-duration: 1ms;
+  }
+
+  .ik-portal-ring-outer,
+  .ik-portal-ring-inner,
+  .ik-portal-core,
+  .ik-ready-pulse,
+  .ik-bar__fill--low {
+    animation: none;
+  }
+
+  .ik-card-hover,
+  .ik-hud-btn {
+    transition: none;
+  }
+}

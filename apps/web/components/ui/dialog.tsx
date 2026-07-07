@@ -34,12 +34,29 @@ export function DialogTrigger({ children }: { children: React.ReactNode }) {
 
 export function DialogContent({ className, children }: { className?: string; children: React.ReactNode }) {
   const { open, setOpen } = useDialogContext();
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.code !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, setOpen]);
+
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
+    <div
+      className="ik-overlay-backdrop fixed inset-0 z-50 flex items-center justify-center bg-black/72 p-4 backdrop-blur-sm"
+      onClick={() => setOpen(false)}
+    >
       <div
-        className={cn("w-full max-w-lg rounded-lg border bg-background p-6 shadow-xl", className)}
+        className={cn("ik-overlay-panel w-full max-w-lg p-6", className)}
         onClick={(event) => event.stopPropagation()}
       >
         {children}

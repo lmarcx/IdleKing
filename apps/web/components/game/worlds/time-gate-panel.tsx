@@ -1,11 +1,27 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { DoorOpen, FlaskConical, LockKeyhole, Swords } from "lucide-react";
+import { useMemo, useState, type ComponentType } from "react";
+import {
+  Aperture,
+  Bot,
+  Check,
+  ChevronRight,
+  Crosshair,
+  FlaskConical,
+  Globe2,
+  Hourglass,
+  Lock,
+  Skull,
+  Snowflake,
+  Sparkles,
+  Swords,
+  Unlock,
+  Waves,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { GamePanel } from "@/components/ui/game-panel";
 import { cn } from "@/lib/utils";
 import { DUEL_OPPONENTS, type DuelOpponent } from "@/lib/duel-data";
 import { useGameStore } from "@/store/game-store";
@@ -25,29 +41,34 @@ import {
   type StoryUnlockRequirementStatus,
 } from "@idleking/game-core";
 
+type GameState = ReturnType<typeof useGameStore.getState>["state"];
+
+type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
+
 const UNLOCK_FAILURE_LABELS: Record<string, string> = {
-  ERA_ALREADY_UNLOCKED: "Ere deja debloquee.",
-  ERA_NOT_FOUND: "Ere inconnue.",
-  ERA_NOT_PLAYABLE: "Cette ere reste en teaser et n'est pas jouable dans le MVP.",
+  ERA_ALREADY_UNLOCKED: "Ère déjà débloquée.",
+  ERA_NOT_FOUND: "Ère inconnue.",
+  ERA_NOT_PLAYABLE: "Cette ère reste en teaser et n'est pas jouable dans le MVP.",
   FRAGMENT_DU_TEMPS_REQUIRED: "Fragment du Temps insuffisant.",
-  KALEIDOSCOPE_REQUIRED: "Kaleidoscope requis.",
+  KALEIDOSCOPE_REQUIRED: "Kaléidoscope requis.",
   STORY_FLAG_MISSING: "Progression Story requise.",
-  TIME_GATE_LOCKED: "Time Gate verrouillee.",
+  TIME_GATE_LOCKED: "Time Gate verrouillée.",
   TIME_GATE_NOT_BUILT: "Time Gate non construite.",
   WORLD_LEVEL_TOO_LOW: "World Level insuffisant.",
 };
 
 const STORY_FLAG_LABELS: Record<string, string> = {
-  arathas_academy_cleared: "Academie d'Arathas terminee",
-  chapter_i_complete: "Chapitre I termine",
-  frozen_river_cleared: "Rive Figee terminee",
-  funeral_mausoleum_cleared: "Mausolee Funebre termine",
-  prologue_complete: "Prologue termine",
-  reflection_cavern_cleared: "Caverne aux Reflets terminee",
-  royal_abyss_cleared: "Gouffre Royal termine",
+  arathas_academy_cleared: "Académie d'Arathas terminée",
+  chapter_i_complete: "Chapitre I terminé",
+  frozen_river_cleared: "Rive Figée terminée",
+  funeral_mausoleum_cleared: "Mausolée Funèbre terminé",
+  prologue_complete: "Prologue terminé",
+  reflection_cavern_cleared: "Caverne aux Reflets terminée",
+  royal_abyss_cleared: "Gouffre Royal terminé",
 };
 
 type StoryEraGroup = Readonly<{
+  icon: IconType;
   id: EraId;
   title: string;
   subtitle: string;
@@ -57,7 +78,10 @@ type StoryEraGroup = Readonly<{
 
 type TimeGateSection = "story" | "duel";
 
+type EraStatus = "unlocked" | "ready" | "locked" | "teaser";
+
 type DuelTestEntry = Readonly<{
+  icon: IconType;
   id: string;
   title: string;
   detail: string;
@@ -65,21 +89,24 @@ type DuelTestEntry = Readonly<{
 
 const STORY_ERA_GROUPS: readonly StoryEraGroup[] = [
   {
+    icon: Skull,
     id: "era_funebre",
-    title: "Ere Funebre",
+    title: "Ère Funèbre",
     subtitle: "Prologue et ruines cendreuses",
     dungeonIds: ["prologue_wastelands", "funeral_mausoleum", "ashen_peak", "royal_abyss"],
   },
   {
+    icon: Snowflake,
     id: "era_glaciaire",
-    title: "Ere Glaciaire",
+    title: "Ère Glaciaire",
     subtitle: "Rive, reflets et source du givre",
     dungeonIds: ["frozen_river", "reflection_cavern", "arathas_academy", "frost_source"],
   },
   {
+    icon: Waves,
     id: "era_deluge",
-    title: "Deluge",
-    subtitle: "Teaser verrouille",
+    title: "Déluge",
+    subtitle: "Teaser verrouillé",
     dungeonIds: [],
     teaser: true,
   },
@@ -87,21 +114,31 @@ const STORY_ERA_GROUPS: readonly StoryEraGroup[] = [
 
 const DUEL_TEST_ENTRIES: readonly DuelTestEntry[] = [
   {
+    icon: Bot,
     id: "enemy-test",
     title: "Enemy Test",
-    detail: "Movement, contact damage, player survival loop.",
+    detail: "Déplacement, dégâts de contact, survie.",
   },
   {
+    icon: Skull,
     id: "boss-test",
     title: "Boss Test",
-    detail: "Boss HP, specials, telegraphs, defeat conditions.",
+    detail: "HP de boss, spéciaux, telegraphs.",
   },
   {
+    icon: Crosshair,
     id: "skill-pattern-test",
     title: "Skill Pattern Test",
-    detail: "Skill casts, cooldowns, mana, hit patterns.",
+    detail: "Casts, cooldowns, mana, patterns.",
   },
 ];
+
+const ERA_STATUS_META: Record<EraStatus, { icon: IconType; label: string }> = {
+  locked: { icon: Lock, label: "Verrouillée" },
+  ready: { icon: Unlock, label: "Prête à débloquer" },
+  teaser: { icon: Lock, label: "Teaser" },
+  unlocked: { icon: Check, label: "Disponible" },
+};
 
 function getEraDefinitionById(eraId: EraId): EraDefinition {
   const era = ERA_REGISTRY.find((candidate) => candidate.id === eraId);
@@ -109,15 +146,15 @@ function getEraDefinitionById(eraId: EraId): EraDefinition {
   return era;
 }
 
-function getEraStatus(state: ReturnType<typeof useGameStore.getState>["state"], group: StoryEraGroup): string {
-  if (group.teaser || !isEraPlayable(group.id)) return "Teaser locked";
-  if (isEraUnlocked(state, group.id)) return "Disponible";
-  if (canUnlockEraAtTimeGate(state, group.id)) return "Pret";
-  return "Locked";
+function getEraStatus(state: GameState, group: StoryEraGroup): EraStatus {
+  if (group.teaser || !isEraPlayable(group.id)) return "teaser";
+  if (isEraUnlocked(state, group.id)) return "unlocked";
+  if (canUnlockEraAtTimeGate(state, group.id)) return "ready";
+  return "locked";
 }
 
 function getDungeonTitle(dungeon: StoryDungeonDefinition): string {
-  if (dungeon.id === "prologue_wastelands") return "Prologue / Terres Desolees";
+  if (dungeon.id === "prologue_wastelands") return "Prologue / Terres Désolées";
   return dungeon.title;
 }
 
@@ -132,148 +169,298 @@ function formatRequirement(requirement: StoryUnlockRequirementStatus): string {
     return `World Level ${requirement.current}/${requirement.required}`;
   }
 
-  return STORY_FLAG_LABELS[requirement.flag] ?? `Story flag: ${requirement.flag}`;
+  return STORY_FLAG_LABELS[requirement.flag] ?? `Story: ${requirement.flag}`;
 }
 
-function RequirementLine({ met, text }: { met: boolean; text: string }) {
+/* ---------- Portal glyph (animated) ---------- */
+
+function PortalGlyph({ className }: { className?: string }) {
   return (
-    <span className={met ? "text-emerald-100/90" : "text-amber-100/85"}>
-      {met ? "OK" : "Missing"} - {text}
+    <svg aria-hidden="true" className={className} fill="none" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+      <circle
+        className="ik-portal-ring-outer"
+        cx="48"
+        cy="48"
+        r="42"
+        stroke="var(--ik-gray-2)"
+        strokeDasharray="10 7"
+        strokeWidth="2"
+      />
+      <circle
+        className="ik-portal-ring-inner"
+        cx="48"
+        cy="48"
+        r="31"
+        stroke="var(--ik-gray-3)"
+        strokeDasharray="4 6"
+        strokeWidth="2"
+      />
+      <g className="ik-portal-core" stroke="var(--ik-white)" strokeWidth="2.5">
+        <path d="M36 30 H60 M36 66 H60" />
+        <path d="M39 30 C39 44 57 52 57 66 M57 30 C57 44 39 52 39 66" />
+      </g>
+    </svg>
+  );
+}
+
+/* ---------- Small building blocks ---------- */
+
+function StatChip({
+  icon: Icon,
+  met,
+  tip,
+  value,
+}: {
+  icon: IconType;
+  met?: boolean;
+  tip: string;
+  value: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-2 border px-2.5 py-1.5 font-ik-menu text-[0.68rem] tabular-nums",
+        met === false ? "border-dashed border-neutral-700 text-neutral-500" : "border-neutral-600 text-neutral-100"
+      )}
+      data-ik-tip={tip}
+    >
+      <Icon aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+      {value}
+      <span className="sr-only">{tip}</span>
     </span>
   );
 }
 
-function TimeGateRequirementList({
-  era,
-  state,
-}: {
-  era: EraDefinition;
-  state: ReturnType<typeof useGameStore.getState>["state"];
-}) {
+function RequirementChip({ met, text }: { met: boolean; text: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 border px-2 py-1 font-ik-menu text-[0.62rem]",
+        met ? "border-neutral-600 text-neutral-200" : "border-dashed border-neutral-700 text-neutral-500"
+      )}
+    >
+      {met ? (
+        <Check aria-hidden="true" className="h-3 w-3 text-neutral-100" strokeWidth={3} />
+      ) : (
+        <X aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
+      )}
+      {text}
+    </span>
+  );
+}
+
+function TimeGateRequirements({ era, state }: { era: EraDefinition; state: GameState }) {
   const storyFlagsMet = era.unlockConditions.storyFlags.every((flag) => state.story.completedEvents.has(flag));
-  const playable = isEraPlayable(era.id);
 
   return (
-    <div className="mt-3 grid gap-1.5 font-ik-body text-xs text-muted-foreground">
-      <RequirementLine met={state.buildings.timeGate.unlocked} text="Time Gate unlocked" />
-      <RequirementLine met={state.buildings.timeGate.built} text="Time Gate built" />
-      <RequirementLine met={state.specialItems.kaleidoscopeOwned} text="Kaleidoscope owned" />
-      <RequirementLine
+    <div className="flex flex-wrap gap-1.5">
+      <RequirementChip met={state.buildings.timeGate.built} text="Time Gate" />
+      <RequirementChip met={state.specialItems.kaleidoscopeOwned} text="Kaléidoscope" />
+      <RequirementChip
         met={state.progression.worldLevel >= era.unlockConditions.minWorldLevel}
-        text={`World Level ${era.unlockConditions.minWorldLevel}`}
+        text={`World Lv ${era.unlockConditions.minWorldLevel}`}
       />
-      <RequirementLine
+      <RequirementChip
         met={state.specialItems.fragmentDuTemps >= era.unlockConditions.fragmentDuTempsCost}
-        text={`Fragment du Temps x${era.unlockConditions.fragmentDuTempsCost}`}
+        text={`Fragment ×${era.unlockConditions.fragmentDuTempsCost}`}
       />
       {era.unlockConditions.storyFlags.length > 0 ? (
-        <RequirementLine met={storyFlagsMet} text={`Story: ${era.unlockConditions.storyFlags.join(", ")}`} />
-      ) : (
-        <RequirementLine met={true} text="Story: none" />
-      )}
-      <RequirementLine met={playable} text={playable ? "Playable MVP era" : "Teaser only"} />
+        <span data-ik-tip={era.unlockConditions.storyFlags.map((flag) => STORY_FLAG_LABELS[flag] ?? flag).join("\n")}>
+          <RequirementChip met={storyFlagsMet} text="Progression Story" />
+        </span>
+      ) : null}
     </div>
   );
 }
 
-type DungeonRowProps = {
+/* ---------- Era timeline ---------- */
+
+function EraTimeline({
+  onSelect,
+  selectedEraId,
+  state,
+}: {
+  onSelect: (eraId: EraId) => void;
+  selectedEraId: EraId;
+  state: GameState;
+}) {
+  return (
+    <div className="ik-stagger grid gap-2 sm:grid-cols-3">
+      {STORY_ERA_GROUPS.map((group) => {
+        const status = getEraStatus(state, group);
+        const meta = ERA_STATUS_META[status];
+        const StatusIcon = meta.icon;
+        const EraIcon = group.icon;
+        const selected = group.id === selectedEraId;
+
+        return (
+          <button
+            aria-pressed={selected}
+            className={cn(
+              "ik-card-hover group relative border-2 bg-black/45 p-3.5 text-left",
+              selected ? "border-neutral-100" : status === "teaser" ? "border-dashed border-neutral-800" : "border-neutral-700",
+              status === "ready" && !selected && "ik-ready-pulse"
+            )}
+            data-ik-tip={meta.label}
+            key={group.id}
+            onClick={() => onSelect(group.id)}
+            type="button"
+          >
+            <span className="flex items-start justify-between gap-2">
+              <span
+                className={cn(
+                  "grid h-11 w-11 place-items-center border-2 bg-neutral-950 transition-colors",
+                  selected ? "border-neutral-100" : "border-neutral-700 group-hover:border-neutral-400"
+                )}
+              >
+                <EraIcon
+                  aria-hidden="true"
+                  className={cn("h-5 w-5", status === "teaser" ? "text-neutral-600" : "text-neutral-100")}
+                  strokeWidth={2}
+                />
+              </span>
+              <StatusIcon
+                aria-hidden="true"
+                className={cn("h-4 w-4", status === "unlocked" ? "text-neutral-100" : "text-neutral-500")}
+                strokeWidth={2.6}
+              />
+            </span>
+            <span
+              className={cn(
+                "mt-3 block font-ik-title text-base leading-tight",
+                status === "teaser" ? "text-neutral-500" : "text-neutral-100"
+              )}
+            >
+              {group.title}
+            </span>
+            <span className="mt-0.5 block truncate font-ik-body text-[0.7rem] text-neutral-500">{group.subtitle}</span>
+            <span className="sr-only">{meta.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Dungeon cards ---------- */
+
+function DungeonCard({
+  dungeon,
+  eraUnlocked,
+  index,
+  onEnter,
+  state,
+}: {
   dungeon: StoryDungeonDefinition;
   eraUnlocked: boolean;
+  index: number;
   onEnter: (dungeonId: string) => void;
-  state: ReturnType<typeof useGameStore.getState>["state"];
-};
-
-function DungeonRow({ dungeon, eraUnlocked, onEnter, state }: DungeonRowProps) {
+  state: GameState;
+}) {
   const storyUnlocked = canEnterDungeon(state, dungeon.id);
   const completed = state.story.completedDungeonIds.has(dungeon.id);
   const lockReasons = getStoryDungeonLockReasons(state, dungeon.id);
   const boss = dungeon.bossId ? getStoryBossDefinition(dungeon.bossId) : undefined;
   const canEnter = eraUnlocked && storyUnlocked;
+  const lockTip = [
+    ...(!eraUnlocked ? ["Ère non débloquée au Time Gate"] : []),
+    ...lockReasons.map(formatRequirement),
+  ].join("\n");
 
   return (
-    <article className="rounded-lg border border-amber-200/16 bg-black/28 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4 className="font-ik-title text-xl text-amber-50">{getDungeonTitle(dungeon)}</h4>
-            <span className="rounded border border-amber-200/18 bg-black/35 px-2 py-0.5 font-ik-menu text-[0.65rem] text-amber-50">
-              {getChapterLabel(dungeon.chapterId)}
-            </span>
-            {completed ? (
-              <span className="rounded border border-emerald-200/24 bg-emerald-500/10 px-2 py-0.5 font-ik-menu text-[0.65rem] text-emerald-100">
-                Cleared
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-2 font-ik-body text-xs text-muted-foreground">
-            {boss ? `Boss: ${boss.name}` : "Donjon narratif"}
-          </p>
-        </div>
+    <button
+      aria-label={
+        canEnter ? `Entrer dans ${getDungeonTitle(dungeon)}` : `${getDungeonTitle(dungeon)} — verrouillé`
+      }
+      className={cn(
+        "ik-card-hover group relative overflow-hidden border-2 bg-black/45 p-4 text-left",
+        canEnter ? "border-neutral-600" : "cursor-not-allowed border-dashed border-neutral-800",
+        completed && "border-neutral-500"
+      )}
+      data-ik-tip={!canEnter && lockTip ? lockTip : undefined}
+      disabled={!canEnter}
+      onClick={() => onEnter(dungeon.id)}
+      type="button"
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute -right-1 -top-3 font-ik-title text-[3.4rem] leading-none",
+          canEnter ? "text-neutral-800" : "text-neutral-900"
+        )}
+      >
+        {String(index + 1).padStart(2, "0")}
+      </span>
 
-        <button
-          aria-label={`Entrer dans le donjon ${dungeon.title}`}
-          className={cn(
-            "inline-flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 py-2 font-ik-menu text-xs uppercase transition",
-            canEnter && "border-amber-200/55 bg-amber-500/18 text-amber-50 hover:border-amber-100 hover:bg-amber-500/24",
-            !canEnter && "cursor-not-allowed border-zinc-500/30 bg-zinc-900/55 text-zinc-500"
-          )}
-          disabled={!canEnter}
-          onClick={() => onEnter(dungeon.id)}
-          type="button"
-        >
-          {canEnter ? <DoorOpen className="h-4 w-4" aria-hidden="true" /> : <LockKeyhole className="h-4 w-4" aria-hidden="true" />}
-          Entrer dans le donjon
-        </button>
-      </div>
+      <span className="relative flex items-center gap-2">
+        <span className="border border-neutral-700 bg-neutral-950 px-1.5 py-0.5 font-ik-menu text-[0.58rem] text-neutral-400">
+          {getChapterLabel(dungeon.chapterId)}
+        </span>
+        {completed ? (
+          <span className="flex items-center gap-1 border border-neutral-500 bg-neutral-100 px-1.5 py-0.5 font-ik-menu text-[0.58rem] text-neutral-950">
+            <Check aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
+            Terminé
+          </span>
+        ) : null}
+      </span>
 
-      {!canEnter ? (
-        <div className="mt-3 grid gap-1 font-ik-body text-xs text-amber-100/85">
-          {!eraUnlocked ? <span>Missing - Ere non debloquee au Time Gate</span> : null}
-          {lockReasons.map((reason) => (
-            <span key={`${reason.kind}-${formatRequirement(reason)}`}>Missing - {formatRequirement(reason)}</span>
-          ))}
-        </div>
+      <span
+        className={cn(
+          "relative mt-2.5 block font-ik-title text-lg leading-tight",
+          canEnter ? "text-neutral-100" : "text-neutral-500"
+        )}
+      >
+        {getDungeonTitle(dungeon)}
+      </span>
+
+      {boss ? (
+        <span className="relative mt-1.5 flex items-center gap-1.5 font-ik-body text-xs text-neutral-500">
+          <Skull aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.2} />
+          {boss.name}
+        </span>
       ) : null}
-    </article>
+
+      <span className="relative mt-3 flex h-5 items-center font-ik-menu text-[0.62rem]">
+        {canEnter ? (
+          <span className="flex translate-x-0 items-center gap-1 text-neutral-400 transition-all duration-150 group-hover:translate-x-1 group-hover:text-neutral-100">
+            Entrer
+            <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.6} />
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-neutral-600">
+            <Lock aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.4} />
+            Verrouillé
+          </span>
+        )}
+      </span>
+    </button>
   );
 }
 
-type DuelTestArenaPanelProps = {
-  onOpenArena: (href: string) => void;
-};
+/* ---------- Duel / test arena ---------- */
 
-function DuelTestArenaPanel({ onOpenArena }: DuelTestArenaPanelProps) {
+function DuelTestArenaPanel({ onOpenArena }: { onOpenArena: (href: string) => void }) {
   const opponent = DUEL_OPPONENTS.find((candidate) => candidate.available) ?? null;
 
   return (
-    <div className="grid gap-4">
-      <GamePanel className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.16em] text-cyan-100/75">DEV TEST</p>
-            <h3 className="mt-1 font-ik-title text-2xl text-amber-50">Duel / Test Arena</h3>
-          </div>
-          <span className="rounded border border-cyan-200/24 bg-cyan-500/10 px-2 py-1 font-ik-menu text-[0.65rem] text-cyan-50">
-            Gameplay sandbox
-          </span>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2 font-ik-menu text-[0.65rem] uppercase tracking-[0.14em]">
-          <span className="rounded border border-amber-200/18 bg-black/35 px-2 py-1 text-amber-100">Hors progression MVP</span>
-          <span className="rounded border border-amber-200/18 bg-black/35 px-2 py-1 text-amber-100">No progression rewards</span>
-          <span className="rounded border border-amber-200/18 bg-black/35 px-2 py-1 text-amber-100">No Duel currency</span>
-        </div>
-      </GamePanel>
+    <div className="ik-anim-rise-in space-y-3">
+      <div className="flex items-center gap-2 border border-dashed border-neutral-700 bg-black/40 px-3 py-2">
+        <FlaskConical aria-hidden="true" className="h-4 w-4 text-neutral-400" strokeWidth={2.2} />
+        <p className="font-ik-menu text-[0.62rem] text-neutral-400">
+          Sandbox de gameplay — aucune récompense, hors progression MVP
+        </p>
+      </div>
 
-      <div className="grid gap-3">
+      <div className="ik-stagger grid gap-2 sm:grid-cols-3">
         {DUEL_TEST_ENTRIES.map((entry) => (
-          <DuelTestEntryRow entry={entry} key={entry.id} onOpenArena={onOpenArena} opponent={opponent} />
+          <DuelTestEntryCard entry={entry} key={entry.id} onOpenArena={onOpenArena} opponent={opponent} />
         ))}
       </div>
     </div>
   );
 }
 
-function DuelTestEntryRow({
+function DuelTestEntryCard({
   entry,
   onOpenArena,
   opponent,
@@ -283,46 +470,37 @@ function DuelTestEntryRow({
   opponent: DuelOpponent | null;
 }) {
   const canOpen = Boolean(opponent);
+  const EntryIcon = entry.icon;
 
   return (
-    <article className="rounded-lg border border-cyan-200/16 bg-black/28 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4 className="font-ik-title text-xl text-amber-50">{entry.title}</h4>
-            <span className="rounded border border-cyan-200/24 bg-cyan-500/10 px-2 py-0.5 font-ik-menu text-[0.65rem] text-cyan-50">
-              DEV TEST
-            </span>
-          </div>
-          <p className="mt-2 font-ik-body text-xs text-muted-foreground">{entry.detail}</p>
-          {opponent ? (
-            <p className="mt-2 font-ik-menu text-[0.65rem] uppercase tracking-[0.14em] text-muted-foreground">
-              Route: {opponent.fightHref}
-            </p>
-          ) : null}
-        </div>
-
-        <button
-          aria-label={`Entrer dans l'arene de test ${entry.title}`}
-          className={cn(
-            "inline-flex min-h-10 items-center justify-center gap-2 rounded-md border px-3 py-2 font-ik-menu text-xs uppercase transition",
-            canOpen && "border-cyan-200/45 bg-cyan-500/12 text-cyan-50 hover:border-cyan-100 hover:bg-cyan-500/18",
-            !canOpen && "cursor-not-allowed border-zinc-500/30 bg-zinc-900/55 text-zinc-500"
-          )}
-          disabled={!canOpen}
-          onClick={() => {
-            if (!opponent) return;
-            onOpenArena(opponent.fightHref);
-          }}
-          type="button"
-        >
-          <DoorOpen className="h-4 w-4" aria-hidden="true" />
-          Entrer dans l'arene de test
-        </button>
-      </div>
-    </article>
+    <button
+      aria-label={`Lancer ${entry.title}`}
+      className={cn(
+        "ik-card-hover group border-2 bg-black/45 p-4 text-left",
+        canOpen ? "border-neutral-600" : "cursor-not-allowed border-dashed border-neutral-800"
+      )}
+      data-ik-tip={opponent ? opponent.name : "Aucun adversaire disponible"}
+      disabled={!canOpen}
+      onClick={() => {
+        if (!opponent) return;
+        onOpenArena(opponent.fightHref);
+      }}
+      type="button"
+    >
+      <span className="grid h-11 w-11 place-items-center border-2 border-neutral-700 bg-neutral-950 transition-colors group-hover:border-neutral-300">
+        <EntryIcon aria-hidden="true" className="h-5 w-5 text-neutral-100" strokeWidth={2} />
+      </span>
+      <span className="mt-3 block font-ik-title text-base text-neutral-100">{entry.title}</span>
+      <span className="mt-1 block font-ik-body text-xs text-neutral-500">{entry.detail}</span>
+      <span className="mt-3 flex items-center gap-1 font-ik-menu text-[0.62rem] text-neutral-400 transition-all duration-150 group-hover:translate-x-1 group-hover:text-neutral-100">
+        Lancer
+        <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" strokeWidth={2.6} />
+      </span>
+    </button>
   );
 }
+
+/* ---------- Main panel ---------- */
 
 export function TimeGatePanel() {
   const router = useRouter();
@@ -340,18 +518,20 @@ export function TimeGatePanel() {
         .filter((dungeon): dungeon is StoryDungeonDefinition => Boolean(dungeon)),
     [selectedGroup]
   );
-  const selectedEraUnlocked = !selectedGroup.teaser && isEraPlayable(selectedGroup.id) && isEraUnlocked(state, selectedGroup.id);
+  const selectedEraStatus = getEraStatus(state, selectedGroup);
+  const selectedEraUnlocked = selectedEraStatus === "unlocked";
   const canUnlockSelectedEra = canUnlockEraAtTimeGate(state, selectedGroup.id);
+  const showPips = timeGate.maxLevel > 0 && timeGate.maxLevel <= 8;
 
   function handleUnlockEra(eraId: EraId) {
     const result = unlockEraAtTimeGate(useGameStore.getState().state, eraId);
     if (!result.ok) {
-      toast.error(UNLOCK_FAILURE_LABELS[result.reason] ?? "Unlock impossible.", { id: `time-gate-${eraId}` });
+      toast.error(UNLOCK_FAILURE_LABELS[result.reason] ?? "Déblocage impossible.", { id: `time-gate-${eraId}` });
       return;
     }
 
     dispatch(() => result.next);
-    toast.success(`${selectedGroup.title} unlocked`, {
+    toast.success(`${selectedGroup.title} débloquée`, {
       id: `time-gate-${eraId}`,
     });
   }
@@ -366,147 +546,128 @@ export function TimeGatePanel() {
 
   return (
     <section aria-labelledby="time-gate-title" className="space-y-4">
-      <GamePanel className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      {/* Header */}
+      <div className="ik-anim-rise-in flex flex-wrap items-center justify-between gap-4 border-2 border-neutral-700 bg-black/45 p-4">
+        <div className="flex items-center gap-4">
+          <PortalGlyph className="h-16 w-16 shrink-0" />
           <div>
-            <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/80">Building</p>
-            <h2 id="time-gate-title" className="font-ik-title text-3xl font-semibold text-amber-50">Time Gate</h2>
-          </div>
-          <div className="grid gap-1.5 text-right font-ik-body text-sm text-amber-50">
-            <span>Status: {timeGate.status}</span>
-            <span>
-              Level {timeGate.level}/{timeGate.maxLevel}
-            </span>
+            <h2 className="font-ik-title text-2xl font-semibold uppercase tracking-[0.06em] text-neutral-100" id="time-gate-title">
+              Time Gate
+            </h2>
+            <div className="mt-1.5 flex items-center gap-2" data-ik-tip={`Niveau ${timeGate.level}/${timeGate.maxLevel} — ${timeGate.status}`}>
+              {showPips ? (
+                <span className="flex items-center gap-1">
+                  {Array.from({ length: timeGate.maxLevel }, (_, pip) => (
+                    <span className={cn("ik-pip", pip < timeGate.level && "ik-pip--on")} key={pip} />
+                  ))}
+                </span>
+              ) : null}
+              <span className="font-ik-menu text-[0.62rem] text-neutral-400">
+                Nv {timeGate.level}/{timeGate.maxLevel}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <div className="rounded-lg border border-amber-200/16 bg-black/32 p-3">
-            <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.16em] text-muted-foreground">
-              Kaleidoscope
-            </p>
-            <p className="mt-2 font-ik-title text-xl text-amber-50">
-              {state.specialItems.kaleidoscopeOwned ? "Owned" : "Missing"}
-            </p>
-          </div>
-          <div className="rounded-lg border border-amber-200/16 bg-black/32 p-3">
-            <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.16em] text-muted-foreground">
-              Fragment du Temps
-            </p>
-            <p className="mt-2 font-ik-title text-xl text-amber-50">{state.specialItems.fragmentDuTemps}</p>
-          </div>
-          <div className="rounded-lg border border-amber-200/16 bg-black/32 p-3">
-            <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.16em] text-muted-foreground">
-              World Level
-            </p>
-            <p className="mt-2 font-ik-title text-xl text-amber-50">{state.progression.worldLevel}</p>
-          </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <StatChip
+            icon={Aperture}
+            met={state.specialItems.kaleidoscopeOwned}
+            tip={state.specialItems.kaleidoscopeOwned ? "Kaléidoscope possédé" : "Kaléidoscope manquant"}
+            value={state.specialItems.kaleidoscopeOwned ? "✓" : "—"}
+          />
+          <StatChip
+            icon={Hourglass}
+            tip={`Fragment du Temps ×${state.specialItems.fragmentDuTemps}`}
+            value={`${state.specialItems.fragmentDuTemps}`}
+          />
+          <StatChip icon={Globe2} tip={`World Level ${state.progression.worldLevel}`} value={`${state.progression.worldLevel}`} />
         </div>
-      </GamePanel>
+      </div>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(220px,0.45fr)_minmax(0,1fr)]">
-        <GamePanel className="p-4">
-          <div className="flex items-center gap-2">
-            <Swords className="h-4 w-4 text-amber-100" aria-hidden="true" />
-            <h3 className="font-ik-title text-xl text-amber-50">Story / Eres</h3>
-          </div>
-          <div className="mt-4 grid gap-2">
-            {STORY_ERA_GROUPS.map((group) => {
-              const selected = activeSection === "story" && group.id === selectedGroup.id;
-              return (
-                <button
-                  aria-pressed={selected}
+      {/* Mode tabs */}
+      <div aria-label="Modes de jeu" className="ik-seg ik-anim-rise-in" role="tablist" style={{ animationDelay: "40ms" }}>
+        <button
+          aria-selected={activeSection === "story"}
+          className="ik-seg__tab"
+          onClick={() => setActiveSection("story")}
+          role="tab"
+          type="button"
+        >
+          <Swords aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+          Histoire
+        </button>
+        <button
+          aria-selected={activeSection === "duel"}
+          className="ik-seg__tab"
+          onClick={() => setActiveSection("duel")}
+          role="tab"
+          type="button"
+        >
+          <FlaskConical aria-hidden="true" className="h-4 w-4" strokeWidth={2.2} />
+          Arène d'essai
+        </button>
+      </div>
+
+      {activeSection === "duel" ? (
+        <DuelTestArenaPanel onOpenArena={handleOpenTestArena} />
+      ) : (
+        <div className="space-y-4">
+          <EraTimeline onSelect={setSelectedEraId} selectedEraId={selectedGroup.id} state={state} />
+
+          {/* Era detail */}
+          <div className="ik-anim-rise-in space-y-4 border-2 border-neutral-700 bg-black/45 p-4" key={selectedGroup.id}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <selectedGroup.icon aria-hidden="true" className="h-5 w-5 text-neutral-100" strokeWidth={2.2} />
+                <h3 className="font-ik-title text-xl text-neutral-100">{selectedGroup.title}</h3>
+                <span
                   className={cn(
-                    "rounded-lg border p-3 text-left transition",
-                    selected && "border-amber-200/65 bg-amber-500/[0.08]",
-                    !selected && "border-amber-200/16 bg-black/25 hover:border-amber-200/42"
+                    "border px-2 py-0.5 font-ik-menu text-[0.6rem]",
+                    selectedEraUnlocked
+                      ? "border-neutral-400 bg-neutral-100 text-neutral-950"
+                      : "border-neutral-700 text-neutral-400"
                   )}
-                  key={group.id}
-                  onClick={() => {
-                    setActiveSection("story");
-                    setSelectedEraId(group.id);
-                  }}
-                  type="button"
                 >
-                  <span className="block font-ik-title text-lg text-amber-50">{group.title}</span>
-                  <span className="mt-1 block font-ik-body text-xs text-muted-foreground">{group.subtitle}</span>
-                  <span className="mt-2 inline-flex rounded border border-amber-200/18 bg-black/35 px-2 py-0.5 font-ik-menu text-[0.65rem] text-amber-50">
-                    {getEraStatus(state, group)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-5 border-t border-amber-200/14 pt-4">
-            <button
-              aria-pressed={activeSection === "duel"}
-              className={cn(
-                "w-full rounded-lg border p-3 text-left transition",
-                activeSection === "duel" && "border-cyan-200/65 bg-cyan-500/[0.08]",
-                activeSection !== "duel" && "border-cyan-200/16 bg-black/25 hover:border-cyan-200/42"
-              )}
-              onClick={() => setActiveSection("duel")}
-              type="button"
-            >
-              <span className="flex items-center gap-2">
-                <FlaskConical className="h-4 w-4 text-cyan-100" aria-hidden="true" />
-                <span className="font-ik-title text-lg text-amber-50">Duel / Test Arena</span>
-              </span>
-              <span className="mt-1 block font-ik-body text-xs text-muted-foreground">Gameplay sandbox, no rewards</span>
-              <span className="mt-2 inline-flex rounded border border-cyan-200/24 bg-cyan-500/10 px-2 py-0.5 font-ik-menu text-[0.65rem] text-cyan-50">
-                DEV TEST
-              </span>
-            </button>
-          </div>
-        </GamePanel>
-
-        {activeSection === "duel" ? (
-          <DuelTestArenaPanel onOpenArena={handleOpenTestArena} />
-        ) : (
-          <div className="grid gap-4">
-            <GamePanel className="p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-ik-menu text-[0.65rem] uppercase tracking-[0.16em] text-cyan-100/75">
-                    {selectedGroup.id}
-                  </p>
-                  <h3 className="mt-1 font-ik-title text-2xl text-amber-50">{selectedGroup.title}</h3>
-                </div>
-                <span className="rounded border border-amber-200/18 bg-black/35 px-2 py-1 font-ik-menu text-[0.65rem] text-amber-50">
-                  {getEraStatus(state, selectedGroup)}
+                  {ERA_STATUS_META[selectedEraStatus].label}
                 </span>
               </div>
 
-              <TimeGateRequirementList era={selectedEra} state={state} />
-
-              {!selectedEraUnlocked && !selectedGroup.teaser && selectedGroup.id === "era_glaciaire" ? (
+              {!selectedEraUnlocked && !selectedGroup.teaser ? (
                 <button
-                  aria-label="Unlock Ere Glaciaire at the Time Gate"
-                  className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-cyan-200/32 bg-cyan-500/12 px-3 py-2 font-ik-menu text-xs uppercase text-cyan-50 transition hover:border-cyan-100 disabled:cursor-not-allowed disabled:opacity-45"
+                  aria-label={`Débloquer ${selectedGroup.title}`}
+                  className={cn(
+                    "flex min-h-10 items-center gap-2 border-2 px-4 py-2 font-ik-menu text-xs transition",
+                    canUnlockSelectedEra
+                      ? "ik-ready-pulse border-neutral-100 bg-neutral-100 text-neutral-950 hover:bg-neutral-300"
+                      : "cursor-not-allowed border-neutral-800 text-neutral-600"
+                  )}
                   disabled={!canUnlockSelectedEra}
                   onClick={() => handleUnlockEra(selectedGroup.id)}
                   type="button"
                 >
-                  <DoorOpen className="h-4 w-4" aria-hidden="true" />
-                  Unlock Ere Glaciaire
+                  <Unlock aria-hidden="true" className="h-4 w-4" strokeWidth={2.4} />
+                  Débloquer
                 </button>
               ) : null}
-            </GamePanel>
+            </div>
+
+            {!selectedEraUnlocked && !selectedGroup.teaser ? (
+              <TimeGateRequirements era={selectedEra} state={state} />
+            ) : null}
 
             {selectedGroup.teaser ? (
-              <GamePanel className="p-4">
-                <div className="rounded-lg border border-amber-200/16 bg-black/28 p-4">
-                  <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-100">Teaser locked</p>
-                  <h4 className="mt-2 font-ik-title text-xl text-amber-50">Aucun donjon jouable MVP</h4>
-                </div>
-              </GamePanel>
+              <div className="grid place-items-center gap-3 border border-dashed border-neutral-800 bg-neutral-950/60 py-10">
+                <Sparkles aria-hidden="true" className="h-6 w-6 text-neutral-600" strokeWidth={2} />
+                <p className="font-ik-menu text-[0.68rem] text-neutral-500">Prochainement — aucun donjon jouable</p>
+              </div>
             ) : (
-              <div className="grid gap-3">
-                {selectedDungeons.map((dungeon) => (
-                  <DungeonRow
+              <div className="ik-stagger grid gap-2.5 sm:grid-cols-2">
+                {selectedDungeons.map((dungeon, index) => (
+                  <DungeonCard
                     dungeon={dungeon}
                     eraUnlocked={selectedEraUnlocked}
+                    index={index}
                     key={dungeon.id}
                     onEnter={handleEnterDungeon}
                     state={state}
@@ -515,8 +676,8 @@ export function TimeGatePanel() {
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

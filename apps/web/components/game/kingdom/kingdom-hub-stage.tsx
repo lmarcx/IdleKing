@@ -4,14 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 import { toast } from "sonner";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { DEV_MODE } from "@/lib/env";
 import { getResourceAssetPath } from "@/lib/resource-assets";
 import { cn } from "@/lib/utils";
@@ -57,6 +50,12 @@ import { BankView } from "./bank-view";
 import { MarketView } from "./market-view";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 import { KingdomOverlay } from "./kingdom-overlay";
+import {
+  BuildingBuildSection,
+  BuildingCostChips,
+  BuildingModalHeader,
+  ModalActionButton,
+} from "./building-modal";
 
 const MAP_WIDTH = 1800;
 const MAP_HEIGHT = 1200;
@@ -637,11 +636,11 @@ function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, ca
   return "Construire";
 }
 
-function getBuildingLevelLabel(building: { built: boolean; level?: number; maxLevel?: number }) {
-  const level = Math.max(0, Math.floor(building.level ?? (building.built ? 1 : 0)));
-  const maxLevel = Math.max(1, Math.floor(building.maxLevel ?? 50));
-
-  return `Level ${level}/${maxLevel}`;
+function getBuildingLevelParts(building: { built: boolean; level?: number; maxLevel?: number }) {
+  return {
+    level: Math.max(0, Math.floor(building.level ?? (building.built ? 1 : 0))),
+    maxLevel: Math.max(1, Math.floor(building.maxLevel ?? 50)),
+  };
 }
 
 function getEffectiveBuildingState<T extends { unlocked: boolean; built: boolean; active?: boolean }>(
@@ -1780,67 +1779,29 @@ export function KingdomHubStage() {
       >
         <DialogContent
           className={cn(
-            "border-amber-200/25 bg-zinc-950 text-amber-50",
+            "text-neutral-100",
             placeholderBuildingId === "mine" || placeholderBuildingId === "kitchen"
               ? "max-h-[92vh] max-w-5xl overflow-y-auto"
               : "max-w-md",
           )}
         >
-          <DialogHeader>
-            <DialogTitle>{placeholderBuilding?.label ?? "Building"}</DialogTitle>
-            <DialogDescription>
-              {placeholderBuildingId === "mine"
-                ? "Active Mine run MVP"
-                : placeholderBuildingId === "kitchen"
-                  ? "Active Kitchen run MVP"
-                  : "Manual World rank-up"}
-            </DialogDescription>
-          </DialogHeader>
-
-          {placeholderBuilding ? (
-            <div className="mt-4 space-y-4">
-              <div className="flex justify-center rounded-md border border-amber-200/15 bg-black/35 p-5">
-                <svg aria-hidden="true" className="h-32 w-auto text-foreground" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 96 96">
-                  {placeholderBuildingId === "mine" ? (
-                    <>
-                      <path d="M12 84 L34 22 H62 L84 84 Z" />
-                      <path d="M36 84 L40 58 H56 L60 84 Z" fill="currentColor" fillOpacity={0.15} />
-                      <path d="M40 40 L56 48 M56 40 L40 48" />
-                    </>
-                  ) : placeholderBuildingId === "kitchen" ? (
-                    <>
-                      <rect height="36" width="52" x="22" y="48" />
-                      <path d="M16 48 L48 24 L80 48" />
-                      <rect height="20" width="14" x="34" y="64" />
-                      <circle cx="62" cy="60" r="6" />
-                    </>
-                  ) : (
-                    <>
-                      <rect height="40" width="60" x="18" y="44" />
-                      <path d="M10 44 L48 18 L86 44" />
-                      <path d="M28 44 V84 M48 44 V84 M68 44 V84" />
-                      <circle cx="48" cy="32" r="4" />
-                    </>
-                  )}
-                </svg>
-              </div>
-
-              {placeholderBuildingState ? (
-                <div className="rounded-md border border-amber-200/15 bg-black/35 p-3">
-                  <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
-                  <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-amber-50">
-                    {getBuildingStatusLabel(placeholderBuildingState)}
-                    {placeholderBuildingId && isDevUnlocked(state.buildings[placeholderBuildingId]) ? (
-                      <span className="rounded border border-amber-200/20 bg-amber-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-amber-100">
-                        DEV UNLOCK
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 font-ik-body text-xs text-muted-foreground">
-                    {getBuildingLevelLabel(placeholderBuildingState)}
-                  </div>
-                </div>
-              ) : null}
+          {placeholderBuilding && placeholderBuildingId ? (
+            <div className="space-y-4">
+              <BuildingModalHeader
+                devUnlocked={isDevUnlocked(state.buildings[placeholderBuildingId])}
+                glyph={placeholderBuildingId}
+                level={placeholderBuildingState ? getBuildingLevelParts(placeholderBuildingState).level : undefined}
+                maxLevel={placeholderBuildingState ? getBuildingLevelParts(placeholderBuildingState).maxLevel : undefined}
+                statusLabel={placeholderBuildingState ? getBuildingStatusLabel(placeholderBuildingState) : "—"}
+                subtitle={
+                  placeholderBuildingId === "mine"
+                    ? "Run de minage actif"
+                    : placeholderBuildingId === "kitchen"
+                      ? "Run de cuisine actif"
+                      : "Montée de niveau du Monde"
+                }
+                title={placeholderBuilding.label}
+              />
 
               {placeholderBuildingId === "mine" ? (
                 <MineMiniGamePanel embedded />
@@ -1849,52 +1810,54 @@ export function KingdomHubStage() {
               ) : placeholderBuildingId === "forum" ? (
                 <div className="space-y-3">
                   {!effectiveForum.built ? (
-                    <div className="rounded-md border border-amber-200/20 bg-black/35 p-3">
-                      <div className="font-ik-title text-sm text-amber-50">Construction</div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(Object.entries(FORUM_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                          <span
-                            className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
-                            key={resourceId}
-                          >
-                            <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                            {formatResourceLabel(resourceId)} {amount}
-                          </span>
-                        ))}
-                      </div>
-                      <button
-                        className="mt-3 rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={!canBuildForum}
-                        onClick={() => handleBuildCoreBuilding("FORUM")}
-                        type="button"
-                      >
-                        {getBuildActionLabel(effectiveForum, canBuildForum)}
-                      </button>
-                    </div>
+                    <BuildingBuildSection
+                      canBuild={canBuildForum}
+                      cost={FORUM_BUILD_COST}
+                      label={getBuildActionLabel(effectiveForum, canBuildForum)}
+                      onBuild={() => handleBuildCoreBuilding("FORUM")}
+                      resources={state.resources}
+                    />
                   ) : null}
 
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-md border border-amber-200/15 bg-black/35 p-3">
-                      <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">World Level</div>
-                      <div className="mt-1 font-ik-menu text-lg text-amber-50">{state.progression.worldLevel}</div>
+                    <div className="border border-neutral-700 bg-neutral-950/60 p-3">
+                      <div className="font-ik-menu text-[0.6rem] text-neutral-500">World Level</div>
+                      <div className="mt-1 font-ik-title text-xl text-neutral-100 tabular-nums">
+                        {state.progression.worldLevel}
+                      </div>
                     </div>
-                    <div className="rounded-md border border-amber-200/15 bg-black/35 p-3">
-                      <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">WXP</div>
-                      <div className="mt-1 font-ik-menu text-lg text-amber-50">
+                    <div className="border border-neutral-700 bg-neutral-950/60 p-3">
+                      <div className="font-ik-menu text-[0.6rem] text-neutral-500">WXP</div>
+                      <div className="mt-1 font-ik-title text-xl text-neutral-100 tabular-nums">
                         {state.progression.worldWxp}
                         {forumRequiredWxp > 0 ? `/${forumRequiredWxp}` : ""}
                       </div>
+                      {forumRequiredWxp > 0 ? (
+                        <div className="ik-bar mt-2">
+                          <div
+                            className="ik-bar__fill ik-bar__fill--dim"
+                            style={{
+                              width: `${Math.min(100, (state.progression.worldWxp / forumRequiredWxp) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      ) : null}
                     </div>
                   </div>
 
                   {forumFeedback ? (
-                    <div className="rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">
+                    <div className="ik-anim-rise-in border border-neutral-600 bg-neutral-900 p-3 font-ik-body text-sm text-neutral-100">
                       {forumFeedback}
                     </div>
                   ) : null}
 
                   <button
-                    className="w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
+                    className={cn(
+                      "flex min-h-11 w-full items-center justify-center gap-2 border-2 px-4 py-2 font-ik-menu text-xs transition",
+                      canRankUpForum
+                        ? "ik-ready-pulse border-neutral-100 bg-neutral-100 text-neutral-950 hover:bg-neutral-300"
+                        : "cursor-not-allowed border-neutral-800 text-neutral-600",
+                    )}
                     disabled={!canRankUpForum}
                     onClick={handleForumRankUpWorld}
                     type="button"
@@ -1903,31 +1866,27 @@ export function KingdomHubStage() {
                   </button>
                 </div>
               ) : (
-                <div className="rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-title text-lg text-amber-50">
-                  Coming Soon
+                <div className="border border-dashed border-neutral-800 bg-neutral-950/60 p-4 text-center font-ik-menu text-xs text-neutral-500">
+                  Prochainement
                 </div>
               )}
             </div>
           ) : null}
 
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={closePlaceholderBuildingModal}
-              type="button"
-            >
-              Close
-            </button>
+            <ModalActionButton onClick={closePlaceholderBuildingModal}>Fermer</ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isCornucopiaOpen} onOpenChange={setIsCornucopiaOpen}>
-        <DialogContent className="max-w-3xl border-amber-200/25 bg-zinc-950 text-amber-50">
-          <DialogHeader>
-            <DialogTitle>Cornucopia</DialogTitle>
-            <DialogDescription>Dev resource console for fast Kingdom testing.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl text-neutral-100">
+          <BuildingModalHeader
+            glyph="cornucopia"
+            statusLabel="Console dev"
+            subtitle="Ressources rapides pour tester le Royaume."
+            title="Cornucopia"
+          />
 
           <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
             <div className="max-h-[24rem] overflow-y-auto rounded-md border border-amber-200/15 bg-black/35 p-2">
@@ -2019,13 +1978,7 @@ export function KingdomHubStage() {
           </div>
 
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={() => setIsCornucopiaOpen(false)}
-              type="button"
-            >
-              Close
-            </button>
+            <ModalActionButton onClick={() => setIsCornucopiaOpen(false)}>Fermer</ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2036,101 +1989,75 @@ export function KingdomHubStage() {
           if (!open) closeTempleModal();
         }}
       >
-        <DialogContent className="border-cyan-200/25 bg-zinc-950 text-cyan-50">
-          <DialogHeader>
-            <DialogTitle>Temple</DialogTitle>
-            <DialogDescription>Convert XP_GLOBAL into Player XP or banked World WXP at a 1:1 rate.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="text-neutral-100">
+          <div className="space-y-4">
+            <BuildingModalHeader
+              devUnlocked={isDevUnlocked(state.buildings.temple)}
+              glyph="temple"
+              level={getBuildingLevelParts(effectiveTemple).level}
+              maxLevel={getBuildingLevelParts(effectiveTemple).maxLevel}
+              statusLabel={getBuildingStatusLabel(effectiveTemple)}
+              subtitle="Convertit l'XP_GLOBAL en XP joueur ou WXP monde (1:1)."
+              title="Temple"
+            />
 
-          <div className="mt-4 grid gap-3 font-ik-body text-sm text-muted-foreground sm:grid-cols-3">
-            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
-              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Status</div>
-              <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-cyan-50">
-                {getBuildingStatusLabel(effectiveTemple)}
-                {isDevUnlocked(state.buildings.temple) ? (
-                  <span className="rounded border border-cyan-200/20 bg-cyan-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-cyan-100">
-                    DEV UNLOCK
-                  </span>
-                ) : null}
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className="border border-neutral-700 bg-neutral-950/60 p-3">
+                <div className="font-ik-menu text-[0.6rem] text-neutral-500">XP_GLOBAL</div>
+                <div className="mt-1 font-ik-title text-xl text-neutral-100 tabular-nums">{xpGlobalAvailable}</div>
               </div>
-              <div className="mt-1 font-ik-body text-xs text-muted-foreground">
-                {getBuildingLevelLabel(effectiveTemple)}
+              <div className="border border-neutral-700 bg-neutral-950/60 p-3">
+                <div className="font-ik-menu text-[0.6rem] text-neutral-500">Joueur</div>
+                <div className="mt-1 font-ik-title text-xl text-neutral-100 tabular-nums">
+                  Nv {state.progression.playerLevel}
+                </div>
+                <div className="font-ik-body text-xs text-neutral-500 tabular-nums">
+                  XP {state.progression.playerXp}
+                  {playerXpToNext > 0 ? `/${playerXpToNext}` : ""}
+                </div>
               </div>
-            </div>
-            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
-              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">XP_GLOBAL</div>
-              <div className="mt-1 font-ik-menu text-lg text-cyan-50">{xpGlobalAvailable}</div>
-            </div>
-            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3">
-              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">Player</div>
-              <div className="mt-1 font-ik-menu text-sm text-cyan-50">
-                Level {state.progression.playerLevel} · XP {state.progression.playerXp}
-                {playerXpToNext > 0 ? `/${playerXpToNext}` : ""}
+              <div className="border border-neutral-700 bg-neutral-950/60 p-3">
+                <div className="font-ik-menu text-[0.6rem] text-neutral-500">Monde</div>
+                <div className="mt-1 font-ik-title text-xl text-neutral-100 tabular-nums">
+                  Nv {state.progression.worldLevel}
+                </div>
+                <div className="font-ik-body text-xs text-neutral-500 tabular-nums">WXP {state.progression.worldWxp}</div>
               </div>
             </div>
-            <div className="rounded-md border border-cyan-200/15 bg-black/35 p-3 sm:col-span-3">
-              <div className="text-xs uppercase tracking-[0.14em] text-cyan-100/70">World</div>
-              <div className="mt-1 font-ik-menu text-sm text-cyan-50">
-                Level {state.progression.worldLevel} · WXP {state.progression.worldWxp}
+
+            {!effectiveTemple.built ? (
+              <BuildingBuildSection
+                canBuild={canBuildTemple}
+                cost={TEMPLE_BUILD_COST}
+                label={getBuildActionLabel(effectiveTemple, canBuildTemple)}
+                onBuild={() => handleBuildCoreBuilding("TEMPLE")}
+                resources={state.resources}
+              />
+            ) : null}
+
+            {templeFeedback ? (
+              <div className="ik-anim-rise-in border border-neutral-600 bg-neutral-900 p-3 font-ik-body text-sm text-neutral-100">
+                {templeFeedback}
               </div>
-            </div>
+            ) : null}
           </div>
 
-          {!effectiveTemple.built ? (
-            <div className="mt-3 rounded-md border border-cyan-200/20 bg-black/35 p-3">
-              <div className="font-ik-title text-sm text-cyan-50">Construction</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(Object.entries(TEMPLE_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                  <span
-                    className="inline-flex items-center gap-1 rounded border border-cyan-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-cyan-50"
-                    key={resourceId}
-                  >
-                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                    {formatResourceLabel(resourceId)} {amount}
-                  </span>
-                ))}
-              </div>
-              <button
-                className="mt-3 rounded-md border border-cyan-300/45 bg-cyan-500/14 px-4 py-2 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canBuildTemple}
-                onClick={() => handleBuildCoreBuilding("TEMPLE")}
-                type="button"
-              >
-                {getBuildActionLabel(effectiveTemple, canBuildTemple)}
-              </button>
-            </div>
-          ) : null}
-
-          {templeFeedback ? (
-            <div className="mt-3 rounded-md border border-cyan-200/20 bg-cyan-400/10 p-3 font-ik-body text-sm text-cyan-50">
-              {templeFeedback}
-            </div>
-          ) : null}
-
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={closeTempleModal}
-              type="button"
-            >
-              Close
-            </button>
-            <button
-              className="rounded-md border border-cyan-300/45 bg-cyan-500/14 px-4 py-2 font-ik-menu text-sm text-cyan-50 transition hover:border-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            <ModalActionButton onClick={closeTempleModal}>Fermer</ModalActionButton>
+            <ModalActionButton
               disabled={!effectiveTemple.built || xpGlobalAvailable <= 0}
               onClick={() => handleTempleConvert("playerXp")}
-              type="button"
+              primary
             >
-              Convert to Player XP
-            </button>
-            <button
-              className="rounded-md border border-violet-300/45 bg-violet-500/14 px-4 py-2 font-ik-menu text-sm text-violet-50 transition hover:border-violet-200 hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              → XP Joueur
+            </ModalActionButton>
+            <ModalActionButton
               disabled={!effectiveTemple.built || xpGlobalAvailable <= 0}
               onClick={() => handleTempleConvert("worldWxp")}
-              type="button"
+              primary
             >
-              Convert to World WXP (1:1)
-            </button>
+              → WXP Monde
+            </ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2141,114 +2068,86 @@ export function KingdomHubStage() {
           if (!open) closeForgeModal();
         }}
       >
-        <DialogContent className="max-w-2xl border-amber-200/25 bg-zinc-950 text-amber-50">
-          <DialogHeader>
-            <DialogTitle>Forge</DialogTitle>
-            <DialogDescription>Craft deterministic MVP equipment from mined ore.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-2xl text-neutral-100">
+          <div className="space-y-4">
+            <BuildingModalHeader
+              devUnlocked={isDevUnlocked(state.buildings.forge)}
+              glyph="forge"
+              level={getBuildingLevelParts(effectiveForge).level}
+              maxLevel={getBuildingLevelParts(effectiveForge).maxLevel}
+              statusLabel={getBuildingStatusLabel(effectiveForge)}
+              subtitle="Forge de l'équipement à partir du minerai."
+              title="Forge"
+            />
 
-          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3">
-            <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
-            <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-amber-50">
-              {getBuildingStatusLabel(effectiveForge)}
-              {isDevUnlocked(state.buildings.forge) ? (
-                <span className="rounded border border-amber-200/20 bg-amber-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-amber-100">
-                  DEV UNLOCK
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-1 font-ik-body text-xs text-muted-foreground">
-              {getBuildingLevelLabel(effectiveForge)}
-            </div>
+            {!effectiveForge.built ? (
+              <BuildingBuildSection
+                canBuild={canBuildForge}
+                cost={FORGE_BUILD_COST}
+                label={getBuildActionLabel(effectiveForge, canBuildForge)}
+                onBuild={() => handleBuildCoreBuilding("FORGE")}
+                resources={state.resources}
+              />
+            ) : null}
+
+            {effectiveForge.built ? (
+              <div className="ik-stagger grid gap-2 sm:grid-cols-3">
+                {FORGE_MVP_RECIPES.map((recipe) => {
+                  const ingredients = normalizeForgeRecipeIngredients(recipe.ingredients);
+                  const outputBase = getForgeOutputBase(recipe.outputBaseId);
+                  const requiredForgeLevel = getCanonicalForgeRecipeRequiredLevel(recipe);
+                  const hasRecipeResources = hasAtLeast(state.resources, ingredients);
+                  const isRecipeAvailable = isForgeRecipeAvailable(state, recipe);
+                  const canCraft = hasRecipeResources && isRecipeAvailable;
+                  const craftLabel = canCraft
+                    ? "Forger"
+                    : !isRecipeAvailable
+                      ? `Forge Nv ${requiredForgeLevel}`
+                      : "Ressources";
+
+                  return (
+                    <div
+                      className={cn(
+                        "ik-card-hover border-2 bg-neutral-950/60 p-3",
+                        canCraft ? "border-neutral-600" : "border-dashed border-neutral-800",
+                      )}
+                      key={recipe.id}
+                    >
+                      <div className="font-ik-title text-sm text-neutral-100">{recipe.label}</div>
+                      <div className="mt-0.5 font-ik-body text-[0.68rem] capitalize text-neutral-500">
+                        {outputBase?.slot ?? recipe.category} · ilvl Monde {state.progression.worldLevel}
+                      </div>
+                      <div className="mt-2.5">
+                        <BuildingCostChips cost={ingredients} resources={state.resources} />
+                      </div>
+                      <button
+                        className={cn(
+                          "mt-3 flex min-h-9 w-full items-center justify-center gap-2 border-2 px-3 py-1.5 font-ik-menu text-[0.68rem] transition",
+                          canCraft
+                            ? "border-neutral-100 bg-neutral-100 text-neutral-950 hover:bg-neutral-300"
+                            : "cursor-not-allowed border-neutral-800 text-neutral-600",
+                        )}
+                        disabled={!canCraft}
+                        onClick={() => handleForgeCraft(recipe)}
+                        type="button"
+                      >
+                        {craftLabel}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
+
+            {forgeFeedback ? (
+              <div className="ik-anim-rise-in border border-neutral-600 bg-neutral-900 p-3 font-ik-body text-sm text-neutral-100">
+                {forgeFeedback}
+              </div>
+            ) : null}
           </div>
 
-          {!effectiveForge.built ? (
-            <div className="mt-3 rounded-md border border-amber-200/20 bg-black/35 p-3">
-              <div className="font-ik-title text-sm text-amber-50">Construction</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(Object.entries(FORGE_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                  <span
-                    className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
-                    key={resourceId}
-                  >
-                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                    {formatResourceLabel(resourceId)} {amount}
-                  </span>
-                ))}
-              </div>
-              <button
-                className="mt-3 rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canBuildForge}
-                onClick={() => handleBuildCoreBuilding("FORGE")}
-                type="button"
-              >
-                {getBuildActionLabel(effectiveForge, canBuildForge)}
-              </button>
-            </div>
-          ) : null}
-
-          {effectiveForge.built ? (
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {FORGE_MVP_RECIPES.map((recipe) => {
-                const ingredients = normalizeForgeRecipeIngredients(recipe.ingredients);
-                const outputBase = getForgeOutputBase(recipe.outputBaseId);
-                const requiredForgeLevel = getCanonicalForgeRecipeRequiredLevel(recipe);
-                const hasRecipeResources = hasAtLeast(state.resources, ingredients);
-                const isRecipeAvailable = isForgeRecipeAvailable(state, recipe);
-                const canCraft = hasRecipeResources && isRecipeAvailable;
-                const craftLabel = canCraft
-                  ? "Forge"
-                  : !isRecipeAvailable
-                    ? `Forge lvl ${requiredForgeLevel}`
-                    : !hasRecipeResources
-                    ? "Ressources insuffisantes"
-                    : "Verrouillé";
-
-                return (
-                  <div className="rounded-md border border-amber-200/15 bg-black/35 p-3" key={recipe.id}>
-                    <div className="font-ik-title text-sm text-amber-50">{recipe.label}</div>
-                    <div className="mt-1 font-ik-body text-xs capitalize text-muted-foreground">
-                      {outputBase?.slot ?? recipe.category} - rarity roll Forge Lv - ilvl from World {state.progression.worldLevel}
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {(Object.entries(ingredients) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                        <span
-                          className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
-                          key={resourceId}
-                        >
-                          <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                          {formatResourceLabel(resourceId)} {amount}
-                        </span>
-                      ))}
-                    </div>
-                    <button
-                      className="mt-4 w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-3 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={!canCraft}
-                      onClick={() => handleForgeCraft(recipe)}
-                      type="button"
-                    >
-                      {craftLabel}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {forgeFeedback ? (
-            <div className="mt-3 rounded-md border border-amber-200/20 bg-amber-400/10 p-3 font-ik-body text-sm text-amber-50">
-              {forgeFeedback}
-            </div>
-          ) : null}
-
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={closeForgeModal}
-              type="button"
-            >
-              Close
-            </button>
+            <ModalActionButton onClick={closeForgeModal}>Fermer</ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2261,68 +2160,37 @@ export function KingdomHubStage() {
       >
         <DialogContent
           className={cn(
-            "border-blue-200/25 bg-zinc-950 text-blue-50",
+            "text-neutral-100",
             effectiveBank.built ? "max-h-[92vh] max-w-4xl overflow-y-auto" : "max-w-md",
           )}
           data-testid="kingdom-bank-dialog"
         >
-          <DialogHeader>
-            <DialogTitle>Bank</DialogTitle>
-            <DialogDescription>Store resources, consumables, and special non-quest items.</DialogDescription>
-          </DialogHeader>
+          <div className="space-y-4">
+            <BuildingModalHeader
+              devUnlocked={isDevUnlocked(state.buildings.bank)}
+              glyph="bank"
+              level={getBuildingLevelParts(effectiveBank).level}
+              maxLevel={getBuildingLevelParts(effectiveBank).maxLevel}
+              statusLabel={getBuildingStatusLabel(effectiveBank)}
+              subtitle="Stocke ressources, consommables et objets spéciaux."
+              title="Banque"
+            />
 
-          <div className="mt-4 rounded-md border border-blue-200/15 bg-black/35 p-3">
-            <div className="text-xs uppercase tracking-[0.14em] text-blue-100/70">Status</div>
-            <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-blue-50">
-              {getBuildingStatusLabel(effectiveBank)}
-              {isDevUnlocked(state.buildings.bank) ? (
-                <span className="rounded border border-blue-200/20 bg-blue-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-blue-100">
-                  DEV UNLOCK
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-1 font-ik-body text-xs text-muted-foreground">
-              {getBuildingLevelLabel(effectiveBank)}
-            </div>
+            {!effectiveBank.built ? (
+              <BuildingBuildSection
+                canBuild={canBuildBank}
+                cost={BANK_BUILD_COST}
+                label={getBuildActionLabel(effectiveBank, canBuildBank)}
+                onBuild={() => handleBuildCoreBuilding("BANK")}
+                resources={state.resources}
+              />
+            ) : (
+              <BankView embedded />
+            )}
           </div>
 
-          {!effectiveBank.built ? (
-            <div className="mt-3 rounded-md border border-blue-200/20 bg-black/35 p-3">
-              <div className="font-ik-title text-sm text-blue-50">Construction</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(Object.entries(BANK_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                  <span
-                    className="inline-flex items-center gap-1 rounded border border-blue-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-blue-50"
-                    key={resourceId}
-                  >
-                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                    {formatResourceLabel(resourceId)} {amount}
-                  </span>
-                ))}
-              </div>
-              <button
-                className="mt-3 rounded-md border border-blue-300/45 bg-blue-500/14 px-4 py-2 font-ik-menu text-sm text-blue-50 transition hover:border-blue-200 hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canBuildBank}
-                onClick={() => handleBuildCoreBuilding("BANK")}
-                type="button"
-              >
-                {getBuildActionLabel(effectiveBank, canBuildBank)}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <BankView embedded />
-            </div>
-          )}
-
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={closeBankModal}
-              type="button"
-            >
-              Close
-            </button>
+            <ModalActionButton onClick={closeBankModal}>Fermer</ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2335,68 +2203,37 @@ export function KingdomHubStage() {
       >
         <DialogContent
           className={cn(
-            "border-amber-200/25 bg-zinc-950 text-amber-50",
+            "text-neutral-100",
             effectiveMarket.built ? "max-h-[92vh] max-w-4xl overflow-y-auto" : "max-w-md",
           )}
           data-testid="kingdom-market-dialog"
         >
-          <DialogHeader>
-            <DialogTitle>Market</DialogTitle>
-            <DialogDescription>Buy and sell MVP goods with ECU.</DialogDescription>
-          </DialogHeader>
+          <div className="space-y-4">
+            <BuildingModalHeader
+              devUnlocked={isDevUnlocked(state.buildings.market)}
+              glyph="market"
+              level={getBuildingLevelParts(effectiveMarket).level}
+              maxLevel={getBuildingLevelParts(effectiveMarket).maxLevel}
+              statusLabel={getBuildingStatusLabel(effectiveMarket)}
+              subtitle="Achète et vend des biens contre des ECU."
+              title="Marché"
+            />
 
-          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3">
-            <div className="text-xs uppercase tracking-[0.14em] text-amber-100/70">Status</div>
-            <div className="mt-1 flex items-center gap-2 font-ik-menu text-lg text-amber-50">
-              {getBuildingStatusLabel(effectiveMarket)}
-              {isDevUnlocked(state.buildings.market) ? (
-                <span className="rounded border border-amber-200/20 bg-amber-400/10 px-2 py-0.5 text-[0.62rem] uppercase tracking-[0.14em] text-amber-100">
-                  DEV UNLOCK
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-1 font-ik-body text-xs text-muted-foreground">
-              {getBuildingLevelLabel(effectiveMarket)}
-            </div>
+            {!effectiveMarket.built ? (
+              <BuildingBuildSection
+                canBuild={canBuildMarket}
+                cost={MARKET_BUILD_COST}
+                label={getBuildActionLabel(effectiveMarket, canBuildMarket)}
+                onBuild={() => handleBuildCoreBuilding("MARKET")}
+                resources={state.resources}
+              />
+            ) : (
+              <MarketView embedded />
+            )}
           </div>
 
-          {!effectiveMarket.built ? (
-            <div className="mt-3 rounded-md border border-amber-200/20 bg-black/35 p-3">
-              <div className="font-ik-title text-sm text-amber-50">Construction</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(Object.entries(MARKET_BUILD_COST) as Array<[ResourceId, number]>).map(([resourceId, amount]) => (
-                  <span
-                    className="inline-flex items-center gap-1 rounded border border-amber-200/15 bg-black/40 px-2 py-1 font-ik-menu text-xs text-amber-50"
-                    key={resourceId}
-                  >
-                    <img alt="" aria-hidden="true" className="h-4 w-4" src={getResourceAssetPath(resourceId)} />
-                    {formatResourceLabel(resourceId)} {amount}
-                  </span>
-                ))}
-              </div>
-              <button
-                className="mt-3 rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canBuildMarket}
-                onClick={() => handleBuildCoreBuilding("MARKET")}
-                type="button"
-              >
-                {getBuildActionLabel(effectiveMarket, canBuildMarket)}
-              </button>
-            </div>
-          ) : (
-            <div className="mt-3">
-              <MarketView embedded />
-            </div>
-          )}
-
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={closeMarketModal}
-              type="button"
-            >
-              Close
-            </button>
+            <ModalActionButton onClick={closeMarketModal}>Fermer</ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2409,46 +2246,36 @@ export function KingdomHubStage() {
       >
         <DialogContent
           className={cn(
-            "border-amber-200/25 bg-zinc-950 text-amber-50",
+            "text-neutral-100",
             farmModal?.state === "built" ? "max-h-[92vh] max-w-5xl overflow-y-auto" : "max-w-lg",
           )}
         >
-          <DialogHeader>
-            <DialogTitle>Farm</DialogTitle>
-            <DialogDescription>
-              {farmModal?.state === "built" ? "Active Farm run MVP" : "Construct this building?"}
-            </DialogDescription>
-          </DialogHeader>
+          <div className="space-y-4">
+            <BuildingModalHeader
+              devUnlocked={isDevUnlocked(state.buildings.farm)}
+              glyph="farm"
+              level={getBuildingLevelParts(effectiveFarm).level}
+              maxLevel={getBuildingLevelParts(effectiveFarm).maxLevel}
+              statusLabel={getBuildingStatusLabel(effectiveFarm)}
+              subtitle={farmModal?.state === "built" ? "Run de ferme actif" : "Cultive des ressources pour le Royaume."}
+              title="Ferme"
+            />
 
-          <div className="mt-4 rounded-md border border-amber-200/15 bg-black/35 p-3 font-ik-body text-sm text-muted-foreground">
-            Building type: {FARM_SLOT.buildingType} · {getBuildingStatusLabel(effectiveFarm)} ·{" "}
-            {getBuildingLevelLabel(effectiveFarm)}
+            {farmModal?.state === "built" ? (
+              <FarmMiniGamePanel embedded />
+            ) : farmModal?.state === "unlocked" ? (
+              <BuildingBuildSection
+                canBuild={canBuildFarm}
+                cost={FARM_BUILD_COST}
+                label={getBuildActionLabel(effectiveFarm, canBuildFarm)}
+                onBuild={handleBuildFarm}
+                resources={state.resources}
+              />
+            ) : null}
           </div>
 
-          {farmModal?.state === "built" ? (
-            <div className="mt-4">
-              <FarmMiniGamePanel embedded />
-            </div>
-          ) : null}
-
           <DialogFooter>
-            <button
-              className="rounded-md border border-border/70 bg-muted/30 px-4 py-2 font-ik-menu text-sm text-muted-foreground transition hover:bg-muted/45"
-              onClick={closeFarmModal}
-              type="button"
-            >
-              Close
-            </button>
-            {farmModal?.state === "unlocked" ? (
-              <button
-                className="rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!canBuildFarm}
-                onClick={handleBuildFarm}
-                type="button"
-              >
-                {getBuildActionLabel(effectiveFarm, canBuildFarm)}
-              </button>
-            ) : null}
+            <ModalActionButton onClick={closeFarmModal}>Fermer</ModalActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

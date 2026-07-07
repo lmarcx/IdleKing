@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { GameHud, type GameHudResource } from "@/components/game/hud/game-hud";
 import { SkillBar } from "@/components/game/story-exploration/skill-bar";
@@ -41,6 +41,21 @@ function healthPercent(health?: CombatHealth) {
   return Math.min(100, Math.max(0, (health.current / health.max) * 100));
 }
 
+/** Full-screen white-edge flash + dark vignette each time the player loses HP. */
+function usePlayerHitFlash(currentHp?: number): number {
+  const [hitStamp, setHitStamp] = useState(0);
+  const previousHp = useRef(currentHp);
+
+  useEffect(() => {
+    if (currentHp !== undefined && previousHp.current !== undefined && currentHp < previousHp.current) {
+      setHitStamp(Date.now());
+    }
+    previousHp.current = currentHp;
+  }, [currentHp]);
+
+  return hitStamp;
+}
+
 export function CombatHud({
   bossHealth,
   bossLabel,
@@ -56,8 +71,12 @@ export function CombatHud({
   subtitle,
   title,
 }: CombatHudProps) {
+  const hitStamp = usePlayerHitFlash(playerHealth?.current);
+
   return (
     <>
+      {hitStamp > 0 ? <div aria-hidden="true" className="ik-hit-vignette" key={hitStamp} /> : null}
+
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-30">
         <GameHud
           playerEnergy={playerEnergy}
@@ -93,8 +112,13 @@ export function CombatHud({
               {Math.max(0, Math.ceil(bossHealth.current))}/{bossHealth.max}
             </span>
           </div>
-          <div className="mt-3 h-3 overflow-hidden border border-foreground/40 bg-black/55">
-            <div className="h-full bg-foreground" style={{ width: `${healthPercent(bossHealth)}%` }} />
+          <div className="relative mt-3 h-3 overflow-hidden border border-foreground/40 bg-black/55">
+            {/* Ghost bar lags behind on damage, reading recent burst damage. */}
+            <div
+              className="absolute inset-y-0 left-0 bg-neutral-500 transition-[width] delay-150 duration-700 ease-out"
+              style={{ width: `${healthPercent(bossHealth)}%` }}
+            />
+            <div className="absolute inset-y-0 left-0 bg-foreground" style={{ width: `${healthPercent(bossHealth)}%` }} />
           </div>
         </div>
       ) : null}
