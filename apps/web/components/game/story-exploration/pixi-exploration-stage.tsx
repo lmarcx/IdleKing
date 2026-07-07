@@ -991,7 +991,18 @@ export function PixiExplorationStage({
       const snapshot = createDirectionalSnapshot();
 
       if (result.damageInput) {
-        spawnInstantSkillEffect(player, result.skillDef, nowMs, snapshot, profile.attack);
+        // auto_target skills (e.g. Arcane Bolt) snap to the nearest enemy
+        // rather than aiming where the player is facing — point the FX at
+        // that resolved enemy instead of the facing-based snapshot target,
+        // so the bolt visually lands on whoever it actually hits.
+        const fxSnapshot =
+          profile.attack?.shape === "auto_target"
+            ? (() => {
+                const target = findNearestAliveEnemy(playerPosition, profile.attack!.range);
+                return target ? { ...snapshot, targetX: target.position.x, targetY: target.position.y } : snapshot;
+              })()
+            : snapshot;
+        spawnInstantSkillEffect(player, result.skillDef, nowMs, fxSnapshot, profile.attack);
         applyAttackSkillDamage(result.damageInput, snapshot, nowMs, profile);
       } else if (profile.movement) {
         applyMovementSkill(profile, snapshot, result.skillDef, nowMs);

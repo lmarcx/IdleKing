@@ -51,6 +51,7 @@ const INSTANT_VISUALS = new WeakMap<PIXI.Container, InstantSkillVisual[]>();
 
 const INSTANT_DURATIONS_MS: Partial<Record<SkillDefinition["targeting"], number>> = {
   aoe: 420,
+  auto_target: 260,
   cone: 280,
   enemy_cast: 380,
   line: 340,
@@ -378,6 +379,54 @@ function renderAoeCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, progr
   graphic.rotation = 0;
 }
 
+/**
+ * Thin magic-lightning bolt for auto_target skills (e.g. Arcane Bolt) — a
+ * jagged line from the cast origin straight to the actually-resolved target,
+ * not a beam along the facing direction. Reads as instantaneous: it snaps in
+ * at full length and flickers/fades rather than growing or travelling.
+ */
+function renderLightningBolt(graphic: PIXI.Graphics, visual: InstantSkillVisual, progress: number): void {
+  const dx = visual.snapshot.targetX - visual.snapshot.originX;
+  const dy = visual.snapshot.targetY - visual.snapshot.originY;
+  const distance = Math.hypot(dx, dy) || 1;
+  const perpX = -dy / distance;
+  const perpY = dx / distance;
+
+  const flicker = progress < 0.5 ? (Math.sin(progress * 70) > 0 ? 1 : 0.3) : 1;
+  const fade = progress < 0.55 ? 1 : 1 - (progress - 0.55) / 0.45;
+  const alpha = flicker * fade;
+
+  const segments = 6;
+  const points: number[] = [0, 0];
+  for (let index = 1; index < segments; index += 1) {
+    const t = index / segments;
+    const taper = 1 - Math.abs(t - 0.5) * 1.3;
+    const jitter = (hash01(index, visual.startedAtMs) - 0.5) * Math.min(24, distance * 0.12) * taper;
+    points.push(dx * t + perpX * jitter, dy * t + perpY * jitter);
+  }
+  points.push(dx, dy);
+
+  // Faint glow pass, then the crisp bright core — same jagged path twice.
+  for (const [color, width, coreAlpha] of [
+    [BW.gray4, 6, 0.32],
+    [BW.white, 2, 0.95],
+  ] as const) {
+    graphic.moveTo(points[0], points[1]);
+    for (let index = 2; index < points.length; index += 2) {
+      graphic.lineTo(points[index], points[index + 1]);
+    }
+    graphic.stroke({ alpha: coreAlpha * alpha, color, width });
+  }
+
+  // Spark at the cast point and a small flash on the struck target.
+  graphic.circle(0, 0, 4).fill({ alpha: 0.8 * alpha, color: BW.white });
+  graphic.circle(dx, dy, 5).fill({ alpha: 0.85 * alpha, color: BW.white });
+  graphic.circle(dx, dy, 10).stroke({ alpha: 0.5 * alpha, color: BW.gray4, width: 1.5 });
+
+  graphic.position.set(visual.snapshot.originX, visual.snapshot.originY);
+  graphic.rotation = 0;
+}
+
 function renderStrikeCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, progress: number): void {
   const fade = 1 - progress;
 
@@ -427,6 +476,11 @@ function renderInstantVisuals(player: PIXI.Container, nowMs: number): void {
 
     if (visual.skillDef.targeting === "aoe" || visual.skillDef.targeting === "enemy_cast") {
       renderAoeCast(visual.graphic, visual, progress, ageMs);
+      continue;
+    }
+
+    if (visual.skillDef.targeting === "auto_target") {
+      renderLightningBolt(visual.graphic, visual, progress);
       continue;
     }
 

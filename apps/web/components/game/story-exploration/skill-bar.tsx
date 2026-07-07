@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { describeSkillEffect } from "@/lib/skill-effect-summary";
 import { cn } from "@/lib/utils";
 import {
-  combat,
   type CharacterCombatLoadout,
   type CombatSkillSlot,
   type SkillDefinition,
   type SkillElement,
 } from "@idleking/game-core";
-import { getStorySkillRuntimeProfile, type SkillCooldownState, type SkillId } from "@idleking/game-core/skills";
+import type { SkillCooldownState, SkillId } from "@idleking/game-core/skills";
 
 type SkillSlot = CombatSkillSlot;
 
@@ -55,57 +55,6 @@ function getRingSkillSlots(combatLoadout: CharacterCombatLoadout): RingSkillSlot
       slot,
     };
   });
-}
-
-/** Short, category-aware effect line for the hover tooltip — mirrors what the skill actually does at runtime. */
-function describeSkillEffect(skill: RingSkillSlot & { skillDef: SkillDefinition }, attack: number): string {
-  const { skillDef } = skill;
-  const profile = getStorySkillRuntimeProfile(skillDef.id);
-
-  if (skillDef.category === "attack") {
-    const damage = combat.computeSkillDamage({
-      attack,
-      ringSkillScaling: skill.ringSkillScaling ?? undefined,
-      skillDamageMultiplier: skillDef.basePower,
-    });
-    const shape = profile.attack;
-    const area =
-      shape?.shape === "cone"
-        ? `cône ${shape.range}px`
-        : shape?.shape === "line"
-          ? `ligne ${shape.range}px`
-          : shape?.shape === "aoe" || shape?.shape === "enemy_cast"
-            ? `zone r.${shape.radius ?? 80}px`
-            : `portée ${shape?.range ?? "—"}px`;
-    return `Dégâts ≈ ${Math.round(damage.damage)} · ${area}`;
-  }
-
-  if (skillDef.category === "movement" && profile.movement) {
-    return `Déplacement ${profile.movement.distance}px (${profile.movement.mode})`;
-  }
-
-  if (skillDef.category === "defense" && profile.defense) {
-    const reduction = Math.round((1 - profile.defense.incomingDamageMultiplier) * 100);
-    return `Réduit les dégâts subis de ${reduction}% · ${Math.round(profile.defense.durationMs / 1000)}s`;
-  }
-
-  if (skillDef.category === "utility" && profile.utility) {
-    if (profile.utility.kind === "damage_buff") {
-      return `+${Math.round(((profile.utility.damageMultiplier ?? 1) - 1) * 100)}% dégâts · ${Math.round(profile.utility.durationMs / 1000)}s`;
-    }
-    if (profile.utility.kind === "mana_regen_buff") {
-      return `+${profile.utility.manaRegenPerSecond ?? 0} Mana/s · ${Math.round(profile.utility.durationMs / 1000)}s`;
-    }
-    if (profile.utility.kind === "enemy_vulnerability_debuff") {
-      return `Cible +${Math.round(((profile.utility.incomingDamageMultiplier ?? 1) - 1) * 100)}% dégâts subis`;
-    }
-  }
-
-  if (skillDef.category === "summon" && profile.summon) {
-    return `Invocation · ${Math.round(profile.summon.durationMs / 1000)}s`;
-  }
-
-  return skillDef.description;
 }
 
 export function SkillBar({ combatLoadout, cooldowns, currentTimeMs }: SkillBarProps) {
@@ -165,7 +114,7 @@ function EquippedSkillSlot({
   const cooldownRatio = Math.min(1, cooldownMs / totalCooldownMs);
   const isCooling = cooldownMs > 0;
   const cooldownLabel = isCooling ? formatSeconds(cooldownMs / 1_000) : null;
-  const effectSummary = describeSkillEffect(skill, attack);
+  const effectSummary = describeSkillEffect(skill.skillDef, attack, skill.ringSkillScaling);
 
   // Edge detection: flash on cast (0 → cooling), pop when back to ready.
   const previousCooling = useRef(isCooling);
