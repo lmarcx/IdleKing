@@ -991,7 +991,7 @@ export function PixiExplorationStage({
       const snapshot = createDirectionalSnapshot();
 
       if (result.damageInput) {
-        spawnInstantSkillEffect(player, result.skillDef, nowMs, snapshot);
+        spawnInstantSkillEffect(player, result.skillDef, nowMs, snapshot, profile.attack);
         applyAttackSkillDamage(result.damageInput, snapshot, nowMs, profile);
       } else if (profile.movement) {
         applyMovementSkill(profile, snapshot, result.skillDef, nowMs);

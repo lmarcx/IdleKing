@@ -1,7 +1,7 @@
 import * as PIXI from "pixi.js";
 
 import { BW } from "@/components/game/shared/geometric-figure";
-import type { SkillCategory, SkillDefinition, SkillId } from "@idleking/game-core/skills";
+import type { SkillCategory, SkillDefinition, SkillId, StorySkillAttackProfile } from "@idleking/game-core/skills";
 
 /**
  * Skill FX — same minimalist grayscale geometry as the rest of the combat
@@ -36,6 +36,8 @@ type SkillVisual = {
 };
 
 type InstantSkillVisual = {
+  /** Real hit-detection shape (range/angle/width/radius) — drives the FX so it never lies about the hitbox. */
+  attack: StorySkillAttackProfile | undefined;
   durationMs: number;
   graphic: PIXI.Graphics;
   snapshot: DirectionalSkillSnapshot;
@@ -267,8 +269,8 @@ function renderActiveVisual(visual: SkillVisual, effect: VisualActiveSkillEffect
 
 function renderConeCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, progress: number): void {
   const fade = 1 - progress;
-  const halfAngle = 0.54;
-  const range = 170;
+  const halfAngle = visual.attack?.halfAngleRadians ?? 0.7;
+  const range = visual.attack?.range ?? 170;
   const sweep = Math.min(1, progress / 0.55);
   const edgeAngle = -halfAngle + sweep * halfAngle * 2;
 
@@ -302,11 +304,13 @@ function renderConeCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, prog
 
 function renderLineCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, progress: number): void {
   const fade = 1 - progress;
-  const range = 360;
+  const range = visual.attack?.range ?? 360;
+  const hitWidth = visual.attack?.width ?? 64;
   const reach = Math.min(1, progress / 0.3);
-  const width = 46 * (1 - progress * 0.65);
+  const width = hitWidth * (1 - progress * 0.65);
 
-  // Outer channel collapsing inward.
+  // Outer channel collapsing inward — its full width IS the real hit width.
+  graphic.rect(0, -hitWidth / 2, range * reach, hitWidth).stroke({ alpha: 0.28 * fade, color: BW.gray3, width: 2 });
   graphic.rect(0, -width / 2, range * reach, width).stroke({ alpha: 0.4 * fade, color: BW.gray3, width: 2 });
 
   // Bright core beam.
@@ -335,7 +339,7 @@ function renderLineCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, prog
 }
 
 function renderAoeCast(graphic: PIXI.Graphics, visual: InstantSkillVisual, progress: number, ageMs: number): void {
-  const radius = visual.skillDef.targeting === "aoe" ? 92 : 76;
+  const radius = visual.attack?.radius ?? 80;
 
   if (progress < 0.38) {
     // Converge — dashed ring contracts onto the target point.
@@ -435,6 +439,7 @@ export function spawnInstantSkillEffect(
   skillDef: SkillDefinition,
   startedAtMs: number,
   snapshot: DirectionalSkillSnapshot,
+  attack: StorySkillAttackProfile | undefined,
 ): void {
   const graphic = new PIXI.Graphics();
   graphic.zIndex = 2;
@@ -443,6 +448,7 @@ export function spawnInstantSkillEffect(
   layer.sortableChildren = true;
 
   getInstantVisuals(player).push({
+    attack,
     durationMs: INSTANT_DURATIONS_MS[skillDef.targeting] ?? DEFAULT_INSTANT_DURATION_MS,
     graphic,
     snapshot,
