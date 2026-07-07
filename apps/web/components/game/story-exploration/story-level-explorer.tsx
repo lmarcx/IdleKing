@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CombatHud } from "@/components/game/combat/combat-hud";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
@@ -31,7 +31,6 @@ type StoryLevelExplorerProps = {
 
 const MAP_WIDTH = 2400;
 const MAP_HEIGHT = 1600;
-const DISCOVERY_RADIUS = 86;
 
 type ExplorationPoi = ExplorationStagePoi & {
   label: string;
@@ -139,10 +138,6 @@ function createExplorationPois(
       y: position.y,
     };
   });
-}
-
-function distanceBetween(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 function rewardEntries(rewards: DisplayRewards): Array<[string, number]> {
@@ -259,21 +254,25 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
   } | null>(null);
   const [combatHud, setCombatHud] = useState<ExplorationCombatHudState | null>(null);
 
-  useEffect(() => {
-    const newlyDiscovered = pointsOfInterest.filter(
-      (point) => !discoveredPoiIds.has(point.id) && distanceBetween(playerPosition, point) <= DISCOVERY_RADIUS
-    );
-    if (newlyDiscovered.length === 0) return;
+  // POIs and progression-required objects no longer auto-complete on proximity —
+  // the player must press F while in range (see PixiExplorationStage's
+  // onPoiInteractAction), which calls this handler.
+  const handlePoiInteract = useCallback(
+    (poiId: string) => {
+      if (discoveredPoiIds.has(poiId)) return;
+      const point = pointsOfInterest.find((candidate) => candidate.id === poiId);
+      if (!point) return;
 
-    setDiscoveredPoiIds((current) => {
-      const next = new Set(current);
-      for (const point of newlyDiscovered) next.add(point.id);
-      return next;
-    });
+      setDiscoveredPoiIds((current) => {
+        const next = new Set(current);
+        next.add(poiId);
+        return next;
+      });
 
-    const beats = newlyDiscovered.flatMap((point) => (point.beat ? [point.beat] : []));
-    if (beats.length > 0) setDialogueQueue((queue) => [...queue, ...beats]);
-  }, [playerPosition, pointsOfInterest, discoveredPoiIds]);
+      if (point.beat) setDialogueQueue((queue) => [...queue, point.beat!]);
+    },
+    [discoveredPoiIds, pointsOfInterest]
+  );
 
   // Promote the next queued beat into the active dialogue box.
   useEffect(() => {
@@ -365,6 +364,7 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
         mapWidth={MAP_WIDTH}
         onCombatHudChangeAction={setCombatHud}
         onPlayerMoveAction={setPlayerPosition}
+        onPoiInteractAction={handlePoiInteract}
         pointsOfInterest={pointsOfInterest}
       />
       {isPlaying ? (
@@ -383,7 +383,7 @@ export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps
           />
           <ExplorationHud playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
           <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
-            Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace.
+            Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace. Interagir : F.
           </div>
         </>
       ) : null}

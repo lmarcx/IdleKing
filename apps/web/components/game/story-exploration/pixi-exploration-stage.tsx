@@ -57,6 +57,7 @@ type PixiExplorationStageProps = {
   mapWidth: number;
   onCombatHudChangeAction?: (state: ExplorationCombatHudState) => void;
   onPlayerMoveAction: (position: { x: number; y: number }) => void;
+  onPoiInteractAction?: (poiId: string) => void;
   pointsOfInterest: ExplorationStagePoi[];
 };
 
@@ -84,6 +85,7 @@ const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
 const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 const CHECKPOINT_RESPAWN_EVENT = "idleking:story-checkpoint-respawn";
 const DASH_KEY_CODE = "Space";
+const POI_INTERACT_KEY_CODE = "KeyF";
 const SPRINT_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
 // Grayscale telegraph language: lethal reads brightest, ambient states darker.
 const TELEGRAPH_COLORS = {
@@ -183,7 +185,6 @@ type PoiVisual = {
   point: ExplorationStagePoi;
   pulseOffset: number;
   sprite: PIXI.Graphics;
-  wasNear: boolean;
 };
 
 type SkillSlot = import("@idleking/game-core").CombatSkillSlot;
@@ -410,7 +411,7 @@ function createPoiSprite(point: ExplorationStagePoi): PoiVisual {
   const glow = createPoiRingGraphics(kind === "chest" ? 30 : 36);
   const sprite = createPoiIconGraphics(kind);
   const hint = new PIXI.Text({
-    text: "Nearby",
+    text: "Interagir (F)",
     style: {
       fill: BW.white,
       fontFamily: "monospace",
@@ -445,7 +446,6 @@ function createPoiSprite(point: ExplorationStagePoi): PoiVisual {
     point,
     pulseOffset: point.x * 0.017 + point.y * 0.011,
     sprite,
-    wasNear: false,
   };
 }
 
@@ -596,12 +596,14 @@ export function PixiExplorationStage({
   mapWidth,
   onCombatHudChangeAction,
   onPlayerMoveAction,
+  onPoiInteractAction,
   pointsOfInterest,
 }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(inputBlocked);
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
+  const onPoiInteractRef = useRef(onPoiInteractAction);
   const equipment = useGameStore((s) => s.state.equipment);
   const inventoryItems = useGameStore((s) => s.state.inventory.items);
   const combatLoadout = useMemo(
@@ -656,6 +658,10 @@ export function PixiExplorationStage({
   useEffect(() => {
     onPlayerMoveRef.current = onPlayerMoveAction;
   }, [onPlayerMoveAction]);
+
+  useEffect(() => {
+    onPoiInteractRef.current = onPoiInteractAction;
+  }, [onPoiInteractAction]);
 
   useEffect(() => {
     onCombatHudChangeRef.current = onCombatHudChangeAction;
@@ -733,6 +739,7 @@ export function PixiExplorationStage({
     const enemies: ActiveEnemy[] = [];
     const securedRewards = new Map<string, number>();
     const poiVisuals: PoiVisual[] = [];
+    const interactedPoiIds = new Set<string>();
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
     let canvasElement: HTMLCanvasElement | null = null;
@@ -1060,6 +1067,14 @@ export function PixiExplorationStage({
         event.preventDefault();
         if (!event.repeat) {
           tryDash(performance.now());
+        }
+        return;
+      }
+
+      if (event.code === POI_INTERACT_KEY_CODE) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryInteractWithNearbyPoi();
         }
         return;
       }
@@ -1412,22 +1427,43 @@ export function PixiExplorationStage({
       );
     }
 
+    function findNearbyInteractablePoi(): PoiVisual | undefined {
+      let nearest: PoiVisual | undefined;
+      let nearestDistance = POI_HIGHLIGHT_RADIUS;
+
+      for (const visual of poiVisuals) {
+        if (interactedPoiIds.has(visual.id)) continue;
+        const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
+        if (distance > nearestDistance) continue;
+        nearestDistance = distance;
+        nearest = visual;
+      }
+
+      return nearest;
+    }
+
+    function tryInteractWithNearbyPoi() {
+      const visual = findNearbyInteractablePoi();
+      if (!visual) return;
+
+      interactedPoiIds.add(visual.id);
+      spawnPoiDiscoveryFeedback(visual);
+      onPoiInteractRef.current?.(visual.id);
+    }
+
     function updatePoiVisuals(nowMs: number) {
       for (const visual of poiVisuals) {
         const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
         const isNear = distance <= POI_HIGHLIGHT_RADIUS;
+        const isInteracted = interactedPoiIds.has(visual.id);
+        const showHint = isNear && !isInteracted;
         const pulse = 1 + Math.sin(nowMs / 520 + visual.pulseOffset) * 0.035;
         const targetScale = visual.baseScale * pulse * (isNear ? 1.13 : 1);
         visual.sprite.scale.set(targetScale);
         visual.glow.alpha = (visual.kind === "chest" ? 0.22 : 0.32) + (isNear ? 0.3 : 0);
         visual.glow.scale.set(1 + Math.sin(nowMs / 650 + visual.pulseOffset) * 0.04 + (isNear ? 0.08 : 0));
-        visual.hint.visible = isNear;
-        visual.hint.alpha = isNear ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
-
-        if (isNear && !visual.wasNear) {
-          spawnPoiDiscoveryFeedback(visual);
-        }
-        visual.wasNear = isNear;
+        visual.hint.visible = showHint;
+        visual.hint.alpha = showHint ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
       }
     }
 
