@@ -1108,12 +1108,14 @@ export function PixiExplorationStage({
       const canvasBounds = app.canvas.getBoundingClientRect();
       if (canvasBounds.width <= 0 || canvasBounds.height <= 0) return;
 
-      const rendererWidth = app.renderer.width / app.renderer.resolution;
-      const rendererHeight = app.renderer.height / app.renderer.resolution;
-      const scaleX = rendererWidth / canvasBounds.width;
-      const scaleY = rendererHeight / canvasBounds.height;
-      mouseInput.pointerWorldPosition.x = (event.clientX - canvasBounds.left) * scaleX - world.position.x;
-      mouseInput.pointerWorldPosition.y = (event.clientY - canvasBounds.top) * scaleY - world.position.y;
+      // clientX/clientY and getBoundingClientRect are both in CSS pixels, and
+      // Pixi's resizeTo keeps the canvas's CSS size equal to its logical stage
+      // size — no device-pixel-ratio scaling belongs in this conversion. Cross
+      //-referencing app.renderer.width/resolution here (a separate, ResizeObserver
+      // -driven measurement) used to drift a frame or a few subpixels out of sync
+      // with getBoundingClientRect on Firefox, throwing the aim off from the cursor.
+      mouseInput.pointerWorldPosition.x = event.clientX - canvasBounds.left - world.position.x;
+      mouseInput.pointerWorldPosition.y = event.clientY - canvasBounds.top - world.position.y;
       hasPointerWorldPosition = true;
       updatePlayerFacing({
         x: mouseInput.pointerWorldPosition.x - playerPosition.x,
