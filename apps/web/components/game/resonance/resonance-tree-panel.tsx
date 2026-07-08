@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { Check, Droplets, Flame, Lock, Moon, Mountain, Snowflake } from "lucide-react";
+import { Droplets, Flame, Lock, Moon, Mountain, Snowflake } from "lucide-react";
 
 import { GamePanel } from "@/components/ui/game-panel";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,7 @@ import {
   type EffectSetTheme,
   type SimpleEffect,
 } from "@idleking/game-core/effectSets";
-import { calculateResonanceFromEquipment, getResonanceEligibleSlots } from "@idleking/game-core/resonance";
+import { calculateResonanceFromEquipment } from "@idleking/game-core/resonance";
 
 const SLOT_FAILURE_LABELS: Record<string, string> = {
   EFFECT_SET_LOCKED: "Effect Set verrouillé.",
@@ -47,16 +47,12 @@ const THEME_LABEL: Record<EffectSetTheme, string> = {
   water: "Eau",
 };
 
-const THEME_ACCENT: Record<EffectSetTheme, { border: string; glow: string; text: string }> = {
-  dark: { border: "border-purple-300/70", glow: "shadow-[0_0_18px_rgba(192,132,252,0.22)]", text: "text-purple-200" },
-  earth: { border: "border-emerald-300/70", glow: "shadow-[0_0_18px_rgba(110,231,183,0.2)]", text: "text-emerald-200" },
-  fire: { border: "border-orange-300/70", glow: "shadow-[0_0_18px_rgba(253,186,116,0.22)]", text: "text-orange-200" },
-  ice: { border: "border-sky-300/70", glow: "shadow-[0_0_18px_rgba(125,211,252,0.22)]", text: "text-sky-200" },
-  water: { border: "border-blue-300/70", glow: "shadow-[0_0_18px_rgba(147,197,253,0.22)]", text: "text-blue-200" },
-};
-
 function formatSlotLabel(slot: string): string {
   return slot.replaceAll("_", " ");
+}
+
+function formatRarityLabel(rarity: string): string {
+  return rarity.charAt(0) + rarity.slice(1).toLowerCase();
 }
 
 function formatEffectValue(value: number): string {
@@ -75,6 +71,10 @@ function formatEffect(effect: SimpleEffect): string {
   }
 }
 
+function pluralize(count: number, word: string): string {
+  return count > 1 ? `${word}s` : word;
+}
+
 type NodeState = "active" | "available" | "locked" | "reached";
 
 function getNodeState({
@@ -90,6 +90,13 @@ function getNodeState({
   if (reachedTier === tier) return "active";
   if (reachedTier !== null && tier < reachedTier) return "reached";
   return "available";
+}
+
+function getTierBadgeLabel(nodeState: NodeState, disabled: boolean): string {
+  if (nodeState === "locked") return "Verrouillé";
+  if (nodeState === "active") return "Actif";
+  if (nodeState === "reached") return "Atteint";
+  return disabled ? "Slot requis" : "Disponible";
 }
 
 function getNodeTooltip({
@@ -110,23 +117,66 @@ function getNodeTooltip({
   return "Cliquer pour investir ce palier";
 }
 
+type FamilyState = "active" | "locked" | "unlocked";
+
+function getFamilyState({
+  isUnlocked,
+  reachedTier,
+}: {
+  isUnlocked: boolean;
+  reachedTier: number | null;
+}): FamilyState {
+  if (!isUnlocked) return "locked";
+  if (reachedTier !== null) return "active";
+  return "unlocked";
+}
+
+function getFamilyStateLabel(familyState: FamilyState): string {
+  if (familyState === "locked") return "Verrouillé";
+  if (familyState === "active") return "Actif";
+  return "Débloqué";
+}
+
+function getFamilyReason({ availableSlots, familyState }: { availableSlots: number; familyState: FamilyState }): string {
+  if (familyState === "active") return "Utilise 1 Effect Slot";
+  if (familyState === "locked") return "Effect Set verrouillé";
+  return availableSlots > 0 ? "Coût : 1 Effect Slot" : "Tous les Effect Slots sont utilisés";
+}
+
 function SummaryStat({ label, sub, value }: { label: string; sub?: string; value: string }) {
   return (
-    <div className="rounded-lg border border-amber-200/16 bg-black/32 px-4 py-3 text-right">
-      <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="font-ik-title text-2xl text-amber-50">{value}</p>
-      {sub ? <p className="font-ik-body text-[0.65rem] text-muted-foreground">{sub}</p> : null}
+    <div className="rounded-lg border border-white/10 bg-black/32 px-4 py-3">
+      <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.14em] text-neutral-500">{label}</p>
+      <p className="mt-1 font-ik-title text-2xl text-neutral-100">{value}</p>
+      {sub ? <p className="font-ik-body text-[0.65rem] text-neutral-500">{sub}</p> : null}
+    </div>
+  );
+}
+
+function EffectSlotMarkers({ current, used }: { current: number; used: number }) {
+  if (current <= 0) {
+    return <p className="font-ik-body text-sm text-neutral-600">—</p>;
+  }
+  return (
+    <div aria-hidden="true" className="flex items-center gap-1">
+      {Array.from({ length: current }, (_, index) => (
+        <span className={cn("text-base leading-none", index < used ? "text-neutral-100" : "text-neutral-700")} key={index}>
+          {index < used ? "●" : "○"}
+        </span>
+      ))}
     </div>
   );
 }
 
 function FamilyBranch({
+  availableSlots,
   definition,
   onSlot,
   onUnslot,
   reachedTier,
   resonanceTotal,
 }: {
+  availableSlots: number;
   definition: EffectSetDefinition;
   onSlot: (effectSetId: EffectSetId, tier: number) => void;
   onUnslot: (effectSetId: EffectSetId) => void;
@@ -136,7 +186,7 @@ function FamilyBranch({
   const state = useGameStore.getState().state;
   const isUnlocked = hasUnlockedEffectSet(state, definition.id);
   const Icon = THEME_ICON[definition.theme];
-  const accent = THEME_ACCENT[definition.theme];
+  const familyState = getFamilyState({ isUnlocked, reachedTier });
 
   return (
     <GamePanel className="p-4">
@@ -145,71 +195,85 @@ function FamilyBranch({
           <span
             className={cn(
               "grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 bg-black/40",
-              isUnlocked ? accent.border : "border-zinc-600/50"
+              isUnlocked ? "border-neutral-600" : "border-neutral-800"
             )}
           >
-            <Icon aria-hidden="true" className={cn("h-4.5 w-4.5", isUnlocked ? accent.text : "text-zinc-500")} />
+            <Icon aria-hidden="true" className={cn("h-4.5 w-4.5", isUnlocked ? "text-neutral-300" : "text-neutral-700")} />
           </span>
           <div>
             <p
               className={cn(
                 "font-ik-menu text-[0.62rem] uppercase tracking-[0.16em]",
-                isUnlocked ? accent.text : "text-zinc-500"
+                isUnlocked ? "text-neutral-400" : "text-neutral-700"
               )}
             >
               {THEME_LABEL[definition.theme]}
             </p>
-            <h3 className="font-ik-title text-xl text-amber-50">{definition.name}</h3>
+            <h3 className="font-ik-title text-xl text-neutral-100">{definition.name}</h3>
           </div>
         </div>
-        {reachedTier !== null ? (
-          <button
-            aria-label={`Retirer ${definition.name}`}
-            className="shrink-0 rounded-md border border-red-200/30 bg-red-500/10 px-2.5 py-1 font-ik-menu text-[0.62rem] uppercase text-red-100 transition hover:border-red-100"
-            onClick={() => onUnslot(definition.id)}
-            type="button"
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span
+            className={cn(
+              "rounded border px-2 py-0.5 font-ik-menu text-[0.6rem] uppercase tracking-wide",
+              familyState === "locked" && "border-neutral-800 text-neutral-600",
+              familyState === "unlocked" && "border-neutral-600 text-neutral-300",
+              familyState === "active" && "border-neutral-100 bg-neutral-100 text-neutral-950"
+            )}
           >
-            Retirer
-          </button>
-        ) : null}
+            {getFamilyStateLabel(familyState)}
+          </span>
+          {reachedTier !== null ? (
+            <button
+              aria-label={`Retirer ${definition.name}`}
+              className="rounded-md border border-red-900/50 bg-red-950/20 px-2.5 py-1 font-ik-menu text-[0.6rem] uppercase text-red-300 transition hover:border-red-400/60"
+              onClick={() => onUnslot(definition.id)}
+              type="button"
+            >
+              Retirer
+            </button>
+          ) : null}
+        </div>
       </div>
 
-      <p className="mt-2 font-ik-body text-xs text-muted-foreground">
+      <p className="mt-2 font-ik-body text-xs text-neutral-500">
         {isUnlocked ? `Source : ${definition.source.label}` : `Verrouillé — ${definition.source.label}`}
+      </p>
+      <p className="mt-0.5 font-ik-body text-[0.68rem] text-neutral-400">
+        {getFamilyReason({ availableSlots, familyState })}
       </p>
 
       <div className="relative mt-4 pl-1">
-        <div aria-hidden="true" className="absolute left-[15px] top-3 bottom-3 w-px bg-amber-200/16" />
+        <div aria-hidden="true" className="absolute left-[15px] top-3 bottom-3 w-px bg-white/10" />
         <ol className="space-y-2.5">
           {definition.tiers.map((tierDef) => {
             const nodeState = getNodeState({ isUnlocked, reachedTier, tier: tierDef.tier });
             const canInteract = canSlotEffectSet(state, definition.id, tierDef.tier, { totalResonance: resonanceTotal });
             const disabled = !canInteract;
             const roman = TIER_ROMAN[tierDef.tier] ?? `${tierDef.tier}`;
+            const includedRoman =
+              tierDef.tier > 1
+                ? Array.from({ length: tierDef.tier - 1 }, (_, index) => TIER_ROMAN[index + 1] ?? `${index + 1}`).join(" + ")
+                : null;
 
             return (
               <li className="relative pl-9" key={tierDef.tier}>
                 <span
                   className={cn(
                     "absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border-2 bg-black/60 font-ik-menu text-xs",
-                    nodeState === "locked" && "border-zinc-700 text-zinc-600",
-                    nodeState === "available" && "border-amber-200/30 text-amber-100/70",
-                    (nodeState === "reached" || nodeState === "active") && cn(accent.border, accent.text, accent.glow)
+                    nodeState === "locked" && "border-neutral-800 text-neutral-700",
+                    nodeState === "available" && "border-neutral-700 text-neutral-400",
+                    nodeState === "reached" && "border-neutral-500 text-neutral-200",
+                    nodeState === "active" && "border-neutral-100 bg-neutral-100 text-neutral-950"
                   )}
                 >
-                  {nodeState === "locked" ? (
-                    <Lock aria-hidden="true" className="h-3.5 w-3.5" />
-                  ) : nodeState === "reached" || nodeState === "active" ? (
-                    <Check aria-hidden="true" className="h-4 w-4" />
-                  ) : (
-                    roman
-                  )}
+                  {nodeState === "locked" ? <Lock aria-hidden="true" className="h-3.5 w-3.5" /> : roman}
                 </span>
                 <button
                   aria-label={`${definition.name} palier ${roman}`}
                   className={cn(
-                    "ik-card-hover w-full rounded-md border bg-black/28 p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-45",
-                    nodeState === "active" ? cn(accent.border, "bg-black/45") : "border-amber-200/14"
+                    "ik-card-hover w-full rounded-md border bg-black/28 p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-50",
+                    nodeState === "active" ? "border-neutral-100 bg-neutral-100 text-neutral-950" : "border-white/10"
                   )}
                   data-ik-tip={getNodeTooltip({ definition, disabled, isUnlocked, nodeState })}
                   disabled={disabled}
@@ -217,20 +281,41 @@ function FamilyBranch({
                   type="button"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-ik-menu text-[0.65rem] uppercase text-amber-100">Palier {roman}</span>
-                    <span className="font-ik-menu text-[0.6rem] uppercase text-muted-foreground">
-                      {nodeState === "active"
-                        ? "Actif"
-                        : nodeState === "reached"
-                          ? "Atteint"
-                          : nodeState === "locked"
-                            ? "Verrouillé"
-                            : "Disponible"}
+                    <span
+                      className={cn(
+                        "font-ik-menu text-[0.65rem] uppercase",
+                        nodeState === "active" ? "text-neutral-950" : "text-neutral-200"
+                      )}
+                    >
+                      Palier {roman}
+                    </span>
+                    <span
+                      className={cn(
+                        "font-ik-menu text-[0.6rem] uppercase",
+                        nodeState === "active" ? "text-neutral-700" : "text-neutral-500"
+                      )}
+                    >
+                      {getTierBadgeLabel(nodeState, disabled)}
                     </span>
                   </div>
-                  <p className="mt-1.5 font-ik-body text-xs text-muted-foreground">
+                  <p
+                    className={cn(
+                      "mt-1.5 font-ik-body text-xs",
+                      nodeState === "active" ? "text-neutral-800" : "text-neutral-500"
+                    )}
+                  >
                     {tierDef.effects.map(formatEffect).join(", ")}
                   </p>
+                  {includedRoman ? (
+                    <p
+                      className={cn(
+                        "mt-1 font-ik-body text-[0.6rem]",
+                        nodeState === "active" ? "text-neutral-700" : "text-neutral-600"
+                      )}
+                    >
+                      Inclut {includedRoman}
+                    </p>
+                  ) : null}
                 </button>
               </li>
             );
@@ -258,13 +343,17 @@ export function ResonanceTreePanel() {
     () => new Map(state.inventory.items.map((item) => [item.id, item.name] as const)),
     [state.inventory.items]
   );
-  useMemo(() => getResonanceEligibleSlots(), []);
   const ringCount = state.equipment.equipped.rings.filter((itemId) => itemId !== null).length;
   const artifactId = state.equipment.equipped.artifact ?? null;
   const usedSlots = effectSets.slottedEffects.length;
-  const availableSlots = Math.max(0, resonance.effectSlots - usedSlots);
+  const currentSlots = resonance.effectSlots;
+  const availableSlots = Math.max(0, currentSlots - usedSlots);
+  const nextSlotThreshold = (currentSlots + 1) * 9;
+  const pointsToNextSlot = Math.max(0, nextSlotThreshold - resonance.totalResonance);
+  const nextSlotProgressPercent = Math.min(100, Math.max(0, (resonance.totalResonance / nextSlotThreshold) * 100));
   const slottedTierById = new Map(effectSets.slottedEffects.map((slot) => [slot.effectSetId, slot.tier] as const));
   const nonZeroStats = Object.entries(modifiers.statModifiers).filter(([, value]) => value !== 0);
+  const filledContributors = resonance.slots.filter((slot) => slot.itemId !== null).length;
 
   function handleSlot(effectSetId: EffectSetId, tier: number) {
     const current = useGameStore.getState().state;
@@ -299,21 +388,39 @@ export function ResonanceTreePanel() {
   return (
     <section aria-labelledby="resonance-title" className="ik-anim-fade-in space-y-4">
       <GamePanel className="p-4">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/80">Build passif</p>
-            <h2 className="font-ik-title text-3xl font-semibold text-amber-50" id="resonance-title">
-              Résonance
-            </h2>
+        <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-neutral-500">Build passif</p>
+        <h2 className="font-ik-title text-3xl font-semibold text-neutral-100" id="resonance-title">
+          Résonance
+        </h2>
+        <p className="mt-2 max-w-2xl font-ik-body text-xs leading-relaxed text-neutral-400">
+          Les équipements génèrent de la Résonance. Tous les 9 points débloquent 1 Effect Slot. Un Effect Slot
+          permet d&apos;équiper une famille d&apos;effet. Choisir un palier active aussi les paliers précédents.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryStat label="Résonance totale" value={`${resonance.totalResonance}`} />
+          <div className="rounded-lg border border-white/10 bg-black/32 px-4 py-3">
+            <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.14em] text-neutral-500">Effect Slots</p>
+            <div className="mt-1.5">
+              <EffectSlotMarkers current={currentSlots} used={usedSlots} />
+            </div>
+            <p className="mt-1.5 font-ik-body text-[0.65rem] text-neutral-500">
+              {usedSlots} {pluralize(usedSlots, "utilisé")} / {availableSlots} {pluralize(availableSlots, "libre")}
+            </p>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <SummaryStat label="Résonance totale" value={`${resonance.totalResonance}`} />
-            <SummaryStat label="Effect Slots" sub={`${availableSlots} dispo`} value={`${usedSlots}/${resonance.effectSlots}`} />
-            <SummaryStat
-              label="Contributeurs"
-              value={`${resonance.slots.filter((slot) => slot.itemId !== null).length}/9`}
-            />
+          <div className="rounded-lg border border-white/10 bg-black/32 px-4 py-3">
+            <p className="font-ik-menu text-[0.62rem] uppercase tracking-[0.14em] text-neutral-500">Prochain Effect Slot</p>
+            <p className="mt-1 font-ik-title text-xl text-neutral-100">
+              {pointsToNextSlot > 0 ? `+${pointsToNextSlot} pts` : "Débloqué"}
+            </p>
+            <div className="ik-bar mt-2">
+              <div className="ik-bar__fill" style={{ width: `${nextSlotProgressPercent}%` }} />
+            </div>
+            <p className="mt-1 font-ik-body text-[0.6rem] text-neutral-500">
+              {resonance.totalResonance} / {nextSlotThreshold}
+            </p>
           </div>
+          <SummaryStat label="Contributeurs" value={`${filledContributors}/9`} />
         </div>
       </GamePanel>
 
@@ -321,6 +428,7 @@ export function ResonanceTreePanel() {
         <div className="grid gap-3 lg:grid-cols-2">
           {EFFECT_SET_REGISTRY.map((definition) => (
             <FamilyBranch
+              availableSlots={availableSlots}
               definition={definition}
               key={definition.id}
               onSlot={handleSlot}
@@ -333,40 +441,47 @@ export function ResonanceTreePanel() {
 
         <div className="space-y-4">
           <GamePanel className="p-4">
-            <h3 className="font-ik-title text-lg text-amber-50">Contributeurs</h3>
-            <p className="mt-1 font-ik-body text-xs text-muted-foreground">
+            <h3 className="font-ik-title text-lg text-neutral-100">Contributeurs</h3>
+            <p className="mt-1 font-ik-body text-xs text-neutral-500">
               Anneaux ({ringCount}/5) et Artefact ({artifactId ? itemById.get(artifactId) ?? artifactId : "vide"}) exclus de
               la Résonance.
             </p>
             <ul className="mt-3 space-y-1.5">
               {resonance.slots.map((slot) => (
-                <li
-                  className="flex items-center justify-between gap-2 rounded-md border border-amber-200/14 bg-black/28 px-2.5 py-1.5 font-ik-body text-xs"
-                  key={slot.slot}
-                >
-                  <span className="uppercase tracking-wide text-amber-100/80">{formatSlotLabel(slot.slot)}</span>
-                  <span className="truncate text-amber-50/90">
+                <li className="rounded-md border border-white/10 bg-black/28 p-2.5" key={slot.slot}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-ik-menu text-[0.6rem] uppercase tracking-wide text-neutral-500">
+                      {formatSlotLabel(slot.slot)}
+                    </span>
+                    <span className="shrink-0 font-ik-menu text-[0.6rem] text-neutral-300">
+                      +{slot.value} Résonance
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate font-ik-body text-sm text-neutral-100">
                     {slot.itemId ? itemById.get(slot.itemId) ?? slot.itemId : "Vide"}
-                  </span>
-                  <span className="shrink-0 rounded border border-amber-200/14 px-1.5 py-0.5 text-[0.6rem] text-amber-50">
-                    +{slot.value}
-                  </span>
+                  </p>
+                  {slot.rarity ? (
+                    <p className="font-ik-body text-[0.65rem] text-neutral-500">{formatRarityLabel(slot.rarity)}</p>
+                  ) : null}
                 </li>
               ))}
             </ul>
+            <p className="mt-3 border-t border-white/10 pt-2 font-ik-menu text-[0.65rem] uppercase tracking-wide text-neutral-400">
+              Total contributeurs : {resonance.totalResonance} Résonance
+            </p>
           </GamePanel>
 
           <GamePanel className="p-4">
-            <h3 className="font-ik-title text-lg text-amber-50">Modificateurs actifs</h3>
-            <div className="mt-3 flex flex-wrap gap-2 font-ik-body text-xs text-amber-50/85">
+            <h3 className="font-ik-title text-lg text-neutral-100">Modificateurs actifs</h3>
+            <div className="mt-3 flex flex-wrap gap-2 font-ik-body text-xs text-neutral-300">
               {nonZeroStats.length > 0 ? (
                 nonZeroStats.map(([stat, value]) => (
-                  <span className="rounded border border-amber-200/14 bg-black/35 px-2 py-1" key={stat}>
+                  <span className="rounded border border-white/10 bg-black/35 px-2 py-1" key={stat}>
                     {stat}: {formatEffectValue(value)}
                   </span>
                 ))
               ) : (
-                <span className="text-muted-foreground">Aucun modificateur actif.</span>
+                <span className="text-neutral-500">Aucun modificateur actif.</span>
               )}
             </div>
           </GamePanel>
