@@ -1,5 +1,5 @@
-import { LevelEditorV0 } from "@/components/editor/level-editor-v0";
+import { EditorShell } from "@/components/editor/editor-shell";
 
 export default function EditorPage() {
-  return <LevelEditorV0 />;
+  return <EditorShell />;
 }
