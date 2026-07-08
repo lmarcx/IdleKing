@@ -15,9 +15,7 @@ import type {
   EquippedItems,
 } from "@/components/game/character/types";
 import { ItemDeleteConfirmDialog } from "@/components/game/item-delete-dialog";
-import { EffectSetsPanel } from "@/components/game/worlds/effect-sets-panel";
-import { ResonancePanel } from "@/components/game/worlds/resonance-panel";
-import { cn } from "@/lib/utils";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import {
   calculateFinalCharacterStats,
@@ -27,14 +25,6 @@ import {
   type EquipmentSlot,
 } from "@idleking/game-core";
 import { normalizeEquipmentItem, type ItemRarity } from "@idleking/game-core/items";
-
-type CharacterTab = "equipment" | "resonance" | "effects";
-
-const CHARACTER_TABS: { id: CharacterTab; label: string }[] = [
-  { id: "equipment", label: "Equipment" },
-  { id: "resonance", label: "Resonance" },
-  { id: "effects", label: "Effect Sets" },
-];
 
 type EquipmentMetadata = {
   description?: string;
@@ -151,6 +141,7 @@ function hasEquipmentItems(items: unknown[]) {
 }
 
 export function CharacterView() {
+  const { openOverlay } = useGameHudOverlay();
   const state = useGameStore((s) => s.state);
   const hydrated = useGameStore((s) => s.hydrated);
   const dispatch = useGameStore((s) => s.dispatch);
@@ -283,7 +274,17 @@ export function CharacterView() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
+        <button
+          aria-label="Ouvrir Résonance"
+          className="ik-card-hover rounded-md border border-amber-200/24 bg-amber-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.08em] text-amber-50 transition hover:border-amber-100"
+          onClick={() => openOverlay("resonance")}
+          type="button"
+        >
+          Ouvrir Résonance
+        </button>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
         <CharacterStatsPanel stats={stats} />

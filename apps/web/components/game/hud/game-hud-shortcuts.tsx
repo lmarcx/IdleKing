@@ -8,6 +8,7 @@ const SHORTCUT_OVERLAY_BY_KEY_CODE: Record<string, GameHudOverlayId> = {
   KeyI: "inventory",
   KeyP: "character",
   KeyK: "skills",
+  KeyR: "resonance",
 };
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -17,7 +18,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 /**
- * Global I/P/S overlay toggles. Mounted once inside GameHudOverlayProvider so
+ * Global I/P/K/R overlay toggles. Mounted once inside GameHudOverlayProvider so
  * it works across every /game/* route (canvas stages and standalone pages
  * alike). Movement/combat keydown listeners already gate on
  * useGameHudOverlay().isOverlayOpen once an overlay is open — this only

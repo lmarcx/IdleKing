@@ -1661,6 +1661,7 @@ export function KingdomHubStage() {
         <GameHud
           onOpenCharacter={() => openGlobalHudOverlay("character")}
           onOpenInventory={() => openGlobalHudOverlay("inventory")}
+          onOpenResonance={() => openGlobalHudOverlay("resonance")}
           onOpenSettings={() => openGlobalHudOverlay("settings")}
           onOpenSkills={() => openGlobalHudOverlay("skills")}
           onOpenWorlds={() => openGlobalHudOverlay("worlds")}

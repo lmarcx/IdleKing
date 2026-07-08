@@ -6,11 +6,12 @@ import { Grid2X2, Settings } from "lucide-react";
 
 import { CharacterView } from "@/components/game/character/character-view";
 import { InventoryView } from "@/components/game/inventory/inventory-view";
+import { ResonanceTreePanel } from "@/components/game/resonance/resonance-tree-panel";
 import { SkillsView } from "@/components/game/skills/skills-view";
 import { WorldsModeShell } from "@/components/game/worlds/worlds-mode-shell";
 import { GameOverlay } from "@/components/game/hud/game-overlay";
 
-export type GameHudOverlayId = "character" | "inventory" | "skills" | "worlds" | "settings";
+export type GameHudOverlayId = "character" | "inventory" | "resonance" | "skills" | "worlds" | "settings";
 
 type GameHudOverlayContextValue = {
   activeOverlay: GameHudOverlayId | null;
@@ -24,6 +25,7 @@ const GameHudOverlayContext = createContext<GameHudOverlayContextValue | null>(n
 const OVERLAY_TITLES: Record<GameHudOverlayId, string> = {
   character: "Character",
   inventory: "Inventory",
+  resonance: "Résonance",
   settings: "Settings",
   skills: "Skills",
   worlds: "Time Gate",
@@ -34,6 +36,7 @@ export function GameHudOverlayProvider({ children }: { children: ReactNode }) {
   const [mountedOverlays, setMountedOverlays] = useState<Record<GameHudOverlayId, boolean>>({
     character: false,
     inventory: false,
+    resonance: false,
     settings: false,
     skills: false,
     worlds: false,
@@ -103,6 +106,12 @@ function GameHudOverlayLayer({
       {activeOverlay === "skills" ? (
         <GameOverlay contentClassName="overscroll-contain" onClose={closeOverlay} open title={OVERLAY_TITLES.skills}>
           <SkillsView />
+        </GameOverlay>
+      ) : null}
+
+      {activeOverlay === "resonance" ? (
+        <GameOverlay contentClassName="overscroll-contain" onClose={closeOverlay} open title={OVERLAY_TITLES.resonance}>
+          <ResonanceTreePanel />
         </GameOverlay>
       ) : null}
 

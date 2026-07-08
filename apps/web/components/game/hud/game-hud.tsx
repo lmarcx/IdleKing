@@ -7,6 +7,7 @@ import {
   Coins,
   Crown,
   Droplets,
+  Gem,
   Globe2,
   Heart,
   Hourglass,
@@ -28,6 +29,7 @@ type GameHudProps = {
   disabled?: boolean;
   onOpenCharacter?: () => void;
   onOpenInventory?: () => void;
+  onOpenResonance?: () => void;
   onOpenSettings?: () => void;
   onOpenSkills?: () => void;
   onOpenWorlds?: () => void;
@@ -48,6 +50,7 @@ const HUD_NAV_ITEMS: ReadonlyArray<{ icon: HudIcon; id: GameHudOverlayId; label:
   { icon: UserRound, id: "character", label: "Personnage" },
   { icon: Backpack, id: "inventory", label: "Inventaire" },
   { icon: Sparkles, id: "skills", label: "Skills" },
+  { icon: Gem, id: "resonance", label: "Résonance" },
   { icon: Hourglass, id: "worlds", label: "Time Gate" },
   { icon: Settings, id: "settings", label: "Options" },
 ];
@@ -161,6 +164,7 @@ export function GameHud({
   disabled = false,
   onOpenCharacter,
   onOpenInventory,
+  onOpenResonance,
   onOpenSettings,
   onOpenSkills,
   onOpenWorlds,
@@ -180,6 +184,7 @@ export function GameHud({
   const handlers: Record<GameHudOverlayId, () => void> = {
     character: onOpenCharacter ?? (() => openOverlay("character")),
     inventory: onOpenInventory ?? (() => openOverlay("inventory")),
+    resonance: onOpenResonance ?? (() => openOverlay("resonance")),
     settings: onOpenSettings ?? (() => openOverlay("settings")),
     skills: onOpenSkills ?? (() => openOverlay("skills")),
     worlds: onOpenWorlds ?? (() => openOverlay("worlds")),
