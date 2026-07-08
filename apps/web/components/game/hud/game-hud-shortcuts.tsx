@@ -7,7 +7,7 @@ import { useGameHudOverlay, type GameHudOverlayId } from "./game-hud-overlays";
 const SHORTCUT_OVERLAY_BY_KEY_CODE: Record<string, GameHudOverlayId> = {
   KeyI: "inventory",
   KeyP: "character",
-  KeyS: "skills",
+  KeyK: "skills",
 };
 
 function isTypingTarget(target: EventTarget | null): boolean {
