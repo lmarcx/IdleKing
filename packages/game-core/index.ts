@@ -247,6 +247,16 @@ export type {
   CraftEquipmentFromRecipeResult,
 } from "./building/forge/craft.js";
 export {
+  removeInventoryItem,
+} from "./game/inventoryActions.js";
+export type {
+  RemoveInventoryItemError,
+  RemoveInventoryItemResult,
+} from "./game/inventoryActions.js";
+export {
+  removeItem,
+} from "./items/inventory.js";
+export {
   forgeRecycleEquipment,
 } from "./building/forge/recycle.js";
 export type {

@@ -7,7 +7,14 @@ import { AvailableEquipmentPanel } from "@/components/game/character/available-e
 import { CharacterStatsPanel } from "@/components/game/character/character-stats-panel";
 import { EquipmentDoll } from "@/components/game/character/equipment-doll";
 import { FAKE_EQUIPMENT } from "@/components/game/character/fake-equipment";
-import type { CharacterEquipment, CharacterStat, EquipmentSlotId, EquippedItems } from "@/components/game/character/types";
+import type {
+  CharacterEquipment,
+  CharacterStat,
+  EquipmentDragPayload,
+  EquipmentSlotId,
+  EquippedItems,
+} from "@/components/game/character/types";
+import { ItemDeleteConfirmDialog } from "@/components/game/item-delete-dialog";
 import { EffectSetsPanel } from "@/components/game/worlds/effect-sets-panel";
 import { ResonancePanel } from "@/components/game/worlds/resonance-panel";
 import { cn } from "@/lib/utils";
@@ -118,12 +125,15 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
   const itemLevel = item.itemLevel ?? item.ilvl ?? 1;
 
   return {
+    affixes: item.affixes,
     description: metadata.description ?? "Equipment from the current character inventory.",
     icon: metadata.icon ?? `/assets/equipment-slots/${item.slot}.svg`,
     id: item.id,
     itemLevel,
     name: item.name,
     rarity: getCharacterRarity(item),
+    setId: item.setId,
+    skillId: item.skillId,
     slot: toCharacterEquipmentSlot(item.slot),
     stats: {
       hp: item.stats.hp,
@@ -131,6 +141,7 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
       def: item.stats.defense,
       power: item.stats.power,
     },
+    upgradeLevel: item.upgradeLevel,
     value: metadata.value ?? itemLevel,
   };
 }
@@ -144,8 +155,11 @@ export function CharacterView() {
   const hydrated = useGameStore((s) => s.hydrated);
   const dispatch = useGameStore((s) => s.dispatch);
   const equipPlayerItem = useGameStore((s) => s.equipPlayerItem);
+  const equipPlayerRing = useGameStore((s) => s.equipPlayerRing);
   const unequipPlayerItem = useGameStore((s) => s.unequipPlayerItem);
   const unequipPlayerRing = useGameStore((s) => s.unequipPlayerRing);
+  const removePlayerItem = useGameStore((s) => s.removePlayerItem);
+  const [pendingDelete, setPendingDelete] = useState<CharacterEquipment | null>(null);
   const characterStats = useMemo(() => calculateFinalCharacterStats(state), [state]);
   const availableEquipment = useMemo(
     () =>
@@ -230,6 +244,43 @@ export function CharacterView() {
     unequipPlayerRing(slotIndex);
   }, [unequipPlayerRing]);
 
+  const handleDropOnSlot = useCallback((slotId: EquipmentSlotId, payload: EquipmentDragPayload) => {
+    if (payload.slot !== slotId) {
+      toast.error("Cet objet ne correspond pas a cet emplacement.");
+      return;
+    }
+    const result = equipPlayerItem(payload.id);
+    if (!result.ok) {
+      toast.error(`Unable to equip item: ${result.reason}`);
+    }
+  }, [equipPlayerItem]);
+
+  const handleDropOnRing = useCallback((slotIndex: number, payload: EquipmentDragPayload) => {
+    if (payload.slot !== "ring") {
+      toast.error("Seuls les anneaux vont dans cet emplacement.");
+      return;
+    }
+    const result = equipPlayerRing(payload.id, slotIndex);
+    if (!result.ok) {
+      toast.error(`Unable to equip ring: ${result.reason}`);
+    }
+  }, [equipPlayerRing]);
+
+  const handleRequestDelete = useCallback((item: CharacterEquipment) => {
+    setPendingDelete(item);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    const result = removePlayerItem(pendingDelete.id);
+    if (!result.ok) {
+      toast.error(`Unable to delete item: ${result.reason}`);
+    } else {
+      toast.success(`${pendingDelete.name} deleted`);
+    }
+    setPendingDelete(null);
+  }, [pendingDelete, removePlayerItem]);
+
   return (
     <div className="space-y-4">
       <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
@@ -239,16 +290,27 @@ export function CharacterView() {
         <EquipmentDoll
           equippedItems={equippedItems}
           equippedRings={equippedRings}
+          onDelete={handleRequestDelete}
+          onDropOnRing={handleDropOnRing}
+          onDropOnSlot={handleDropOnSlot}
           onUnequip={handleUnequip}
           onUnequipRing={handleUnequipRing}
         />
         <AvailableEquipmentPanel
           equippedItemIds={equippedItemIds}
           items={availableEquipment}
+          onDelete={handleRequestDelete}
           onEquip={handleEquip}
           onUnequip={handleUnequipItem}
         />
       </div>
+
+      <ItemDeleteConfirmDialog
+        itemName={pendingDelete?.name ?? null}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+        open={pendingDelete !== null}
+      />
     </div>
   );
 }

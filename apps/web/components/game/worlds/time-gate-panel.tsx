@@ -24,6 +24,7 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { DUEL_OPPONENTS, type DuelOpponent } from "@/lib/duel-data";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import {
   ERA_REGISTRY,
@@ -504,6 +505,7 @@ function DuelTestEntryCard({
 
 export function TimeGatePanel() {
   const router = useRouter();
+  const { closeOverlay } = useGameHudOverlay();
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
   const [activeSection, setActiveSection] = useState<TimeGateSection>("story");
@@ -537,10 +539,12 @@ export function TimeGatePanel() {
   }
 
   function handleEnterDungeon(dungeonId: string) {
+    closeOverlay();
     router.push(`/game/story/levels/${dungeonId}`);
   }
 
   function handleOpenTestArena(href: string) {
+    closeOverlay();
     router.push(href);
   }
 

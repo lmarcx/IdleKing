@@ -4,6 +4,7 @@ import { EquipmentSlot } from "./equipment-slot";
 import {
   EQUIPMENT_SLOTS,
   type CharacterEquipment,
+  type EquipmentDragPayload,
   type EquippedItems,
   type EquipmentSlotDefinition,
   type EquipmentSlotId,
@@ -21,11 +22,17 @@ function getSlotDefinition(slotId: EquipmentSlotId): EquipmentSlotDefinition {
 export function EquipmentDoll({
   equippedItems,
   equippedRings,
+  onDelete,
+  onDropOnRing,
+  onDropOnSlot,
   onUnequip,
   onUnequipRing,
 }: {
   equippedItems: EquippedItems;
   equippedRings: (CharacterEquipment | null)[];
+  onDelete?: (item: CharacterEquipment) => void;
+  onDropOnRing?: (slotIndex: number, payload: EquipmentDragPayload) => void;
+  onDropOnSlot?: (slotId: EquipmentSlotId, payload: EquipmentDragPayload) => void;
   onUnequip: (slot: EquipmentSlotId) => void;
   onUnequipRing: (slotIndex: number) => void;
 }) {
@@ -43,14 +50,26 @@ export function EquipmentDoll({
           <div className="grid justify-items-center gap-3">
             {ARMOR_SLOT_IDS.map((slotId) => (
               <div className="h-12 w-12 sm:h-[52px] sm:w-[52px]" key={slotId}>
-                <EquipmentSlot item={equippedItems[slotId]} onUnequip={onUnequip} slot={getSlotDefinition(slotId)} />
+                <EquipmentSlot
+                  item={equippedItems[slotId]}
+                  onDelete={onDelete}
+                  onDropItem={onDropOnSlot ? (payload) => onDropOnSlot(slotId, payload) : undefined}
+                  onUnequip={onUnequip}
+                  slot={getSlotDefinition(slotId)}
+                />
               </div>
             ))}
           </div>
 
           <div className="relative grid min-h-[320px] place-items-center">
             <div className="absolute left-1/2 top-1 h-12 w-12 -translate-x-1/2 sm:h-[52px] sm:w-[52px]">
-              <EquipmentSlot item={equippedItems.cape} onUnequip={onUnequip} slot={getSlotDefinition("cape")} />
+              <EquipmentSlot
+                item={equippedItems.cape}
+                onDelete={onDelete}
+                onDropItem={onDropOnSlot ? (payload) => onDropOnSlot("cape", payload) : undefined}
+                onUnequip={onUnequip}
+                slot={getSlotDefinition("cape")}
+              />
             </div>
             <img
               alt="Roi dark fantasy"
@@ -62,7 +81,13 @@ export function EquipmentDoll({
           <div className="grid justify-items-center gap-3">
             {ACCESSORY_SLOT_IDS.map((slotId) => (
               <div className="h-12 w-12 sm:h-[52px] sm:w-[52px]" key={slotId}>
-                <EquipmentSlot item={equippedItems[slotId]} onUnequip={onUnequip} slot={getSlotDefinition(slotId)} />
+                <EquipmentSlot
+                  item={equippedItems[slotId]}
+                  onDelete={onDelete}
+                  onDropItem={onDropOnSlot ? (payload) => onDropOnSlot(slotId, payload) : undefined}
+                  onUnequip={onUnequip}
+                  slot={getSlotDefinition(slotId)}
+                />
               </div>
             ))}
           </div>
@@ -81,6 +106,8 @@ export function EquipmentDoll({
             <div className="aspect-square" key={index}>
               <EquipmentSlot
                 item={ring ?? undefined}
+                onDelete={onDelete}
+                onDropItem={onDropOnRing ? (payload) => onDropOnRing(index, payload) : undefined}
                 onUnequip={() => onUnequipRing(index)}
                 slot={{ id: "ring", label: `Ring ${index + 1}` }}
               />

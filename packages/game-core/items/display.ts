@@ -1,6 +1,7 @@
 import type { GameState } from "../game/state.js";
 import { ALL_RESOURCES, getQty, type ResourceId } from "../resources/types.js";
-import { isEquipmentItem, type EquipmentStats } from "./types.js";
+import { isEquipmentItem, type EquipmentAffix, type EquipmentStats } from "./types.js";
+import type { SkillId } from "../skills/types.js";
 
 export type InventoryCategory = "equipment" | "resources" | "consumables" | "unique" | "materials";
 
@@ -15,14 +16,18 @@ export type InventorySort =
 export type InventorySortOption = InventorySort;
 
 export type InventoryDisplayItem = {
+  affixes?: EquipmentAffix[];
   category: InventoryCategory;
   icon?: string;
   id: string;
   name: string;
   quantity: number;
   rarity?: string;
+  setId?: string;
+  skillId?: SkillId | null;
   slot?: string;
   stats?: EquipmentStats;
+  upgradeLevel?: number;
   value: number;
 };
 
@@ -88,13 +93,17 @@ export function getInventoryDisplayItems(state: GameState): InventoryDisplayItem
   const inventoryItems = state.inventory.items.map((item) => {
     if (isEquipmentItem(item)) {
       return {
+        affixes: item.affixes,
         category: "equipment" as const,
         id: item.id,
         name: item.name,
         quantity: 1,
         rarity: item.rarity,
+        setId: item.setId,
+        skillId: item.skillId,
         slot: item.slot,
         stats: item.stats,
+        upgradeLevel: item.upgradeLevel,
         value: getInventoryItemValue(item),
       };
     }
