@@ -6,10 +6,8 @@ import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { DEV_MODE } from "@/lib/env";
-import { getResourceAssetPath } from "@/lib/resource-assets";
 import { cn } from "@/lib/utils";
 import { useGameStore } from "@/store/game-store";
-import { useResourceFeedbackStore } from "@/store/resource-feedback-store";
 import { GameHud } from "@/components/game/hud/game-hud";
 import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-panel";
 import { KitchenMiniGamePanel } from "@/components/game/kingdom/kitchen-mini-game-panel";
@@ -19,14 +17,11 @@ import { forumRankUpWorld } from "@idleking/game-core/game/forumActions.js";
 import { wxpNext } from "@idleking/game-core/progression";
 import {
   FORGE_RECIPES,
-  CORNUCOPIA_MAX_CLAIM_AMOUNT,
   buildBuilding,
-  claimCornucopia,
   convertTempleGlobalXp,
   forgeCraft,
   getBuildCost,
   getCanonicalBuildingStatus,
-  getCornucopiaClaimables,
   getCanonicalForgeRecipeRequiredLevel,
   getForgeOutputBase,
   getQty,
@@ -39,7 +34,6 @@ import {
   type BuildingId,
   type BuildingStatus,
   type ForgeRecipe,
-  type ResourceId,
   type TempleXpTarget,
 } from "@idleking/game-core";
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
@@ -48,6 +42,7 @@ import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { BUILDING_SIZES, createBuildingGraphics, type HubBuildingKind } from "./geometric-buildings";
 import { BankView } from "./bank-view";
 import { MarketView } from "./market-view";
+import { CornucopiaDevPanel } from "./cornucopia-dev-panel";
 import { KingdomDialogueBox } from "./kingdom-dialogue-box";
 import { KingdomOverlay } from "./kingdom-overlay";
 import {
@@ -602,15 +597,6 @@ function createBillyCompanion(start: Vector2): BillyCompanion {
   };
 }
 
-function formatResourceLabel(resourceId: ResourceId) {
-  return resourceId.replaceAll("_", " ");
-}
-
-function clampCornucopiaAmount(amount: number) {
-  if (!Number.isFinite(amount)) return 1;
-  return clamp(Math.floor(amount), 1, CORNUCOPIA_MAX_CLAIM_AMOUNT);
-}
-
 function getBuildingStatusLabel(building: { unlocked: boolean; built: boolean; status?: BuildingStatus }) {
   const status = building.status ?? (!building.unlocked ? "locked" : !building.built ? "unlocked" : "built");
 
@@ -682,14 +668,12 @@ export function KingdomHubStage() {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
   const isDialogueOpenRef = useRef(false);
-  const isClaimingCornucopiaRef = useRef(false);
   const nearbyInteractableIdRef = useRef<string | null>(null);
   const farmStateRef = useRef<BuildingStatus>("unlocked");
   const renderFarmSlotRef = useRef<((state: BuildingStatus) => void) | null>(null);
   const spawnWorldFxRef = useRef<SpawnWorldFx | null>(null);
   const state = useGameStore((store) => store.state);
   const dispatch = useGameStore((store) => store.dispatch);
-  const showResourceGain = useResourceFeedbackStore((store) => store.showResourceGain);
   const {
     isOverlayOpen: isGameHudOverlayOpen,
     openOverlay: openGameHudOverlay,
@@ -710,13 +694,7 @@ export function KingdomHubStage() {
   const [templeFeedback, setTempleFeedback] = useState<string | null>(null);
   const [forgeFeedback, setForgeFeedback] = useState<string | null>(null);
   const [forumFeedback, setForumFeedback] = useState<string | null>(null);
-  const [selectedCornucopiaResource, setSelectedCornucopiaResource] = useState<ResourceId | null>(null);
-  const [cornucopiaClaimAmount, setCornucopiaClaimAmount] = useState(100);
-  const [isClaimingCornucopia, setIsClaimingCornucopia] = useState(false);
 
-  const cornucopiaClaimables = useMemo(() => getCornucopiaClaimables(state), [state]);
-  const selectedResource = selectedCornucopiaResource;
-  const selectedResourceQuantity = selectedResource ? getQty(state.resources, selectedResource) : 0;
   const xpGlobalAvailable = getQty(state.resources, "XP_GLOBAL");
   const playerXpToNext = xpNext(state.progression.playerLevel);
   const effectiveTemple = getEffectiveBuildingState(state.buildings.temple, state.progression.worldLevel);
@@ -750,10 +728,6 @@ export function KingdomHubStage() {
       placeholderBuildingId !== null ||
       activeOverlay !== null ||
       isGameHudOverlayOpen;
-    if (isCornucopiaOpen) {
-      isClaimingCornucopiaRef.current = false;
-      setIsClaimingCornucopia(false);
-    }
   }, [
     activeOverlay,
     farmModal,
@@ -778,17 +752,6 @@ export function KingdomHubStage() {
   useEffect(() => {
     isDialogueOpenRef.current = activeDialogue !== null;
   }, [activeDialogue]);
-
-  useEffect(() => {
-    if (cornucopiaClaimables.length === 0) {
-      setSelectedCornucopiaResource(null);
-      return;
-    }
-
-    setSelectedCornucopiaResource((current) =>
-      current && cornucopiaClaimables.includes(current) ? current : cornucopiaClaimables[0],
-    );
-  }, [cornucopiaClaimables]);
 
   const closeDialogue = useCallback(() => {
     isDialogueOpenRef.current = false;
@@ -1052,37 +1015,6 @@ export function KingdomHubStage() {
     });
   }, []);
 
-  const handleClaimCornucopia = useCallback(() => {
-    if (isClaimingCornucopiaRef.current) return;
-
-    if (!selectedResource) {
-      toast.error("No Cornucopia resource available");
-      return;
-    }
-
-    isClaimingCornucopiaRef.current = true;
-    setIsClaimingCornucopia(true);
-
-    const amount = clampCornucopiaAmount(cornucopiaClaimAmount);
-    setCornucopiaClaimAmount(amount);
-
-    const result = claimCornucopia(useGameStore.getState().state, { resourceId: selectedResource, amount });
-
-    if (!result.ok) {
-      toast.error(`Cornucopia claim failed: ${result.error}`);
-      isClaimingCornucopiaRef.current = false;
-      setIsClaimingCornucopia(false);
-      return;
-    }
-
-    dispatch(() => result.next);
-    showResourceGain({ amount: result.amount, resourceId: result.resourceId });
-    spawnWorldFxRef.current?.(CORNUCOPIA_POSITION, `+${result.amount} ${result.resourceId}`, 0xf2f2f2);
-    toast.success(`Claimed ${result.amount} ${result.resourceId}`);
-    isClaimingCornucopiaRef.current = false;
-    setIsClaimingCornucopia(false);
-  }, [cornucopiaClaimAmount, dispatch, selectedResource, showResourceGain]);
-
   useEffect(() => {
     const hostElement = hostRef.current;
     if (!hostElement) return;
@@ -1115,15 +1047,19 @@ export function KingdomHubStage() {
         radius: 138,
         onInteract: () => openPlaceholderBuilding("forum"),
       },
-      {
-        id: "cornucopia",
-        label: "Cornucopia",
-        type: "building",
-        x: CORNUCOPIA_POSITION.x,
-        y: CORNUCOPIA_POSITION.y,
-        radius: 118,
-        onInteract: openCornucopia,
-      },
+      ...(DEV_MODE
+        ? [
+            {
+              id: "cornucopia",
+              label: "Cornucopia",
+              type: "building" as const,
+              x: CORNUCOPIA_POSITION.x,
+              y: CORNUCOPIA_POSITION.y,
+              radius: 118,
+              onInteract: openCornucopia,
+            },
+          ]
+        : []),
       {
         id: "portal",
         label: "Portail",
@@ -1464,15 +1400,20 @@ export function KingdomHubStage() {
           position: FARM_SLOT,
           widthRatio: 0.72,
         }),
-        createGroundCollider({
-          building: "cornucopia",
-          heightRatio: 0.34,
-          id: "cornucopia",
-          offsetY: 12,
-          position: CORNUCOPIA_POSITION,
-          widthRatio: 0.68,
-        }),
       );
+
+      if (DEV_MODE) {
+        solidColliders.push(
+          createGroundCollider({
+            building: "cornucopia",
+            heightRatio: 0.34,
+            id: "cornucopia",
+            offsetY: 12,
+            position: CORNUCOPIA_POSITION,
+            widthRatio: 0.68,
+          }),
+        );
+      }
 
       if (DEV_MODE && SHOW_HUB_COLLIDER_DEBUG) {
         entityLayer.addChild(drawColliderDebug(solidColliders));
@@ -1555,15 +1496,17 @@ export function KingdomHubStage() {
       poiVisuals.set("market", marketVisual);
       entityLayer.addChild(marketVisual.container);
 
-      const cornucopiaVisual = createHubSpriteVisual({
-        content: createBuildingGraphics("cornucopia"),
-        hintOffsetY: -84,
-        position: CORNUCOPIA_POSITION,
-        shadowHeight: 16,
-        shadowWidth: 62,
-      });
-      poiVisuals.set("cornucopia", cornucopiaVisual);
-      entityLayer.addChild(cornucopiaVisual.container);
+      if (DEV_MODE) {
+        const cornucopiaVisual = createHubSpriteVisual({
+          content: createBuildingGraphics("cornucopia"),
+          hintOffsetY: -84,
+          position: CORNUCOPIA_POSITION,
+          shadowHeight: 16,
+          shadowWidth: 62,
+        });
+        poiVisuals.set("cornucopia", cornucopiaVisual);
+        entityLayer.addChild(cornucopiaVisual.container);
+      }
 
       const portalVisual = createPortalVisual();
       poiVisuals.set("portal", portalVisual);
@@ -1879,102 +1822,19 @@ export function KingdomHubStage() {
         </DialogContent>
       </Dialog>
 
+      {DEV_MODE ? (
       <Dialog open={isCornucopiaOpen} onOpenChange={setIsCornucopiaOpen}>
-        <DialogContent className="max-w-3xl text-neutral-100">
-          <BuildingModalHeader
-            glyph="cornucopia"
-            statusLabel="Console dev"
-            subtitle="Ressources rapides pour tester le Royaume."
-            title="Cornucopia"
-          />
+        <DialogContent className="max-h-[92vh] max-w-4xl overflow-y-auto text-neutral-100">
+          <div className="space-y-4">
+            <BuildingModalHeader
+              devUnlocked
+              glyph="cornucopia"
+              statusLabel="Console dev"
+              subtitle="Génère n'importe quel contenu de test (ressources, currencies, équipement, rings, special items, unlocks)."
+              title="Cornucopia"
+            />
 
-          <div className="mt-4 grid gap-4 md:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="max-h-[24rem] overflow-y-auto rounded-md border border-amber-200/15 bg-black/35 p-2">
-              <div className="space-y-1">
-                {cornucopiaClaimables.map((resourceId) => {
-                  const isSelected = resourceId === selectedResource;
-
-                  return (
-                    <button
-                      className={`flex w-full items-center gap-3 rounded px-3 py-2 text-left transition ${
-                        isSelected
-                          ? "border border-amber-200/55 bg-amber-500/18 text-amber-50 shadow-[0_0_18px_rgba(242,242,242,0.12)]"
-                          : "border border-transparent text-muted-foreground hover:border-amber-200/20 hover:bg-amber-500/8 hover:text-amber-50"
-                      }`}
-                      key={resourceId}
-                      onClick={() => setSelectedCornucopiaResource(resourceId)}
-                      type="button"
-                    >
-                      <img alt="" aria-hidden="true" className="h-6 w-6 shrink-0" src={getResourceAssetPath(resourceId)} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-ik-menu text-xs uppercase tracking-[0.12em]">
-                          {formatResourceLabel(resourceId)}
-                        </span>
-                        <span className="block font-ik-body text-xs text-muted-foreground">
-                          Owned {getQty(state.resources, resourceId)}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-md border border-amber-200/18 bg-black/45 p-4">
-              {selectedResource ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <img
-                      alt=""
-                      aria-hidden="true"
-                      className="h-10 w-10"
-                      src={getResourceAssetPath(selectedResource)}
-                    />
-                    <div>
-                      <div className="font-ik-title text-base text-amber-50">{formatResourceLabel(selectedResource)}</div>
-                      <div className="font-ik-body text-xs text-muted-foreground">Owned {selectedResourceQuantity}</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="font-ik-menu text-xs uppercase tracking-[0.14em] text-amber-100/70">Quantity</div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {[1, 10, 100, 1000].map((amount) => (
-                        <button
-                          className="rounded border border-amber-200/20 bg-amber-500/10 px-2 py-1 font-ik-menu text-xs text-amber-50 transition hover:border-amber-200/45 hover:bg-amber-500/18"
-                          key={amount}
-                          onClick={() => setCornucopiaClaimAmount(amount)}
-                          type="button"
-                        >
-                          +{amount}
-                        </button>
-                      ))}
-                    </div>
-                    <input
-                      className="w-full rounded-md border border-amber-200/20 bg-black/40 px-3 py-2 font-ik-menu text-sm text-amber-50 outline-none transition focus:border-amber-200/55"
-                      max={CORNUCOPIA_MAX_CLAIM_AMOUNT}
-                      min={1}
-                      onChange={(event) => {
-                        setCornucopiaClaimAmount(clampCornucopiaAmount(Number(event.target.value)));
-                      }}
-                      type="number"
-                      value={cornucopiaClaimAmount}
-                    />
-                  </div>
-
-                  <button
-                    className="w-full rounded-md border border-amber-300/45 bg-amber-500/18 px-4 py-2 font-ik-menu text-sm text-amber-50 transition hover:border-amber-200 hover:bg-amber-500/24 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={isClaimingCornucopia}
-                    onClick={handleClaimCornucopia}
-                    type="button"
-                  >
-                    Claim Resources
-                  </button>
-                </div>
-              ) : (
-                <div className="font-ik-body text-sm text-muted-foreground">No resource selected</div>
-              )}
-            </div>
+            <CornucopiaDevPanel />
           </div>
 
           <DialogFooter>
@@ -1982,6 +1842,7 @@ export function KingdomHubStage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      ) : null}
 
       <Dialog
         open={isTempleOpen}

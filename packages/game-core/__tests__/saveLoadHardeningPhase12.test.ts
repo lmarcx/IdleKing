@@ -335,3 +335,31 @@ test("resourceStock is clamped to stack max 999 during save load normalization",
     assert.equal(getCanonicalResourceQuantity(loaded.state.resources, "iron_ore"), 999);
   });
 });
+
+test("save load normalization repairs equipment instances that share a persisted id", () => {
+  withMockLocalStorage((store) => {
+    const state: any = createInitialGameState({ nowMs: 2_000 });
+    const ringA = generateEquipmentItem({ slot: "ring", itemLevel: 10, id: "dup-ring", skillId: "SK-001" });
+    const ringB = generateEquipmentItem({ slot: "ring", itemLevel: 20, id: "dup-ring", skillId: "SK-002" });
+    state.inventory.items = [ringA, ringB];
+    state.equipment = {
+      equipped: {
+        ...state.equipment.equipped,
+        rings: [ringA.id, null, null, null, null],
+      },
+    };
+    writeOldSave(store, state, 2_000);
+
+    const loaded = loadGameWithReport();
+
+    assert.ok(loaded);
+    if (!loaded) return;
+
+    assert.equal(loaded.state.inventory.items.length, 2);
+    const ids = loaded.state.inventory.items.map((item) => item.id);
+    assert.equal(new Set(ids).size, 2, "duplicate persisted ids must be repaired into unique ids");
+
+    const equippedRings = getEquippedRingItems(loaded.state);
+    assert.equal(equippedRings[0]?.skillId, "SK-001", "the equipped occurrence keeps its original id/skill");
+  });
+});
