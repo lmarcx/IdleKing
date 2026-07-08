@@ -1,27 +1,24 @@
 import type { ItemRarity } from "@idleking/game-core/items";
 
 /**
- * Centralized rarity -> style mapping (MVP rarities only: Common..Legendary).
- * Grayscale intensity scale on purpose — this app's UI is minimalist B&W, not
- * per-rarity hues. Keyed on the core ItemRarity so both the Character screen
- * (which has its own lower-case CharacterEquipmentRarity wrapper) and the
- * Inventory screen (which gets raw upper-case ItemRarity strings) share one
- * source of truth.
+ * Centralized rarity -> style mapping.
+ * The global UI remains minimalist B&W, but item frames use subtle rarity accents.
+ * MVP rarities only: Common..Legendary.
  */
 const RARITY_BORDER_CLASS: Record<ItemRarity, string> = {
-  COMMON: "border-[#6a6a6a]/45",
-  UNCOMMON: "border-[#9a9a9a]/60 shadow-[0_0_14px_rgba(242,242,242,0.08)]",
-  RARE: "border-[#c9c9c9]/65 shadow-[0_0_14px_rgba(242,242,242,0.12)]",
-  EPIC: "border-[#f2f2f2]/65 shadow-[0_0_14px_rgba(242,242,242,0.18)]",
-  LEGENDARY: "border-white/80 shadow-[0_0_14px_rgba(242,242,242,0.30)]",
+  COMMON: "border-[#6a6a6a]/55",
+  UNCOMMON: "border-[#7fa878]/75 shadow-[0_0_14px_rgba(127,168,120,0.14)]",
+  RARE: "border-[#6f8fb8]/80 shadow-[0_0_14px_rgba(111,143,184,0.16)]",
+  EPIC: "border-[#9b7bb8]/80 shadow-[0_0_14px_rgba(155,123,184,0.18)]",
+  LEGENDARY: "border-[#c6a85b]/85 shadow-[0_0_14px_rgba(198,168,91,0.22)]",
 };
 
 const RARITY_TEXT_CLASS: Record<ItemRarity, string> = {
-  COMMON: "text-neutral-500",
-  UNCOMMON: "text-neutral-400",
-  RARE: "text-neutral-300",
-  EPIC: "text-neutral-100",
-  LEGENDARY: "text-white",
+  COMMON: "text-neutral-400",
+  UNCOMMON: "text-[#9fbe99]",
+  RARE: "text-[#8faed6]",
+  EPIC: "text-[#b99add]",
+  LEGENDARY: "text-[#d5b76a]",
 };
 
 const RARITY_LABEL: Record<ItemRarity, string> = {
