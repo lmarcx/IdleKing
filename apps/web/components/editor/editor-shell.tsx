@@ -9,13 +9,16 @@ import { EditorInspector } from "@/components/editor/shell/editor-inspector";
 import { EditorToolbar } from "@/components/editor/shell/editor-toolbar";
 import { EditorTree } from "@/components/editor/shell/editor-tree";
 import { KingdomDraftPanel } from "@/components/editor/shell/kingdom-draft-panel";
+import { PlaceholderPanel } from "@/components/editor/shell/placeholder-panel";
 import { ProjectTree } from "@/components/editor/shell/project-tree";
 import {
   STEP_CATEGORY,
   isPlacementStep,
+  type ActiveDocument,
   type EditorMode,
   type EditorTool,
   type MarkerViewModel,
+  type PlaceholderDocumentInfo,
   type Selection,
 } from "@/components/editor/shell/editor-shared";
 import {
@@ -149,8 +152,10 @@ function isCellUsable(map: PlayableMap, x: number, y: number): boolean {
 
 export function EditorShell() {
   const [mode, setMode] = useState<EditorMode>("level");
+  const [placeholderDoc, setPlaceholderDoc] = useState<PlaceholderDocumentInfo | null>(null);
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
   const [kingdomMap, setKingdomMap] = useState<KingdomMapDefinition>(() => KINGDOM_DRAFT_MAP);
+  const [selectedKingdomBuildingId, setSelectedKingdomBuildingId] = useState<string | null>(null);
   const [customAssets, setCustomAssets] = useState<GeometricAsset[]>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [tool, setTool] = useState<EditorTool>("brush");
@@ -185,6 +190,59 @@ export function EditorShell() {
     if (selection.kind === "collision") return map.collisions.find((item) => item.id === selection.id) ?? null;
     return map.triggers.find((item) => item.id === selection.id) ?? null;
   }, [map, selection]);
+
+  const activeDocument: ActiveDocument = useMemo(() => {
+    if (mode === "level") {
+      return {
+        type: "playable_map",
+        id: map.id,
+        title: map.name,
+        status: map.id === "test_map_01" ? "Level — test map (playable route)" : "Level — local draft",
+      };
+    }
+    if (mode === "assets") {
+      return {
+        type: "asset_collection",
+        id: "asset_library",
+        title: "Assets",
+        status: `${customAssets.length} custom asset${customAssets.length === 1 ? "" : "s"} in local library`,
+      };
+    }
+    if (mode === "kingdom") {
+      return {
+        type: "kingdom_draft",
+        id: kingdomMap.id,
+        title: kingdomMap.name,
+        status: "Draft — not used by live runtime yet",
+      };
+    }
+    return {
+      type: "placeholder",
+      id: placeholderDoc?.id ?? "placeholder",
+      title: placeholderDoc?.title ?? "Placeholder",
+      status: "Not wired in Editor V2",
+      note: placeholderDoc?.note,
+    };
+  }, [mode, map.id, map.name, customAssets.length, kingdomMap.id, kingdomMap.name, placeholderDoc]);
+
+  function selectLevel() {
+    setMap(TEST_MAP_01);
+    setSelection({ kind: "spawn", id: "player_start" });
+    setMode("level");
+  }
+
+  function selectKingdomDraft() {
+    setMode("kingdom");
+  }
+
+  function selectAssets() {
+    setMode("assets");
+  }
+
+  function selectPlaceholder(info: PlaceholderDocumentInfo) {
+    setPlaceholderDoc(info);
+    setMode("placeholder");
+  }
 
   function saveMap() {
     const validation = validatePlayableMap(map);
@@ -337,6 +395,7 @@ export function EditorShell() {
       ...current,
       buildings: current.buildings.filter((building) => building.id !== id),
     }));
+    setSelectedKingdomBuildingId((current) => (current === id ? null : current));
   }
 
   function placeEntityAt(x: number, y: number) {
@@ -547,6 +606,7 @@ export function EditorShell() {
     <div className="min-h-screen bg-[#070707] text-zinc-100">
       <div className="flex min-h-screen flex-col">
         <EditorToolbar
+          activeDocument={activeDocument}
           lastSaveMessage={lastSaveMessage}
           mode={mode}
           onExportMap={() => downloadJson(`${map.id}.map.json`, map)}
@@ -568,7 +628,13 @@ export function EditorShell() {
 
         <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-950">
-            <ProjectTree mode={mode} onModeChange={setMode} />
+            <ProjectTree
+              activeDocument={activeDocument}
+              onSelectAssets={selectAssets}
+              onSelectKingdomDraft={selectKingdomDraft}
+              onSelectLevel={selectLevel}
+              onSelectPlaceholder={selectPlaceholder}
+            />
             {mode === "level" ? (
               <EditorTree
                 activeStep={activeStep}
@@ -636,8 +702,16 @@ export function EditorShell() {
               selectedPart={selectedPart}
               selectedPartId={selectedPartId}
             />
+          ) : mode === "kingdom" ? (
+            <KingdomDraftPanel
+              kingdomMap={kingdomMap}
+              onDeleteBuilding={deleteKingdomBuilding}
+              onPatchBuilding={patchKingdomBuilding}
+              onSelectBuilding={setSelectedKingdomBuildingId}
+              selectedBuildingId={selectedKingdomBuildingId}
+            />
           ) : (
-            <KingdomDraftPanel kingdomMap={kingdomMap} onDeleteBuilding={deleteKingdomBuilding} onPatchBuilding={patchKingdomBuilding} />
+            <PlaceholderPanel doc={placeholderDoc} />
           )}
         </main>
       </div>

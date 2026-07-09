@@ -10,11 +10,27 @@ import type {
   MapTrigger,
 } from "@idleking/game-core/level-editor";
 
-export type EditorMode = "level" | "assets" | "kingdom";
+export type EditorMode = "level" | "assets" | "kingdom" | "placeholder";
 export type EditorTool = "brush" | "eraser" | "select";
 export type SelectionKind = "spawn" | "object" | "building" | "npc" | "enemy" | "collision" | "trigger";
 export type Selection = { kind: SelectionKind; id: string };
 export type SelectedEntity = MapObject | MapBuilding | MapNpc | MapEnemy | MapCollision | MapTrigger | MapSpawn;
+
+/**
+ * Which real document is currently loaded in the editor, driving the tree highlight,
+ * toolbar labels, and center panel — so the canvas never silently shows the wrong content.
+ */
+export type ActiveDocumentType = "playable_map" | "kingdom_draft" | "asset_collection" | "placeholder";
+
+export type ActiveDocument = Readonly<{
+  type: ActiveDocumentType;
+  id: string;
+  title: string;
+  status: string;
+  note?: string;
+}>;
+
+export type PlaceholderDocumentInfo = Readonly<{ id: string; title: string; note: string }>;
 
 export type MarkerViewModel = {
   kind: SelectionKind;

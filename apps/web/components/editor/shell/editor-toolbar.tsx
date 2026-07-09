@@ -7,7 +7,7 @@ import { Download, Eraser, FileJson, FolderOpen, Grid2X2, MousePointer2, Paintbr
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { EditorMode, EditorTool } from "./editor-shared";
+import type { ActiveDocument, EditorMode, EditorTool } from "./editor-shared";
 
 const PLAYTEST_NOTICE = "Play/Test launches test_map_01 for now — not your current draft.";
 
@@ -41,6 +41,7 @@ function HiddenFileInput({ accept, label, onFile }: { accept: string; label: str
 }
 
 export function EditorToolbar({
+  activeDocument,
   lastSaveMessage,
   mode,
   onExportMap,
@@ -56,6 +57,7 @@ export function EditorToolbar({
   onToolChange,
   tool,
 }: {
+  activeDocument: ActiveDocument;
   lastSaveMessage: string;
   mode: EditorMode;
   onExportMap: () => void;
@@ -88,6 +90,15 @@ export function EditorToolbar({
             {item.label}
           </button>
         ))}
+      </div>
+
+      <div
+        className="rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 font-ik-body text-[0.68rem] text-zinc-400"
+        title={activeDocument.note ?? activeDocument.status}
+      >
+        <span className="text-zinc-200">Editing: {activeDocument.title}</span>
+        <span className="mx-1.5 text-zinc-700">·</span>
+        {activeDocument.status}
       </div>
 
       <div className="mx-1 h-6 w-px bg-zinc-800" />
@@ -126,13 +137,17 @@ export function EditorToolbar({
           </Button>
           <HiddenFileInput accept=".json,.asset.json" label="Import Asset" onFile={onImportAsset} />
         </>
-      ) : (
+      ) : mode === "kingdom" ? (
         <span className="font-ik-menu text-xs uppercase tracking-wide text-amber-200/70">
-          Kingdom Draft — not used by live runtime yet
+          Kingdom Draft has no save/load yet — edits are session-only
+        </span>
+      ) : (
+        <span className="font-ik-menu text-xs uppercase tracking-wide text-zinc-600">
+          Nothing to save — this section is a placeholder
         </span>
       )}
 
-      {mode !== "kingdom" ? (
+      {mode === "level" || mode === "assets" ? (
         <Button onClick={onNewAsset} size="sm" variant="outline">
           <Shapes className="mr-2 h-4 w-4" /> New Asset
         </Button>

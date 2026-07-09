@@ -3,97 +3,188 @@
 import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { KingdomMapDefinition } from "@idleking/game-core/level-editor";
+import { cn } from "@/lib/utils";
+import type { KingdomBuilding, KingdomMapDefinition } from "@idleking/game-core/level-editor";
 import { inputClassName } from "./editor-shared";
+
+const CANVAS_WIDTH = 640;
+const CANVAS_HEIGHT = 420;
+const CANVAS_PADDING = 40;
+
+function computeBounds(points: readonly { x: number; y: number }[]): { minX: number; minY: number; spanX: number; spanY: number } {
+  if (points.length === 0) return { minX: 0, minY: 0, spanX: 1, spanY: 1 };
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return { minX, minY, spanX: Math.max(1, maxX - minX), spanY: Math.max(1, maxY - minY) };
+}
+
+function projectPoint(
+  point: { x: number; y: number },
+  bounds: ReturnType<typeof computeBounds>
+): { left: number; top: number } {
+  const usableWidth = CANVAS_WIDTH - CANVAS_PADDING * 2;
+  const usableHeight = CANVAS_HEIGHT - CANVAS_PADDING * 2;
+  return {
+    left: CANVAS_PADDING + ((point.x - bounds.minX) / bounds.spanX) * usableWidth,
+    top: CANVAS_PADDING + ((point.y - bounds.minY) / bounds.spanY) * usableHeight,
+  };
+}
 
 export function KingdomDraftPanel({
   kingdomMap,
   onDeleteBuilding,
   onPatchBuilding,
+  onSelectBuilding,
+  selectedBuildingId,
 }: {
   kingdomMap: KingdomMapDefinition;
   onDeleteBuilding: (id: string) => void;
   onPatchBuilding: (id: string, patch: { x?: number; y?: number }) => void;
+  onSelectBuilding: (id: string | null) => void;
+  selectedBuildingId: string | null;
 }) {
+  const allPoints = [...kingdomMap.buildings, ...kingdomMap.npcs, ...kingdomMap.props];
+  const bounds = computeBounds(allPoints);
+  const selectedBuilding: KingdomBuilding | undefined = kingdomMap.buildings.find((building) => building.id === selectedBuildingId);
+
   return (
-    <section className="grid min-h-0 flex-1 gap-4 overflow-auto bg-[#0b0b0b] p-4">
-      <div className="rounded-md border border-amber-200/30 bg-amber-500/10 p-3 font-ik-menu text-xs uppercase tracking-wide text-amber-100">
-        Kingdom Draft — not used by live runtime yet
-      </div>
-      <p className="font-ik-body text-xs text-zinc-500">
-        Prototype data only. This map is a standalone editable draft ({kingdomMap.status}, v{kingdomMap.version}) — it is
-        not read by the live Kingdom (kingdom-hub-stage.tsx). Positions are approximate placeholders, not extracted from
-        the real Kingdom.
-      </p>
-
-      <div>
-        <h2 className="mb-2 font-ik-menu text-xs text-zinc-300">Buildings ({kingdomMap.buildings.length})</h2>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {kingdomMap.buildings.map((building) => (
-            <div className="grid gap-2 rounded-md border border-zinc-800 bg-zinc-950 p-3" key={building.id}>
-              <div className="flex items-center justify-between">
-                <span className="font-ik-menu text-xs text-zinc-100">{building.id}</span>
-                <Button onClick={() => onDeleteBuilding(building.id)} size="sm" variant="ghost">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="grid gap-1 text-xs text-zinc-400">
-                  X
-                  <input
-                    className={inputClassName()}
-                    onChange={(event) => onPatchBuilding(building.id, { x: Number(event.target.value) })}
-                    type="number"
-                    value={building.x}
-                  />
-                </label>
-                <label className="grid gap-1 text-xs text-zinc-400">
-                  Y
-                  <input
-                    className={inputClassName()}
-                    onChange={(event) => onPatchBuilding(building.id, { y: Number(event.target.value) })}
-                    type="number"
-                    value={building.y}
-                  />
-                </label>
-              </div>
-              {building.interaction ? (
-                <p className="font-ik-body text-[0.65rem] text-zinc-500">
-                  {building.interaction.interactionType} · {building.interaction.promptLabel} · r{building.interaction.radius}
-                </p>
-              ) : null}
-            </div>
-          ))}
+    <section className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto bg-[#0b0b0b] p-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid min-h-0 gap-3">
+        <div className="rounded-md border border-amber-200/30 bg-amber-500/10 p-3 font-ik-menu text-xs uppercase tracking-wide text-amber-100">
+          Kingdom Draft — not used by live runtime yet
         </div>
-      </div>
+        <p className="font-ik-body text-xs text-zinc-500">
+          Prototype data only ({kingdomMap.status}, v{kingdomMap.version}) — not read by the live Kingdom
+          (kingdom-hub-stage.tsx). Positions are approximate placeholders, not extracted from the real Kingdom. Click a
+          building to select and edit it.
+        </p>
 
-      <div>
-        <h2 className="mb-2 font-ik-menu text-xs text-zinc-300">NPCs ({kingdomMap.npcs.length})</h2>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {kingdomMap.npcs.map((npc) => (
-            <div className="grid gap-1 rounded-md border border-zinc-800 bg-zinc-950 p-3" key={npc.id}>
-              <span className="font-ik-menu text-xs text-zinc-100">{npc.name}</span>
-              <span className="font-ik-body text-[0.65rem] text-zinc-500">
-                x{npc.x} y{npc.y} — {npc.interaction?.promptLabel ?? "no interaction"}
+        <div
+          className="relative overflow-hidden rounded-md border border-zinc-800 bg-zinc-950"
+          onClick={() => onSelectBuilding(null)}
+          style={{ height: CANVAS_HEIGHT, width: "100%", maxWidth: CANVAS_WIDTH }}
+        >
+          {kingdomMap.props.map((prop) => {
+            const position = projectPoint(prop, bounds);
+            return (
+              <span
+                className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-700"
+                key={prop.id}
+                style={{ left: position.left, top: position.top }}
+                title={prop.id}
+              />
+            );
+          })}
+          {kingdomMap.npcs.map((npc) => {
+            const position = projectPoint(npc, bounds);
+            return (
+              <span
+                className="absolute grid h-5 w-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-sky-300/60 bg-black/80 text-[0.55rem] text-sky-200"
+                key={npc.id}
+                style={{ left: position.left, top: position.top }}
+                title={npc.name}
+              >
+                P
               </span>
-            </div>
-          ))}
+            );
+          })}
+          {kingdomMap.buildings.map((building) => {
+            const position = projectPoint(building, bounds);
+            const active = building.id === selectedBuildingId;
+            return (
+              <button
+                aria-label={building.id}
+                className={cn(
+                  "absolute grid h-8 w-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 bg-black/85 font-ik-menu text-[0.55rem]",
+                  active ? "border-zinc-100 bg-zinc-100 text-zinc-950" : "border-zinc-500 text-zinc-200 hover:border-zinc-200"
+                )}
+                key={building.id}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectBuilding(building.id);
+                }}
+                style={{ left: position.left, top: position.top }}
+                type="button"
+              >
+                {building.id.slice(0, 3)}
+              </button>
+            );
+          })}
         </div>
+
+        <p className="font-ik-body text-[0.65rem] text-zinc-600">
+          {kingdomMap.buildings.length} buildings · {kingdomMap.npcs.length} NPCs · {kingdomMap.props.length} props
+        </p>
       </div>
 
-      <div>
-        <h2 className="mb-2 font-ik-menu text-xs text-zinc-300">Props ({kingdomMap.props.length})</h2>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {kingdomMap.props.map((prop) => (
-            <div className="grid gap-1 rounded-md border border-zinc-800 bg-zinc-950 p-3" key={prop.id}>
-              <span className="font-ik-menu text-xs text-zinc-100">{prop.id}</span>
-              <span className="font-ik-body text-[0.65rem] text-zinc-500">
-                x{prop.x} y{prop.y}
-              </span>
+      <aside className="grid min-h-0 content-start gap-3 overflow-auto rounded-md border border-zinc-800 bg-zinc-950 p-3">
+        <h2 className="font-ik-menu text-xs text-zinc-300">Kingdom Inspector</h2>
+        {!selectedBuilding ? (
+          <p className="font-ik-body text-xs text-zinc-500">Select a building on the map to edit its position.</p>
+        ) : (
+          <div className="grid gap-2">
+            <div className="flex items-center justify-between">
+              <span className="font-ik-menu text-sm text-zinc-100">{selectedBuilding.id}</span>
+              <Button onClick={() => onDeleteBuilding(selectedBuilding.id)} size="sm" variant="ghost">
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
-          ))}
+            <div className="grid grid-cols-2 gap-2">
+              <label className="grid gap-1 text-xs text-zinc-400">
+                X
+                <input
+                  className={inputClassName()}
+                  onChange={(event) => onPatchBuilding(selectedBuilding.id, { x: Number(event.target.value) })}
+                  type="number"
+                  value={selectedBuilding.x}
+                />
+              </label>
+              <label className="grid gap-1 text-xs text-zinc-400">
+                Y
+                <input
+                  className={inputClassName()}
+                  onChange={(event) => onPatchBuilding(selectedBuilding.id, { y: Number(event.target.value) })}
+                  type="number"
+                  value={selectedBuilding.y}
+                />
+              </label>
+            </div>
+            {selectedBuilding.interaction ? (
+              <div className="grid gap-1 rounded border border-zinc-800 p-2 font-ik-body text-[0.65rem] text-zinc-500">
+                <span>type: {selectedBuilding.interaction.interactionType}</span>
+                <span>target: {selectedBuilding.interaction.interactionTargetId}</span>
+                <span>prompt: {selectedBuilding.interaction.promptLabel}</span>
+                <span>radius: {selectedBuilding.interaction.radius}</span>
+              </div>
+            ) : (
+              <p className="font-ik-body text-[0.65rem] text-zinc-600">No interaction defined.</p>
+            )}
+          </div>
+        )}
+
+        <div className="mt-2 border-t border-zinc-800 pt-2">
+          <h3 className="mb-1 font-ik-menu text-[0.62rem] uppercase tracking-wide text-zinc-500">All buildings</h3>
+          <div className="grid gap-0.5">
+            {kingdomMap.buildings.map((building) => (
+              <button
+                className={cn(
+                  "rounded px-2 py-1 text-left font-ik-body text-xs",
+                  building.id === selectedBuildingId ? "bg-zinc-100 text-zinc-950" : "text-zinc-400 hover:text-zinc-100"
+                )}
+                key={building.id}
+                onClick={() => onSelectBuilding(building.id)}
+                type="button"
+              >
+                {building.id}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </aside>
     </section>
   );
 }
