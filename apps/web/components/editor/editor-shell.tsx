@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { AssetModePanel } from "@/components/editor/shell/asset-mode-panel";
 import { EditorCanvas } from "@/components/editor/shell/editor-canvas";
 import { EditorInspector } from "@/components/editor/shell/editor-inspector";
 import { EditorToolbar } from "@/components/editor/shell/editor-toolbar";
@@ -9,6 +11,7 @@ import { EditorTree } from "@/components/editor/shell/editor-tree";
 import {
   STEP_CATEGORY,
   isPlacementStep,
+  type EditorMode,
   type EditorTool,
   type MarkerViewModel,
   type Selection,
@@ -17,11 +20,13 @@ import {
   ASSET_CREATOR_PRESETS,
   GROUND_TEXTURES,
   TEST_MAP_01,
+  assertValidAsset,
   createAssetRegistry,
   getAssetsByCategory,
   getGroundTexture,
   getMapTile,
   getTopographyCellState,
+  validatePlayableMap,
   type GeometricAsset,
   type GeometryShape,
   type GroundTextureId,
@@ -139,6 +144,7 @@ function isCellUsable(map: PlayableMap, x: number, y: number): boolean {
 }
 
 export function EditorShell() {
+  const [mode, setMode] = useState<EditorMode>("level");
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
   const [customAssets, setCustomAssets] = useState<GeometricAsset[]>([]);
   const [activeStep, setActiveStep] = useState(0);
@@ -176,18 +182,56 @@ export function EditorShell() {
   }, [map, selection]);
 
   function saveMap() {
+    const validation = validatePlayableMap(map);
+    if (!validation.ok) {
+      const message = `Cannot save: ${validation.errors.join("; ")}`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
     localStorage.setItem(STORAGE_MAP_KEY, JSON.stringify(map));
     setLastSaveMessage(`Map saved locally as ${map.id}.`);
+    toast.success(`Map saved locally as ${map.id}.`);
   }
 
   function loadMap() {
     const raw = localStorage.getItem(STORAGE_MAP_KEY);
     if (!raw) {
       setLastSaveMessage("No local map found.");
+      toast.error("No local map found. Save a map first, or import a .map.json file.");
       return;
     }
-    setMap(JSON.parse(raw) as PlayableMap);
-    setLastSaveMessage("Local map loaded.");
+    applyImportedMap(raw, "Local map loaded.");
+  }
+
+  function applyImportedMap(raw: string, successMessage: string) {
+    let parsed: PlayableMap;
+    try {
+      parsed = JSON.parse(raw) as PlayableMap;
+    } catch {
+      const message = "Invalid JSON file — could not parse map.";
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    const validation = validatePlayableMap(parsed);
+    if (!validation.ok) {
+      const message = `Invalid map: ${validation.errors.join("; ")}`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    setMap(parsed);
+    setLastSaveMessage(successMessage);
+    toast.success(successMessage);
+  }
+
+  function importMap(file: File) {
+    file.text().then((raw) => applyImportedMap(raw, `Map "${file.name}" imported.`)).catch(() => {
+      const message = "Could not read the selected file.";
+      setLastSaveMessage(message);
+      toast.error(message);
+    });
   }
 
   function saveAsset() {
@@ -197,23 +241,83 @@ export function EditorShell() {
       name: assetDraft.name.trim() || "Custom Asset",
       parts: [...assetDraft.parts].sort((a, b) => a.layer - b.layer),
     };
+    try {
+      assertValidAsset(normalized);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Invalid asset.";
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
     const next = [...customAssets.filter((asset) => asset.id !== normalized.id), normalized];
     setCustomAssets(next);
     setAssetDraft(normalized);
     localStorage.setItem(STORAGE_ASSETS_KEY, JSON.stringify(next));
     setSelectedAssetId(normalized.id);
     setLastSaveMessage(`Asset ${normalized.name} saved to local library.`);
+    toast.success(`Asset ${normalized.name} saved to local library.`);
   }
 
   function loadAssets() {
     const raw = localStorage.getItem(STORAGE_ASSETS_KEY);
     if (!raw) {
       setLastSaveMessage("No local assets found.");
+      toast.error("No local assets found. Save an asset first, or import a .asset.json file.");
       return;
     }
-    const loadedAssets = JSON.parse(raw) as GeometricAsset[];
+    let loadedAssets: GeometricAsset[];
+    try {
+      loadedAssets = JSON.parse(raw) as GeometricAsset[];
+    } catch {
+      const message = "Invalid JSON in local asset library.";
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
     setCustomAssets(loadedAssets);
     setLastSaveMessage(`${loadedAssets.length} local assets loaded.`);
+    toast.success(`${loadedAssets.length} local assets loaded.`);
+  }
+
+  function importAsset(file: File) {
+    file
+      .text()
+      .then((raw) => {
+        let parsed: GeometricAsset;
+        try {
+          parsed = JSON.parse(raw) as GeometricAsset;
+        } catch {
+          const message = "Invalid JSON file — could not parse asset.";
+          setLastSaveMessage(message);
+          toast.error(message);
+          return;
+        }
+        try {
+          assertValidAsset(parsed);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Invalid asset.";
+          setLastSaveMessage(message);
+          toast.error(message);
+          return;
+        }
+        setCustomAssets((current) => [...current.filter((asset) => asset.id !== parsed.id), parsed]);
+        setAssetDraft(parsed);
+        setSelectedPartId(parsed.parts[0]?.id ?? "");
+        setMode("assets");
+        const message = `Asset "${parsed.name}" imported.`;
+        setLastSaveMessage(message);
+        toast.success(message);
+      })
+      .catch(() => {
+        const message = "Could not read the selected file.";
+        setLastSaveMessage(message);
+        toast.error(message);
+      });
+  }
+
+  function editExistingAsset(asset: GeometricAsset) {
+    setAssetDraft(asset);
+    setSelectedPartId(asset.parts[0]?.id ?? "");
   }
 
   function placeEntityAt(x: number, y: number) {
@@ -425,10 +529,17 @@ export function EditorShell() {
       <div className="flex min-h-screen flex-col">
         <EditorToolbar
           lastSaveMessage={lastSaveMessage}
+          mode={mode}
           onExportMap={() => downloadJson(`${map.id}.map.json`, map)}
+          onImportAsset={importAsset}
+          onImportMap={importMap}
           onLoadAssets={loadAssets}
           onLoadMap={loadMap}
-          onNewAsset={() => setAssetDraft(createAssetDraft())}
+          onModeChange={setMode}
+          onNewAsset={() => {
+            setAssetDraft(createAssetDraft());
+            setMode("assets");
+          }}
           onNewMap={() => setMap(createEmptyMap())}
           onSaveAsset={saveAsset}
           onSaveMap={saveMap}
@@ -436,40 +547,53 @@ export function EditorShell() {
           tool={tool}
         />
 
-        <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
-          <EditorTree
-            activeStep={activeStep}
-            mapCounts={{ enemies: map.enemies.length, npcs: map.npcs.length, objects: map.objects.length }}
-            onSelectAsset={setSelectedAssetId}
-            onSelectTexture={setSelectedTextureId}
-            onStepChange={setActiveStep}
-            onTopographyPaintChange={setTopographyPaint}
-            paletteAssets={paletteAssets}
-            registryAssetsCount={registry.assets.length}
-            selectedAssetId={selectedAssetId}
-            selectedTextureId={selectedTextureId}
-            topographyPaint={topographyPaint}
-          />
+        {mode === "level" ? (
+          <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
+            <EditorTree
+              activeStep={activeStep}
+              mapCounts={{ enemies: map.enemies.length, npcs: map.npcs.length, objects: map.objects.length }}
+              onSelectAsset={setSelectedAssetId}
+              onSelectTexture={setSelectedTextureId}
+              onStepChange={setActiveStep}
+              onTopographyPaintChange={setTopographyPaint}
+              paletteAssets={paletteAssets}
+              registryAssetsCount={registry.assets.length}
+              selectedAssetId={selectedAssetId}
+              selectedTextureId={selectedTextureId}
+              topographyPaint={topographyPaint}
+            />
 
-          <EditorCanvas
-            isPainting={isPainting}
-            map={map}
-            markers={markers}
-            onCellPointerDown={(x, y) => {
-              setIsPainting(true);
-              paintCell(x, y);
-            }}
-            onCellPointerEnter={paintCell}
-            onMarkerClick={(marker) => {
-              setTool("select");
-              setSelection({ kind: marker.kind, id: marker.id });
-            }}
-            selection={selection}
-          />
+            <EditorCanvas
+              isPainting={isPainting}
+              map={map}
+              markers={markers}
+              onCellPointerDown={(x, y) => {
+                setIsPainting(true);
+                paintCell(x, y);
+              }}
+              onCellPointerEnter={paintCell}
+              onMarkerClick={(marker) => {
+                setTool("select");
+                setSelection({ kind: marker.kind, id: marker.id });
+              }}
+              selection={selection}
+            />
 
-          <EditorInspector
+            <EditorInspector
+              map={map}
+              onDeleteSelection={deleteSelection}
+              onGridChange={(patch) => setMap({ ...map, grid: { ...map.grid, ...patch } })}
+              onMapIdChange={(id) => setMap({ ...map, id })}
+              onMapNameChange={(name) => setMap({ ...map, name })}
+              onPatchSelection={patchSelection}
+              selectedEntity={selectedEntity}
+              selection={selection}
+            />
+          </main>
+        ) : (
+          <AssetModePanel
             assetDraft={assetDraft}
-            map={map}
+            customAssets={customAssets}
             onAddPart={(shape) => {
               const part = createPrimitive(shape, assetDraft.parts.length);
               setAssetDraft({ ...assetDraft, parts: [...assetDraft.parts, part] });
@@ -477,23 +601,17 @@ export function EditorShell() {
             }}
             onAssetDraftChange={setAssetDraft}
             onDeletePart={deletePart}
-            onDeleteSelection={deleteSelection}
             onDuplicatePart={duplicatePart}
+            onEditExistingAsset={editExistingAsset}
             onExportAsset={() => downloadJson(`${assetDraft.id}.asset.json`, assetDraft)}
-            onGridChange={(patch) => setMap({ ...map, grid: { ...map.grid, ...patch } })}
-            onMapIdChange={(id) => setMap({ ...map, id })}
-            onMapNameChange={(name) => setMap({ ...map, name })}
             onMovePartLayer={movePartLayer}
-            onPatchSelection={patchSelection}
             onSelectPart={setSelectedPartId}
             onSelectPreset={selectPreset}
             onUpdateSelectedPart={updateSelectedPart}
-            selectedEntity={selectedEntity}
             selectedPart={selectedPart}
             selectedPartId={selectedPartId}
-            selection={selection}
           />
-        </main>
+        )}
       </div>
     </div>
   );

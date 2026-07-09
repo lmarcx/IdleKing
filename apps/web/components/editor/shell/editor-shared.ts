@@ -10,6 +10,7 @@ import type {
   MapTrigger,
 } from "@idleking/game-core/level-editor";
 
+export type EditorMode = "level" | "assets";
 export type EditorTool = "brush" | "eraser" | "select";
 export type SelectionKind = "spawn" | "object" | "building" | "npc" | "enemy" | "collision" | "trigger";
 export type Selection = { kind: SelectionKind; id: string };
