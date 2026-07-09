@@ -75,7 +75,8 @@ function clampNonNegative(value: number): number {
 }
 
 /**
- * Debuff Power scaling is structurally supported but neutral until balancing.
+ * Debuff Power scaling uses the balancing baseline. It only changes output when
+ * an effect actually carries Debuff Power (no MVP source feeds it yet).
  */
 export function scaleDebuffModifier(modifier: number, debuffPower = 0): number {
   const scale = 1 + clampNonNegative(debuffPower) * DEBUFF_POWER_SCALING_PER_POINT;

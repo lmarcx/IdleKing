@@ -8,7 +8,7 @@ import { createDefaultBankState, type BankState } from "../bank/index.js";
 import { createDefaultWalletState, type WalletState } from "../currencies/index.js";
 import { createDefaultWorldResourcesState, type GameWorldResourcesState } from "../world/worldResources.js";
 import { createDefaultPlayerSkillsState, type PlayerSkillsState } from "../combat/skills/index.js";
-import { createDefaultPlayerEquipmentState, type PlayerEquipmentState } from "../equipment/index.js";
+import { createDefaultPlayerEquipmentState, ensureMvpStarterRing, type PlayerEquipmentState } from "../equipment/index.js";
 import { createDefaultMiniGameRuntimeState, type MiniGameRuntimeState } from "../minigames/index.js";
 import { createDefaultSpecialItemsState, type SpecialItemsState } from "../specialItems/index.js";
 import { createDefaultEffectSetsState, type EffectSetsState } from "../effectSets/index.js";
@@ -82,7 +82,7 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
     unlocked: true,
   };
 
-  return {
+  const state: GameState = {
     progression: {
       playerLevel: 1,
       playerXp: 0,
@@ -142,4 +142,6 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
       ],
     },
   };
+
+  return ensureMvpStarterRing(state);
 }

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -44,22 +45,22 @@ export function KingdomOverlay({
     <div
       aria-hidden={!open}
       className={cn(
-        "fixed inset-0 z-[900] bg-black/72 p-3 backdrop-blur-sm",
+        "ik-overlay-backdrop fixed inset-0 z-[900] bg-black/78 p-3 backdrop-blur-sm",
         open ? "grid" : "hidden",
       )}
       role="presentation"
     >
-      <div className="mx-auto flex h-full w-full max-w-7xl min-h-0 flex-col rounded-xl border border-amber-200/25 bg-zinc-950/96 text-amber-50 shadow-[0_26px_90px_rgba(0,0,0,0.62)]">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-amber-200/15 px-4 py-3">
-          <h2 className="font-ik-title text-xl font-semibold text-amber-50">{title}</h2>
-          <button
-            aria-label={`Close ${title}`}
-            className="grid h-9 w-9 place-items-center rounded-md border border-amber-200/25 bg-black/35 font-ik-menu text-lg leading-none text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/14"
-            onClick={onCloseAction}
-            type="button"
-          >
-            X
-          </button>
+      <div className="ik-overlay-panel mx-auto flex h-full w-full max-w-7xl min-h-0 flex-col text-neutral-100">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b-2 border-neutral-800 px-4 py-3">
+          <h2 className="font-ik-title text-xl font-semibold uppercase tracking-[0.08em] text-neutral-100">{title}</h2>
+          <div className="flex items-center gap-3">
+            <span aria-hidden="true" className="hidden font-ik-menu text-[0.6rem] text-neutral-500 sm:inline">
+              ESC
+            </span>
+            <button aria-label={`Fermer ${title}`} className="ik-overlay-close" onClick={onCloseAction} type="button">
+              <X aria-hidden="true" className="h-4.5 w-4.5" strokeWidth={2.4} />
+            </button>
+          </div>
         </header>
 
         <div className={cn("min-h-0 flex-1 overflow-y-auto p-4", contentClassName)}>{children}</div>

@@ -1,0 +1,46 @@
+{
+  "id": "tree_simple_01",
+  "name": "Simple Tree 01",
+  "category": "nature",
+  "style": "minimal-geometric",
+  "parts": [
+    {
+      "id": "trunk",
+      "shape": "rect",
+      "x": 22,
+      "y": 36,
+      "width": 12,
+      "height": 34,
+      "fill": "#191919",
+      "stroke": "#bdbdbd",
+      "strokeWidth": 1,
+      "opacity": 1,
+      "rotation": 0,
+      "layer": 1
+    },
+    {
+      "id": "crown",
+      "shape": "circle",
+      "x": 28,
+      "y": 24,
+      "radius": 28,
+      "fill": "#232923",
+      "stroke": "#dedede",
+      "strokeWidth": 2,
+      "opacity": 0.95,
+      "rotation": 0,
+      "layer": 2
+    }
+  ],
+  "defaultCollision": {
+    "type": "circle",
+    "x": 28,
+    "y": 58,
+    "radius": 14
+  },
+  "defaultInteraction": {
+    "type": "inspect",
+    "label": "Tree"
+  },
+  "tags": ["nature", "tree"]
+}

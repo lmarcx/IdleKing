@@ -2,17 +2,25 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { getCurrencyBalance, grantCurrency } from "../currencies/index.js";
-import { generateEquipmentItem } from "../equipment/index.js";
-import { createInitialGameState } from "../game/state.js";
+import { createDefaultPlayerEquipmentState, generateEquipmentItem } from "../equipment/index.js";
+import { createInitialGameState, type GameState } from "../game/state.js";
 import { addItem } from "../items/inventory.js";
 import type { NonEquipmentItem } from "../items/types.js";
 import { MARKET_EQUIPMENT_ENTRIES, marketBuy, marketSell } from "../market/index.js";
 import { addQty, getQty } from "../resources/types.js";
 
+function createMarketTestState(): GameState {
+  return {
+    ...createInitialGameState(),
+    equipment: createDefaultPlayerEquipmentState(),
+    inventory: { items: [] },
+  };
+}
+
 test("buy resource spends ECU and grants ResourceStock", () => {
   const state = {
-    ...createInitialGameState(),
-    wallet: grantCurrency(createInitialGameState().wallet, "ECU", 20),
+    ...createMarketTestState(),
+    wallet: grantCurrency(createMarketTestState().wallet, "ECU", 20),
   };
 
   const result = marketBuy(state, "resource_wood", 3);
@@ -25,8 +33,8 @@ test("buy resource spends ECU and grants ResourceStock", () => {
 
 test("buy consumable spends ECU and grants inventory item", () => {
   const state = {
-    ...createInitialGameState(),
-    wallet: grantCurrency(createInitialGameState().wallet, "ECU", 20),
+    ...createMarketTestState(),
+    wallet: grantCurrency(createMarketTestState().wallet, "ECU", 20),
   };
 
   const result = marketBuy(state, "consumable_healing_potion", 2);
@@ -47,8 +55,8 @@ test("buy consumable spends ECU and grants inventory item", () => {
 
 test("buy equipment spends ECU and grants inventory equipment", () => {
   const state = {
-    ...createInitialGameState(),
-    wallet: grantCurrency(createInitialGameState().wallet, "ECU", 30),
+    ...createMarketTestState(),
+    wallet: grantCurrency(createMarketTestState().wallet, "ECU", 30),
   };
 
   const result = marketBuy(state, "equipment_basic_sword");
@@ -64,8 +72,8 @@ test("buy equipment spends ECU and grants inventory equipment", () => {
 
 test("buy fails with insufficient ECU", () => {
   const state = {
-    ...createInitialGameState(),
-    wallet: grantCurrency(createInitialGameState().wallet, "ECU", 1),
+    ...createMarketTestState(),
+    wallet: grantCurrency(createMarketTestState().wallet, "ECU", 1),
   };
 
   const result = marketBuy(state, "resource_iron", 1);
@@ -78,7 +86,7 @@ test("buy fails with insufficient ECU", () => {
 
 test("sell resource removes ResourceStock and grants ECU", () => {
   const state = {
-    ...createInitialGameState(),
+    ...createMarketTestState(),
     resources: addQty({}, "WOOD", 5),
   };
 
@@ -99,8 +107,8 @@ test("sell consumable removes inventory item and grants ECU", () => {
     value: 10,
   };
   const state = {
-    ...createInitialGameState(),
-    inventory: addItem(createInitialGameState().inventory, potion),
+    ...createMarketTestState(),
+    inventory: addItem(createMarketTestState().inventory, potion),
   };
 
   const result = marketSell(state, potion.id, 2);
@@ -125,8 +133,8 @@ test("sell sellable equipment grants ECU", () => {
     value: entry.equipment.value,
   };
   const state = {
-    ...createInitialGameState(),
-    inventory: addItem(createInitialGameState().inventory, equipment),
+    ...createMarketTestState(),
+    inventory: addItem(createMarketTestState().inventory, equipment),
   };
 
   const result = marketSell(state, equipment.id);
@@ -138,7 +146,7 @@ test("sell sellable equipment grants ECU", () => {
 });
 
 test("sell rejects currencies", () => {
-  const result = marketSell(createInitialGameState(), "ECU", 1);
+  const result = marketSell(createMarketTestState(), "ECU", 1);
 
   assert.equal(result.ok, false);
   assert.equal(result.reason, "CURRENCY_NOT_SUPPORTED");
@@ -152,8 +160,8 @@ test("sell rejects quest items", () => {
     quantity: 1,
   };
   const state = {
-    ...createInitialGameState(),
-    inventory: addItem(createInitialGameState().inventory, questItem),
+    ...createMarketTestState(),
+    inventory: addItem(createMarketTestState().inventory, questItem),
   };
 
   const result = marketSell(state, questItem.id);
@@ -171,8 +179,8 @@ test("sell rejects unsellable equipment", () => {
     rarity: "RARE",
   });
   const state = {
-    ...createInitialGameState(),
-    inventory: addItem(createInitialGameState().inventory, equipment),
+    ...createMarketTestState(),
+    inventory: addItem(createMarketTestState().inventory, equipment),
   };
 
   const result = marketSell(state, equipment.id);

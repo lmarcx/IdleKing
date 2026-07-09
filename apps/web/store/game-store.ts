@@ -5,9 +5,13 @@ import { create } from "zustand";
 import {
   world as worldCore,
   equipItem as equipCoreItem,
+  equipRingItem as equipCoreRingItem,
   unequipItem as unequipCoreItem,
+  unequipRingItem as unequipCoreRingItem,
+  removeInventoryItem as removeCoreInventoryItem,
   type EquipmentSlot,
   type EquipItemResult,
+  type RemoveInventoryItemResult,
   type UnequipItemResult,
 } from "@idleking/game-core";
 import { createInitialGameState, type GameState } from "@idleking/game-core/game/state.js";
@@ -30,7 +34,10 @@ type GameStore = {
   dismissOfflineReport: () => void;
   dispatch: (actionFn: (state: GameState) => GameState) => void;
   equipPlayerItem: (itemId: string) => EquipItemResult;
+  equipPlayerRing: (itemId: string, slotIndex: number) => EquipItemResult;
   unequipPlayerItem: (slot: EquipmentSlot) => UnequipItemResult;
+  unequipPlayerRing: (slotIndex: number) => UnequipItemResult;
+  removePlayerItem: (itemId: string) => RemoveInventoryItemResult;
 };
 
 const SAVE_KEY = "idle_king_save_v1";
@@ -96,6 +103,27 @@ export const useGameStore = create<GameStore>((set) => ({
       }
     );
   },
+  equipPlayerRing: (itemId, slotIndex) => {
+    let result: EquipItemResult | undefined;
+    let fallbackState = createInitialGameState();
+    set((current) => {
+      fallbackState = current.state;
+      result = equipCoreRingItem(current.state, itemId, slotIndex);
+      if (!result.ok) return {};
+
+      return {
+        state: result.state,
+      };
+    });
+
+    return (
+      result ?? {
+        ok: false,
+        state: fallbackState,
+        reason: "ITEM_NOT_FOUND",
+      }
+    );
+  },
   unequipPlayerItem: (slot) => {
     let result: UnequipItemResult | undefined;
     let fallbackState = createInitialGameState();
@@ -109,6 +137,36 @@ export const useGameStore = create<GameStore>((set) => ({
     });
 
     return result ?? unequipCoreItem(fallbackState, slot);
+  },
+  unequipPlayerRing: (slotIndex) => {
+    let result: UnequipItemResult | undefined;
+    let fallbackState = createInitialGameState();
+    set((current) => {
+      fallbackState = current.state;
+      result = unequipCoreRingItem(current.state, slotIndex);
+      if (!result.ok) return {};
+
+      return {
+        state: result.state,
+      };
+    });
+
+    return result ?? unequipCoreRingItem(fallbackState, slotIndex);
+  },
+  removePlayerItem: (itemId) => {
+    let result: RemoveInventoryItemResult | undefined;
+    let fallbackState = createInitialGameState();
+    set((current) => {
+      fallbackState = current.state;
+      result = removeCoreInventoryItem(current.state, itemId);
+      if (!result.ok) return {};
+
+      return {
+        state: result.next,
+      };
+    });
+
+    return result ?? removeCoreInventoryItem(fallbackState, itemId);
   },
 }));
 

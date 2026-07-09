@@ -106,7 +106,7 @@ test("character combat loadout does not require legacy gameState.skills", () => 
   );
 });
 
-test("empty character combat loadout keeps stats and no active skills", () => {
+test("starter character combat loadout keeps base stats and exposes the starter ring skill", () => {
   const loadout = buildCharacterCombatLoadout(createInitialGameState());
 
   assert.deepEqual(baseStats(loadout.stats), {
@@ -115,5 +115,8 @@ test("empty character combat loadout keeps stats and no active skills", () => {
     defense: 0,
     power: 25,
   });
-  assert.deepEqual(loadout.skills, []);
+  assert.deepEqual(
+    loadout.skills.map((skill) => [skill.slot, skill.skillId]),
+    [[1, "SK-004"]]
+  );
 });

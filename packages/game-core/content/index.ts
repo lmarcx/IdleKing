@@ -482,7 +482,8 @@ function validateStoryFirstClearAndSpecialRewards(errors: string[]): void {
     return;
   }
   state = prologue.next;
-  if (!state.specialItems.kaleidoscopeOwned) errors.push("dark_amalgam first clear must grant Kaleidoscope");
+  if (!state.specialItems.dropOfDarknessOwned) errors.push("dark_amalgam first clear must grant the Drop of Darkness");
+  if (state.specialItems.kaleidoscopeOwned) errors.push("dark_amalgam must not grant the Kaleidoscope (Chapter I item)");
   if (getCurrencyBalance(state.wallet, "BOSS_TOKEN") !== 1) errors.push("dark_amalgam first clear must grant one BOSS_TOKEN");
   if (getCanonicalResourceQuantity(state.resources, "dark_amalgam_core") !== 1) {
     errors.push("dark_amalgam first clear must grant dark_amalgam_core once");
@@ -513,6 +514,7 @@ function validateStoryFirstClearAndSpecialRewards(errors: string[]): void {
       worldLevel: 5,
     },
   };
+  if (!state.specialItems.kaleidoscopeOwned) errors.push("dragon_shadow first clear must grant the Kaleidoscope");
   if (state.specialItems.fragmentDuTemps < 1) errors.push("dragon_shadow first clear must grant Fragment du Temps");
   if (!state.story.completedEvents.has("chapter_i_complete")) errors.push("dragon_shadow path must produce chapter_i_complete");
 
@@ -675,8 +677,8 @@ function validateStoryTimeGateSoftLockGuards(): void {
     },
   };
   const prologue = completeDungeon(state, "prologue_wastelands");
-  if (!prologue.ok || !prologue.next.specialItems.kaleidoscopeOwned) {
-    throw new Error("dark_amalgam first clear must grant Kaleidoscope");
+  if (!prologue.ok || !prologue.next.specialItems.dropOfDarknessOwned) {
+    throw new Error("dark_amalgam first clear must grant the Drop of Darkness");
   }
   const replay = completeDungeon(prologue.next, "prologue_wastelands");
   if (!replay.ok || replay.firstClear || getCurrencyBalance(replay.next.wallet, "BOSS_TOKEN") !== 1) {
@@ -684,8 +686,8 @@ function validateStoryTimeGateSoftLockGuards(): void {
   }
   state = completeDungeon(prologue.next, "funeral_mausoleum").next;
   const dragon = completeDungeon(state, "ashen_peak");
-  if (!dragon.ok || dragon.next.specialItems.fragmentDuTemps !== 1) {
-    throw new Error("dragon_shadow first clear must grant one Fragment du Temps");
+  if (!dragon.ok || !dragon.next.specialItems.kaleidoscopeOwned || dragon.next.specialItems.fragmentDuTemps !== 1) {
+    throw new Error("dragon_shadow first clear must grant the Kaleidoscope and one Fragment du Temps");
   }
   state = {
     ...dragon.next,

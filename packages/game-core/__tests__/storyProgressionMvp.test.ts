@@ -9,6 +9,7 @@ import {
   getAvailableDungeons,
   getStoryBossDefinition,
   getStoryDungeonDefinition,
+  getStoryDungeonLockReasons,
   STORY_CHAPTER_REGISTRY,
   STORY_DUNGEON_REGISTRY,
   validateStoryProgressionRegistry,
@@ -132,6 +133,8 @@ test("Gouffre Royal is a boss dungeon with Seigneur de la Pluie Dechu", () => {
   const dungeon = getStoryDungeonDefinition("royal_abyss");
   assert.ok(dungeon);
   assert.equal(dungeon.title, "Gouffre Royal");
+  assert.equal(dungeon.era, "era_funebre");
+  assert.equal(dungeon.chapterId, "chapter_ii_glaciaire");
   assert.equal(dungeon.type, "boss");
   assert.equal(dungeon.replayable, true);
   assert.equal(dungeon.bossId, "fallen_rain_lord");
@@ -139,6 +142,19 @@ test("Gouffre Royal is a boss dungeon with Seigneur de la Pluie Dechu", () => {
   const boss = getStoryBossDefinition("fallen_rain_lord");
   assert.ok(boss);
   assert.equal(boss.dungeonId, "royal_abyss");
+  assert.equal(boss.chapterId, "chapter_ii_glaciaire");
+});
+
+test("story dungeon lock reasons expose missing Story and WorldLevel gates for UI", () => {
+  const state = createInitialGameState();
+  const reasons = getStoryDungeonLockReasons(state, "royal_abyss");
+
+  assert.deepEqual(
+    reasons.map((reason) => reason.kind),
+    ["worldLevel", "storyFlag"],
+  );
+  assert.ok(reasons.some((reason) => reason.kind === "worldLevel" && reason.required === 5 && reason.current === 1));
+  assert.ok(reasons.some((reason) => reason.kind === "storyFlag" && reason.flag === "reflection_cavern_cleared"));
 });
 
 test("Allaeva has two phases in the MVP boss registry", () => {

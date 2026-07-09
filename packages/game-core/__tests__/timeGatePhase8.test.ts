@@ -180,12 +180,16 @@ test("boss first clears grant special story items without resource registry use"
   const prologue = completeDungeon(state, "prologue_wastelands");
   assert.equal(prologue.ok, true);
   if (!prologue.ok) return;
-  assert.equal(prologue.next.specialItems.kaleidoscopeOwned, true);
+  // Prologue boss drops the Drop of Darkness (canon), not the Kaléidoscope.
+  assert.equal(prologue.next.specialItems.dropOfDarknessOwned, true);
+  assert.equal(prologue.next.specialItems.kaleidoscopeOwned, false);
 
   state = completeDungeon(prologue.next, "funeral_mausoleum").next;
   const dragon = completeDungeon(state, "ashen_peak");
   assert.equal(dragon.ok, true);
   if (!dragon.ok) return;
+  // Chapter I boss yields the Kaléidoscope + first Fragment du Temps.
+  assert.equal(dragon.next.specialItems.kaleidoscopeOwned, true);
   assert.equal(dragon.next.specialItems.fragmentDuTemps, 1);
 
   const replay = completeDungeon(dragon.next, "ashen_peak");

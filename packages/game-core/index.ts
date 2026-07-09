@@ -8,7 +8,6 @@ export * as rewards from "./rewards/index.js";
 export * as world from "./world/index.js";
 export * as minigames from "./minigames/index.js";
 export * as player from "./player/index.js";
-export * as expedition from "./expedition/index.js";
 export * as combat from "./combat/index.js";
 export * as building from "./building/index.js";
 export * as bank from "./bank/index.js";
@@ -20,6 +19,7 @@ export * as equipment from "./equipment/index.js";
 export * as resonance from "./resonance/index.js";
 export * as effectSets from "./effectSets/index.js";
 export * as content from "./content/index.js";
+export * as levelEditor from "./level-editor/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
@@ -74,6 +74,36 @@ export type {
   ClaimCornucopiaError,
   ClaimCornucopiaResult,
 } from "./building/cornucopiaActions.js";
+export {
+  claimCornucopiaCurrency,
+  claimCornucopiaEffectSet,
+  claimCornucopiaEquipment,
+  claimCornucopiaEra,
+  claimCornucopiaSpecialItem,
+  claimCornucopiaUnlock,
+  getCornucopiaCurrencyClaimables,
+  getCornucopiaEffectSetClaimables,
+  getCornucopiaEquipmentRarityOptions,
+  getCornucopiaEquipmentSetOptions,
+  getCornucopiaEquipmentSlotOptions,
+  getCornucopiaEraClaimables,
+  getCornucopiaRingSkillOptions,
+  getCornucopiaSpecialItemClaimables,
+  getCornucopiaUnlockClaimables,
+} from "./building/cornucopiaDevActions.js";
+export type {
+  ClaimCornucopiaCurrencyError,
+  ClaimCornucopiaCurrencyResult,
+  ClaimCornucopiaEffectSetError,
+  ClaimCornucopiaEffectSetResult,
+  ClaimCornucopiaEquipmentError,
+  ClaimCornucopiaEquipmentResult,
+  ClaimCornucopiaSpecialItemError,
+  ClaimCornucopiaSpecialItemResult,
+  ClaimCornucopiaUnlockError,
+  ClaimCornucopiaUnlockResult,
+  CornucopiaSpecialItemId,
+} from "./building/cornucopiaDevActions.js";
 export {
   BUILDING_MAX_LEVEL,
   CANONICAL_BUILDING_IDS,
@@ -216,6 +246,16 @@ export type {
   CraftEquipmentFromRecipeInput,
   CraftEquipmentFromRecipeResult,
 } from "./building/forge/craft.js";
+export {
+  removeInventoryItem,
+} from "./game/inventoryActions.js";
+export type {
+  RemoveInventoryItemError,
+  RemoveInventoryItemResult,
+} from "./game/inventoryActions.js";
+export {
+  removeItem,
+} from "./items/inventory.js";
 export {
   forgeRecycleEquipment,
 } from "./building/forge/recycle.js";
@@ -622,19 +662,50 @@ export {
   getStoryBossDefinition,
   getStoryChapterDefinition,
   getStoryDungeonDefinition,
+  getStoryDungeonLockReasons,
+  getStoryUnlockRequirementStatuses,
   STORY_BOSS_REGISTRY,
   STORY_CHAPTER_REGISTRY,
   STORY_DUNGEON_REGISTRY,
   validateStoryProgressionRegistry,
 } from "./story/progressionMvp.js";
 export {
+  INTRO_SEEN_FLAG,
+  PROLOGUE_COMPLETE_FLAG,
+  KINGDOM_DISCOVERED_FLAG,
+  KINGDOM_ARRIVAL_SEEN_FLAG,
+  getStartFlowStep,
+  hasSeenIntro,
+  isPrologueComplete,
+  markIntroSeen,
+  markKingdomArrivalSeen,
+  shouldShowKingdomArrival,
+} from "./story/startFlow.js";
+export type { StartFlowStep } from "./story/startFlow.js";
+export {
+  CINEMATIC_REGISTRY,
+  PROLOGUE_AWAKENING,
+  getCinematicScript,
+} from "./story/cinematics.js";
+export type { CinematicScript, CinematicSlide } from "./story/cinematics.js";
+export {
+  LEVEL_SCRIPT_REGISTRY,
+  PROLOGUE_WASTELANDS_SCRIPT,
+  getLevelScript,
+  getLevelScriptBossId,
+  validateLevelScriptRegistry,
+} from "./story/levelScripts.js";
+export type { LevelBeat, LevelBeatKind, LevelScript } from "./story/levelScripts.js";
+export {
   DEFAULT_UNLOCKED_ERAS,
   ERA_REGISTRY,
   canUnlockEraAtTimeGate,
   createDefaultSpecialItemsState,
   getEraDefinition,
+  grantDropOfDarkness,
   grantFragmentDuTemps,
   grantKaleidoscope,
+  hasDropOfDarkness,
   hasKaleidoscope,
   isEraPlayable,
   isEraUnlocked,
@@ -659,6 +730,7 @@ export type {
   StoryBossDefinition,
   StoryChapterDefinition,
   StoryDungeonDefinition,
+  StoryUnlockRequirementStatus,
   StoryUnlockConditions,
 } from "./story/progressionMvp.js";
 export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";

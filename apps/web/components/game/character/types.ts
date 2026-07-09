@@ -1,3 +1,6 @@
+import { getRarityBorderClass, getRarityLabel, getRarityTextClass } from "@/lib/rarity";
+import type { ItemRarity } from "@idleking/game-core/items";
+
 export type EquipmentSlotId =
   | "weapon"
   | "offhand"
@@ -32,19 +35,37 @@ export type CharacterStats = {
   power: number;
 };
 
+export type CharacterEquipmentAffix = {
+  affixId: string;
+  stat: string;
+  value: number;
+};
+
 export type CharacterEquipment = {
+  affixes?: CharacterEquipmentAffix[];
   description: string;
   icon: string;
   id: string;
   itemLevel: number;
   name: string;
   rarity: CharacterEquipmentRarity;
+  setId?: string;
+  skillId?: string | null;
   slot: EquipmentSlotId;
   stats: Partial<CharacterStats>;
+  upgradeLevel?: number;
   value: number;
 };
 
 export type EquippedItems = Partial<Record<EquipmentSlotId, CharacterEquipment>>;
+
+/** HTML5 drag-and-drop payload mime type for dragging an equipment item onto a doll slot. */
+export const EQUIPMENT_DRAG_MIME = "application/x-idleking-equipment";
+
+export type EquipmentDragPayload = {
+  id: string;
+  slot: EquipmentSlotId;
+};
 
 export type EquipmentSlotDefinition = {
   id: EquipmentSlotId;
@@ -69,35 +90,22 @@ export function getSlotIconPath(slotId: EquipmentSlotId) {
   return `/assets/equipment-slots/${slotId}.svg`;
 }
 
+const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipmentRarity, ItemRarity> = {
+  common: "COMMON",
+  uncommon: "UNCOMMON",
+  rare: "RARE",
+  epic: "EPIC",
+  legendary: "LEGENDARY",
+};
+
 export function getEquipmentRarityClass(rarity?: CharacterEquipmentRarity) {
-  switch (rarity) {
-    case "legendary":
-      return "border-orange-300/70 shadow-[0_0_14px_rgba(251,146,60,0.16)]";
-    case "epic":
-      return "border-violet-300/65 shadow-[0_0_14px_rgba(196,181,253,0.13)]";
-    case "rare":
-      return "border-sky-300/65 shadow-[0_0_14px_rgba(125,211,252,0.12)]";
-    case "uncommon":
-      return "border-emerald-300/60 shadow-[0_0_14px_rgba(110,231,183,0.10)]";
-    case "common":
-      return "border-slate-300/45";
-    default:
-      return "border-border/70";
-  }
+  return getRarityBorderClass(rarity ? CHARACTER_TO_CORE_RARITY[rarity] : undefined);
 }
 
 export function getEquipmentRarityLabel(rarity: CharacterEquipmentRarity) {
-  switch (rarity) {
-    case "legendary":
-      return "Legendary";
-    case "epic":
-      return "Epic";
-    case "rare":
-      return "Rare";
-    case "uncommon":
-      return "Uncommon";
-    case "common":
-    default:
-      return "Common";
-  }
+  return getRarityLabel(CHARACTER_TO_CORE_RARITY[rarity]);
+}
+
+export function getEquipmentRarityTextClass(rarity: CharacterEquipmentRarity) {
+  return getRarityTextClass(CHARACTER_TO_CORE_RARITY[rarity]);
 }

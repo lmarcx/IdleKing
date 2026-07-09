@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils";
 
 import { EquipmentTooltip } from "./equipment-tooltip";
 import {
+  EQUIPMENT_DRAG_MIME,
   getEquipmentRarityClass,
   getEquipmentRarityLabel,
   type CharacterEquipment,
-  type EquippedItems,
+  type EquipmentDragPayload,
 } from "./types";
 
 type ActiveEquipment = {
@@ -47,8 +48,15 @@ function EquipmentGridItem({
         "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35",
         getEquipmentRarityClass(item.rarity)
       )}
+      draggable
       onBlur={onClose}
       onClick={open}
+      onDragStart={(event) => {
+        const payload: EquipmentDragPayload = { id: item.id, slot: item.slot };
+        event.dataTransfer.setData(EQUIPMENT_DRAG_MIME, JSON.stringify(payload));
+        event.dataTransfer.effectAllowed = "move";
+        onClose();
+      }}
       onFocus={open}
       onMouseEnter={() => {
         onKeepOpen();
@@ -69,15 +77,17 @@ function EquipmentGridItem({
 }
 
 export function AvailableEquipmentPanel({
-  equippedItems,
+  equippedItemIds,
   items,
+  onDelete,
   onEquip,
   onUnequip,
 }: {
-  equippedItems: EquippedItems;
+  equippedItemIds: Set<string>;
   items: CharacterEquipment[];
+  onDelete?: (item: CharacterEquipment) => void;
   onEquip: (item: CharacterEquipment) => void;
-  onUnequip: (slot: CharacterEquipment["slot"]) => void;
+  onUnequip: (item: CharacterEquipment) => void;
 }) {
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeEquipment, setActiveEquipment] = useState<ActiveEquipment | null>(null);
@@ -122,7 +132,7 @@ export function AvailableEquipmentPanel({
         <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-2">
           {items.map((item) => (
             <EquipmentGridItem
-              isEquipped={equippedItems[item.slot]?.id === item.id}
+              isEquipped={equippedItemIds.has(item.id)}
               item={item}
               key={item.id}
               onClose={closeTooltip}
@@ -135,20 +145,26 @@ export function AvailableEquipmentPanel({
 
       <EquipmentTooltip
         actionLabel={
-          activeEquipment && equippedItems[activeEquipment.item.slot]?.id === activeEquipment.item.id
-            ? "Desequiper"
-            : "Equiper"
+          activeEquipment && equippedItemIds.has(activeEquipment.item.id) ? "Desequiper" : "Equiper"
         }
         anchorRect={activeEquipment?.anchorRect ?? null}
         equipment={activeEquipment?.item}
         onAction={(item) => {
-          if (equippedItems[item.slot]?.id === item.id) {
-            onUnequip(item.slot);
+          if (equippedItemIds.has(item.id)) {
+            onUnequip(item);
           } else {
             onEquip(item);
           }
           setActiveEquipment(null);
         }}
+        onDelete={
+          onDelete
+            ? (item) => {
+                onDelete(item);
+                setActiveEquipment(null);
+              }
+            : undefined
+        }
         onMouseEnter={clearCloseTimer}
         onMouseLeave={closeTooltip}
       />

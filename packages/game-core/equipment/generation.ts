@@ -7,7 +7,7 @@ import {
   type ItemRarity,
   type LegacyItemSlot,
 } from "../items/types.js";
-import { applyEquipmentAffixes, generatePlaceholderAffixes } from "./rules.js";
+import { applyEquipmentAffixes, rollEquipmentAffixes } from "./rules.js";
 import { getEquipmentSetDefinitionOrThrow } from "./sets.js";
 import { resolveGeneratedRingSkillId } from "./rings.js";
 
@@ -58,6 +58,25 @@ const RARITY_MULTIPLIER: Record<ItemRarity, number> = {
 
 function slug(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item";
+}
+
+/**
+ * Only used when a caller supplies neither `id` nor `seed` — i.e. it explicitly
+ * asked for "any instance" rather than a reproducible one. Without this, the
+ * default id (`slot-itemLevel-rarity`) collides across repeated calls with the
+ * same params (e.g. Cornucopia granting two rings of the same rarity/ilvl but
+ * different skills), producing two distinct game objects sharing one id/instanceId.
+ */
+function createUniqueInstanceSuffix(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function hashString(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
+  }
+  return hash >>> 0;
 }
 
 function mulberry32(seed: number) {
@@ -143,9 +162,14 @@ export function generateEquipmentItem(params: GenerateEquipmentItemParams): Equi
   const itemLevel = normalizeItemLevel(params.itemLevel);
   const rarity = params.rarity ?? "COMMON";
   const name = params.name ?? `${SLOT_BASE_NAMES[slot]} ${itemLevel}`;
-  const id = params.id ?? `eq_${slug(String(params.seed ?? `${slot}-${itemLevel}-${rarity}`))}`;
+  const id =
+    params.id ??
+    (params.seed !== undefined
+      ? `eq_${slug(String(params.seed))}`
+      : `eq_${slug(`${slot}-${itemLevel}-${rarity}`)}-${createUniqueInstanceSuffix()}`);
   const baseStats = buildStats(slot, itemLevel, rarity);
-  const affixes = generatePlaceholderAffixes(rarity);
+  const affixRng = mulberry32(hashString(`affix:${id}:${slot}:${itemLevel}:${rarity}`));
+  const affixes = rollEquipmentAffixes({ slot, rarity, ilvl: itemLevel, rng: affixRng });
   const rolledStats = slot === "artifact" ? {} : applyEquipmentAffixes(baseStats, affixes);
   const skillId = slot === "ring"
     ? resolveGeneratedRingSkillId({ name, seed: params.seed ?? id, skillId: params.skillId })

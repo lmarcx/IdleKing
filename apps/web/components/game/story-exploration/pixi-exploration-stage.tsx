@@ -3,11 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
+import { createCombatFxManager, renderMeleeSweep } from "@/components/game/shared/combat-fx";
+import {
+  createPoiIconGraphics,
+  createPoiRingGraphics,
+  createSparkGraphics,
+  drawGroundGrid,
+} from "@/components/game/shared/geometric-world";
+import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import { combat } from "@idleking/game-core";
 import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
-import { isEnemyInFrontalAoe } from "./skills-hit-detection";
+import { isEnemyInBeam, isEnemyInCircle } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   GRUNT_HP,
@@ -32,11 +41,13 @@ import {
 import {
   canCastSkill as canCastCanonicalSkill,
   castSkill as castCanonicalSkill,
+  getStorySkillRuntimeProfile,
   type SkillCastDamageInput,
   type SkillCategory,
   type SkillCooldownState,
   type SkillDefinition,
   type SkillId,
+  type StorySkillRuntimeProfile,
 } from "@idleking/game-core/skills";
 
 type PixiExplorationStageProps = {
@@ -46,6 +57,7 @@ type PixiExplorationStageProps = {
   mapWidth: number;
   onCombatHudChangeAction?: (state: ExplorationCombatHudState) => void;
   onPlayerMoveAction: (position: { x: number; y: number }) => void;
+  onPoiInteractAction?: (poiId: string) => void;
   pointsOfInterest: ExplorationStagePoi[];
 };
 
@@ -64,7 +76,6 @@ const ENEMY_DEATH_FADE_MS = 260;
 const PLAYER_SHAKE_DURATION_MS = 160;
 const PLAYER_SHAKE_INTENSITY = 5;
 const STRONG_HIT_SHAKE_THRESHOLD_RATIO = 0.22;
-const HIT_PARTICLE_DURATION_MS = 320;
 const DAMAGE_NUMBER_DURATION_MS = 720;
 const TELEGRAPH_DURATION_MS = 420;
 const LOOT_POPUP_DURATION_MS = 900;
@@ -74,29 +85,16 @@ const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
 const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 const CHECKPOINT_RESPAWN_EVENT = "idleking:story-checkpoint-respawn";
 const DASH_KEY_CODE = "Space";
+const POI_INTERACT_KEY_CODE = "KeyF";
 const SPRINT_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
+// Grayscale telegraph language: lethal reads brightest, ambient states darker.
 const TELEGRAPH_COLORS = {
-  damage: 0xff9f43,
-  debuff: 0x60a5fa,
-  lethal: 0xef4444,
-  safeHeal: 0x34d399,
-  stun: 0xfacc15,
+  damage: BW.gray3,
+  debuff: BW.gray2,
+  lethal: BW.white,
+  safeHeal: BW.gray1,
+  stun: BW.gray4,
 } as const;
-
-const EXPLORATION_ASSETS = {
-  chest: "/assets/exploration/golden_chest.png",
-  crackedFloor: "/assets/exploration/cracked_stone_floor_tile.png",
-  enemy: "/assets/exploration/resurrected_scarecrow.png",
-  floor: "/assets/exploration/dark_stone_floor_tile.png",
-  glow: "/assets/exploration/subtle_magic_glow.png",
-  player: "/assets/exploration/player_king.png",
-  rune: "/assets/exploration/ancient_rune.png",
-  shrine: "/assets/exploration/healing_shrine.png",
-  sparkle: "/assets/exploration/small_gold_sparkle.png",
-} as const;
-
-type ExplorationAssetKey = keyof typeof EXPLORATION_ASSETS;
-type ExplorationTextures = Record<ExplorationAssetKey, PIXI.Texture>;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -146,7 +144,7 @@ type ActiveTelegraph = {
 
 type ActiveSparkleParticle = {
   lifeOffset: number;
-  sprite: PIXI.Sprite;
+  sprite: PIXI.Graphics;
   velocity: Vector2;
 };
 
@@ -158,13 +156,6 @@ type ActiveSparkleBurst = {
   position: Vector2;
 };
 
-type ActiveHitParticle = {
-  ageMs: number;
-  durationMs: number;
-  graphic: PIXI.Graphics;
-  velocity: Vector2;
-};
-
 type ActiveMouseAction = "melee" | "ranged" | null;
 
 type ActiveEnemy = StoryLevelEnemy & {
@@ -172,13 +163,14 @@ type ActiveEnemy = StoryLevelEnemy & {
   attackLungeX: number;
   attackLungeY: number;
   baseScale: number;
-  body: PIXI.Sprite;
+  body: PIXI.Graphics;
   container: PIXI.Container;
   debugScenario?: boolean;
   deathFadeMs: number;
   hitFlashMs: number;
   hpBar: PIXI.Graphics;
   shadow: PIXI.Graphics;
+  wasChasing: boolean;
 };
 
 type PoiKind = "chest" | "rune" | "shrine";
@@ -186,14 +178,13 @@ type PoiKind = "chest" | "rune" | "shrine";
 type PoiVisual = {
   baseScale: number;
   container: PIXI.Container;
-  glow: PIXI.Sprite;
+  glow: PIXI.Graphics;
   hint: PIXI.Text;
   id: string;
   kind: PoiKind;
   point: ExplorationStagePoi;
   pulseOffset: number;
-  sprite: PIXI.Sprite;
-  wasNear: boolean;
+  sprite: PIXI.Graphics;
 };
 
 type SkillSlot = import("@idleking/game-core").CombatSkillSlot;
@@ -201,6 +192,7 @@ type VisualActiveSkillEffect = {
   category: SkillCategory;
   damageInput?: SkillCastDamageInput;
   endsAtMs: number;
+  profile: StorySkillRuntimeProfile;
   skillId: SkillId;
   startedAtMs: number;
   angle?: number;
@@ -210,6 +202,9 @@ type VisualActiveSkillEffect = {
   lastDamageTickAtMs?: number;
   originX?: number;
   originY?: number;
+  targetEnemyId?: EnemyId;
+  targetX?: number;
+  targetY?: number;
   skillDef: SkillDefinition;
 };
 type CharacterCombatLoadout = import("@idleking/game-core").CharacterCombatLoadout;
@@ -221,6 +216,8 @@ type DirectionalSkillSnapshot = {
   directionY: number;
   originX: number;
   originY: number;
+  targetX: number;
+  targetY: number;
 };
 
 type LocalSkillsState = {
@@ -313,15 +310,8 @@ function normalizeVector(vector: Vector2, fallback: Vector2 = { x: 0, y: -1 }): 
 
 function createShadow(width: number, height: number, alpha = 0.42): PIXI.Graphics {
   const shadow = new PIXI.Graphics();
-  shadow.ellipse(0, 0, width, height).fill({ color: 0x020307, alpha });
+  shadow.ellipse(0, 0, width, height).fill({ color: BW.gray1, alpha });
   return shadow;
-}
-
-function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
-  const textureHeight = Math.max(sprite.texture.height, 1);
-  const scale = height / textureHeight;
-  sprite.scale.set(scale);
-  return scale;
 }
 
 function createFloatingText({
@@ -340,10 +330,10 @@ function createFloatingText({
     text: label,
     style: {
       fill: color,
-      fontFamily: "Arial",
+      fontFamily: "monospace",
       fontSize: 17,
       fontWeight: "700",
-      stroke: { color: 0x100805, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
   });
   text.anchor.set(0.5, 0.5);
@@ -362,24 +352,19 @@ function createFloatingText({
 function createSparkleBurst({
   layer,
   position,
-  texture,
 }: {
   layer: PIXI.Container;
   position: Vector2;
-  texture: PIXI.Texture;
 }): ActiveSparkleBurst {
   const container = new PIXI.Container();
   const particles: ActiveSparkleParticle[] = [];
   const particleCount = 8;
 
   for (let index = 0; index < particleCount; index += 1) {
-    const sprite = new PIXI.Sprite(texture);
+    const sprite = createSparkGraphics(4 + (index % 2) * 2);
     const angle = (Math.PI * 2 * index) / particleCount + (index % 2) * 0.22;
     const speed = 48 + (index % 3) * 18;
-    sprite.anchor.set(0.5);
-    sprite.scale.set(0.08 + (index % 2) * 0.025);
     sprite.alpha = 0.92;
-    sprite.roundPixels = true;
     container.addChild(sprite);
     particles.push({
       lifeOffset: index * 18,
@@ -405,9 +390,9 @@ function createSparkleBurst({
 
 function createVignette(width: number, height: number): PIXI.Graphics {
   const vignette = new PIXI.Graphics();
-  vignette.rect(0, 0, width, height).stroke({ color: 0x010104, alpha: 0.55, width: 64 });
+  vignette.rect(0, 0, width, height).stroke({ color: BW.black, alpha: 0.55, width: 64 });
   vignette.rect(18, 18, Math.max(0, width - 36), Math.max(0, height - 36)).stroke({
-    color: 0x090219,
+    color: BW.gray0,
     alpha: 0.22,
     width: 34,
   });
@@ -420,31 +405,26 @@ function getPoiKind(point: ExplorationStagePoi): PoiKind {
   return "chest";
 }
 
-function createPoiSprite(point: ExplorationStagePoi, textures: ExplorationTextures): PoiVisual {
+function createPoiSprite(point: ExplorationStagePoi): PoiVisual {
   const kind = getPoiKind(point);
   const container = new PIXI.Container();
-  const glow = new PIXI.Sprite(textures.glow);
-  const sprite = new PIXI.Sprite(textures[kind]);
+  const glow = createPoiRingGraphics(kind === "chest" ? 30 : 36);
+  const sprite = createPoiIconGraphics(kind);
   const hint = new PIXI.Text({
-    text: "Nearby",
+    text: "Interagir (F)",
     style: {
-      fill: 0xfff1b8,
-      fontFamily: "Arial",
+      fill: BW.white,
+      fontFamily: "monospace",
       fontSize: 14,
       fontWeight: "700",
-      stroke: { color: 0x120c07, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
   });
 
-  glow.anchor.set(0.5);
   glow.alpha = kind === "chest" ? 0.24 : 0.34;
-  setSpriteDisplayHeight(glow, kind === "chest" ? 86 : 104);
-  glow.tint = kind === "shrine" ? 0x7dffad : kind === "rune" ? 0x86a0ff : 0xffd36a;
+  glow.position.y = 4;
 
-  sprite.anchor.set(0.5, 0.76);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, kind === "chest" ? 62 : 76);
-  sprite.tint = kind === "shrine" ? 0xa4ffd0 : kind === "rune" ? 0xc5c7ff : 0xffffff;
+  const baseScale = 1;
 
   hint.anchor.set(0.5, 0.5);
   hint.position.set(0, -72);
@@ -466,7 +446,6 @@ function createPoiSprite(point: ExplorationStagePoi, textures: ExplorationTextur
     point,
     pulseOffset: point.x * 0.017 + point.y * 0.011,
     sprite,
-    wasNear: false,
   };
 }
 
@@ -475,47 +454,19 @@ function drawWorld({
   mapHeight,
   mapWidth,
   pointsOfInterest,
-  textures,
   worldLayer,
 }: {
   backgroundLayer: PIXI.Container;
   mapHeight: number;
   mapWidth: number;
   pointsOfInterest: ExplorationStagePoi[];
-  textures: ExplorationTextures;
   worldLayer: PIXI.Container;
 }): PoiVisual[] {
-  const fallback = new PIXI.Graphics();
-  fallback.rect(0, 0, mapWidth, mapHeight).fill(0x050711);
-  backgroundLayer.addChild(fallback);
+  const ground = new PIXI.Graphics();
+  drawGroundGrid(ground, mapWidth, mapHeight);
+  backgroundLayer.addChild(ground);
 
-  const tileScale = 96 / Math.max(textures.floor.width, 1);
-  const floor = new PIXI.TilingSprite({
-    height: mapHeight,
-    roundPixels: true,
-    texture: textures.floor,
-    tileScale: { x: tileScale, y: tileScale },
-    width: mapWidth,
-  });
-  floor.alpha = 0.92;
-  backgroundLayer.addChild(floor);
-
-  const haze = new PIXI.Graphics();
-  haze.rect(0, 0, mapWidth, mapHeight).fill({ color: 0x120728, alpha: 0.2 });
-  backgroundLayer.addChild(haze);
-
-  const crackScale = 92 / Math.max(textures.crackedFloor.height, 1);
-  for (let index = 0; index < 34; index += 1) {
-    const crack = new PIXI.Sprite(textures.crackedFloor);
-    crack.anchor.set(0.5);
-    crack.scale.set(crackScale * (index % 3 === 0 ? 1.18 : 1));
-    crack.alpha = 0.16 + (index % 4) * 0.035;
-    crack.rotation = ((index * 37) % 4) * (Math.PI / 2);
-    crack.position.set((index * 397) % mapWidth, (index * 251 + 140) % mapHeight);
-    backgroundLayer.addChild(crack);
-  }
-
-  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point, textures));
+  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point));
   for (const visual of poiVisuals) {
     worldLayer.addChild(visual.container);
   }
@@ -523,32 +474,18 @@ function drawWorld({
   return poiVisuals;
 }
 
-function configurePlayerSprite(player: PIXI.Container, texture: PIXI.Texture) {
-  player.removeChildren();
-  const shadow = createShadow(22, 8, 0.5);
-  shadow.position.set(0, 12);
-  const sprite = new PIXI.Sprite(texture);
-  sprite.anchor.set(0.5, 0.82);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, 68);
-  player.addChild(shadow);
-  player.addChild(sprite);
-  return {
-    baseScale,
-    sprite,
-  };
-}
-
-function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): ActiveEnemy {
+function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
   const container = new PIXI.Container();
   const shadow = createShadow(enemy.radius * 0.95, enemy.radius * 0.34, 0.45);
-  const body = new PIXI.Sprite(texture);
+  const body = createFigureGraphics("hostile");
   const hpBar = new PIXI.Graphics();
-  const baseScale = setSpriteDisplayHeight(body, enemy.radius * 3.2);
+  const baseScale = figureScaleFor(enemy.radius * 3.2);
 
-  body.anchor.set(0.5, 0.82);
-  body.roundPixels = true;
-  shadow.position.set(0, enemy.radius * 0.48);
+  // Figures are drawn feet-at-0 (see geometric-figure.ts) — leave body at the
+  // container origin so the fixed-offset HP bar below actually clears the
+  // head, and drop the shadow only a hair below the feet for ground contact.
+  body.scale.set(baseScale);
+  shadow.position.set(0, 4);
   container.addChild(shadow);
   container.addChild(body);
   container.addChild(hpBar);
@@ -567,6 +504,7 @@ function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): Act
     hitFlashMs: 0,
     hpBar,
     shadow,
+    wasChasing: false,
   };
 }
 
@@ -610,16 +548,20 @@ function renderEnemy(enemy: ActiveEnemy) {
     enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.16 : 1 + (isAttacking ? 0.14 : isChasing ? 0.03 : 0);
   enemy.body.scale.set(enemy.baseScale * scale);
   enemy.body.tint =
-    enemy.hitFlashMs > 0 ? 0xffd0d0 : isAttacking ? 0xff7050 : isChasing ? 0xffb0a0 : 0xffffff;
+    enemy.hitFlashMs > 0 ? 0x555555 : isAttacking ? 0x8f8f8f : isChasing ? 0xcfcfcf : 0xffffff;
   enemy.shadow.alpha = enemy.state === "dead" ? 0.16 : 0.45;
 
   const barWidth = enemy.radius * 2.3;
+  // Figure top sits at -(radius * 3.2) in this same container space (see
+  // createEnemyGraphics) — clear it with a small margin above the head.
+  const barY = -enemy.radius * 3.2 - 14;
   const hpRatio = enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0;
   enemy.hpBar.clear();
   if (enemy.state !== "dead") {
-    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth, 5, 2).fill({ color: 0x130808, alpha: 0.82 });
-    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth * hpRatio, 5, 2).fill({
-      color: hpRatio > 0.45 ? 0xff6b58 : 0xffc857,
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth, 5).fill({ color: BW.gray0, alpha: 0.92 });
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth, 5).stroke({ color: BW.gray2, width: 1 });
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth * hpRatio, 5).fill({
+      color: BW.white,
       alpha: 0.95,
     });
   }
@@ -628,13 +570,13 @@ function renderEnemy(enemy: ActiveEnemy) {
 function getLootPopupColor(resourceId: ResourceId): number {
   switch (resourceId) {
     case "MEAT":
-      return 0xff7b5d;
+      return BW.gray4;
     case "WOOD":
-      return 0x8bd46e;
+      return BW.gray3;
     case "STONE":
-      return 0xb8c0cc;
+      return BW.gray2;
     default:
-      return 0xfff1b8;
+      return BW.white;
   }
 }
 
@@ -654,12 +596,14 @@ export function PixiExplorationStage({
   mapWidth,
   onCombatHudChangeAction,
   onPlayerMoveAction,
+  onPoiInteractAction,
   pointsOfInterest,
 }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(inputBlocked);
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
+  const onPoiInteractRef = useRef(onPoiInteractAction);
   const equipment = useGameStore((s) => s.state.equipment);
   const inventoryItems = useGameStore((s) => s.state.inventory.items);
   const combatLoadout = useMemo(
@@ -716,6 +660,10 @@ export function PixiExplorationStage({
   }, [onPlayerMoveAction]);
 
   useEffect(() => {
+    onPoiInteractRef.current = onPoiInteractAction;
+  }, [onPoiInteractAction]);
+
+  useEffect(() => {
     onCombatHudChangeRef.current = onCombatHudChangeAction;
   }, [onCombatHudChangeAction]);
 
@@ -762,6 +710,15 @@ export function PixiExplorationStage({
     const attackLayer = new PIXI.Container();
     const lootPopupLayer = new PIXI.Container();
     const player = new PIXI.Container();
+    const playerVisual = createPlayerVisual({
+      displayHeight: 82,
+      shadowOffsetY: 14,
+      shadowWidth: 22,
+      shadowHeight: 8,
+      aimIndicator: true,
+      aimRadius: 42,
+      aimCenterY: -26,
+    });
     const playerPosition = {
       x: mapWidth / 2,
       y: mapHeight / 2,
@@ -778,16 +735,13 @@ export function PixiExplorationStage({
     const lootPopups: ActiveLootPopup[] = [];
     const telegraphs: ActiveTelegraph[] = [];
     const sparkleBursts: ActiveSparkleBurst[] = [];
-    const hitParticles: ActiveHitParticle[] = [];
+    const combatFx = createCombatFxManager(fxLayer);
     const enemies: ActiveEnemy[] = [];
     const securedRewards = new Map<string, number>();
     const poiVisuals: PoiVisual[] = [];
+    const interactedPoiIds = new Set<string>();
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
-    let playerSprite: PIXI.Sprite | null = null;
-    let playerBaseScale = 1;
-    let enemyTexture: PIXI.Texture | null = null;
-    let sparkleTexture: PIXI.Texture | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
     let dashFeedback: string | undefined;
@@ -836,12 +790,20 @@ export function PixiExplorationStage({
 
     function createDirectionalSnapshot(): DirectionalSkillSnapshot {
       const direction = normalizeVector(playerFacing);
+      const target = hasPointerWorldPosition
+        ? mouseInput.pointerWorldPosition
+        : {
+            x: playerPosition.x + direction.x * 180,
+            y: playerPosition.y + direction.y * 180,
+          };
       return {
         angle: Math.atan2(direction.y, direction.x),
         directionX: direction.x,
         directionY: direction.y,
         originX: playerPosition.x,
         originY: playerPosition.y,
+        targetX: clamp(target.x, PLAYER_SIZE / 2, mapWidth - PLAYER_SIZE / 2),
+        targetY: clamp(target.y, PLAYER_SIZE / 2, mapHeight - PLAYER_SIZE / 2),
       };
     }
 
@@ -882,6 +844,116 @@ export function PixiExplorationStage({
       syncCombatHud();
     }
 
+    function findNearestAliveEnemy(position: Vector2, maxRange: number): ActiveEnemy | null {
+      let nearest: ActiveEnemy | null = null;
+      let nearestDistance = Infinity;
+
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy)) continue;
+        const distance = Math.hypot(enemy.position.x - position.x, enemy.position.y - position.y);
+        if (distance > maxRange || distance >= nearestDistance) continue;
+        nearest = enemy;
+        nearestDistance = distance;
+      }
+
+      return nearest;
+    }
+
+    function applyMovementSkill(
+      profile: StorySkillRuntimeProfile,
+      snapshot: DirectionalSkillSnapshot,
+      skillDef: SkillDefinition,
+      nowMs: number
+    ) {
+      if (!profile.movement) return;
+
+      const distance = profile.movement.distance;
+      playerPosition.x = clamp(
+        playerPosition.x + snapshot.directionX * distance,
+        PLAYER_SIZE / 2,
+        mapWidth - PLAYER_SIZE / 2
+      );
+      playerPosition.y = clamp(
+        playerPosition.y + snapshot.directionY * distance,
+        PLAYER_SIZE / 2,
+        mapHeight - PLAYER_SIZE / 2
+      );
+
+      activeSkillEffects = [
+        ...activeSkillEffects,
+        {
+          category: "movement",
+          endsAtMs: nowMs + profile.movement.durationMs,
+          originX: snapshot.originX,
+          originY: snapshot.originY,
+          profile,
+          skillDef,
+          skillId: profile.skillId,
+          startedAtMs: nowMs,
+          targetX: playerPosition.x,
+          targetY: playerPosition.y,
+        },
+      ];
+      createCombatTelegraph(playerPosition, PLAYER_SIZE * 0.58, TELEGRAPH_COLORS.safeHeal);
+      showDashFeedback(`${skillDef.name} ${profile.movement.mode}`, nowMs);
+    }
+
+    function applyUtilitySkill(
+      profile: StorySkillRuntimeProfile,
+      snapshot: DirectionalSkillSnapshot,
+      skillDef: SkillDefinition,
+      nowMs: number
+    ) {
+      if (!profile.utility) return;
+
+      if (profile.utility.kind === "enemy_vulnerability_debuff") {
+        const target = findNearestAliveEnemy(playerPosition, profile.utility.range ?? 360);
+        if (!target) {
+          showDashFeedback(`${skillDef.name} : aucune cible`, nowMs);
+          return;
+        }
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: skillDef.category,
+            endsAtMs: nowMs + profile.utility.durationMs,
+            originX: snapshot.originX,
+            originY: snapshot.originY,
+            profile,
+            skillDef,
+            skillId: skillDef.id,
+            startedAtMs: nowMs,
+            targetEnemyId: target.id,
+            targetX: target.position.x,
+            targetY: target.position.y,
+          },
+        ];
+        createCombatTelegraph(target.position, target.radius + 24, TELEGRAPH_COLORS.debuff);
+        showDashFeedback(`${skillDef.name} marque ${target.id}`, nowMs);
+        return;
+      }
+
+      activeSkillEffects = [
+        ...activeSkillEffects,
+        {
+          category: skillDef.category,
+          endsAtMs: nowMs + profile.utility.durationMs,
+          originX: playerPosition.x,
+          originY: playerPosition.y,
+          profile,
+          skillDef,
+          skillId: skillDef.id,
+          startedAtMs: nowMs,
+        },
+      ];
+      createCombatTelegraph(
+        playerPosition,
+        PLAYER_SIZE * (profile.utility.kind === "mana_regen_buff" ? 1.15 : 0.82),
+        profile.utility.kind === "mana_regen_buff" ? TELEGRAPH_COLORS.safeHeal : TELEGRAPH_COLORS.stun
+      );
+      showDashFeedback(`${skillDef.name} actif`, nowMs);
+    }
+
     function tryCastSkill(slot: SkillSlot, nowMs: number) {
       if (isPlayerDefeated) return;
 
@@ -915,17 +987,65 @@ export function PixiExplorationStage({
 
       runtimeState = result.updatedState;
       skillCooldowns = { ...runtimeState.timers.skillCooldowns };
+      const profile = getStorySkillRuntimeProfile(result.skillDef.id);
+      const snapshot = createDirectionalSnapshot();
 
       if (result.damageInput) {
-        const snapshot = createDirectionalSnapshot();
-        spawnInstantSkillEffect(player, result.skillDef.id, nowMs, snapshot);
-        applyAttackSkillDamage(result.damageInput, snapshot, nowMs);
+        // auto_target skills (e.g. Arcane Bolt) snap to the nearest enemy
+        // rather than aiming where the player is facing — point the FX at
+        // that resolved enemy instead of the facing-based snapshot target,
+        // so the bolt visually lands on whoever it actually hits.
+        const fxSnapshot =
+          profile.attack?.shape === "auto_target"
+            ? (() => {
+                const target = findNearestAliveEnemy(playerPosition, profile.attack!.range);
+                return target ? { ...snapshot, targetX: target.position.x, targetY: target.position.y } : snapshot;
+              })()
+            : snapshot;
+        spawnInstantSkillEffect(player, result.skillDef, nowMs, fxSnapshot, profile.attack);
+        applyAttackSkillDamage(result.damageInput, snapshot, nowMs, profile);
+      } else if (profile.movement) {
+        applyMovementSkill(profile, snapshot, result.skillDef, nowMs);
+      } else if (profile.defense) {
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: result.skillDef.category,
+            endsAtMs: nowMs + profile.defense.durationMs,
+            profile,
+            skillDef: result.skillDef,
+            skillId: result.skillDef.id,
+            startedAtMs: nowMs,
+          },
+        ];
+        createCombatTelegraph(playerPosition, PLAYER_SIZE * 0.9, TELEGRAPH_COLORS.safeHeal);
+        showDashFeedback(`${result.skillDef.name} actif`, nowMs);
+      } else if (profile.utility) {
+        applyUtilitySkill(profile, snapshot, result.skillDef, nowMs);
+      } else if (profile.summon) {
+        activeSkillEffects = [
+          ...activeSkillEffects,
+          {
+            category: result.skillDef.category,
+            endsAtMs: nowMs + profile.summon.durationMs,
+            originX: playerPosition.x,
+            originY: playerPosition.y,
+            profile,
+            skillDef: result.skillDef,
+            skillId: result.skillDef.id,
+            startedAtMs: nowMs,
+            targetX: playerPosition.x + snapshot.directionY * 48,
+            targetY: playerPosition.y - snapshot.directionX * 48,
+          },
+        ];
+        showDashFeedback(`${result.skillDef.name} invoque un stub visuel`, nowMs);
       } else {
         activeSkillEffects = [
           ...activeSkillEffects,
           {
             category: result.skillDef.category,
             endsAtMs: nowMs + 700,
+            profile,
             skillDef: result.skillDef,
             skillId: result.skillDef.id,
             startedAtMs: nowMs,
@@ -962,6 +1082,14 @@ export function PixiExplorationStage({
         return;
       }
 
+      if (event.code === POI_INTERACT_KEY_CODE) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryInteractWithNearbyPoi();
+        }
+        return;
+      }
+
       const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
       if (skillSlot) {
         event.preventDefault();
@@ -991,12 +1119,14 @@ export function PixiExplorationStage({
       const canvasBounds = app.canvas.getBoundingClientRect();
       if (canvasBounds.width <= 0 || canvasBounds.height <= 0) return;
 
-      const rendererWidth = app.renderer.width / app.renderer.resolution;
-      const rendererHeight = app.renderer.height / app.renderer.resolution;
-      const scaleX = rendererWidth / canvasBounds.width;
-      const scaleY = rendererHeight / canvasBounds.height;
-      mouseInput.pointerWorldPosition.x = (event.clientX - canvasBounds.left) * scaleX - world.position.x;
-      mouseInput.pointerWorldPosition.y = (event.clientY - canvasBounds.top) * scaleY - world.position.y;
+      // clientX/clientY and getBoundingClientRect are both in CSS pixels, and
+      // Pixi's resizeTo keeps the canvas's CSS size equal to its logical stage
+      // size — no device-pixel-ratio scaling belongs in this conversion. Cross
+      //-referencing app.renderer.width/resolution here (a separate, ResizeObserver
+      // -driven measurement) used to drift a frame or a few subpixels out of sync
+      // with getBoundingClientRect on Firefox, throwing the aim off from the cursor.
+      mouseInput.pointerWorldPosition.x = event.clientX - canvasBounds.left - world.position.x;
+      mouseInput.pointerWorldPosition.y = event.clientY - canvasBounds.top - world.position.y;
       hasPointerWorldPosition = true;
       updatePlayerFacing({
         x: mouseInput.pointerWorldPosition.x - playerPosition.x,
@@ -1063,8 +1193,8 @@ export function PixiExplorationStage({
         playerFacing
       );
       const graphic = new PIXI.Graphics();
-      graphic.circle(0, 0, 8).fill({ color: 0x7df7ff, alpha: 0.92 });
-      graphic.circle(0, 0, 14).fill({ color: 0x62d8ff, alpha: 0.22 });
+      graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
+      graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
 
       const projectile: ActiveProjectile = {
         direction,
@@ -1200,7 +1330,7 @@ export function PixiExplorationStage({
       ];
 
       for (const enemyDef of debugEnemies) {
-        const enemy = createEnemyGraphics(enemyDef, enemyTexture ?? PIXI.Texture.EMPTY);
+        const enemy = createEnemyGraphics(enemyDef);
         enemy.debugScenario = true;
         renderEnemy(enemy);
         enemies.push(enemy);
@@ -1232,15 +1362,12 @@ export function PixiExplorationStage({
         })
       );
 
-      if (sparkleTexture) {
-        sparkleBursts.push(
-          createSparkleBurst({
-            layer: fxLayer,
-            position: { x: position.x, y: position.y - 24 },
-            texture: sparkleTexture,
-          })
-        );
-      }
+      sparkleBursts.push(
+        createSparkleBurst({
+          layer: fxLayer,
+          position: { x: position.x, y: position.y - 24 },
+        })
+      );
     }
 
     function createDamageNumber({
@@ -1256,17 +1383,17 @@ export function PixiExplorationStage({
       position: Vector2;
       target?: "enemy" | "player";
     }) {
-      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? 0xff6f61 : TELEGRAPH_COLORS.damage;
+      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? BW.white : TELEGRAPH_COLORS.damage;
       const label = `${didCrit ? "CRIT " : ""}${Math.ceil(amount)}`;
       const container = new PIXI.Container();
       const text = new PIXI.Text({
         text: target === "player" ? `-${label}` : label,
         style: {
           fill: color,
-          fontFamily: "Arial",
+          fontFamily: "monospace",
           fontSize: didCrit ? 24 : 19,
           fontWeight: "800",
-          stroke: { color: 0x100805, width: 5 },
+          stroke: { color: BW.black, width: 5 },
         },
       });
       text.anchor.set(0.5, 0.5);
@@ -1295,67 +1422,61 @@ export function PixiExplorationStage({
       });
     }
 
-    function createHitParticles(position: Vector2) {
-      const particleCount = 4 + Math.floor(Math.random() * 3);
-      for (let index = 0; index < particleCount; index += 1) {
-        const graphic = new PIXI.Graphics();
-        const size = 2 + Math.random() * 4;
-        const color = index % 2 === 0 ? 0xfff1b8 : 0xff7b5d;
-        graphic.rect(-size / 2, -size / 2, size, size).fill({ color, alpha: 0.9 });
-        graphic.position.set(position.x, position.y - 12);
-        fxLayer.addChild(graphic);
-
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 40 + Math.random() * 80;
-        hitParticles.push({
-          ageMs: 0,
-          durationMs: HIT_PARTICLE_DURATION_MS,
-          graphic,
-          velocity: {
-            x: Math.cos(angle) * speed,
-            y: Math.sin(angle) * speed,
-          },
-        });
-      }
-    }
-
     function spawnPoiDiscoveryFeedback(visual: PoiVisual) {
       lootPopups.push(
         createFloatingText({
-          color: visual.kind === "chest" ? 0xffe08a : visual.kind === "shrine" ? 0x8dffbd : 0xaeb4ff,
+          color: BW.white,
           label: "Discovered",
           layer: lootPopupLayer,
           position: { x: visual.point.x, y: visual.point.y - 74 },
         })
       );
 
-      if (sparkleTexture) {
-        sparkleBursts.push(
-          createSparkleBurst({
-            layer: fxLayer,
-            position: { x: visual.point.x, y: visual.point.y - 18 },
-            texture: sparkleTexture,
-          })
-        );
+      sparkleBursts.push(
+        createSparkleBurst({
+          layer: fxLayer,
+          position: { x: visual.point.x, y: visual.point.y - 18 },
+        })
+      );
+    }
+
+    function findNearbyInteractablePoi(): PoiVisual | undefined {
+      let nearest: PoiVisual | undefined;
+      let nearestDistance = POI_HIGHLIGHT_RADIUS;
+
+      for (const visual of poiVisuals) {
+        if (interactedPoiIds.has(visual.id)) continue;
+        const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
+        if (distance > nearestDistance) continue;
+        nearestDistance = distance;
+        nearest = visual;
       }
+
+      return nearest;
+    }
+
+    function tryInteractWithNearbyPoi() {
+      const visual = findNearbyInteractablePoi();
+      if (!visual) return;
+
+      interactedPoiIds.add(visual.id);
+      spawnPoiDiscoveryFeedback(visual);
+      onPoiInteractRef.current?.(visual.id);
     }
 
     function updatePoiVisuals(nowMs: number) {
       for (const visual of poiVisuals) {
         const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
         const isNear = distance <= POI_HIGHLIGHT_RADIUS;
+        const isInteracted = interactedPoiIds.has(visual.id);
+        const showHint = isNear && !isInteracted;
         const pulse = 1 + Math.sin(nowMs / 520 + visual.pulseOffset) * 0.035;
         const targetScale = visual.baseScale * pulse * (isNear ? 1.13 : 1);
         visual.sprite.scale.set(targetScale);
         visual.glow.alpha = (visual.kind === "chest" ? 0.22 : 0.32) + (isNear ? 0.3 : 0);
         visual.glow.scale.set(1 + Math.sin(nowMs / 650 + visual.pulseOffset) * 0.04 + (isNear ? 0.08 : 0));
-        visual.hint.visible = isNear;
-        visual.hint.alpha = isNear ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
-
-        if (isNear && !visual.wasNear) {
-          spawnPoiDiscoveryFeedback(visual);
-        }
-        visual.wasNear = isNear;
+        visual.hint.visible = showHint;
+        visual.hint.alpha = showHint ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
       }
     }
 
@@ -1371,7 +1492,7 @@ export function PixiExplorationStage({
           const progress = clamp(age / Math.max(1, burst.durationMs - particle.lifeOffset), 0, 1);
           particle.sprite.position.set(particle.velocity.x * progress * 0.55, particle.velocity.y * progress * 0.55);
           particle.sprite.rotation += deltaMs * 0.003;
-          particle.sprite.scale.set((0.08 + progress * 0.035) * (1 - progress * 0.35));
+          particle.sprite.scale.set(1 - progress * 0.45);
           particle.sprite.alpha = 1 - progress;
         }
 
@@ -1379,25 +1500,6 @@ export function PixiExplorationStage({
         burst.container.removeFromParent();
         burst.container.destroy({ children: true });
         sparkleBursts.splice(index, 1);
-      }
-    }
-
-    function updateHitParticles(deltaMs: number) {
-      const deltaSeconds = deltaMs / 1000;
-      for (let index = hitParticles.length - 1; index >= 0; index -= 1) {
-        const particle = hitParticles[index];
-        particle.ageMs += deltaMs;
-
-        const progress = clamp(particle.ageMs / particle.durationMs, 0, 1);
-        particle.graphic.position.x += particle.velocity.x * deltaSeconds;
-        particle.graphic.position.y += particle.velocity.y * deltaSeconds;
-        particle.graphic.alpha = 1 - progress;
-        particle.graphic.scale.set(1 - progress * 0.5);
-
-        if (particle.ageMs < particle.durationMs) continue;
-        particle.graphic.removeFromParent();
-        particle.graphic.destroy();
-        hitParticles.splice(index, 1);
       }
     }
 
@@ -1421,15 +1523,15 @@ export function PixiExplorationStage({
       }
     }
 
-    function renderPlayer(nowMs: number) {
+    function renderPlayer(nowMs: number, moving: boolean) {
       player.position.set(playerPosition.x, playerPosition.y);
-      player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
       player.zIndex = playerPosition.y;
-
-      if (!playerSprite) return;
-      const breath = 1 + Math.sin(nowMs / 380) * 0.026;
-      playerSprite.scale.set(playerBaseScale * breath, playerBaseScale * (1 / breath));
-      playerSprite.tint = playerHitFlashMs > 0 ? 0xffd0d0 : 0xffffff;
+      playerVisual.update({
+        elapsedSeconds: nowMs / 1000,
+        facing: playerFacing,
+        moving,
+        flashTint: playerHitFlashMs > 0 ? 0x666666 : null,
+      });
     }
 
     function resizeUiLayer() {
@@ -1437,20 +1539,6 @@ export function PixiExplorationStage({
       const screenWidth = app.renderer.width / app.renderer.resolution;
       const screenHeight = app.renderer.height / app.renderer.resolution;
       uiLayer.addChild(createVignette(screenWidth, screenHeight));
-    }
-
-    function getTextures(): ExplorationTextures {
-      return {
-        chest: PIXI.Texture.from(EXPLORATION_ASSETS.chest),
-        crackedFloor: PIXI.Texture.from(EXPLORATION_ASSETS.crackedFloor),
-        enemy: PIXI.Texture.from(EXPLORATION_ASSETS.enemy),
-        floor: PIXI.Texture.from(EXPLORATION_ASSETS.floor),
-        glow: PIXI.Texture.from(EXPLORATION_ASSETS.glow),
-        player: PIXI.Texture.from(EXPLORATION_ASSETS.player),
-        rune: PIXI.Texture.from(EXPLORATION_ASSETS.rune),
-        shrine: PIXI.Texture.from(EXPLORATION_ASSETS.shrine),
-        sparkle: PIXI.Texture.from(EXPLORATION_ASSETS.sparkle),
-      };
     }
 
     function claimEnemyLoot(enemy: ActiveEnemy) {
@@ -1513,29 +1601,29 @@ export function PixiExplorationStage({
     }
 
     function damageActiveEnemy(enemy: ActiveEnemy, amount: number, didCrit = false) {
-      const isLethal = amount >= enemy.hp;
-      const died = damageEnemy(enemy, amount);
+      const finalAmount = Math.max(0, Math.round(amount * getEnemyIncomingDamageMultiplier(enemy, performance.now())));
+      const isLethal = finalAmount >= enemy.hp;
+      const died = damageEnemy(enemy, finalAmount);
       if (runtimeEnemyId === enemy.id) {
         runtimeState = retargetStoryCombatRuntimeEnemy(runtimeState, enemy);
       }
       enemy.hitFlashMs = ENEMY_HIT_FLASH_MS;
       createDamageNumber({
-        amount,
+        amount: finalAmount,
         didCrit,
         isLethal,
         position: { x: enemy.position.x, y: enemy.position.y - 54 },
       });
-      createCombatTelegraph(
-        enemy.position,
-        enemy.radius + 18,
-        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      combatFx.spawnImpactBurst(
+        { x: enemy.position.x, y: enemy.position.y - 14 },
+        { crit: didCrit, lethal: isLethal, radius: enemy.radius + 8 }
       );
-      createHitParticles(enemy.position);
-      if (amount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
+      if (finalAmount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
       }
       if (died) {
         enemy.deathFadeMs = 0;
+        combatFx.spawnDeathBurst({ x: enemy.position.x, y: enemy.position.y - 10 }, enemy.radius + 8);
         claimEnemyLoot(enemy);
       }
     }
@@ -1551,9 +1639,28 @@ export function PixiExplorationStage({
     }
 
     function getPlayerDamageMultiplier(effects: VisualActiveSkillEffect[], nowMs: number): number {
-      void effects;
-      void nowMs;
-      return 1;
+      return effects.reduce((multiplier, effect) => {
+        if (effect.endsAtMs < nowMs) return multiplier;
+        if (effect.profile.utility?.kind !== "damage_buff") return multiplier;
+        return multiplier * (effect.profile.utility.damageMultiplier ?? 1);
+      }, 1);
+    }
+
+    function getEnemyIncomingDamageMultiplier(enemy: ActiveEnemy, nowMs: number): number {
+      return activeSkillEffects.reduce((multiplier, effect) => {
+        if (effect.endsAtMs < nowMs) return multiplier;
+        if (effect.profile.utility?.kind !== "enemy_vulnerability_debuff") return multiplier;
+        if (effect.targetEnemyId !== enemy.id) return multiplier;
+        return multiplier * (effect.profile.utility.incomingDamageMultiplier ?? 1);
+      }, 1);
+    }
+
+    function getIncomingPlayerDamageMultiplier(nowMs: number): number {
+      return activeSkillEffects.reduce((multiplier, effect) => {
+        if (effect.endsAtMs < nowMs) return multiplier;
+        if (!effect.profile.defense) return multiplier;
+        return multiplier * effect.profile.defense.incomingDamageMultiplier;
+      }, 1);
     }
 
     function computeSkillDamage(damageInput: SkillCastDamageInput, nowMs: number): number {
@@ -1568,28 +1675,78 @@ export function PixiExplorationStage({
       damageActiveEnemy(enemy, damage);
     }
 
-    function applyAttackSkillDamage(damageInput: SkillCastDamageInput, snapshot: DirectionalSkillSnapshot, nowMs: number) {
-      const damage = computeSkillDamage(damageInput, nowMs);
-      const hitEnemyIds = new Set<EnemyId>();
+    function isEnemyHitByAttackProfile(
+      enemy: ActiveEnemy,
+      snapshot: DirectionalSkillSnapshot,
+      profile: StorySkillRuntimeProfile
+    ): boolean {
+      const attack = profile.attack;
+      if (!attack) return false;
 
-      for (const enemy of enemies) {
-        if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
-        if (
-          !isEnemyInFrontalAoe(
+      switch (attack.shape) {
+        case "cone":
+          return isTargetInsideAttackCone({
+            attackDirection: { x: snapshot.directionX, y: snapshot.directionY },
+            attackPosition: { x: snapshot.originX, y: snapshot.originY },
+            halfAngleRadians: attack.halfAngleRadians ?? 0.7,
+            range: attack.range,
+            targetPosition: enemy.position,
+            targetRadius: enemy.radius,
+          });
+        case "line":
+          return isEnemyInBeam(
             enemy,
             snapshot.originX,
             snapshot.originY,
             snapshot.directionX,
             snapshot.directionY,
-            260,
-            170
-          )
-        ) {
-          continue;
+            attack.range,
+            attack.width ?? 64
+          );
+        case "aoe":
+          return isEnemyInCircle(enemy, snapshot.targetX, snapshot.targetY, attack.radius ?? 80);
+        case "auto_target":
+        case "enemy_cast":
+          return false;
+      }
+
+      return false;
+    }
+
+    function applyAttackSkillDamage(
+      damageInput: SkillCastDamageInput,
+      snapshot: DirectionalSkillSnapshot,
+      nowMs: number,
+      profile: StorySkillRuntimeProfile
+    ) {
+      const damage = computeSkillDamage(damageInput, nowMs);
+      const hitEnemyIds = new Set<EnemyId>();
+      const attack = profile.attack;
+      if (!attack) return;
+
+      if (attack.shape === "auto_target" || attack.shape === "enemy_cast") {
+        const target = findNearestAliveEnemy(
+          attack.shape === "enemy_cast" ? { x: snapshot.targetX, y: snapshot.targetY } : playerPosition,
+          attack.range
+        );
+        if (target) {
+          hitEnemyIds.add(target.id);
+          if (attack.shape === "enemy_cast") {
+            createCombatTelegraph(target.position, attack.radius ?? target.radius + 28, TELEGRAPH_COLORS.damage);
+          }
+          applySkillDamageToEnemy(target, damage);
         }
+        if (hitEnemyIds.size > 0) syncCombatHud();
+        return;
+      }
+
+      for (const enemy of enemies) {
+        if (!isEnemyAlive(enemy) || hitEnemyIds.has(enemy.id)) continue;
+        if (!isEnemyHitByAttackProfile(enemy, snapshot, profile)) continue;
 
         hitEnemyIds.add(enemy.id);
         applySkillDamageToEnemy(enemy, damage);
+        if (attack.maxTargets && hitEnemyIds.size >= attack.maxTargets) break;
       }
 
       if (hitEnemyIds.size > 0) {
@@ -1646,13 +1803,13 @@ export function PixiExplorationStage({
       enemy.attackLungeY = (dy / dist) * 18;
 
       const previousHp = runtimeState.player.hpCurrent;
-      const isLethal = enemy.contactDamage >= previousHp;
-      createCombatTelegraph(
-        playerPosition,
-        PLAYER_SIZE * 0.62,
-        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      const incomingDamage = Math.max(0, Math.round(enemy.contactDamage * getIncomingPlayerDamageMultiplier(now)));
+      const isLethal = incomingDamage >= previousHp;
+      combatFx.spawnImpactBurst(
+        { x: playerPosition.x, y: playerPosition.y - 20 },
+        { lethal: isLethal, radius: PLAYER_SIZE * 0.5 }
       );
-      runtimeState = combat.applyDamageToPlayer(runtimeState, enemy.contactDamage);
+      runtimeState = combat.applyDamageToPlayer(runtimeState, incomingDamage);
       if (runtimeState.player.hpCurrent < previousHp) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
         playerHitFlashMs = ENEMY_HIT_FLASH_MS;
@@ -1671,6 +1828,27 @@ export function PixiExplorationStage({
         resetHeldMouseButtons();
       }
       syncCombatHud();
+    }
+
+    function applyActiveUtilityResourceEffects(deltaSeconds: number, nowMs: number) {
+      let manaGainPerSecond = 0;
+      for (const effect of activeSkillEffects) {
+        if (effect.endsAtMs < nowMs) continue;
+        if (effect.profile.utility?.kind !== "mana_regen_buff") continue;
+        manaGainPerSecond += effect.profile.utility.manaRegenPerSecond ?? 0;
+      }
+
+      if (manaGainPerSecond <= 0) return;
+      runtimeState = {
+        ...runtimeState,
+        player: {
+          ...runtimeState.player,
+          manaCurrent: Math.min(
+            runtimeState.player.manaMax,
+            runtimeState.player.manaCurrent + manaGainPerSecond * deltaSeconds
+          ),
+        },
+      };
     }
 
     function handleCheckpointRespawnEvent() {
@@ -1708,6 +1886,17 @@ export function PixiExplorationStage({
         enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
         enemy.attackAnimMs = Math.max(0, enemy.attackAnimMs - deltaMs);
         updateEnemyMovement(enemy, playerPosition, deltaSeconds);
+
+        // Aggro telegraph — a converging ring locks onto the enemy the moment
+        // it starts chasing, so incoming pressure reads before the first hit.
+        const isChasingNow = enemy.state === "chasing";
+        if (isChasingNow && !enemy.wasChasing) {
+          combatFx.spawnWindupRing({ ...enemy.position }, enemy.radius + 14, 460, {
+            follow: () => ({ x: enemy.position.x, y: enemy.position.y }),
+            lethal: enemy.isBoss === true,
+          });
+        }
+        enemy.wasChasing = isChasingNow;
 
         if (isCircleIntersectingCircle(enemy.position, enemy.radius, playerPosition, PLAYER_SIZE / 2)) {
           damagePlayerFromEnemy(enemy, now);
@@ -1759,6 +1948,11 @@ export function PixiExplorationStage({
         projectile.position.y += projectile.direction.y * step;
         projectile.distanceTravelled += step;
 
+        // Fading diamond trail roughly every 36px of travel.
+        if (Math.floor(projectile.distanceTravelled / 36) > Math.floor((projectile.distanceTravelled - step) / 36)) {
+          combatFx.spawnTrailDot({ ...projectile.position }, 9);
+        }
+
         const isOutOfBounds =
           projectile.position.x < 0 ||
           projectile.position.x > mapWidth ||
@@ -1774,18 +1968,12 @@ export function PixiExplorationStage({
     function renderAttacks() {
       for (const attack of meleeAttacks) {
         const progress = clamp(attack.ageMs / attack.durationMs, 0, 1);
-        const angle = Math.atan2(attack.direction.y, attack.direction.x);
-        const alpha = 0.62 * (1 - progress);
-
-        attack.graphic.clear();
-        attack.graphic
-          .moveTo(0, 0)
-          .arc(0, 0, MELEE_RANGE, -0.72, 0.72)
-          .lineTo(0, 0)
-          .fill({ color: 0xf0c26a, alpha: alpha * 0.42 });
-        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: 0xfff1b8, alpha, width: 5 });
+        renderMeleeSweep(attack.graphic, progress, {
+          halfAngle: MELEE_ATTACK_HALF_ANGLE_RADIANS,
+          range: MELEE_RANGE,
+        });
         attack.graphic.position.set(attack.position.x, attack.position.y);
-        attack.graphic.rotation = angle;
+        attack.graphic.rotation = Math.atan2(attack.direction.y, attack.direction.x);
       }
 
       for (const projectile of projectiles) {
@@ -1837,14 +2025,6 @@ export function PixiExplorationStage({
       sparkleBursts.length = 0;
     }
 
-    function cleanupHitParticles() {
-      for (const particle of hitParticles) {
-        particle.graphic.removeFromParent();
-        particle.graphic.destroy();
-      }
-      hitParticles.length = 0;
-    }
-
     function cleanupTelegraphs() {
       for (const telegraph of telegraphs) {
         telegraph.graphic.removeFromParent();
@@ -1881,6 +2061,7 @@ export function PixiExplorationStage({
       }
 
       runtimeState = combat.tickCombatRuntime(runtimeState, deltaSeconds);
+      applyActiveUtilityResourceEffects(deltaSeconds, nowMs);
       const hasMovementInput = directionX !== 0 || directionY !== 0;
       const wantsToSprint = [...SPRINT_KEY_CODES].some((code) => pressedKeys.has(code));
       const isSprinting = hasMovementInput && wantsToSprint && combat.canSprint(runtimeState);
@@ -1914,11 +2095,11 @@ export function PixiExplorationStage({
       updatePoiVisuals(nowMs);
       updateLootPopups(ticker.deltaMS);
       updateSparkleBursts(ticker.deltaMS);
-      updateHitParticles(ticker.deltaMS);
+      combatFx.update(ticker.deltaMS);
       updateTelegraphs(ticker.deltaMS);
       renderEnemies();
       renderAttacks();
-      renderPlayer(nowMs);
+      renderPlayer(nowMs, hasMovementInput && !isPlayerDefeated);
       renderSkillEffects(app, player, activeSkillEffects);
 
       playerHitFlashMs = Math.max(0, playerHitFlashMs - ticker.deltaMS);
@@ -1976,18 +2157,7 @@ export function PixiExplorationStage({
         return;
       }
 
-      await PIXI.Assets.load(Object.values(EXPLORATION_ASSETS));
-      const textures = getTextures();
-      enemyTexture = textures.enemy;
-      sparkleTexture = textures.sparkle;
-      const configuredPlayer = configurePlayerSprite(player, textures.player);
-      playerSprite = configuredPlayer.sprite;
-      playerBaseScale = configuredPlayer.baseScale;
-
-      if (cancelled) {
-        destroyPixiApp();
-        return;
-      }
+      player.addChild(playerVisual.container);
 
       canvasElement = app.canvas;
       hostElement.appendChild(canvasElement);
@@ -2013,11 +2183,10 @@ export function PixiExplorationStage({
           mapHeight,
           mapWidth,
           pointsOfInterest,
-          textures,
           worldLayer,
         })
       );
-      enemies.push(...createInitialEnemies().map((enemy) => createEnemyGraphics(enemy, textures.enemy)));
+      enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy)));
       for (const enemy of enemies) {
         renderEnemy(enemy);
         enemyLayer.addChild(enemy.container);
@@ -2073,7 +2242,7 @@ export function PixiExplorationStage({
       cleanupAttacks();
       cleanupLootPopups();
       cleanupSparkleBursts();
-      cleanupHitParticles();
+      combatFx.cleanup();
       cleanupTelegraphs();
       cleanupSkillEffects(player);
       cleanupEnemies();

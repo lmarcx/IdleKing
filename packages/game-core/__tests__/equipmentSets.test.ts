@@ -62,14 +62,13 @@ test("Vagabond stat-bias increases speed, stamina and stamina regen", () => {
   assert.ok((modifiers.advanced?.staminaRegen ?? 0) > 0);
 });
 
-test("Pleureur stat-bias increases HP and DEF through equipment aggregation", () => {
-  const state = createEquippedSetState("pleureur");
-  const itemWithoutSetState = createEquippedSetState("flageleur");
-  const stats = calculateEquipmentStats(state);
-  const statsWithoutActiveSet = calculateEquipmentStats(itemWithoutSetState);
+test("Pleureur stat-bias increases HP and DEF", () => {
+  const modifiers = calculateEquipmentSetModifiers(
+    createEquippedSetState("pleureur"),
+  );
 
-  assert.ok(stats.hp > statsWithoutActiveSet.hp);
-  assert.ok(stats.defense > statsWithoutActiveSet.defense);
+  assert.ok((modifiers.base?.hp ?? 0) > 0);
+  assert.ok((modifiers.base?.def ?? 0) > 0);
 });
 
 test("Maraudeur stat-bias increases ATK, SPEED and crit chance", () => {

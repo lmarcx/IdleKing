@@ -2,17 +2,28 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CombatHud } from "@/components/game/combat/combat-hud";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
-import { STORY_LEVEL_PLACEHOLDER_REWARDS, completeStoryLevelAction, type StoryEventDef } from "@idleking/game-core";
+import {
+  STORY_LEVEL_PLACEHOLDER_REWARDS,
+  canEnterDungeon,
+  completeDungeon,
+  completeStoryLevelAction,
+  getLevelScript,
+  type LevelBeat,
+  type RewardBundle,
+  type StoryEventDef,
+} from "@idleking/game-core";
 import type { ResourceStock } from "@idleking/game-core/resources/types.js";
+import { KingdomDialogueBox } from "@/components/game/kingdom/kingdom-dialogue-box";
 import { ExplorationHud, type ExplorerHudLevel, type ExplorerHudPoi } from "./exploration-hud";
 import { PixiExplorationStage, type ExplorationCombatHudState, type ExplorationStagePoi } from "./pixi-exploration-stage";
 
 type StoryLevelExplorerProps = {
+  dungeonId?: string;
   level: ExplorerHudLevel & {
     events: Array<Pick<StoryEventDef, "id" | "type">>;
   };
@@ -20,12 +31,14 @@ type StoryLevelExplorerProps = {
 
 const MAP_WIDTH = 2400;
 const MAP_HEIGHT = 1600;
-const DISCOVERY_RADIUS = 86;
 
 type ExplorationPoi = ExplorationStagePoi & {
   label: string;
   required: boolean;
+  beat?: LevelBeat;
 };
+
+type DisplayRewards = Record<string, number>;
 
 function getPoiColor(type: StoryEventDef["type"]): number {
   switch (type) {
@@ -40,14 +53,79 @@ function getPoiColor(type: StoryEventDef["type"]): number {
   }
 }
 
-function createExplorationPois(level: StoryLevelExplorerProps["level"]): ExplorationPoi[] {
-  const fallbackPositions = [
-    { x: 420, y: 360 },
-    { x: 1180, y: 520 },
-    { x: 1840, y: 980 },
-    { x: 720, y: 1260 },
-    { x: 1580, y: 1320 },
-  ];
+function getBeatColor(kind: LevelBeat["kind"]): number {
+  switch (kind) {
+    case "boss":
+      return 0xef4444;
+    case "spawn_wave":
+      return 0xc9a654;
+    case "companion_join":
+      return 0x34d399;
+    case "acquire_item":
+      return 0x8a5cff;
+    default:
+      return 0x2fd8c8;
+  }
+}
+
+// Hand-placed path of beats for the prologue, from the spawn toward the boss.
+const BEAT_POSITIONS: Record<string, { x: number; y: number }> = {
+  ruins: { x: 720, y: 700 },
+  find_dog: { x: 520, y: 1060 },
+  feed: { x: 780, y: 1290 },
+  shadows: { x: 1200, y: 1080 },
+  amalgam: { x: 1980, y: 760 },
+  drop_of_darkness: { x: 2090, y: 600 },
+  billy_joins: { x: 1820, y: 520 },
+  kingdom_found: { x: 1480, y: 360 },
+};
+
+const BEAT_FALLBACK_POSITIONS = [
+  { x: 420, y: 360 },
+  { x: 1180, y: 520 },
+  { x: 1840, y: 980 },
+  { x: 720, y: 1260 },
+  { x: 1580, y: 1320 },
+];
+
+function createBeatPois(beats: readonly LevelBeat[]): ExplorationPoi[] {
+  return beats.map((beat, index) => {
+    const position = BEAT_POSITIONS[beat.id] ?? BEAT_FALLBACK_POSITIONS[index % BEAT_FALLBACK_POSITIONS.length];
+    return {
+      beat,
+      color: getBeatColor(beat.kind),
+      id: beat.id,
+      label: beat.speaker ?? beatLabel(beat.kind),
+      required: true,
+      x: position.x,
+      y: position.y,
+    };
+  });
+}
+
+function beatLabel(kind: LevelBeat["kind"]): string {
+  switch (kind) {
+    case "boss":
+      return "Boss";
+    case "spawn_wave":
+      return "Combat";
+    case "companion_join":
+      return "Compagnon";
+    case "acquire_item":
+      return "Découverte";
+    default:
+      return "Récit";
+  }
+}
+
+function createExplorationPois(
+  level: StoryLevelExplorerProps["level"],
+  dungeonId?: string,
+): ExplorationPoi[] {
+  const script = dungeonId ? getLevelScript(dungeonId) : undefined;
+  if (script) return createBeatPois(script.beats);
+
+  const fallbackPositions = BEAT_FALLBACK_POSITIONS;
 
   return level.events.map((event, index) => {
     const position = fallbackPositions[index % fallbackPositions.length];
@@ -62,22 +140,39 @@ function createExplorationPois(level: StoryLevelExplorerProps["level"]): Explora
   });
 }
 
-function distanceBetween(a: { x: number; y: number }, b: { x: number; y: number }): number {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+function rewardEntries(rewards: DisplayRewards): Array<[string, number]> {
+  return Object.entries(rewards).filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0);
 }
 
-function rewardEntries(rewards: ResourceStock): Array<[string, number]> {
-  return Object.entries(rewards).filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0);
+function resourceStockToDisplayRewards(stock: ResourceStock): DisplayRewards {
+  const rewards: DisplayRewards = {};
+  for (const [resourceId, amount] of Object.entries(stock)) {
+    if (typeof amount === "number") rewards[resourceId] = amount;
+  }
+  return rewards;
+}
+
+function rewardBundleToDisplayRewards(rewards: RewardBundle): DisplayRewards {
+  const stock: DisplayRewards = {};
+  for (const reward of rewards.resources ?? []) {
+    stock[reward.resourceId] = (stock[reward.resourceId] ?? 0) + reward.amount;
+  }
+  for (const reward of rewards.currencies ?? []) {
+    stock[reward.currencyId] = (stock[reward.currencyId] ?? 0) + reward.amount;
+  }
+  return stock;
 }
 
 function CompletionPanel({
   alreadyCompleted,
+  label,
   onReturn,
   rewards,
 }: {
   alreadyCompleted: boolean;
+  label: string;
   onReturn: () => void;
-  rewards: ResourceStock;
+  rewards: DisplayRewards;
 }) {
   return (
     <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
@@ -85,7 +180,7 @@ function CompletionPanel({
         <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">
           {alreadyCompleted ? "Objectifs deja valides" : "Objectifs valides"}
         </p>
-        <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Niveau complété</h2>
+        <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">{label}</h2>
         <div className="mt-5 rounded-md border border-amber-200/18 bg-black/45 p-4 text-left">
           <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-muted-foreground">Rewards placeholder</p>
           <div className="mt-3 grid gap-2 font-ik-body text-sm text-amber-50">
@@ -110,37 +205,94 @@ function CompletionPanel({
   );
 }
 
-export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
+function LockedPanel({ onReturn }: { onReturn: () => void }) {
+  return (
+    <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-lg border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
+        <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-amber-200">Verrouille</p>
+        <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">Donjon indisponible</h2>
+        <p className="mt-3 font-ik-body text-sm text-muted-foreground">
+          Les prerequis Story ou WorldLevel ne sont pas encore remplis.
+        </p>
+        <button
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24"
+          onClick={onReturn}
+          type="button"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Retour au Royaume
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function StoryLevelExplorer({ dungeonId, level }: StoryLevelExplorerProps) {
   const router = useRouter();
   const dispatch = useGameStore((s) => s.dispatch);
-  const hasCompletedLevel = useGameStore((s) => s.state.story.completedLevels.has(level.id));
+  const gameState = useGameStore((s) => s.state);
+  const hasCompletedLevel = dungeonId
+    ? gameState.story.completedDungeonIds.has(dungeonId)
+    : gameState.story.completedLevels.has(level.id);
+  const canCompleteDungeon = dungeonId ? canEnterDungeon(gameState, dungeonId) : true;
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const [playerPosition, setPlayerPosition] = useState({
     x: MAP_WIDTH / 2,
     y: MAP_HEIGHT / 2,
   });
-  const pointsOfInterest = useMemo(() => createExplorationPois(level), [level]);
+  const pointsOfInterest = useMemo(() => createExplorationPois(level, dungeonId), [level, dungeonId]);
+  const hasBossBeat = useMemo(
+    () => pointsOfInterest.some((point) => point.beat?.kind === "boss"),
+    [pointsOfInterest]
+  );
   const [discoveredPoiIds, setDiscoveredPoiIds] = useState<Set<string>>(() => new Set());
+  const [dialogueQueue, setDialogueQueue] = useState<LevelBeat[]>([]);
+  const [activeDialogue, setActiveDialogue] = useState<LevelBeat | null>(null);
   const [completion, setCompletion] = useState<{
     alreadyCompleted: boolean;
-    rewards: ResourceStock;
+    rewards: DisplayRewards;
   } | null>(null);
   const [combatHud, setCombatHud] = useState<ExplorationCombatHudState | null>(null);
 
+  // POIs and progression-required objects no longer auto-complete on proximity —
+  // the player must press F while in range (see PixiExplorationStage's
+  // onPoiInteractAction), which calls this handler.
+  const handlePoiInteract = useCallback(
+    (poiId: string) => {
+      if (discoveredPoiIds.has(poiId)) return;
+      const point = pointsOfInterest.find((candidate) => candidate.id === poiId);
+      if (!point) return;
+
+      setDiscoveredPoiIds((current) => {
+        const next = new Set(current);
+        next.add(poiId);
+        return next;
+      });
+
+      if (point.beat) setDialogueQueue((queue) => [...queue, point.beat!]);
+    },
+    [discoveredPoiIds, pointsOfInterest]
+  );
+
+  // Promote the next queued beat into the active dialogue box.
   useEffect(() => {
-    setDiscoveredPoiIds((current) => {
-      let next: Set<string> | null = null;
+    if (activeDialogue || dialogueQueue.length === 0) return;
+    setActiveDialogue(dialogueQueue[0]);
+    setDialogueQueue((queue) => queue.slice(1));
+  }, [activeDialogue, dialogueQueue]);
 
-      for (const point of pointsOfInterest) {
-        if (current.has(point.id)) continue;
-        if (distanceBetween(playerPosition, point) > DISCOVERY_RADIUS) continue;
-        next ??= new Set(current);
-        next.add(point.id);
+  // Advance the active dialogue with keyboard (movement is blocked meanwhile).
+  useEffect(() => {
+    if (!activeDialogue) return;
+    const handleKey = (event: KeyboardEvent) => {
+      if (["Enter", " ", "Escape", "f", "F"].includes(event.key)) {
+        event.preventDefault();
+        setActiveDialogue(null);
       }
-
-      return next ?? current;
-    });
-  }, [playerPosition, pointsOfInterest]);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [activeDialogue]);
 
   useEffect(() => {
     if (!hasCompletedLevel) return;
@@ -148,7 +300,7 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
     setCompletion((current) =>
       current ?? {
         alreadyCompleted: true,
-        rewards: STORY_LEVEL_PLACEHOLDER_REWARDS,
+        rewards: resourceStockToDisplayRewards(STORY_LEVEL_PLACEHOLDER_REWARDS),
       }
     );
   }, [hasCompletedLevel, pointsOfInterest]);
@@ -167,8 +319,25 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
   const allRequiredPoisDiscovered =
     pointsOfInterest.length > 0 && pointsOfInterest.every((point) => !point.required || discoveredPoiIds.has(point.id));
 
+  // A scripted boss level only completes once the boss (and Shadows) are down.
+  const bossDefeated = !hasBossBeat || (combatHud?.enemiesRemaining ?? 1) === 0;
+  const dialoguesDrained = activeDialogue === null && dialogueQueue.length === 0;
+  const readyToComplete = allRequiredPoisDiscovered && bossDefeated && dialoguesDrained;
+
   useEffect(() => {
-    if (!allRequiredPoisDiscovered || completion || hasCompletedLevel) return;
+    if (!readyToComplete || completion || hasCompletedLevel) return;
+
+    if (dungeonId) {
+      const result = completeDungeon(useGameStore.getState().state, dungeonId);
+      if (!result.ok) return;
+
+      dispatch(() => result.next);
+      setCompletion({
+        alreadyCompleted: false,
+        rewards: rewardBundleToDisplayRewards(result.rewards),
+      });
+      return;
+    }
 
     const result = completeStoryLevelAction(useGameStore.getState().state, level.id);
     dispatch(() => result.next);
@@ -179,39 +348,61 @@ export function StoryLevelExplorer({ level }: StoryLevelExplorerProps) {
         rewards: result.rewards,
       });
     }
-  }, [allRequiredPoisDiscovered, completion, dispatch, hasCompletedLevel, level.id]);
+  }, [readyToComplete, completion, dispatch, dungeonId, hasCompletedLevel, level.id]);
+
+  // Once a full-screen resolution panel (completion / locked) takes over, the
+  // gameplay HUD underneath is hidden — otherwise its own exit link and
+  // title/objectives panels stack behind the panel's own "Retour au Royaume".
+  const isPlaying = completion === null && canCompleteDungeon;
 
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
-        inputBlocked={isGameHudOverlayOpen || completion !== null}
+        inputBlocked={isGameHudOverlayOpen || completion !== null || !canCompleteDungeon || activeDialogue !== null}
         levelId={level.id}
         mapHeight={MAP_HEIGHT}
         mapWidth={MAP_WIDTH}
         onCombatHudChangeAction={setCombatHud}
         onPlayerMoveAction={setPlayerPosition}
+        onPoiInteractAction={handlePoiInteract}
         pointsOfInterest={pointsOfInterest}
       />
-      <CombatHud
-        mode="story"
-        playerHealth={combatHud?.playerHealth}
-        playerMana={combatHud?.playerMana}
-        playerStamina={combatHud?.playerStamina}
-        skillBar={combatHud?.skillBar}
-        subtitle={`Power ${level.recommendedPower}`}
-        title={level.title}
-      />
-      <ExplorationHud level={level} playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
-      <div className="pointer-events-none absolute left-4 bottom-24 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
-        Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace.
-      </div>
+      {isPlaying ? (
+        <>
+          <CombatHud
+            mode="story"
+            playerHealth={combatHud?.playerHealth}
+            playerMana={combatHud?.playerMana}
+            playerStamina={combatHud?.playerStamina}
+            // The dialogue box takes the same bottom-4 strip and already
+            // blocks input while open — drop the skill bar instead of
+            // letting it render on top of the dialogue text.
+            skillBar={activeDialogue ? undefined : combatHud?.skillBar}
+            subtitle={`Power ${level.recommendedPower}`}
+            title={level.title}
+          />
+          <ExplorationHud playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
+          <div className="pointer-events-none absolute left-4 bottom-40 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
+            Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace. Interagir : F.
+          </div>
+        </>
+      ) : null}
+      {activeDialogue && !completion ? (
+        <KingdomDialogueBox
+          name={activeDialogue.speaker ?? beatLabel(activeDialogue.kind)}
+          text={activeDialogue.text}
+          onClose={() => setActiveDialogue(null)}
+        />
+      ) : null}
       {completion ? (
         <CompletionPanel
           alreadyCompleted={completion.alreadyCompleted}
+          label={dungeonId ? "Donjon complete" : "Niveau complete"}
           onReturn={() => router.push("/game/kingdom")}
           rewards={completion.rewards}
         />
       ) : null}
+      {!canCompleteDungeon ? <LockedPanel onReturn={() => router.push("/game/kingdom")} /> : null}
     </section>
   );
 }

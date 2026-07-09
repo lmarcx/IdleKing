@@ -7,7 +7,7 @@ import type { ResourceId } from "@idleking/game-core/resources/types.js";
 import type { random } from "@idleking/game-core";
 
 export type EnemyId = string;
-export type EnemyKind = "grunt";
+export type EnemyKind = "grunt" | "shadow" | "boss";
 export type EnemyState = "idle" | "chasing" | "dead";
 
 export type CombatVector = {
@@ -22,6 +22,10 @@ export type StoryLevelEnemy = {
   hp: number;
   id: EnemyId;
   kind: EnemyKind;
+  /** Display name, shown for bosses. */
+  name?: string;
+  /** True for the level boss (bigger, gated completion). */
+  isBoss?: boolean;
   lastContactDamageAt: number;
   lootClaimed: boolean;
   maxHp: number;
@@ -43,6 +47,15 @@ export const GRUNT_CONTACT_DAMAGE = 8;
 export const GRUNT_CONTACT_DAMAGE_COOLDOWN_MS = 700;
 
 const GRUNT_RADIUS = 20;
+
+// Prologue Shadows ("Ombres") — slightly tougher than generic grunts.
+export const SHADOW_HP = 60;
+const SHADOW_RADIUS = 22;
+
+// Amalgame des Ténèbres — the prologue boss.
+export const DARK_AMALGAM_HP = 520;
+const DARK_AMALGAM_RADIUS = 46;
+const DARK_AMALGAM_CONTACT_DAMAGE = 16;
 
 type EnemyLootEntry = {
   maxAmount: number;
@@ -68,27 +81,67 @@ const ENEMY_SPAWN_POINTS: CombatVector[] = [
   { x: 2020, y: 1260 },
 ];
 
-export function createInitialEnemies(): StoryLevelEnemy[] {
-  return ENEMY_SPAWN_POINTS.map((position, index) => ({
+function makeGrunt(position: CombatVector, index: number, kind: "grunt" | "shadow"): StoryLevelEnemy {
+  const isShadow = kind === "shadow";
+  const hp = isShadow ? SHADOW_HP : GRUNT_HP;
+  return {
     attackCooldownMs: GRUNT_CONTACT_DAMAGE_COOLDOWN_MS,
     contactDamage: GRUNT_CONTACT_DAMAGE,
     detectionRadius: GRUNT_DETECTION_RADIUS,
-    hp: GRUNT_HP,
-    id: `grunt-${index + 1}`,
-    kind: "grunt",
+    hp,
+    id: `${kind}-${index + 1}`,
+    kind,
     lastContactDamageAt: -Infinity,
     lootClaimed: false,
-    maxHp: GRUNT_HP,
+    maxHp: hp,
     moveSpeed: GRUNT_MOVE_SPEED,
     position: { ...position },
-    radius: GRUNT_RADIUS,
+    radius: isShadow ? SHADOW_RADIUS : GRUNT_RADIUS,
     state: "idle",
-  }));
+  };
+}
+
+function makeDarkAmalgamBoss(position: CombatVector): StoryLevelEnemy {
+  return {
+    attackCooldownMs: GRUNT_CONTACT_DAMAGE_COOLDOWN_MS,
+    contactDamage: DARK_AMALGAM_CONTACT_DAMAGE,
+    detectionRadius: GRUNT_DETECTION_RADIUS + 120,
+    hp: DARK_AMALGAM_HP,
+    id: "boss-dark-amalgam",
+    isBoss: true,
+    kind: "boss",
+    lastContactDamageAt: -Infinity,
+    lootClaimed: false,
+    maxHp: DARK_AMALGAM_HP,
+    moveSpeed: GRUNT_MOVE_SPEED * 0.8,
+    name: "Amalgame des Ténèbres",
+    position: { ...position },
+    radius: DARK_AMALGAM_RADIUS,
+    state: "idle",
+  };
+}
+
+/**
+ * Per-level enemy roster. The prologue spawns Shadows ("Ombres") and the boss
+ * Amalgame des Ténèbres; other levels keep the generic grunt slice.
+ */
+export function createInitialEnemies(levelId?: string): StoryLevelEnemy[] {
+  if (levelId === "prologue_wastelands") {
+    // First waves of Shadows, then the boss at the far end of the map.
+    const shadows = ENEMY_SPAWN_POINTS.slice(0, 5).map((position, index) =>
+      makeGrunt(position, index, "shadow"),
+    );
+    return [...shadows, makeDarkAmalgamBoss({ x: 1980, y: 760 })];
+  }
+
+  return ENEMY_SPAWN_POINTS.map((position, index) => makeGrunt(position, index, "grunt"));
 }
 
 function getLootTableForEnemy(enemy: StoryLevelEnemy): EnemyLootEntry[] {
   switch (enemy.kind) {
     case "grunt":
+    case "shadow":
+    case "boss":
       return GRUNT_LOOT_TABLE;
   }
 }

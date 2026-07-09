@@ -1,6 +1,6 @@
 import type { GameState } from "../game/state.js";
 import { grantRewardBundle, type RewardBundle } from "../rewards/index.js";
-import { grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
+import { grantDropOfDarkness, grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
 import { applyNarrativeEffectSetUnlock } from "../effectSets/index.js";
 import type { StoryState } from "./state.js";
 
@@ -12,6 +12,19 @@ export type StoryUnlockConditions = Readonly<{
   storyFlags?: readonly string[];
   minWorldLevel?: number;
 }>;
+
+export type StoryUnlockRequirementStatus =
+  | Readonly<{
+      kind: "storyFlag";
+      flag: string;
+      met: boolean;
+    }>
+  | Readonly<{
+      kind: "worldLevel";
+      required: number;
+      current: number;
+      met: boolean;
+    }>;
 
 export type StoryChapterDefinition = Readonly<{
   chapterId: MvpStoryChapterId;
@@ -66,9 +79,13 @@ export type CompleteDungeonOptions = Readonly<{
   forceReplay?: boolean;
 }>;
 
-const BOSS_FIRST_CLEAR_SPECIAL_REWARDS: Readonly<Record<string, Readonly<{ kaleidoscope?: true; fragmentDuTemps?: number }>>> = {
-  dark_amalgam: { kaleidoscope: true },
-  dragon_shadow: { fragmentDuTemps: 1 },
+const BOSS_FIRST_CLEAR_SPECIAL_REWARDS: Readonly<
+  Record<string, Readonly<{ kaleidoscope?: true; dropOfDarkness?: true; fragmentDuTemps?: number }>>
+> = {
+  // Prologue: the Amalgame des Ténèbres drops the Drop of Darkness (canon).
+  dark_amalgam: { dropOfDarkness: true },
+  // Chapter I: the Ombre du Dragon yields the Kaléidoscope + first Fragment du Temps (era traversal).
+  dragon_shadow: { kaleidoscope: true, fragmentDuTemps: 1 },
   allaeva: { fragmentDuTemps: 1 },
 };
 
@@ -188,7 +205,7 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
   {
     id: "prologue_wastelands",
     title: "Terres Desolees",
-    era: "prologue",
+    era: "era_funebre",
     chapterId: "prologue",
     order: 0,
     type: "boss",
@@ -276,7 +293,7 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
   {
     id: "royal_abyss",
     title: "Gouffre Royal",
-    era: "era_glaciaire",
+    era: "era_funebre",
     chapterId: "chapter_ii_glaciaire",
     order: 5,
     type: "boss",
@@ -359,6 +376,39 @@ export function getStoryBossDefinition(bossId: string): StoryBossDefinition | un
   return STORY_BOSS_REGISTRY.find((boss) => boss.id === bossId);
 }
 
+export function getStoryUnlockRequirementStatuses(
+  state: GameState,
+  conditions: StoryUnlockConditions,
+): StoryUnlockRequirementStatus[] {
+  const statuses: StoryUnlockRequirementStatus[] = [];
+  const flags = getStoryFlags(state);
+
+  if (conditions.minWorldLevel !== undefined) {
+    statuses.push({
+      kind: "worldLevel",
+      required: conditions.minWorldLevel,
+      current: state.progression.worldLevel,
+      met: state.progression.worldLevel >= conditions.minWorldLevel,
+    });
+  }
+
+  for (const flag of conditions.storyFlags ?? []) {
+    statuses.push({
+      kind: "storyFlag",
+      flag,
+      met: flags.has(flag),
+    });
+  }
+
+  return statuses;
+}
+
+export function getStoryDungeonLockReasons(state: GameState, dungeonId: string): StoryUnlockRequirementStatus[] {
+  const dungeon = getStoryDungeonDefinition(dungeonId);
+  if (!dungeon) return [];
+  return getStoryUnlockRequirementStatuses(state, dungeon.unlockConditions).filter((requirement) => !requirement.met);
+}
+
 function checkUnlockConditions(state: GameState, conditions: StoryUnlockConditions): "STORY_FLAG_MISSING" | "WORLD_LEVEL_TOO_LOW" | null {
   if (conditions.minWorldLevel !== undefined && state.progression.worldLevel < conditions.minWorldLevel) {
     return "WORLD_LEVEL_TOO_LOW";
@@ -425,6 +475,7 @@ export function applyBossFirstClearSpecialRewards(state: GameState, bossId: stri
 
   let next = state;
   if (rewards.kaleidoscope) next = grantKaleidoscope(next);
+  if (rewards.dropOfDarkness) next = grantDropOfDarkness(next);
   if (rewards.fragmentDuTemps) next = grantFragmentDuTemps(next, rewards.fragmentDuTemps);
   return next;
 }

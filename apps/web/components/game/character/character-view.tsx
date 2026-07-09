@@ -1,17 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AvailableEquipmentPanel } from "@/components/game/character/available-equipment-panel";
 import { CharacterStatsPanel } from "@/components/game/character/character-stats-panel";
 import { EquipmentDoll } from "@/components/game/character/equipment-doll";
 import { FAKE_EQUIPMENT } from "@/components/game/character/fake-equipment";
-import type { CharacterEquipment, CharacterStat, EquipmentSlotId, EquippedItems } from "@/components/game/character/types";
+import type {
+  CharacterEquipment,
+  CharacterStat,
+  EquipmentDragPayload,
+  EquipmentSlotId,
+  EquippedItems,
+} from "@/components/game/character/types";
+import { ItemDeleteConfirmDialog } from "@/components/game/item-delete-dialog";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import {
   calculateFinalCharacterStats,
   getEquippedItems,
+  normalizePlayerEquipmentState,
   type EquipmentItem,
   type EquipmentSlot,
 } from "@idleking/game-core";
@@ -106,12 +115,15 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
   const itemLevel = item.itemLevel ?? item.ilvl ?? 1;
 
   return {
+    affixes: item.affixes,
     description: metadata.description ?? "Equipment from the current character inventory.",
     icon: metadata.icon ?? `/assets/equipment-slots/${item.slot}.svg`,
     id: item.id,
     itemLevel,
     name: item.name,
     rarity: getCharacterRarity(item),
+    setId: item.setId,
+    skillId: item.skillId,
     slot: toCharacterEquipmentSlot(item.slot),
     stats: {
       hp: item.stats.hp,
@@ -119,6 +131,7 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
       def: item.stats.defense,
       power: item.stats.power,
     },
+    upgradeLevel: item.upgradeLevel,
     value: metadata.value ?? itemLevel,
   };
 }
@@ -128,11 +141,16 @@ function hasEquipmentItems(items: unknown[]) {
 }
 
 export function CharacterView() {
+  const { openOverlay } = useGameHudOverlay();
   const state = useGameStore((s) => s.state);
   const hydrated = useGameStore((s) => s.hydrated);
   const dispatch = useGameStore((s) => s.dispatch);
   const equipPlayerItem = useGameStore((s) => s.equipPlayerItem);
+  const equipPlayerRing = useGameStore((s) => s.equipPlayerRing);
   const unequipPlayerItem = useGameStore((s) => s.unequipPlayerItem);
+  const unequipPlayerRing = useGameStore((s) => s.unequipPlayerRing);
+  const removePlayerItem = useGameStore((s) => s.removePlayerItem);
+  const [pendingDelete, setPendingDelete] = useState<CharacterEquipment | null>(null);
   const characterStats = useMemo(() => calculateFinalCharacterStats(state), [state]);
   const availableEquipment = useMemo(
     () =>
@@ -142,10 +160,26 @@ export function CharacterView() {
         .map(toCharacterEquipment),
     [state.inventory.items]
   );
+  const equippedCoreItems = useMemo(() => getEquippedItems(state), [state]);
+  const equippedById = useMemo(
+    () => new Map(equippedCoreItems.map((item) => [item.id, toCharacterEquipment(item)] as const)),
+    [equippedCoreItems],
+  );
+  const equippedItemIds = useMemo(() => new Set(equippedCoreItems.map((item) => item.id)), [equippedCoreItems]);
   const equippedItems = useMemo<EquippedItems>(() => {
-    const entries = getEquippedItems(state).map((item) => [item.slot, toCharacterEquipment(item)] as const);
+    const entries = equippedCoreItems
+      .filter((item) => item.slot !== "ring")
+      .map((item) => [toCharacterEquipmentSlot(item.slot), equippedById.get(item.id)!] as const);
     return Object.fromEntries(entries) as EquippedItems;
-  }, [state]);
+  }, [equippedCoreItems, equippedById]);
+  const ringSlotIds = useMemo(
+    () => normalizePlayerEquipmentState(state.equipment).equipped.rings,
+    [state.equipment],
+  );
+  const equippedRings = useMemo<(CharacterEquipment | null)[]>(
+    () => ringSlotIds.map((itemId) => (itemId ? equippedById.get(itemId) ?? null : null)),
+    [equippedById, ringSlotIds],
+  );
 
   useEffect(() => {
     if (!hydrated || process.env.NODE_ENV === "production") return;
@@ -193,20 +227,91 @@ export function CharacterView() {
     unequipPlayerItem(slot as EquipmentSlot);
   }, [unequipPlayerItem]);
 
+  const handleUnequipItem = useCallback((item: CharacterEquipment) => {
+    unequipPlayerItem(toCoreEquipmentSlot(item.slot));
+  }, [unequipPlayerItem]);
+
+  const handleUnequipRing = useCallback((slotIndex: number) => {
+    unequipPlayerRing(slotIndex);
+  }, [unequipPlayerRing]);
+
+  const handleDropOnSlot = useCallback((slotId: EquipmentSlotId, payload: EquipmentDragPayload) => {
+    if (payload.slot !== slotId) {
+      toast.error("Cet objet ne correspond pas a cet emplacement.");
+      return;
+    }
+    const result = equipPlayerItem(payload.id);
+    if (!result.ok) {
+      toast.error(`Unable to equip item: ${result.reason}`);
+    }
+  }, [equipPlayerItem]);
+
+  const handleDropOnRing = useCallback((slotIndex: number, payload: EquipmentDragPayload) => {
+    if (payload.slot !== "ring") {
+      toast.error("Seuls les anneaux vont dans cet emplacement.");
+      return;
+    }
+    const result = equipPlayerRing(payload.id, slotIndex);
+    if (!result.ok) {
+      toast.error(`Unable to equip ring: ${result.reason}`);
+    }
+  }, [equipPlayerRing]);
+
+  const handleRequestDelete = useCallback((item: CharacterEquipment) => {
+    setPendingDelete(item);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    const result = removePlayerItem(pendingDelete.id);
+    if (!result.ok) {
+      toast.error(`Unable to delete item: ${result.reason}`);
+    } else {
+      toast.success(`${pendingDelete.name} deleted`);
+    }
+    setPendingDelete(null);
+  }, [pendingDelete, removePlayerItem]);
+
   return (
     <div className="space-y-4">
-      <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
+        <button
+          aria-label="Ouvrir Résonance"
+          className="ik-card-hover rounded-md border border-amber-200/24 bg-amber-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.08em] text-amber-50 transition hover:border-amber-100"
+          onClick={() => openOverlay("resonance")}
+          type="button"
+        >
+          Ouvrir Résonance
+        </button>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
         <CharacterStatsPanel stats={stats} />
-        <EquipmentDoll equippedItems={equippedItems} onUnequip={handleUnequip} />
-        <AvailableEquipmentPanel
+        <EquipmentDoll
           equippedItems={equippedItems}
-          items={availableEquipment}
-          onEquip={handleEquip}
+          equippedRings={equippedRings}
+          onDelete={handleRequestDelete}
+          onDropOnRing={handleDropOnRing}
+          onDropOnSlot={handleDropOnSlot}
           onUnequip={handleUnequip}
+          onUnequipRing={handleUnequipRing}
+        />
+        <AvailableEquipmentPanel
+          equippedItemIds={equippedItemIds}
+          items={availableEquipment}
+          onDelete={handleRequestDelete}
+          onEquip={handleEquip}
+          onUnequip={handleUnequipItem}
         />
       </div>
+
+      <ItemDeleteConfirmDialog
+        itemName={pendingDelete?.name ?? null}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+        open={pendingDelete !== null}
+      />
     </div>
   );
 }

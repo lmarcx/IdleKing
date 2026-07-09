@@ -4,7 +4,12 @@ import test from "node:test";
 import { forumRankUpWorld } from "../game/forumActions.js";
 import { createInitialGameState, type GameState } from "../game/state.js";
 import { loadGameWithReport, saveGame } from "../game/save.js";
-import { generateEquipmentItem } from "../equipment/index.js";
+import {
+  generateEquipmentItem,
+  getEquippedRingItems,
+  MVP_STARTER_RING_ID,
+  MVP_STARTER_RING_SKILL_ID,
+} from "../equipment/index.js";
 import { getCurrencyBalance } from "../currencies/index.js";
 import { canEnterDungeon, completeDungeon } from "../story/progressionMvp.js";
 import {
@@ -125,6 +130,53 @@ function writeOldSave(store: Map<string, string>, state: any, savedAt = 1_000): 
     }),
   );
 }
+
+test("empty normalized save receives the MVP starter ring exactly once", () => {
+  withMockLocalStorage((store) => {
+    const savedAt = 1_000;
+    const emptyState = {
+      ...createInitialGameState({ nowMs: savedAt }),
+      inventory: { items: [] },
+      equipment: undefined,
+    };
+    writeOldSave(store, emptyState, savedAt);
+
+    const loaded = loadGameWithReport();
+    assert.ok(loaded);
+    assert.equal(loaded.state.equipment.equipped.rings[0], MVP_STARTER_RING_ID);
+    assert.equal(getEquippedRingItems(loaded.state)[0]?.skillId, MVP_STARTER_RING_SKILL_ID);
+    assert.equal(loaded.state.inventory.items.filter((item) => item.id === MVP_STARTER_RING_ID).length, 1);
+
+    saveGame(loaded.state);
+    const reloaded = loadGameWithReport();
+    assert.ok(reloaded);
+    assert.equal(reloaded.state.inventory.items.filter((item) => item.id === MVP_STARTER_RING_ID).length, 1);
+    assert.deepEqual(reloaded.state.equipment.equipped.rings.filter(Boolean), [MVP_STARTER_RING_ID]);
+  });
+});
+
+test("normalized save with an existing skill ring does not receive a starter duplicate", () => {
+  withMockLocalStorage((store) => {
+    const savedAt = 1_000;
+    const existingRing = generateEquipmentItem({ slot: "ring", itemLevel: 3, id: "existing-skill-ring", skillId: "SK-001" });
+    const state = {
+      ...createInitialGameState({ nowMs: savedAt }),
+      inventory: { items: [existingRing] },
+      equipment: {
+        equipped: {
+          rings: [existingRing.id, null, null, null, null],
+        },
+      },
+    };
+    writeOldSave(store, state, savedAt);
+
+    const loaded = loadGameWithReport();
+    assert.ok(loaded);
+    assert.equal(loaded.state.equipment.equipped.rings[0], existingRing.id);
+    assert.equal(getEquippedRingItems(loaded.state)[0]?.skillId, "SK-001");
+    assert.equal(loaded.state.inventory.items.some((item) => item.id === MVP_STARTER_RING_ID), false);
+  });
+});
 
 function completeFirstClear(state: GameState, dungeonId: string): GameState {
   assert.equal(canEnterDungeon(state, dungeonId), true, `${dungeonId} should be enterable`);
@@ -281,5 +333,33 @@ test("resourceStock is clamped to stack max 999 during save load normalization",
     assert.ok(loaded);
     if (!loaded) return;
     assert.equal(getCanonicalResourceQuantity(loaded.state.resources, "iron_ore"), 999);
+  });
+});
+
+test("save load normalization repairs equipment instances that share a persisted id", () => {
+  withMockLocalStorage((store) => {
+    const state: any = createInitialGameState({ nowMs: 2_000 });
+    const ringA = generateEquipmentItem({ slot: "ring", itemLevel: 10, id: "dup-ring", skillId: "SK-001" });
+    const ringB = generateEquipmentItem({ slot: "ring", itemLevel: 20, id: "dup-ring", skillId: "SK-002" });
+    state.inventory.items = [ringA, ringB];
+    state.equipment = {
+      equipped: {
+        ...state.equipment.equipped,
+        rings: [ringA.id, null, null, null, null],
+      },
+    };
+    writeOldSave(store, state, 2_000);
+
+    const loaded = loadGameWithReport();
+
+    assert.ok(loaded);
+    if (!loaded) return;
+
+    assert.equal(loaded.state.inventory.items.length, 2);
+    const ids = loaded.state.inventory.items.map((item) => item.id);
+    assert.equal(new Set(ids).size, 2, "duplicate persisted ids must be repaired into unique ids");
+
+    const equippedRings = getEquippedRingItems(loaded.state);
+    assert.equal(equippedRings[0]?.skillId, "SK-001", "the equipped occurrence keeps its original id/skill");
   });
 });

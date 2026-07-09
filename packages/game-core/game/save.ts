@@ -2,7 +2,7 @@ import type { GameState } from "./state.js";
 import { createInitialGameState } from "./state.js";
 import { applyOfflineProgress } from "./offlineProgress.js";
 import { createDefaultPlayerSkillsState } from "../combat/skills/index.js";
-import { normalizePlayerEquipmentState } from "../equipment/index.js";
+import { ensureMvpStarterRing, normalizePlayerEquipmentState } from "../equipment/index.js";
 import { normalizeEquipmentItem, type Item } from "../items/types.js";
 import { normalizeWalletState } from "../currencies/index.js";
 import { normalizeWorldResourcesState } from "../world/worldResources.js";
@@ -57,15 +57,37 @@ function normalizeResourceStockState(value: unknown): ResourceStock {
   return stock;
 }
 
+function createDedupeSuffix(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function reviveInventory(inventory: GameState["inventory"]): GameState["inventory"] {
   const items = Array.isArray(inventory?.items) ? inventory.items : [];
+  const seenEquipmentIds = new Set<string>();
 
   return {
     items: items.flatMap((item): Item[] => {
       if (!item || typeof item !== "object") return [];
       if ("slot" in item) {
         const equipmentItem = normalizeEquipmentItem(item);
-        return equipmentItem ? [equipmentItem] : [];
+        if (!equipmentItem) return [];
+
+        if (!seenEquipmentIds.has(equipmentItem.id)) {
+          seenEquipmentIds.add(equipmentItem.id);
+          return [equipmentItem];
+        }
+
+        // Two or more persisted equipment instances share an id (a past
+        // generateEquipmentItem bug — see equipment/generation.ts). Equip
+        // lookups resolve an id via Array.find, i.e. the first match, so the
+        // first occurrence keeps its id (whatever was equipped stays equipped)
+        // and every later duplicate is assigned a fresh unique id.
+        let dedupedId = `${equipmentItem.id}-dedup-${createDedupeSuffix()}`;
+        while (seenEquipmentIds.has(dedupedId)) {
+          dedupedId = `${equipmentItem.id}-dedup-${createDedupeSuffix()}`;
+        }
+        seenEquipmentIds.add(dedupedId);
+        return [{ ...equipmentItem, id: dedupedId, instanceId: dedupedId }];
       }
       return [item as Item];
     }),
@@ -116,7 +138,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     completedEvents.add(`boss:${bossId}:defeated`);
   }
 
-  return {
+  const revived: GameState = {
     progression,
     story: {
       ...defaults.story,
@@ -144,6 +166,8 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
       list: Array.isArray(rawState.villagers?.list) ? rawState.villagers.list : defaults.villagers.list,
     },
   };
+
+  return ensureMvpStarterRing(revived);
 }
 
 /**

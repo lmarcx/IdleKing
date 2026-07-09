@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export type ExplorerHudLevel = {
   id: string;
   recommendedPower: number;
@@ -7,7 +5,6 @@ export type ExplorerHudLevel = {
 };
 
 type ExplorationHudProps = {
-  level: ExplorerHudLevel;
   pointsOfInterest: ExplorerHudPoi[];
   playerPosition: {
     x: number;
@@ -22,16 +19,19 @@ export type ExplorerHudPoi = {
   required: boolean;
 };
 
-export function ExplorationHud({ level, playerPosition, pointsOfInterest }: ExplorationHudProps) {
+/**
+ * Objectives-only panel. Title/subtitle and the exit link already live in
+ * CombatHud (top-24) — this panel starts lower (top-44) and never repeats
+ * them, it only adds what CombatHud doesn't show: POI checklist + position.
+ */
+export function ExplorationHud({ playerPosition, pointsOfInterest }: ExplorationHudProps) {
   const requiredPoints = pointsOfInterest.filter((point) => point.required);
   const discoveredRequiredPoints = requiredPoints.filter((point) => point.discovered);
 
   return (
-    <div className="pointer-events-none absolute inset-x-4 top-44 z-10 flex flex-wrap items-start justify-between gap-3">
+    <div className="pointer-events-none absolute left-4 top-44 z-10">
       <div className="pointer-events-auto rounded-lg border border-amber-200/25 bg-black/70 px-4 py-3 shadow-[0_12px_30px_rgba(0,0,0,0.38)]">
-        <h1 className="font-ik-title text-lg font-semibold tracking-wide text-amber-50">{level.title}</h1>
-        <div className="mt-1 flex flex-wrap gap-3 font-ik-body text-xs text-muted-foreground">
-          <span>Power {level.recommendedPower}</span>
+        <div className="flex flex-wrap gap-3 font-ik-body text-xs text-muted-foreground">
           <span>
             Position {Math.round(playerPosition.x)}, {Math.round(playerPosition.y)}
           </span>
@@ -46,7 +46,7 @@ export function ExplorationHud({ level, playerPosition, pointsOfInterest }: Expl
                 aria-hidden="true"
                 className={
                   point.discovered
-                    ? "h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.55)]"
+                    ? "h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_10px_rgba(242,242,242,0.55)]"
                     : "h-2 w-2 rounded-full border border-amber-200/35 bg-black"
                 }
               />
@@ -55,13 +55,6 @@ export function ExplorationHud({ level, playerPosition, pointsOfInterest }: Expl
           ))}
         </div>
       </div>
-
-      <Link
-        className="pointer-events-auto rounded-md border border-amber-200/35 bg-black/70 px-4 py-2 font-ik-menu text-xs text-amber-50 transition hover:border-amber-100"
-        href="/game/kingdom"
-      >
-        Quitter
-      </Link>
     </div>
   );
 }

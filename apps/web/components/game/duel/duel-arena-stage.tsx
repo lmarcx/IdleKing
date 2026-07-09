@@ -5,6 +5,9 @@ import Link from "next/link";
 import * as PIXI from "pixi.js";
 
 import { CombatHud } from "@/components/game/combat/combat-hud";
+import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
+import { createCombatFxManager, drawDashedRing, renderMeleeSweep } from "@/components/game/shared/combat-fx";
+import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { getResourceAssetPath } from "@/lib/resource-assets";
@@ -39,7 +42,6 @@ const RANGED_ATTACK_COOLDOWN_MS = 450;
 const PLAYER_PROJECTILE_MAX_RANGE = 620;
 const PLAYER_PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
-const SCARECROW_ASSET = "/assets/exploration/resurrected_scarecrow.png";
 
 type ActiveMeleeAttack = {
   ageMs: number;
@@ -175,83 +177,69 @@ function normalizeVector(vector: DuelVector, fallback: DuelVector = { x: 0, y: -
 
 function drawArenaWorld(container: PIXI.Container, mapWidth: number, mapHeight: number) {
   const background = new PIXI.Graphics();
-  background.rect(0, 0, mapWidth, mapHeight).fill(0x06080d);
+  background.rect(0, 0, mapWidth, mapHeight).fill(BW.black);
 
   for (let y = 0; y < mapHeight; y += 80) {
     for (let x = 0; x < mapWidth; x += 80) {
-      const tone = (x / 80 + y / 80) % 2 === 0 ? 0x10131c : 0x0b0e16;
-      background.rect(x, y, 80, 80).fill({ color: tone, alpha: 0.46 });
+      const tone = (x / 80 + y / 80) % 2 === 0 ? BW.gray0 : BW.black;
+      background.rect(x, y, 80, 80).fill({ color: tone, alpha: 0.6 });
     }
   }
 
   for (let x = 0; x <= mapWidth; x += 120) {
-    background.moveTo(x, 0).lineTo(x, mapHeight).stroke({ color: 0x6b5b92, alpha: 0.14, width: 1 });
+    background.moveTo(x, 0).lineTo(x, mapHeight).stroke({ color: BW.gray2, alpha: 0.18, width: 1 });
   }
 
   for (let y = 0; y <= mapHeight; y += 120) {
-    background.moveTo(0, y).lineTo(mapWidth, y).stroke({ color: 0x6b5b92, alpha: 0.14, width: 1 });
+    background.moveTo(0, y).lineTo(mapWidth, y).stroke({ color: BW.gray2, alpha: 0.18, width: 1 });
   }
 
   const center = { x: mapWidth / 2, y: mapHeight / 2 };
-  background.circle(center.x, center.y, 520).stroke({ color: 0xc9a654, alpha: 0.22, width: 2 });
-  background.circle(center.x, center.y, 230).stroke({ color: 0xc9a654, alpha: 0.28, width: 2 });
-  background.circle(center.x, center.y, 128).stroke({ color: 0x38bdf8, alpha: 0.22, width: 1 });
-  background.moveTo(center.x - 420, center.y).lineTo(center.x + 420, center.y).stroke({ color: 0xc9a654, alpha: 0.18, width: 1 });
-  background.moveTo(center.x, center.y - 420).lineTo(center.x, center.y + 420).stroke({ color: 0xc9a654, alpha: 0.18, width: 1 });
+  background.circle(center.x, center.y, 520).stroke({ color: BW.gray3, alpha: 0.3, width: 2 });
+  background.circle(center.x, center.y, 230).stroke({ color: BW.gray4, alpha: 0.34, width: 2 });
+  background.circle(center.x, center.y, 128).stroke({ color: BW.white, alpha: 0.24, width: 1 });
+  background.moveTo(center.x - 420, center.y).lineTo(center.x + 420, center.y).stroke({ color: BW.gray3, alpha: 0.22, width: 1 });
+  background.moveTo(center.x, center.y - 420).lineTo(center.x, center.y + 420).stroke({ color: BW.gray3, alpha: 0.22, width: 1 });
 
   container.addChild(background);
 }
 
-function drawPlayer() {
-  const player = new PIXI.Graphics();
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).fill(0x1a2330);
-  player.roundRect(-PLAYER_SIZE / 2, -PLAYER_SIZE / 2, PLAYER_SIZE, PLAYER_SIZE, 10).stroke({
-    color: 0xf0c26a,
-    width: 2,
-  });
-  player.rect(-8, -18, 16, 12).fill(0xf0c26a);
-  player.rect(-14, -4, 28, 24).fill(0x304457);
-  player.circle(-8, -10, 3).fill(0x79f5d4);
-  player.circle(8, -10, 3).fill(0x79f5d4);
-  return player;
-}
 
-function drawBoss(texture: PIXI.Texture) {
+function drawBoss() {
   const container = new PIXI.Container();
   const shadow = new PIXI.Graphics();
   const aura = new PIXI.Graphics();
-  const sprite = new PIXI.Sprite(texture);
   const displayHeight = 210;
-  const scale = displayHeight / texture.height;
+  const figure = createFigureGraphics("hostile");
 
-  shadow.ellipse(0, 64, 118, 34).fill({ color: 0x000000, alpha: 0.46 });
-  aura.circle(0, 18, 118).fill({ color: 0x7f1d1d, alpha: 0.1 });
-  aura.circle(0, 18, 76).stroke({ color: 0xf0c26a, alpha: 0.2, width: 3 });
-  sprite.anchor.set(0.5, 0.78);
-  sprite.scale.set(scale);
+  shadow.ellipse(0, 64, 118, 34).fill({ color: BW.gray1, alpha: 0.5 });
+  // Redrawn every frame by renderBoss (rotating dashed rings) — only anchor it here.
+  aura.position.set(0, 18);
+  figure.scale.set(figureScaleFor(displayHeight));
+  figure.position.y = 64;
 
-  container.addChild(shadow, aura, sprite);
-  return { aura, container, sprite };
+  container.addChild(shadow, aura, figure);
+  return { aura, container, sprite: figure };
 }
 
 function drawPlayerProjectile(): PIXI.Graphics {
   const graphic = new PIXI.Graphics();
-  graphic.circle(0, 0, 8).fill({ color: 0x7df7ff, alpha: 0.92 });
-  graphic.circle(0, 0, 14).fill({ color: 0x62d8ff, alpha: 0.22 });
+  graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
+  graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
   return graphic;
 }
 
-function drawBossProjectile(color = 0xd95c36): PIXI.Graphics {
+function drawBossProjectile(color: number = BW.gray4): PIXI.Graphics {
   const graphic = new PIXI.Graphics();
-  graphic.circle(0, 0, 13).fill({ color, alpha: 0.96 });
-  graphic.circle(0, 0, 22).stroke({ color: 0xffd58a, alpha: 0.34, width: 2 });
+  graphic.circle(0, 0, 13).stroke({ color, alpha: 0.96, width: 3 });
+  graphic.circle(0, 0, 5).fill({ color, alpha: 0.9 });
   return graphic;
 }
 
 function drawColumnLane(x: number, mapHeight: number): PIXI.Graphics {
   const lane = new PIXI.Graphics();
-  lane.rect(-34, 0, 68, mapHeight).fill({ color: 0x7dd3fc, alpha: 0.055 });
-  lane.rect(-34, 0, 68, mapHeight).stroke({ color: 0x7dd3fc, alpha: 0.18, width: 2 });
+  lane.rect(-34, 0, 68, mapHeight).fill({ color: BW.white, alpha: 0.05 });
+  lane.rect(-34, 0, 68, mapHeight).stroke({ color: BW.white, alpha: 0.25, width: 2 });
   lane.position.set(x, 0);
   return lane;
 }
@@ -376,7 +364,13 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     const attackLayer = new PIXI.Container();
     const entityLayer = new PIXI.Container();
     const fxLayer = new PIXI.Container();
-    const player = drawPlayer();
+    const playerVisual = createPlayerVisual({
+      displayHeight: 88,
+      aimIndicator: true,
+      aimRadius: 44,
+      aimCenterY: -28,
+    });
+    const player = playerVisual.container;
     const bossPosition = {
       x: mapWidth / 2,
       y: Math.max(250, mapHeight * 0.24),
@@ -393,6 +387,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       pointerWorldPosition: { ...playerPosition },
     };
     const random = createDuelRng("epouvantail-ressuscite");
+    const duelFx = createCombatFxManager(fxLayer);
     const meleeAttacks: ActiveMeleeAttack[] = [];
     const playerProjectiles: PlayerProjectile[] = [];
     const bossProjectiles: BossProjectile[] = [];
@@ -474,13 +469,20 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
 
     function damageBoss(amount: number) {
       if (bossHp <= 0) return;
+      const isLethal = amount >= bossHp;
       bossHp = Math.max(0, bossHp - amount);
       bossHitFlashMs = RESURRECTED_SCARECROW_BOSS.hitFlashMs;
+      duelFx.spawnImpactBurst(
+        { x: bossPosition.x, y: bossPosition.y - 20 },
+        { lethal: isLethal, radius: 34 }
+      );
       if (bossHp <= 0) {
         pressedKeys.clear();
-        activeSpecial = null;
+        cleanupActiveSpecial();
         cleanupBossProjectiles();
         cleanupRainImpacts();
+        duelFx.spawnDeathBurst({ x: bossPosition.x, y: bossPosition.y }, 64);
+        duelFx.spawnShockwave({ x: bossPosition.x, y: bossPosition.y + 30 }, 190, BW.white);
         applyRewardsOnce();
       }
       syncHud(true);
@@ -488,8 +490,13 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
 
     function damagePlayer(amount: number) {
       if (playerHp <= 0 || bossHp <= 0) return;
+      const isLethal = amount >= playerHp;
       playerHp = Math.max(0, playerHp - amount);
       playerHitFlashMs = 180;
+      duelFx.spawnImpactBurst(
+        { x: playerPosition.x, y: playerPosition.y - 24 },
+        { lethal: isLethal, radius: 24 }
+      );
       if (playerHp <= 0) {
         pressedKeys.clear();
         resetHeldMouseButtons();
@@ -529,12 +536,14 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       const canvasBounds = app.canvas.getBoundingClientRect();
       if (canvasBounds.width <= 0 || canvasBounds.height <= 0) return;
 
-      const rendererWidth = app.renderer.width / app.renderer.resolution;
-      const rendererHeight = app.renderer.height / app.renderer.resolution;
-      const scaleX = rendererWidth / canvasBounds.width;
-      const scaleY = rendererHeight / canvasBounds.height;
-      mouseInput.pointerWorldPosition.x = (event.clientX - canvasBounds.left) * scaleX - world.position.x;
-      mouseInput.pointerWorldPosition.y = (event.clientY - canvasBounds.top) * scaleY - world.position.y;
+      // clientX/clientY and getBoundingClientRect are both in CSS pixels, and
+      // Pixi's resizeTo keeps the canvas's CSS size equal to its logical stage
+      // size — no device-pixel-ratio scaling belongs in this conversion. Cross
+      //-referencing app.renderer.width/resolution here (a separate, ResizeObserver
+      // -driven measurement) used to drift a frame or a few subpixels out of sync
+      // with getBoundingClientRect on Firefox, throwing the aim off from the cursor.
+      mouseInput.pointerWorldPosition.x = event.clientX - canvasBounds.left - world.position.x;
+      mouseInput.pointerWorldPosition.y = event.clientY - canvasBounds.top - world.position.y;
       hasPointerWorldPosition = true;
       updatePlayerFacing({
         x: mouseInput.pointerWorldPosition.x - playerPosition.x,
@@ -698,7 +707,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       const projectile: BossProjectile = {
         damage: RESURRECTED_SCARECROW_BOSS.columnDamage,
         direction: { x: 0, y: 1 },
-        graphic: drawBossProjectile(column.label === "fast" ? 0xef4444 : column.label === "medium" ? 0xf59e0b : 0x38bdf8),
+        graphic: drawBossProjectile(column.label === "fast" ? BW.white : column.label === "medium" ? BW.gray3 : BW.gray2),
         position: { x: mapWidth * column.xRatio, y: -30 },
         radius: RESURRECTED_SCARECROW_BOSS.columnProjectileRadius,
         speed: column.speed,
@@ -723,6 +732,8 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       rainImpacts.push(impact);
       warningLayer.addChild(graphic);
       graphic.position.set(target.x, target.y);
+      // Converging dashed ring reads the incoming impact timing.
+      duelFx.spawnWindupRing({ ...target }, impact.radius, impact.warningMs, { color: BW.gray4 });
     }
 
     function startSpecial(kind: DuelBossSpecialKind) {
@@ -896,6 +907,10 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         projectile.position.y += projectile.direction.y * step;
         projectile.distanceTravelled += step;
 
+        if (Math.floor(projectile.distanceTravelled / 36) > Math.floor((projectile.distanceTravelled - step) / 36)) {
+          duelFx.spawnTrailDot({ ...projectile.position }, 9);
+        }
+
         const hitBoss = isCircleCollision(
           projectile.position,
           projectile.radius,
@@ -973,8 +988,13 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       const deltaSeconds = deltaMs / 1000;
       for (let index = bossProjectiles.length - 1; index >= 0; index -= 1) {
         const projectile = bossProjectiles[index];
-        projectile.position.x += projectile.direction.x * projectile.speed * deltaSeconds;
-        projectile.position.y += projectile.direction.y * projectile.speed * deltaSeconds;
+        const step = projectile.speed * deltaSeconds;
+        projectile.position.x += projectile.direction.x * step;
+        projectile.position.y += projectile.direction.y * step;
+
+        if (Math.random() < step / 52) {
+          duelFx.spawnTrailDot({ ...projectile.position }, 8, BW.gray2);
+        }
 
         const hitPlayer = isCircleCollision(projectile.position, projectile.radius, playerPosition, PLAYER_RADIUS);
         const isOutOfBounds =
@@ -1003,6 +1023,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         impact.ageMs += deltaMs;
         if (!impact.hasImpacted && impact.ageMs >= impact.warningMs) {
           impact.hasImpacted = true;
+          duelFx.spawnShockwave({ ...impact.position }, impact.radius * 1.15);
           if (isCircleCollision(impact.position, impact.radius, playerPosition, PLAYER_RADIUS)) {
             damagePlayer(impact.damage);
           }
@@ -1017,18 +1038,12 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
     function renderPlayerAttacks() {
       for (const attack of meleeAttacks) {
         const progress = clamp(attack.ageMs / attack.durationMs, 0, 1);
-        const angle = Math.atan2(attack.direction.y, attack.direction.x);
-        const alpha = 0.62 * (1 - progress);
-
-        attack.graphic.clear();
-        attack.graphic
-          .moveTo(0, 0)
-          .arc(0, 0, MELEE_RANGE, -0.72, 0.72)
-          .lineTo(0, 0)
-          .fill({ color: 0xf0c26a, alpha: alpha * 0.42 });
-        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: 0xfff1b8, alpha, width: 5 });
+        renderMeleeSweep(attack.graphic, progress, {
+          halfAngle: MELEE_ATTACK_HALF_ANGLE_RADIANS,
+          range: MELEE_RANGE,
+        });
         attack.graphic.position.set(attack.position.x, attack.position.y);
-        attack.graphic.rotation = angle;
+        attack.graphic.rotation = Math.atan2(attack.direction.y, attack.direction.x);
       }
 
       for (const projectile of playerProjectiles) {
@@ -1046,14 +1061,47 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       for (const impact of rainImpacts) {
         impact.graphic.clear();
         if (!impact.hasImpacted) {
+          // Fixed danger zone; the converging windup ring animates on top.
           const progress = clamp(impact.ageMs / impact.warningMs, 0, 1);
-          const radius = impact.radius * (0.28 + progress * 0.72);
-          impact.graphic.circle(0, 0, radius).fill({ color: 0xf97316, alpha: 0.12 + progress * 0.18 });
-          impact.graphic.circle(0, 0, radius).stroke({ color: 0xffd58a, alpha: 0.38 + progress * 0.34, width: 3 });
+          impact.graphic.circle(0, 0, impact.radius).fill({ color: BW.gray2, alpha: 0.08 + progress * 0.16 });
+          impact.graphic.circle(0, 0, impact.radius).stroke({ color: BW.gray4, alpha: 0.3 + progress * 0.4, width: 2 });
         } else {
           const progress = clamp((impact.ageMs - impact.warningMs) / 230, 0, 1);
-          impact.graphic.circle(0, 0, impact.radius * (1 + progress * 0.18)).fill({ color: 0xffd58a, alpha: 0.34 * (1 - progress) });
-          impact.graphic.circle(0, 0, impact.radius * 0.58).fill({ color: 0xef4444, alpha: 0.26 * (1 - progress) });
+          impact.graphic.circle(0, 0, impact.radius * (1 + progress * 0.18)).fill({ color: BW.gray4, alpha: 0.34 * (1 - progress) });
+          impact.graphic.circle(0, 0, impact.radius * 0.58).fill({ color: BW.white, alpha: 0.3 * (1 - progress) });
+        }
+      }
+    }
+
+    function renderActiveSpecial() {
+      if (!activeSpecial || activeSpecial.kind !== "columns") return;
+      const windupMs = RESURRECTED_SCARECROW_BOSS.specialWindupMs;
+      const elapsed = activeSpecial.elapsedMs;
+      const inWindup = elapsed < windupMs;
+
+      for (const lane of activeSpecial.lanes) {
+        lane.clear();
+        if (inWindup) {
+          // Strobe accelerates as the volley approaches.
+          const progress = elapsed / windupMs;
+          const strobe = 0.5 + Math.sin(elapsed * (0.012 + progress * 0.02)) * 0.5;
+          lane.rect(-34, 0, 68, mapHeight).fill({ alpha: 0.03 + strobe * 0.05, color: BW.white });
+          lane
+            .rect(-34, 0, 68, mapHeight)
+            .stroke({ alpha: 0.18 + strobe * 0.26 + progress * 0.24, color: BW.white, width: 2 });
+          continue;
+        }
+
+        // Live lane — chevrons flow downward with the projectiles.
+        lane.rect(-34, 0, 68, mapHeight).fill({ alpha: 0.05, color: BW.white });
+        lane.rect(-34, 0, 68, mapHeight).stroke({ alpha: 0.3, color: BW.white, width: 2 });
+        const offset = (elapsed * 0.4) % 96;
+        for (let y = offset; y < mapHeight; y += 96) {
+          lane
+            .moveTo(-15, y)
+            .lineTo(0, y + 13)
+            .lineTo(15, y)
+            .stroke({ alpha: 0.34, color: BW.gray4, width: 2 });
         }
       }
     }
@@ -1062,16 +1110,35 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       if (!bossVisual) return;
       bossHitFlashMs = Math.max(0, bossHitFlashMs - deltaMs);
       const flash = bossHitFlashMs > 0;
-      bossVisual.sprite.tint = flash ? 0xfff1b8 : 0xffffff;
+      bossVisual.sprite.tint = flash ? 0x555555 : 0xffffff;
       bossVisual.sprite.x = flash ? Math.sin(bossHitFlashMs * 0.45) * 3 : 0;
-      bossVisual.aura.alpha = bossHp <= 0 ? 0.04 : 0.9;
       bossVisual.container.alpha = bossHp <= 0 ? 0.42 : 1;
+
+      // Living aura — counter-rotating dashed rings, agitated during specials.
+      const agitation = activeSpecial ? 1.8 : 1;
+      bossVisual.aura.clear();
+      if (bossHp > 0) {
+        drawDashedRing(bossVisual.aura, 112, elapsedFightMs * 0.0006 * agitation, 9, {
+          alpha: 0.3 + (activeSpecial ? 0.2 : 0),
+          color: BW.gray2,
+          width: 2,
+        });
+        drawDashedRing(bossVisual.aura, 78, -elapsedFightMs * 0.0009 * agitation, 6, {
+          alpha: 0.22 + (activeSpecial ? 0.24 : 0),
+          color: activeSpecial ? BW.white : BW.gray3,
+          width: 3,
+        });
+      }
     }
 
-    function renderPlayer(deltaMs: number) {
+    function renderPlayer(deltaMs: number, nowMs: number, moving: boolean) {
       playerHitFlashMs = Math.max(0, playerHitFlashMs - deltaMs);
-      player.tint = playerHitFlashMs > 0 ? 0xff7272 : 0xffffff;
-      player.rotation = Math.atan2(playerFacing.y, playerFacing.x) + Math.PI / 2;
+      playerVisual.update({
+        elapsedSeconds: nowMs / 1000,
+        facing: playerFacing,
+        moving,
+        flashTint: playerHitFlashMs > 0 ? 0x666666 : null,
+      });
     }
 
     function cleanupPlayerAttacks() {
@@ -1101,13 +1168,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         return;
       }
 
-      const bossTexture = await PIXI.Assets.load(SCARECROW_ASSET);
-      if (cancelled) {
-        destroyPixiApp();
-        return;
-      }
-
-      bossVisual = drawBoss(bossTexture);
+      bossVisual = drawBoss();
       canvasElement = app.canvas;
       hostElement.appendChild(canvasElement);
       canvasElement.addEventListener("contextmenu", handleContextMenu);
@@ -1176,11 +1237,13 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
         updateBossAi(deltaMs);
         updateBossProjectiles(deltaMs);
         updateRainImpacts(deltaMs);
+        duelFx.update(deltaMs);
         renderPlayerAttacks();
         renderBossProjectiles();
         renderRainImpacts();
+        renderActiveSpecial();
         renderBoss(deltaMs);
-        renderPlayer(deltaMs);
+        renderPlayer(deltaMs, now, (directionX !== 0 || directionY !== 0) && playerHp > 0 && bossHp > 0);
 
         const screenWidth = app.renderer.width / app.renderer.resolution;
         const screenHeight = app.renderer.height / app.renderer.resolution;
@@ -1223,6 +1286,7 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
       cleanupPlayerAttacks();
       cleanupBossProjectiles();
       cleanupRainImpacts();
+      duelFx.cleanup();
       if (initialized) destroyPixiApp();
     };
   }, [combatLoadout, dispatch, mapHeight, mapWidth, playerMaxHp, showResourceGain]);
@@ -1230,20 +1294,22 @@ export function DuelArenaStage({ mapHeight, mapWidth }: DuelArenaStageProps) {
   return (
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
-      <CombatHud
-        bossHealth={{ current: hudState.bossHp, max: RESURRECTED_SCARECROW_BOSS.hp }}
-        bossLabel="Epouvantail Ressuscite"
-        mode="duel"
-        playerEnergy={{ current: 100, max: 100 }}
-        playerHealth={{ current: hudState.playerHp, max: playerMaxHp }}
-        skillBar={{
-          combatLoadout: skillsState.combatLoadout,
-          cooldowns: skillsState.cooldowns,
-          currentTimeMs: skillsState.currentTimeMs,
-        }}
-        subtitle="Boss d'entrainement"
-        title="Epouvantail Ressuscite"
-      />
+      {hudState.outcome === "fighting" ? (
+        <CombatHud
+          bossHealth={{ current: hudState.bossHp, max: RESURRECTED_SCARECROW_BOSS.hp }}
+          bossLabel="Epouvantail Ressuscite"
+          mode="duel"
+          playerEnergy={{ current: 100, max: 100 }}
+          playerHealth={{ current: hudState.playerHp, max: playerMaxHp }}
+          skillBar={{
+            combatLoadout: skillsState.combatLoadout,
+            cooldowns: skillsState.cooldowns,
+            currentTimeMs: skillsState.currentTimeMs,
+          }}
+          subtitle="Boss d'entrainement"
+          title="Epouvantail Ressuscite"
+        />
+      ) : null}
 
       {hudState.outcome === "victory" ? (
         <DuelVictoryScreen durationMs={hudState.durationMs} playerHp={hudState.playerHp} playerMaxHp={playerMaxHp} />

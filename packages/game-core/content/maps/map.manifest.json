@@ -1,0 +1,13 @@
+{
+  "maps": [
+    {
+      "id": "test_map_01",
+      "name": "Test Map 01",
+      "path": "custom/test_map_01.map.json",
+      "world": "kingdom",
+      "mode": "story",
+      "chapter": "chapter_01",
+      "entry": true
+    }
+  ]
+}

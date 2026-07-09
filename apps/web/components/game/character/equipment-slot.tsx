@@ -6,25 +6,32 @@ import { cn } from "@/lib/utils";
 
 import { EquipmentTooltip } from "./equipment-tooltip";
 import {
+  EQUIPMENT_DRAG_MIME,
   getEquipmentRarityClass,
   getSlotIconPath,
   type CharacterEquipment,
+  type EquipmentDragPayload,
   type EquipmentSlotDefinition,
   type EquipmentSlotId,
 } from "./types";
 
 export function EquipmentSlot({
   item,
+  onDelete,
+  onDropItem,
   onUnequip,
   slot,
 }: {
   item?: CharacterEquipment;
+  onDelete?: (item: CharacterEquipment) => void;
+  onDropItem?: (payload: EquipmentDragPayload) => void;
   onUnequip: (slot: EquipmentSlotId) => void;
   slot: EquipmentSlotDefinition;
 }) {
   const slotRef = useRef<HTMLButtonElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const icon = item?.icon ?? getSlotIconPath(slot.id);
 
   const updateAnchorRect = useCallback(() => {
@@ -72,9 +79,29 @@ export function EquipmentSlot({
         "group relative grid h-full w-full aspect-square place-items-center rounded-lg border border-border/70 bg-black/25 p-1.5",
         "shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors",
         "hover:border-amber-300/45 hover:bg-muted/30 focus-visible:border-amber-300/55 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35",
-        getEquipmentRarityClass(item?.rarity)
+        getEquipmentRarityClass(item?.rarity),
+        isDragOver && "border-emerald-300/70 bg-emerald-300/10"
       )}
       onBlur={closeTooltip}
+      onDragLeave={() => setIsDragOver(false)}
+      onDragOver={(event) => {
+        if (!onDropItem) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setIsDragOver(true);
+      }}
+      onDrop={(event) => {
+        setIsDragOver(false);
+        if (!onDropItem) return;
+        event.preventDefault();
+        const raw = event.dataTransfer.getData(EQUIPMENT_DRAG_MIME);
+        if (!raw) return;
+        try {
+          onDropItem(JSON.parse(raw) as EquipmentDragPayload);
+        } catch {
+          // malformed drag payload, ignore
+        }
+      }}
       onFocus={updateAnchorRect}
       onMouseEnter={() => {
         clearCloseTimer();
@@ -104,6 +131,7 @@ export function EquipmentSlot({
           onUnequip(slot.id);
           setAnchorRect(null);
         }}
+        onDelete={onDelete && item ? onDelete : undefined}
         onMouseEnter={clearCloseTimer}
         onMouseLeave={closeTooltip}
         slotLabel={slot.label}
