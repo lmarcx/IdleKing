@@ -41,7 +41,16 @@ export const TEST_MAP_01: PlayableMap = {
   objects: [
     { id: "tree_01", assetId: "tree_simple_01", kind: "nature", x: 96, y: 96, rotation: 0, interaction: { type: "inspect", label: "Old tree" } },
     { id: "rock_01", assetId: "rock_simple_01", kind: "nature", x: 460, y: 116, rotation: 0 },
-    { id: "chest_01", assetId: "chest_simple_01", kind: "object", x: 486, y: 326, rotation: 0, interaction: { type: "inspect", target: "starter_chest", label: "Open chest" } },
+    {
+      id: "chest_01",
+      assetId: "chest_simple_01",
+      kind: "object",
+      x: 486,
+      y: 326,
+      rotation: 0,
+      interaction: { type: "inspect", target: "starter_chest", label: "Open chest" },
+      systemInteraction: { interactionType: "custom_trigger", interactionTargetId: "starter_chest", promptLabel: "Open chest", radius: 44 },
+    },
   ],
   buildings: [
     {
@@ -52,10 +61,21 @@ export const TEST_MAP_01: PlayableMap = {
       y: 128,
       collision: { type: "box", x: 176, y: 148, width: 80, height: 60 },
       interaction: { type: "open_menu", target: "house_01_menu", label: "Enter house" },
+      systemInteraction: { interactionType: "open_building_modal", interactionTargetId: "house_01_menu", promptLabel: "Enter house", radius: 56 },
     },
   ],
   npcs: [
-    { id: "npc_mira", assetId: "villager_simple_01", name: "Mira", type: "guide", behavior: "dialogue_only", interaction: "dialogue", x: 246, y: 292 },
+    {
+      id: "npc_mira",
+      assetId: "villager_simple_01",
+      name: "Mira",
+      type: "guide",
+      behavior: "dialogue_only",
+      interaction: "dialogue",
+      x: 246,
+      y: 292,
+      systemInteraction: { interactionType: "start_dialogue", interactionTargetId: "npc_mira_intro", promptLabel: "Talk to Mira", radius: 52 },
+    },
   ],
   enemies: [
     {

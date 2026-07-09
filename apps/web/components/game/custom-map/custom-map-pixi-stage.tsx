@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
+import { toast } from "sonner";
 
 import {
   GROUND_TEXTURES,
+  collectMapInteractables,
   createAssetRegistry,
+  describeInteractionFeedback,
+  findNearestInteractable,
   getGroundTexture,
   loadPlayableMap,
   type GeometricAsset,
   type PlayableMap,
   type PrimitivePart,
+  type ResolvedInteractable,
 } from "@idleking/game-core/level-editor";
 
 type Vector2 = { x: number; y: number };
@@ -92,6 +97,7 @@ function drawTileDetail(g: PIXI.Graphics, textureId: string, x: number, y: numbe
 
 export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const [nearbyPrompt, setNearbyPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     const nullableHost = hostRef.current;
@@ -100,6 +106,7 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
 
     const registry = createAssetRegistry();
     const loaded = loadPlayableMap(map);
+    const interactables = collectMapInteractables(map);
     const app = new PIXI.Application();
     const world = new PIXI.Container();
     const labels = new PIXI.Container();
@@ -107,6 +114,7 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
     const playerPosition = { ...(map.spawns.find((spawn) => spawn.id === "player_start") ?? map.spawns[0]) };
     const player = new PIXI.Graphics();
     let destroyed = false;
+    let currentNearby: ResolvedInteractable | null = null;
 
     function drawTiles() {
       const g = new PIXI.Graphics();
@@ -249,10 +257,21 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
         -Math.min(Math.max(playerPosition.y - screenHeight / 2, 0), Math.max(0, loaded.heightPx - screenHeight)),
       );
       labels.position.copyFrom(world.position);
+
+      const nearest = findNearestInteractable(interactables, playerPosition);
+      if (nearest?.id !== currentNearby?.id) {
+        currentNearby = nearest;
+        setNearbyPrompt(nearest ? nearest.interaction.promptLabel : null);
+      }
     }
 
     function onKeyDown(event: KeyboardEvent) {
       pressed.add(event.code);
+      if (event.code === "KeyF" && !event.repeat) {
+        if (currentNearby) {
+          toast(describeInteractionFeedback(currentNearby.interaction));
+        }
+      }
     }
 
     function onKeyUp(event: KeyboardEvent) {
@@ -297,6 +316,14 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
   return (
     <div className="relative h-full min-h-[620px] w-full">
       <div ref={hostRef} className="h-full min-h-[620px] w-full" />
+      {nearbyPrompt ? (
+        <div
+          className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-md border border-zinc-700 bg-black/85 px-3 py-2 font-ik-menu text-xs text-zinc-100 shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
+          data-testid="interaction-prompt"
+        >
+          Press F — {nearbyPrompt}
+        </div>
+      ) : null}
       <div className="pointer-events-none absolute right-4 top-4 z-10 w-64 rounded-md border border-zinc-700 bg-black/82 p-3 font-ik-body text-xs text-zinc-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
         <div className="font-ik-menu text-[0.65rem] text-zinc-400">Map Debug</div>
         <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">

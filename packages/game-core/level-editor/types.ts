@@ -45,6 +45,26 @@ export type AssetInteraction = Readonly<{
   label?: string;
 }>;
 
+// System-routing interaction: which concrete game system/screen an entity opens, as opposed to
+// AssetInteraction's narrative/UX "flavor". Data-driven so a Pixi stage never needs bespoke code
+// per building — it just resolves proximity + reads interactionType/interactionTargetId.
+export type InteractionType =
+  | "open_building_modal"
+  | "open_time_gate"
+  | "open_market"
+  | "open_bank"
+  | "open_forge"
+  | "start_dialogue"
+  | "start_level"
+  | "custom_trigger";
+
+export type InteractionDefinition = Readonly<{
+  interactionType: InteractionType;
+  interactionTargetId: string;
+  promptLabel: string;
+  radius: number;
+}>;
+
 export type GeometricAsset = Readonly<{
   id: string;
   name: string;
@@ -93,6 +113,7 @@ export type MapObject = Readonly<{
   y: number;
   rotation: number;
   interaction?: AssetInteraction | null;
+  systemInteraction?: InteractionDefinition | null;
 }>;
 
 export type BuildingFunction =
@@ -112,6 +133,7 @@ export type MapBuilding = Readonly<{
   y: number;
   collision: CollisionShape | null;
   interaction?: AssetInteraction | null;
+  systemInteraction?: InteractionDefinition | null;
 }>;
 
 export type NpcBehavior = "idle" | "patrol" | "merchant" | "quest_giver" | "dialogue_only";
@@ -124,6 +146,7 @@ export type MapNpc = Readonly<{
   type: string;
   behavior: NpcBehavior;
   interaction: NpcInteractionKind;
+  systemInteraction?: InteractionDefinition | null;
   x: number;
   y: number;
 }>;
