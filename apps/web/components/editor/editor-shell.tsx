@@ -358,7 +358,11 @@ export function EditorShell() {
       toast.error(message);
       return;
     }
+    saveDocument({ id: parsed.id, type: "playable_map", title: parsed.name }, parsed);
+    refreshDocumentIndex();
     setMap(parsed);
+    setCurrentMapOrigin(undefined);
+    setSelection({ kind: "spawn", id: parsed.spawns[0]?.id ?? "player_start" });
     setLastSaveMessage(successMessage);
     toast.success(successMessage);
   }
@@ -369,6 +373,45 @@ export function EditorShell() {
       setLastSaveMessage(message);
       toast.error(message);
     });
+  }
+
+  function exportKingdomMap() {
+    downloadJson(`${kingdomMap.id}.kingdom.json`, kingdomMap);
+  }
+
+  function importKingdomMap(file: File) {
+    file
+      .text()
+      .then((raw) => {
+        let parsed: KingdomMapDefinition;
+        try {
+          parsed = JSON.parse(raw) as KingdomMapDefinition;
+        } catch {
+          const message = "Invalid JSON file — could not parse Kingdom Draft.";
+          setLastSaveMessage(message);
+          toast.error(message);
+          return;
+        }
+        const validation = validateKingdomMapDefinition(parsed);
+        if (!validation.ok) {
+          const message = `Invalid Kingdom Draft: ${validation.errors.join("; ")}`;
+          setLastSaveMessage(message);
+          toast.error(message);
+          return;
+        }
+        saveDocument({ id: parsed.id, type: "kingdom_draft", title: parsed.name }, parsed);
+        refreshDocumentIndex();
+        setKingdomMap(parsed);
+        setSelectedKingdomBuildingId(null);
+        const message = `Kingdom Draft "${parsed.name}" imported.`;
+        setLastSaveMessage(message);
+        toast.success(message);
+      })
+      .catch(() => {
+        const message = "Could not read the selected file.";
+        setLastSaveMessage(message);
+        toast.error(message);
+      });
   }
 
   function saveAsset() {
@@ -694,8 +737,10 @@ export function EditorShell() {
           activeDocument={activeDocument}
           lastSaveMessage={lastSaveMessage}
           mode={mode}
+          onExportKingdomMap={exportKingdomMap}
           onExportMap={() => downloadJson(`${map.id}.map.json`, map)}
           onImportAsset={importAsset}
+          onImportKingdomMap={importKingdomMap}
           onImportMap={importMap}
           onLoadAssets={loadAssets}
           onLoadKingdomMap={loadKingdomMap}

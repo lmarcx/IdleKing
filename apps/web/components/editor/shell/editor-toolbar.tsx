@@ -44,8 +44,10 @@ export function EditorToolbar({
   activeDocument,
   lastSaveMessage,
   mode,
+  onExportKingdomMap,
   onExportMap,
   onImportAsset,
+  onImportKingdomMap,
   onImportMap,
   onLoadAssets,
   onLoadKingdomMap,
@@ -62,8 +64,10 @@ export function EditorToolbar({
   activeDocument: ActiveDocument;
   lastSaveMessage: string;
   mode: EditorMode;
+  onExportKingdomMap: () => void;
   onExportMap: () => void;
   onImportAsset: (file: File) => void;
+  onImportKingdomMap: (file: File) => void;
   onImportMap: (file: File) => void;
   onLoadAssets: () => void;
   onLoadKingdomMap: () => void;
@@ -149,6 +153,10 @@ export function EditorToolbar({
           <Button onClick={onLoadKingdomMap} size="sm" variant="outline">
             <FolderOpen className="mr-2 h-4 w-4" /> Load Kingdom Draft
           </Button>
+          <Button onClick={onExportKingdomMap} size="sm" variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Export JSON
+          </Button>
+          <HiddenFileInput accept=".json,.kingdom.json" label="Import Kingdom" onFile={onImportKingdomMap} />
           <span className="font-ik-menu text-[0.62rem] uppercase tracking-wide text-amber-200/70">
             Local draft only — not used by live runtime
           </span>
