@@ -48,11 +48,13 @@ export function EditorToolbar({
   onImportAsset,
   onImportMap,
   onLoadAssets,
+  onLoadKingdomMap,
   onLoadMap,
   onModeChange,
   onNewAsset,
   onNewMap,
   onSaveAsset,
+  onSaveKingdomMap,
   onSaveMap,
   onToolChange,
   tool,
@@ -64,11 +66,13 @@ export function EditorToolbar({
   onImportAsset: (file: File) => void;
   onImportMap: (file: File) => void;
   onLoadAssets: () => void;
+  onLoadKingdomMap: () => void;
   onLoadMap: () => void;
   onModeChange: (mode: EditorMode) => void;
   onNewAsset: () => void;
   onNewMap: () => void;
   onSaveAsset: () => void;
+  onSaveKingdomMap: () => void;
   onSaveMap: () => void;
   onToolChange: (tool: EditorTool) => void;
   tool: EditorTool;
@@ -138,9 +142,17 @@ export function EditorToolbar({
           <HiddenFileInput accept=".json,.asset.json" label="Import Asset" onFile={onImportAsset} />
         </>
       ) : mode === "kingdom" ? (
-        <span className="font-ik-menu text-xs uppercase tracking-wide text-amber-200/70">
-          Kingdom Draft has no save/load yet — edits are session-only
-        </span>
+        <>
+          <Button onClick={onSaveKingdomMap} size="sm" variant="outline">
+            <Save className="mr-2 h-4 w-4" /> Save Kingdom Draft
+          </Button>
+          <Button onClick={onLoadKingdomMap} size="sm" variant="outline">
+            <FolderOpen className="mr-2 h-4 w-4" /> Load Kingdom Draft
+          </Button>
+          <span className="font-ik-menu text-[0.62rem] uppercase tracking-wide text-amber-200/70">
+            Local draft only — not used by live runtime
+          </span>
+        </>
       ) : (
         <span className="font-ik-menu text-xs uppercase tracking-wide text-zinc-600">
           Nothing to save — this section is a placeholder

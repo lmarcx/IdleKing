@@ -21,6 +21,7 @@ import {
   type PlaceholderDocumentInfo,
   type Selection,
 } from "@/components/editor/shell/editor-shared";
+import { listDocuments, loadDocument, saveDocument, type EditorDocumentIndexEntry } from "@/lib/editor-document-store";
 import {
   ASSET_CREATOR_PRESETS,
   GROUND_TEXTURES,
@@ -32,6 +33,7 @@ import {
   getGroundTexture,
   getMapTile,
   getTopographyCellState,
+  validateKingdomMapDefinition,
   validatePlayableMap,
   type GeometricAsset,
   type GeometryShape,
@@ -49,7 +51,6 @@ import {
   type TopographyCellState,
 } from "@idleking/game-core/level-editor";
 
-const STORAGE_MAP_KEY = "aworlddreamt:level-editor-v0:map";
 const STORAGE_ASSETS_KEY = "aworlddreamt:level-editor-v0:assets";
 
 function createEmptyMap(): PlayableMap {
@@ -154,8 +155,10 @@ export function EditorShell() {
   const [mode, setMode] = useState<EditorMode>("level");
   const [placeholderDoc, setPlaceholderDoc] = useState<PlaceholderDocumentInfo | null>(null);
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
+  const [currentMapOrigin, setCurrentMapOrigin] = useState<string | undefined>(undefined);
   const [kingdomMap, setKingdomMap] = useState<KingdomMapDefinition>(() => KINGDOM_DRAFT_MAP);
   const [selectedKingdomBuildingId, setSelectedKingdomBuildingId] = useState<string | null>(null);
+  const [documentIndex, setDocumentIndex] = useState<EditorDocumentIndexEntry[]>([]);
   const [customAssets, setCustomAssets] = useState<GeometricAsset[]>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [tool, setTool] = useState<EditorTool>("brush");
@@ -173,6 +176,16 @@ export function EditorShell() {
     window.addEventListener("pointerup", stopPainting);
     return () => window.removeEventListener("pointerup", stopPainting);
   }, []);
+
+  useEffect(() => {
+    setDocumentIndex(listDocuments());
+  }, []);
+
+  function refreshDocumentIndex() {
+    setDocumentIndex(listDocuments());
+  }
+
+  const levelDocuments = useMemo(() => documentIndex.filter((entry) => entry.type === "playable_map"), [documentIndex]);
 
   const registry = useMemo(() => createAssetRegistry({ customAssets }), [customAssets]);
   const category = STEP_CATEGORY[activeStep];
@@ -193,12 +206,13 @@ export function EditorShell() {
 
   const activeDocument: ActiveDocument = useMemo(() => {
     if (mode === "level") {
-      return {
-        type: "playable_map",
-        id: map.id,
-        title: map.name,
-        status: map.id === "test_map_01" ? "Level — test map (playable route)" : "Level — local draft",
-      };
+      const status =
+        map.id === "test_map_01"
+          ? "Level — test map (playable route)"
+          : currentMapOrigin
+            ? `Level — sandbox (${currentMapOrigin})`
+            : "Level — local draft";
+      return { type: "playable_map", id: map.id, title: map.name, status };
     }
     if (mode === "assets") {
       return {
@@ -223,15 +237,30 @@ export function EditorShell() {
       status: "Not wired in Editor V2",
       note: placeholderDoc?.note,
     };
-  }, [mode, map.id, map.name, customAssets.length, kingdomMap.id, kingdomMap.name, placeholderDoc]);
+  }, [mode, map.id, map.name, currentMapOrigin, customAssets.length, kingdomMap.id, kingdomMap.name, placeholderDoc]);
 
-  function selectLevel() {
-    setMap(TEST_MAP_01);
-    setSelection({ kind: "spawn", id: "player_start" });
+  function selectLevel(id?: string) {
+    if (!id || id === "test_map_01") {
+      setMap(TEST_MAP_01);
+      setCurrentMapOrigin(undefined);
+      setSelection({ kind: "spawn", id: "player_start" });
+      setMode("level");
+      return;
+    }
+    const doc = loadDocument<PlayableMap>("playable_map", id);
+    if (!doc) {
+      toast.error(`Local level "${id}" could not be found.`);
+      return;
+    }
+    setMap(doc);
+    setCurrentMapOrigin(documentIndex.find((entry) => entry.id === id)?.origin);
+    setSelection({ kind: "spawn", id: doc.spawns[0]?.id ?? "player_start" });
     setMode("level");
   }
 
   function selectKingdomDraft() {
+    const doc = loadDocument<KingdomMapDefinition>("kingdom_draft", "kingdom_draft");
+    setKingdomMap(doc ?? KINGDOM_DRAFT_MAP);
     setMode("kingdom");
   }
 
@@ -252,19 +281,51 @@ export function EditorShell() {
       toast.error(message);
       return;
     }
-    localStorage.setItem(STORAGE_MAP_KEY, JSON.stringify(map));
+    saveDocument({ id: map.id, type: "playable_map", title: map.name, origin: currentMapOrigin }, map);
+    refreshDocumentIndex();
     setLastSaveMessage(`Map saved locally as ${map.id}.`);
     toast.success(`Map saved locally as ${map.id}.`);
   }
 
   function loadMap() {
-    const raw = localStorage.getItem(STORAGE_MAP_KEY);
-    if (!raw) {
-      setLastSaveMessage("No local map found.");
-      toast.error("No local map found. Save a map first, or import a .map.json file.");
+    const doc = loadDocument<PlayableMap>("playable_map", map.id);
+    if (!doc) {
+      const message = `No local save found for "${map.id}". Save it first, or import a .map.json file.`;
+      setLastSaveMessage(message);
+      toast.error(message);
       return;
     }
-    applyImportedMap(raw, "Local map loaded.");
+    setMap(doc);
+    setLastSaveMessage("Local map loaded.");
+    toast.success("Local map loaded.");
+  }
+
+  function saveKingdomMap() {
+    const validation = validateKingdomMapDefinition(kingdomMap);
+    if (!validation.ok) {
+      const message = `Cannot save: ${validation.errors.join("; ")}`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    saveDocument({ id: kingdomMap.id, type: "kingdom_draft", title: kingdomMap.name }, kingdomMap);
+    refreshDocumentIndex();
+    setLastSaveMessage(`Kingdom Draft saved locally as ${kingdomMap.id}.`);
+    toast.success(`Kingdom Draft saved locally as ${kingdomMap.id}.`);
+  }
+
+  function loadKingdomMap() {
+    const doc = loadDocument<KingdomMapDefinition>("kingdom_draft", kingdomMap.id);
+    if (!doc) {
+      const message = "No local save found for the Kingdom Draft yet.";
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    setKingdomMap(doc);
+    setSelectedKingdomBuildingId(null);
+    setLastSaveMessage("Kingdom Draft loaded.");
+    toast.success("Kingdom Draft loaded.");
   }
 
   function applyImportedMap(raw: string, successMessage: string) {
@@ -396,6 +457,17 @@ export function EditorShell() {
       buildings: current.buildings.filter((building) => building.id !== id),
     }));
     setSelectedKingdomBuildingId((current) => (current === id ? null : current));
+  }
+
+  function newMap() {
+    const id = `sandbox_level_${Date.now()}`;
+    const newMapDoc: PlayableMap = { ...createEmptyMap(), id, name: "New Level" };
+    saveDocument({ id, type: "playable_map", title: newMapDoc.name }, newMapDoc);
+    refreshDocumentIndex();
+    setMap(newMapDoc);
+    setCurrentMapOrigin(undefined);
+    setSelection({ kind: "spawn", id: "player_start" });
+    toast.success(`Created "${newMapDoc.name}".`);
   }
 
   function placeEntityAt(x: number, y: number) {
@@ -613,14 +685,16 @@ export function EditorShell() {
           onImportAsset={importAsset}
           onImportMap={importMap}
           onLoadAssets={loadAssets}
+          onLoadKingdomMap={loadKingdomMap}
           onLoadMap={loadMap}
           onModeChange={setMode}
           onNewAsset={() => {
             setAssetDraft(createAssetDraft());
             setMode("assets");
           }}
-          onNewMap={() => setMap(createEmptyMap())}
+          onNewMap={newMap}
           onSaveAsset={saveAsset}
+          onSaveKingdomMap={saveKingdomMap}
           onSaveMap={saveMap}
           onToolChange={setTool}
           tool={tool}
@@ -630,6 +704,7 @@ export function EditorShell() {
           <aside className="flex min-h-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-950">
             <ProjectTree
               activeDocument={activeDocument}
+              levelDocuments={levelDocuments}
               onSelectAssets={selectAssets}
               onSelectKingdomDraft={selectKingdomDraft}
               onSelectLevel={selectLevel}

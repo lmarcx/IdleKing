@@ -2,6 +2,7 @@
 
 import { ChevronRight } from "lucide-react";
 
+import type { EditorDocumentIndexEntry } from "@/lib/editor-document-store";
 import { cn } from "@/lib/utils";
 import type { ActiveDocument, PlaceholderDocumentInfo } from "./editor-shared";
 
@@ -29,10 +30,12 @@ const MODE_PLACEHOLDERS: readonly PlaceholderDocumentInfo[] = [
 
 function TreeButton({
   active,
+  className,
   label,
   onClick,
 }: {
   active: boolean;
+  className?: string;
   label: string;
   onClick: () => void;
 }) {
@@ -41,13 +44,14 @@ function TreeButton({
       aria-pressed={active}
       className={cn(
         "flex items-center gap-1.5 rounded px-2 py-1 text-left font-ik-body text-xs",
-        active ? "bg-zinc-100 text-zinc-950" : "text-zinc-300 hover:text-zinc-100"
+        active ? "bg-zinc-100 text-zinc-950" : "text-zinc-300 hover:text-zinc-100",
+        className
       )}
       onClick={onClick}
       type="button"
     >
       <ChevronRight className="h-3 w-3 shrink-0" />
-      {label}
+      <span className="truncate">{label}</span>
     </button>
   );
 }
@@ -63,17 +67,21 @@ function TreeSection({ children, title }: { children: React.ReactNode; title: st
 
 export function ProjectTree({
   activeDocument,
+  levelDocuments,
   onSelectAssets,
   onSelectKingdomDraft,
   onSelectLevel,
   onSelectPlaceholder,
 }: {
   activeDocument: ActiveDocument;
+  levelDocuments: readonly EditorDocumentIndexEntry[];
   onSelectAssets: () => void;
   onSelectKingdomDraft: () => void;
-  onSelectLevel: () => void;
+  onSelectLevel: (id?: string) => void;
   onSelectPlaceholder: (info: PlaceholderDocumentInfo) => void;
 }) {
+  const unassignedLevels = levelDocuments.filter((doc) => doc.id !== "test_map_01");
+
   return (
     <div className="grid gap-3 border-b border-zinc-800 p-3">
       <p className="font-ik-menu text-[0.65rem] uppercase tracking-wide text-zinc-300">Project</p>
@@ -108,8 +116,16 @@ export function ProjectTree({
         <TreeButton
           active={activeDocument.type === "playable_map" && activeDocument.id === "test_map_01"}
           label="Test Map 01"
-          onClick={onSelectLevel}
+          onClick={() => onSelectLevel()}
         />
+        {unassignedLevels.map((doc) => (
+          <TreeButton
+            active={activeDocument.type === "playable_map" && activeDocument.id === doc.id}
+            key={doc.id}
+            label={doc.title}
+            onClick={() => onSelectLevel(doc.id)}
+          />
+        ))}
       </TreeSection>
 
       <button
