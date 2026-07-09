@@ -4,3 +4,4 @@ dist/
 **/dist/
 **/.next/
 .next/
+.claude/worktrees/
