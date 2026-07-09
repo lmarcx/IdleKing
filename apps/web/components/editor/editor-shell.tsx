@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { AssetModePanel } from "@/components/editor/shell/asset-mode-panel";
@@ -152,6 +153,7 @@ function isCellUsable(map: PlayableMap, x: number, y: number): boolean {
 }
 
 export function EditorShell() {
+  const router = useRouter();
   const [mode, setMode] = useState<EditorMode>("level");
   const [placeholderDoc, setPlaceholderDoc] = useState<PlaceholderDocumentInfo | null>(null);
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
@@ -526,6 +528,22 @@ export function EditorShell() {
     toast.success(`Created "${newMapDoc.name}".`);
   }
 
+  function playtestCurrentDocument() {
+    if (map.id === "test_map_01") {
+      router.push("/game/custom-map/test_map_01");
+      return;
+    }
+    const validation = validatePlayableMap(map);
+    if (!validation.ok) {
+      toast.error(`Cannot playtest: ${validation.errors.join("; ")}`);
+      return;
+    }
+    saveDocument({ id: map.id, type: "playable_map", title: map.name, origin: currentMapOrigin }, map);
+    refreshDocumentIndex();
+    toast(`Saved "${map.name}" and launching it.`);
+    router.push(`/game/custom-map/local/${map.id}`);
+  }
+
   function placeEntityAt(x: number, y: number) {
     if (!isCellUsable(map, x, y)) {
       setLastSaveMessage("Cannot place on a dead or blocked cell.");
@@ -751,6 +769,7 @@ export function EditorShell() {
             setMode("assets");
           }}
           onNewMap={newMap}
+          onPlaytest={playtestCurrentDocument}
           onSaveAsset={saveAsset}
           onSaveKingdomMap={saveKingdomMap}
           onSaveMap={saveMap}

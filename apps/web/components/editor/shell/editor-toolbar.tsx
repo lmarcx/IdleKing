@@ -1,15 +1,11 @@
 "use client";
 
 import { useRef } from "react";
-import Link from "next/link";
-import { toast } from "sonner";
 import { Download, Eraser, FileJson, FolderOpen, Grid2X2, MousePointer2, Paintbrush, Plus, Save, Shapes, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ActiveDocument, EditorMode, EditorTool } from "./editor-shared";
-
-const PLAYTEST_NOTICE = "Play/Test launches test_map_01 for now — not your current draft.";
 
 const TOOLS = ["brush", "eraser", "select"] as const;
 const MODES: readonly { id: EditorMode; label: string }[] = [
@@ -55,6 +51,7 @@ export function EditorToolbar({
   onModeChange,
   onNewAsset,
   onNewMap,
+  onPlaytest,
   onSaveAsset,
   onSaveKingdomMap,
   onSaveMap,
@@ -75,6 +72,7 @@ export function EditorToolbar({
   onModeChange: (mode: EditorMode) => void;
   onNewAsset: () => void;
   onNewMap: () => void;
+  onPlaytest: () => void;
   onSaveAsset: () => void;
   onSaveKingdomMap: () => void;
   onSaveMap: () => void;
@@ -126,14 +124,19 @@ export function EditorToolbar({
             <Download className="mr-2 h-4 w-4" /> Export JSON
           </Button>
           <HiddenFileInput accept=".json,.map.json" label="Import Map" onFile={onImportMap} />
-          <Link
-            className="font-ik-menu inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-            href="/game/custom-map/test_map_01"
-            onClick={() => toast(PLAYTEST_NOTICE)}
-            title={PLAYTEST_NOTICE}
+          <Button
+            onClick={onPlaytest}
+            size="sm"
+            title={
+              activeDocument.id === "test_map_01"
+                ? "Launches the canon test_map_01 route."
+                : "Saves this draft locally, then launches it at /game/custom-map/local/…"
+            }
+            variant="outline"
           >
-            <Grid2X2 className="mr-2 h-4 w-4" /> Play/Test test_map_01
-          </Link>
+            <Grid2X2 className="mr-2 h-4 w-4" />
+            {activeDocument.id === "test_map_01" ? "Play/Test test_map_01" : `Play/Test ${activeDocument.id}`}
+          </Button>
         </>
       ) : mode === "assets" ? (
         <>
