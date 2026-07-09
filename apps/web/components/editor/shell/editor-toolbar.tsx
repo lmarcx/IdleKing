@@ -2,11 +2,14 @@
 
 import { useRef } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Download, Eraser, FileJson, FolderOpen, Grid2X2, MousePointer2, Paintbrush, Plus, Save, Shapes, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { EditorMode, EditorTool } from "./editor-shared";
+
+const PLAYTEST_NOTICE = "Play/Test launches test_map_01 for now — not your current draft.";
 
 const TOOLS = ["brush", "eraser", "select"] as const;
 const MODES: readonly { id: EditorMode; label: string }[] = [
@@ -107,8 +110,10 @@ export function EditorToolbar({
           <Link
             className="font-ik-menu inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-3 text-xs shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
             href="/game/custom-map/test_map_01"
+            onClick={() => toast(PLAYTEST_NOTICE)}
+            title={PLAYTEST_NOTICE}
           >
-            <Grid2X2 className="mr-2 h-4 w-4" /> Play/Test Map
+            <Grid2X2 className="mr-2 h-4 w-4" /> Play/Test test_map_01
           </Link>
         </>
       ) : mode === "assets" ? (

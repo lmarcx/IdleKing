@@ -278,6 +278,8 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
       pressed.delete(event.code);
     }
 
+    let ready = false;
+
     async function setup() {
       await app.init({
         antialias: true,
@@ -286,10 +288,18 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
         resizeTo: hostElement,
         resolution: Math.min(window.devicePixelRatio || 1, 2),
       });
+      // app.init() is async — if the effect was already cleaned up (fast navigation,
+      // React StrictMode double-invoke) by the time it resolves, the app is now fully
+      // initialized (ResizePlugin etc. are set up) so it's safe — and necessary — to
+      // destroy it here exactly once. The cleanup below never destroys before this point,
+      // since destroying a not-yet-initialized PIXI.Application throws
+      // "this._cancelResize is not a function" (ResizePlugin.destroy() runs before
+      // ResizePlugin.init() ever set _cancelResize).
       if (destroyed) {
-        app.destroy();
+        app.destroy(true, { children: true });
         return;
       }
+      ready = true;
       hostElement.appendChild(app.canvas);
       app.stage.addChild(world);
       app.stage.addChild(labels);
@@ -309,7 +319,9 @@ export function CustomMapPixiStage({ map }: { map: PlayableMap }) {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       app.ticker?.remove?.(tick);
-      app.destroy(true, { children: true });
+      if (ready) {
+        app.destroy(true, { children: true });
+      }
     };
   }, [map]);
 
