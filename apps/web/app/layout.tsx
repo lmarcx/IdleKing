@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Pixelify_Sans, Press_Start_2P } from "next/font/google";
+import { Pixelify_Sans, Silkscreen } from "next/font/google";
 import "./globals.css";
 
 import { Providers } from "./providers";
@@ -10,9 +10,9 @@ const pixelifySans = Pixelify_Sans({
   display: "swap",
 });
 
-const pressStart2P = Press_Start_2P({
+const silkscreen = Silkscreen({
   subsets: ["latin"],
-  weight: "400",
+  weight: ["400", "700"],
   variable: "--font-ik-title",
   display: "swap",
 });
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${pixelifySans.variable} ${pressStart2P.variable}`}>
+    <html lang="en" className={`${pixelifySans.variable} ${silkscreen.variable}`}>
       <body>
         <Providers>{children}</Providers>
       </body>
