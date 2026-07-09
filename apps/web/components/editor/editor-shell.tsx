@@ -10,7 +10,7 @@ import { EditorToolbar } from "@/components/editor/shell/editor-toolbar";
 import { EditorTree } from "@/components/editor/shell/editor-tree";
 import { KingdomDraftPanel } from "@/components/editor/shell/kingdom-draft-panel";
 import { PlaceholderPanel } from "@/components/editor/shell/placeholder-panel";
-import { ProjectTree } from "@/components/editor/shell/project-tree";
+import { ProjectTree, type EraOrigin } from "@/components/editor/shell/project-tree";
 import {
   STEP_CATEGORY,
   isPlacementStep,
@@ -256,6 +256,19 @@ export function EditorShell() {
     setCurrentMapOrigin(documentIndex.find((entry) => entry.id === id)?.origin);
     setSelection({ kind: "spawn", id: doc.spawns[0]?.id ?? "player_start" });
     setMode("level");
+  }
+
+  function createSandboxLevel(origin: EraOrigin) {
+    const label = origin === "era_funebre" ? "Era Funèbre" : "Era Glaciaire";
+    const id = `sandbox_${origin}_${Date.now()}`;
+    const newSandboxMap: PlayableMap = { ...createEmptyMap(), id, name: `New ${label} Level`, mode: "sandbox", chapter: origin };
+    saveDocument({ id, type: "playable_map", title: newSandboxMap.name, origin }, newSandboxMap);
+    refreshDocumentIndex();
+    setMap(newSandboxMap);
+    setCurrentMapOrigin(origin);
+    setSelection({ kind: "spawn", id: "player_start" });
+    setMode("level");
+    toast.success(`Created "${newSandboxMap.name}" (sandbox — not in the story registry).`);
   }
 
   function selectKingdomDraft() {
@@ -705,6 +718,7 @@ export function EditorShell() {
             <ProjectTree
               activeDocument={activeDocument}
               levelDocuments={levelDocuments}
+              onCreateSandboxLevel={createSandboxLevel}
               onSelectAssets={selectAssets}
               onSelectKingdomDraft={selectKingdomDraft}
               onSelectLevel={selectLevel}

@@ -1,21 +1,25 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 
 import type { EditorDocumentIndexEntry } from "@/lib/editor-document-store";
 import { cn } from "@/lib/utils";
 import type { ActiveDocument, PlaceholderDocumentInfo } from "./editor-shared";
 
-const ERA_PLACEHOLDERS: readonly PlaceholderDocumentInfo[] = [
+export type EraOrigin = "era_funebre" | "era_glaciaire";
+
+const ERA_PLACEHOLDERS: readonly (PlaceholderDocumentInfo & { origin: EraOrigin })[] = [
   {
     id: "era_funebre",
+    origin: "era_funebre",
     title: "Era Funèbre",
-    note: "Era Funèbre levels are not wired in Editor V2 yet — the Time Gate / dungeon content pipeline is planned for V3.",
+    note: "Era Funèbre dungeon content (Time Gate) is not wired in Editor V2 yet — the real dungeon pipeline is planned for V3. You can still create sandbox levels below for prototyping.",
   },
   {
     id: "era_glaciaire",
+    origin: "era_glaciaire",
     title: "Era Glaciaire",
-    note: "Era Glaciaire levels are not wired in Editor V2 yet — the Time Gate / dungeon content pipeline is planned for V3.",
+    note: "Era Glaciaire dungeon content (Time Gate) is not wired in Editor V2 yet — the real dungeon pipeline is planned for V3. You can still create sandbox levels below for prototyping.",
   },
 ];
 
@@ -68,6 +72,7 @@ function TreeSection({ children, title }: { children: React.ReactNode; title: st
 export function ProjectTree({
   activeDocument,
   levelDocuments,
+  onCreateSandboxLevel,
   onSelectAssets,
   onSelectKingdomDraft,
   onSelectLevel,
@@ -75,12 +80,13 @@ export function ProjectTree({
 }: {
   activeDocument: ActiveDocument;
   levelDocuments: readonly EditorDocumentIndexEntry[];
+  onCreateSandboxLevel: (origin: EraOrigin) => void;
   onSelectAssets: () => void;
   onSelectKingdomDraft: () => void;
   onSelectLevel: (id?: string) => void;
   onSelectPlaceholder: (info: PlaceholderDocumentInfo) => void;
 }) {
-  const unassignedLevels = levelDocuments.filter((doc) => doc.id !== "test_map_01");
+  const unassignedLevels = levelDocuments.filter((doc) => !doc.origin && doc.id !== "test_map_01");
 
   return (
     <div className="grid gap-3 border-b border-zinc-800 p-3">
@@ -102,14 +108,36 @@ export function ProjectTree({
       </TreeSection>
 
       <TreeSection title="Eras">
-        {ERA_PLACEHOLDERS.map((item) => (
-          <TreeButton
-            active={activeDocument.type === "placeholder" && activeDocument.id === item.id}
-            key={item.id}
-            label={item.title}
-            onClick={() => onSelectPlaceholder(item)}
-          />
-        ))}
+        {ERA_PLACEHOLDERS.map((era) => {
+          const eraLevels = levelDocuments.filter((doc) => doc.origin === era.origin);
+          return (
+            <div className="grid gap-0.5" key={era.id}>
+              <TreeButton
+                active={activeDocument.type === "placeholder" && activeDocument.id === era.id}
+                label={era.title}
+                onClick={() => onSelectPlaceholder(era)}
+              />
+              <div className="ml-4 grid gap-0.5 border-l border-zinc-800 pl-2">
+                {eraLevels.map((doc) => (
+                  <TreeButton
+                    active={activeDocument.type === "playable_map" && activeDocument.id === doc.id}
+                    key={doc.id}
+                    label={doc.title}
+                    onClick={() => onSelectLevel(doc.id)}
+                  />
+                ))}
+                <button
+                  className="flex items-center gap-1.5 rounded px-2 py-1 text-left font-ik-body text-[0.68rem] text-zinc-500 hover:text-zinc-200"
+                  onClick={() => onCreateSandboxLevel(era.origin)}
+                  type="button"
+                >
+                  <Plus className="h-3 w-3 shrink-0" />
+                  Nouveau niveau
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </TreeSection>
 
       <TreeSection title="Levels">
