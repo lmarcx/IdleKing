@@ -8,6 +8,8 @@ import { EditorCanvas } from "@/components/editor/shell/editor-canvas";
 import { EditorInspector } from "@/components/editor/shell/editor-inspector";
 import { EditorToolbar } from "@/components/editor/shell/editor-toolbar";
 import { EditorTree } from "@/components/editor/shell/editor-tree";
+import { KingdomDraftPanel } from "@/components/editor/shell/kingdom-draft-panel";
+import { ProjectTree } from "@/components/editor/shell/project-tree";
 import {
   STEP_CATEGORY,
   isPlacementStep,
@@ -19,6 +21,7 @@ import {
 import {
   ASSET_CREATOR_PRESETS,
   GROUND_TEXTURES,
+  KINGDOM_DRAFT_MAP,
   TEST_MAP_01,
   assertValidAsset,
   createAssetRegistry,
@@ -30,6 +33,7 @@ import {
   type GeometricAsset,
   type GeometryShape,
   type GroundTextureId,
+  type KingdomMapDefinition,
   type MapBuilding,
   type MapCollision,
   type MapEnemy,
@@ -146,6 +150,7 @@ function isCellUsable(map: PlayableMap, x: number, y: number): boolean {
 export function EditorShell() {
   const [mode, setMode] = useState<EditorMode>("level");
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
+  const [kingdomMap, setKingdomMap] = useState<KingdomMapDefinition>(() => KINGDOM_DRAFT_MAP);
   const [customAssets, setCustomAssets] = useState<GeometricAsset[]>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [tool, setTool] = useState<EditorTool>("brush");
@@ -318,6 +323,20 @@ export function EditorShell() {
   function editExistingAsset(asset: GeometricAsset) {
     setAssetDraft(asset);
     setSelectedPartId(asset.parts[0]?.id ?? "");
+  }
+
+  function patchKingdomBuilding(id: string, patch: { x?: number; y?: number }) {
+    setKingdomMap((current) => ({
+      ...current,
+      buildings: current.buildings.map((building) => (building.id === id ? { ...building, ...patch } : building)),
+    }));
+  }
+
+  function deleteKingdomBuilding(id: string) {
+    setKingdomMap((current) => ({
+      ...current,
+      buildings: current.buildings.filter((building) => building.id !== id),
+    }));
   }
 
   function placeEntityAt(x: number, y: number) {
@@ -547,71 +566,80 @@ export function EditorShell() {
           tool={tool}
         />
 
-        {mode === "level" ? (
-          <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
-            <EditorTree
-              activeStep={activeStep}
-              mapCounts={{ enemies: map.enemies.length, npcs: map.npcs.length, objects: map.objects.length }}
-              onSelectAsset={setSelectedAssetId}
-              onSelectTexture={setSelectedTextureId}
-              onStepChange={setActiveStep}
-              onTopographyPaintChange={setTopographyPaint}
-              paletteAssets={paletteAssets}
-              registryAssetsCount={registry.assets.length}
-              selectedAssetId={selectedAssetId}
-              selectedTextureId={selectedTextureId}
-              topographyPaint={topographyPaint}
-            />
+        <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-950">
+            <ProjectTree mode={mode} onModeChange={setMode} />
+            {mode === "level" ? (
+              <EditorTree
+                activeStep={activeStep}
+                mapCounts={{ enemies: map.enemies.length, npcs: map.npcs.length, objects: map.objects.length }}
+                onSelectAsset={setSelectedAssetId}
+                onSelectTexture={setSelectedTextureId}
+                onStepChange={setActiveStep}
+                onTopographyPaintChange={setTopographyPaint}
+                paletteAssets={paletteAssets}
+                registryAssetsCount={registry.assets.length}
+                selectedAssetId={selectedAssetId}
+                selectedTextureId={selectedTextureId}
+                topographyPaint={topographyPaint}
+              />
+            ) : null}
+          </aside>
 
-            <EditorCanvas
-              isPainting={isPainting}
-              map={map}
-              markers={markers}
-              onCellPointerDown={(x, y) => {
-                setIsPainting(true);
-                paintCell(x, y);
-              }}
-              onCellPointerEnter={paintCell}
-              onMarkerClick={(marker) => {
-                setTool("select");
-                setSelection({ kind: marker.kind, id: marker.id });
-              }}
-              selection={selection}
-            />
+          {mode === "level" ? (
+            <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <EditorCanvas
+                isPainting={isPainting}
+                map={map}
+                markers={markers}
+                onCellPointerDown={(x, y) => {
+                  setIsPainting(true);
+                  paintCell(x, y);
+                }}
+                onCellPointerEnter={paintCell}
+                onMarkerClick={(marker) => {
+                  setTool("select");
+                  setSelection({ kind: marker.kind, id: marker.id });
+                }}
+                selection={selection}
+              />
 
-            <EditorInspector
-              map={map}
-              onDeleteSelection={deleteSelection}
-              onGridChange={(patch) => setMap({ ...map, grid: { ...map.grid, ...patch } })}
-              onMapIdChange={(id) => setMap({ ...map, id })}
-              onMapNameChange={(name) => setMap({ ...map, name })}
-              onPatchSelection={patchSelection}
-              selectedEntity={selectedEntity}
-              selection={selection}
+              <EditorInspector
+                map={map}
+                onDeleteSelection={deleteSelection}
+                onGridChange={(patch) => setMap({ ...map, grid: { ...map.grid, ...patch } })}
+                onMapIdChange={(id) => setMap({ ...map, id })}
+                onMapNameChange={(name) => setMap({ ...map, name })}
+                onPatchSelection={patchSelection}
+                selectedEntity={selectedEntity}
+                selection={selection}
+              />
+            </div>
+          ) : mode === "assets" ? (
+            <AssetModePanel
+              assetDraft={assetDraft}
+              customAssets={customAssets}
+              onAddPart={(shape) => {
+                const part = createPrimitive(shape, assetDraft.parts.length);
+                setAssetDraft({ ...assetDraft, parts: [...assetDraft.parts, part] });
+                setSelectedPartId(part.id);
+              }}
+              onAssetDraftChange={setAssetDraft}
+              onDeletePart={deletePart}
+              onDuplicatePart={duplicatePart}
+              onEditExistingAsset={editExistingAsset}
+              onExportAsset={() => downloadJson(`${assetDraft.id}.asset.json`, assetDraft)}
+              onMovePartLayer={movePartLayer}
+              onSelectPart={setSelectedPartId}
+              onSelectPreset={selectPreset}
+              onUpdateSelectedPart={updateSelectedPart}
+              selectedPart={selectedPart}
+              selectedPartId={selectedPartId}
             />
-          </main>
-        ) : (
-          <AssetModePanel
-            assetDraft={assetDraft}
-            customAssets={customAssets}
-            onAddPart={(shape) => {
-              const part = createPrimitive(shape, assetDraft.parts.length);
-              setAssetDraft({ ...assetDraft, parts: [...assetDraft.parts, part] });
-              setSelectedPartId(part.id);
-            }}
-            onAssetDraftChange={setAssetDraft}
-            onDeletePart={deletePart}
-            onDuplicatePart={duplicatePart}
-            onEditExistingAsset={editExistingAsset}
-            onExportAsset={() => downloadJson(`${assetDraft.id}.asset.json`, assetDraft)}
-            onMovePartLayer={movePartLayer}
-            onSelectPart={setSelectedPartId}
-            onSelectPreset={selectPreset}
-            onUpdateSelectedPart={updateSelectedPart}
-            selectedPart={selectedPart}
-            selectedPartId={selectedPartId}
-          />
-        )}
+          ) : (
+            <KingdomDraftPanel kingdomMap={kingdomMap} onDeleteBuilding={deleteKingdomBuilding} onPatchBuilding={patchKingdomBuilding} />
+          )}
+        </main>
       </div>
     </div>
   );

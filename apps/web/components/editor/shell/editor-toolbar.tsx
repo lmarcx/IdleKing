@@ -12,6 +12,7 @@ const TOOLS = ["brush", "eraser", "select"] as const;
 const MODES: readonly { id: EditorMode; label: string }[] = [
   { id: "level", label: "Level" },
   { id: "assets", label: "Assets" },
+  { id: "kingdom", label: "Kingdom" },
 ];
 
 function HiddenFileInput({ accept, label, onFile }: { accept: string; label: string; onFile: (file: File) => void }) {
@@ -110,7 +111,7 @@ export function EditorToolbar({
             <Grid2X2 className="mr-2 h-4 w-4" /> Play/Test Map
           </Link>
         </>
-      ) : (
+      ) : mode === "assets" ? (
         <>
           <Button onClick={onSaveAsset} size="sm" variant="outline">
             <FileJson className="mr-2 h-4 w-4" /> Save Asset
@@ -120,11 +121,17 @@ export function EditorToolbar({
           </Button>
           <HiddenFileInput accept=".json,.asset.json" label="Import Asset" onFile={onImportAsset} />
         </>
+      ) : (
+        <span className="font-ik-menu text-xs uppercase tracking-wide text-amber-200/70">
+          Kingdom Draft — not used by live runtime yet
+        </span>
       )}
 
-      <Button onClick={onNewAsset} size="sm" variant="outline">
-        <Shapes className="mr-2 h-4 w-4" /> New Asset
-      </Button>
+      {mode !== "kingdom" ? (
+        <Button onClick={onNewAsset} size="sm" variant="outline">
+          <Shapes className="mr-2 h-4 w-4" /> New Asset
+        </Button>
+      ) : null}
 
       <div className="ml-auto flex items-center gap-3">
         {mode === "level" ? (

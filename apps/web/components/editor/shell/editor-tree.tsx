@@ -37,7 +37,7 @@ export function EditorTree({
   topographyPaint: TopographyCellState;
 }) {
   return (
-    <aside className="flex min-h-0 flex-col gap-4 overflow-auto border-r border-zinc-800 bg-zinc-950 p-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
       <div className="grid grid-cols-2 gap-2 text-xs">
         <span className="rounded border border-zinc-800 p-2">Assets {registryAssetsCount}</span>
         <span className="rounded border border-zinc-800 p-2">Objects {mapCounts.objects}</span>
@@ -140,6 +140,6 @@ export function EditorTree({
           </span>
         ))}
       </div>
-    </aside>
+    </div>
   );
 }
