@@ -3,15 +3,16 @@
 /**
  * Local, browser-only multi-document store for the level editor.
  *
- * Replaces the old single-slot localStorage keys (one map, one asset library)
+ * Replaces the old single-slot localStorage keys (one map, one Kingdom Stage)
  * with a real index so the Project Tree can list every saved document — maps
- * created under an Era, the Kingdom Draft, etc. — and load any of them by id.
+ * created under an Era, the Kingdom Stage, etc. — and load any of them by id.
  *
  * Dev tooling only: no backend, no sync. Promoting a document to canon game
- * content is still a manual export -> commit -> manifest step, same as before.
+ * content is still a manual export -> commit -> canonical file step (e.g.
+ * packages/game-core/content/kingdom/kingdom-stage.ts for the Kingdom Stage).
  */
 
-export type EditorDocumentType = "playable_map" | "kingdom_draft";
+export type EditorDocumentType = "playable_map" | "kingdom_stage";
 
 export type EditorDocumentIndexEntry = Readonly<{
   id: string;

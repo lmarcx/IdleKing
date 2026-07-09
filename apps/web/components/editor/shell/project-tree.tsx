@@ -74,7 +74,7 @@ export function ProjectTree({
   levelDocuments,
   onCreateSandboxLevel,
   onSelectAssets,
-  onSelectKingdomDraft,
+  onSelectKingdomStage,
   onSelectLevel,
   onSelectPlaceholder,
 }: {
@@ -82,7 +82,7 @@ export function ProjectTree({
   levelDocuments: readonly EditorDocumentIndexEntry[];
   onCreateSandboxLevel: (origin: EraOrigin) => void;
   onSelectAssets: () => void;
-  onSelectKingdomDraft: () => void;
+  onSelectKingdomStage: () => void;
   onSelectLevel: (id?: string) => void;
   onSelectPlaceholder: (info: PlaceholderDocumentInfo) => void;
 }) {
@@ -93,7 +93,7 @@ export function ProjectTree({
       <p className="font-ik-menu text-[0.65rem] uppercase tracking-wide text-zinc-300">Project</p>
 
       <TreeSection title="Kingdom">
-        <TreeButton active={activeDocument.type === "kingdom_draft"} label="Kingdom Draft" onClick={onSelectKingdomDraft} />
+        <TreeButton active={activeDocument.type === "kingdom_stage"} label="Kingdom Stage" onClick={onSelectKingdomStage} />
       </TreeSection>
 
       <TreeSection title="Modes">

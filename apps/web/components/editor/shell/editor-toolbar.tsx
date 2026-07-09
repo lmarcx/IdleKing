@@ -40,20 +40,20 @@ export function EditorToolbar({
   activeDocument,
   lastSaveMessage,
   mode,
-  onExportKingdomMap,
+  onExportKingdomStage,
   onExportMap,
   onImportAsset,
-  onImportKingdomMap,
+  onImportKingdomStage,
   onImportMap,
   onLoadAssets,
-  onLoadKingdomMap,
+  onLoadKingdomStage,
   onLoadMap,
   onModeChange,
   onNewAsset,
   onNewMap,
   onPlaytest,
   onSaveAsset,
-  onSaveKingdomMap,
+  onSaveKingdomStage,
   onSaveMap,
   onToolChange,
   tool,
@@ -61,20 +61,20 @@ export function EditorToolbar({
   activeDocument: ActiveDocument;
   lastSaveMessage: string;
   mode: EditorMode;
-  onExportKingdomMap: () => void;
+  onExportKingdomStage: () => void;
   onExportMap: () => void;
   onImportAsset: (file: File) => void;
-  onImportKingdomMap: (file: File) => void;
+  onImportKingdomStage: (file: File) => void;
   onImportMap: (file: File) => void;
   onLoadAssets: () => void;
-  onLoadKingdomMap: () => void;
+  onLoadKingdomStage: () => void;
   onLoadMap: () => void;
   onModeChange: (mode: EditorMode) => void;
   onNewAsset: () => void;
   onNewMap: () => void;
   onPlaytest: () => void;
   onSaveAsset: () => void;
-  onSaveKingdomMap: () => void;
+  onSaveKingdomStage: () => void;
   onSaveMap: () => void;
   onToolChange: (tool: EditorTool) => void;
   tool: EditorTool;
@@ -150,18 +150,18 @@ export function EditorToolbar({
         </>
       ) : mode === "kingdom" ? (
         <>
-          <Button onClick={onSaveKingdomMap} size="sm" variant="outline">
-            <Save className="mr-2 h-4 w-4" /> Save Kingdom Draft
+          <Button onClick={onSaveKingdomStage} size="sm" variant="outline">
+            <Save className="mr-2 h-4 w-4" /> Save Kingdom Stage
           </Button>
-          <Button onClick={onLoadKingdomMap} size="sm" variant="outline">
-            <FolderOpen className="mr-2 h-4 w-4" /> Load Kingdom Draft
+          <Button onClick={onLoadKingdomStage} size="sm" variant="outline">
+            <FolderOpen className="mr-2 h-4 w-4" /> Load Kingdom Stage
           </Button>
-          <Button onClick={onExportKingdomMap} size="sm" variant="outline">
+          <Button onClick={onExportKingdomStage} size="sm" variant="outline">
             <Download className="mr-2 h-4 w-4" /> Export JSON
           </Button>
-          <HiddenFileInput accept=".json,.kingdom.json" label="Import Kingdom" onFile={onImportKingdomMap} />
+          <HiddenFileInput accept=".json,.kingdom.json" label="Import Kingdom" onFile={onImportKingdomStage} />
           <span className="font-ik-menu text-[0.62rem] uppercase tracking-wide text-amber-200/70">
-            Local draft only — not used by live runtime
+            Kingdom Stage — not read by the live runtime yet
           </span>
         </>
       ) : (

@@ -20,7 +20,7 @@ export type SelectedEntity = MapObject | MapBuilding | MapNpc | MapEnemy | MapCo
  * Which real document is currently loaded in the editor, driving the tree highlight,
  * toolbar labels, and center panel — so the canvas never silently shows the wrong content.
  */
-export type ActiveDocumentType = "playable_map" | "kingdom_draft" | "asset_collection" | "placeholder";
+export type ActiveDocumentType = "playable_map" | "kingdom_stage" | "asset_collection" | "placeholder";
 
 export type ActiveDocument = Readonly<{
   type: ActiveDocumentType;

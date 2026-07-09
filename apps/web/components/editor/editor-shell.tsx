@@ -9,7 +9,7 @@ import { EditorCanvas } from "@/components/editor/shell/editor-canvas";
 import { EditorInspector } from "@/components/editor/shell/editor-inspector";
 import { EditorToolbar } from "@/components/editor/shell/editor-toolbar";
 import { EditorTree } from "@/components/editor/shell/editor-tree";
-import { KingdomDraftPanel } from "@/components/editor/shell/kingdom-draft-panel";
+import { KingdomStagePanel } from "@/components/editor/shell/kingdom-stage-panel";
 import { PlaceholderPanel } from "@/components/editor/shell/placeholder-panel";
 import { ProjectTree, type EraOrigin } from "@/components/editor/shell/project-tree";
 import {
@@ -26,7 +26,7 @@ import { listDocuments, loadDocument, saveDocument, type EditorDocumentIndexEntr
 import {
   ASSET_CREATOR_PRESETS,
   GROUND_TEXTURES,
-  KINGDOM_DRAFT_MAP,
+  KINGDOM_STAGE_DEFINITION,
   TEST_MAP_01,
   assertValidAsset,
   createAssetRegistry,
@@ -34,12 +34,12 @@ import {
   getGroundTexture,
   getMapTile,
   getTopographyCellState,
-  validateKingdomMapDefinition,
+  validateKingdomStageDefinition,
   validatePlayableMap,
   type GeometricAsset,
   type GeometryShape,
   type GroundTextureId,
-  type KingdomMapDefinition,
+  type KingdomStageDefinition,
   type MapBuilding,
   type MapCollision,
   type MapEnemy,
@@ -158,7 +158,7 @@ export function EditorShell() {
   const [placeholderDoc, setPlaceholderDoc] = useState<PlaceholderDocumentInfo | null>(null);
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
   const [currentMapOrigin, setCurrentMapOrigin] = useState<string | undefined>(undefined);
-  const [kingdomMap, setKingdomMap] = useState<KingdomMapDefinition>(() => KINGDOM_DRAFT_MAP);
+  const [kingdomStage, setKingdomStage] = useState<KingdomStageDefinition>(() => KINGDOM_STAGE_DEFINITION);
   const [selectedKingdomBuildingId, setSelectedKingdomBuildingId] = useState<string | null>(null);
   const [documentIndex, setDocumentIndex] = useState<EditorDocumentIndexEntry[]>([]);
   const [customAssets, setCustomAssets] = useState<GeometricAsset[]>([]);
@@ -226,10 +226,13 @@ export function EditorShell() {
     }
     if (mode === "kingdom") {
       return {
-        type: "kingdom_draft",
-        id: kingdomMap.id,
-        title: kingdomMap.name,
-        status: "Draft — not used by live runtime yet",
+        type: "kingdom_stage",
+        id: kingdomStage.id,
+        title: kingdomStage.name,
+        status:
+          kingdomStage.status === "canon"
+            ? "Canonical — not read by live runtime yet"
+            : "Local draft — not read by live runtime yet",
       };
     }
     return {
@@ -239,7 +242,7 @@ export function EditorShell() {
       status: "Not wired in Editor V2",
       note: placeholderDoc?.note,
     };
-  }, [mode, map.id, map.name, currentMapOrigin, customAssets.length, kingdomMap.id, kingdomMap.name, placeholderDoc]);
+  }, [mode, map.id, map.name, currentMapOrigin, customAssets.length, kingdomStage.id, kingdomStage.name, kingdomStage.status, placeholderDoc]);
 
   function selectLevel(id?: string) {
     if (!id || id === "test_map_01") {
@@ -273,9 +276,9 @@ export function EditorShell() {
     toast.success(`Created "${newSandboxMap.name}" (sandbox — not in the story registry).`);
   }
 
-  function selectKingdomDraft() {
-    const doc = loadDocument<KingdomMapDefinition>("kingdom_draft", "kingdom_draft");
-    setKingdomMap(doc ?? KINGDOM_DRAFT_MAP);
+  function selectKingdomStage() {
+    const doc = loadDocument<KingdomStageDefinition>("kingdom_stage", "kingdom_stage");
+    setKingdomStage(doc ?? KINGDOM_STAGE_DEFINITION);
     setMode("kingdom");
   }
 
@@ -315,32 +318,32 @@ export function EditorShell() {
     toast.success("Local map loaded.");
   }
 
-  function saveKingdomMap() {
-    const validation = validateKingdomMapDefinition(kingdomMap);
+  function saveKingdomStage() {
+    const validation = validateKingdomStageDefinition(kingdomStage);
     if (!validation.ok) {
       const message = `Cannot save: ${validation.errors.join("; ")}`;
       setLastSaveMessage(message);
       toast.error(message);
       return;
     }
-    saveDocument({ id: kingdomMap.id, type: "kingdom_draft", title: kingdomMap.name }, kingdomMap);
+    saveDocument({ id: kingdomStage.id, type: "kingdom_stage", title: kingdomStage.name }, kingdomStage);
     refreshDocumentIndex();
-    setLastSaveMessage(`Kingdom Draft saved locally as ${kingdomMap.id}.`);
-    toast.success(`Kingdom Draft saved locally as ${kingdomMap.id}.`);
+    setLastSaveMessage(`Kingdom Stage saved locally as ${kingdomStage.id}.`);
+    toast.success(`Kingdom Stage saved locally as ${kingdomStage.id}.`);
   }
 
-  function loadKingdomMap() {
-    const doc = loadDocument<KingdomMapDefinition>("kingdom_draft", kingdomMap.id);
+  function loadKingdomStage() {
+    const doc = loadDocument<KingdomStageDefinition>("kingdom_stage", kingdomStage.id);
     if (!doc) {
-      const message = "No local save found for the Kingdom Draft yet.";
+      const message = "No local save found for the Kingdom Stage yet.";
       setLastSaveMessage(message);
       toast.error(message);
       return;
     }
-    setKingdomMap(doc);
+    setKingdomStage(doc);
     setSelectedKingdomBuildingId(null);
-    setLastSaveMessage("Kingdom Draft loaded.");
-    toast.success("Kingdom Draft loaded.");
+    setLastSaveMessage("Kingdom Stage loaded.");
+    toast.success("Kingdom Stage loaded.");
   }
 
   function applyImportedMap(raw: string, successMessage: string) {
@@ -377,35 +380,35 @@ export function EditorShell() {
     });
   }
 
-  function exportKingdomMap() {
-    downloadJson(`${kingdomMap.id}.kingdom.json`, kingdomMap);
+  function exportKingdomStage() {
+    downloadJson(`${kingdomStage.id}.kingdom.json`, kingdomStage);
   }
 
-  function importKingdomMap(file: File) {
+  function importKingdomStage(file: File) {
     file
       .text()
       .then((raw) => {
-        let parsed: KingdomMapDefinition;
+        let parsed: KingdomStageDefinition;
         try {
-          parsed = JSON.parse(raw) as KingdomMapDefinition;
+          parsed = JSON.parse(raw) as KingdomStageDefinition;
         } catch {
-          const message = "Invalid JSON file — could not parse Kingdom Draft.";
+          const message = "Invalid JSON file — could not parse Kingdom Stage.";
           setLastSaveMessage(message);
           toast.error(message);
           return;
         }
-        const validation = validateKingdomMapDefinition(parsed);
+        const validation = validateKingdomStageDefinition(parsed);
         if (!validation.ok) {
-          const message = `Invalid Kingdom Draft: ${validation.errors.join("; ")}`;
+          const message = `Invalid Kingdom Stage: ${validation.errors.join("; ")}`;
           setLastSaveMessage(message);
           toast.error(message);
           return;
         }
-        saveDocument({ id: parsed.id, type: "kingdom_draft", title: parsed.name }, parsed);
+        saveDocument({ id: parsed.id, type: "kingdom_stage", title: parsed.name }, parsed);
         refreshDocumentIndex();
-        setKingdomMap(parsed);
+        setKingdomStage(parsed);
         setSelectedKingdomBuildingId(null);
-        const message = `Kingdom Draft "${parsed.name}" imported.`;
+        const message = `Kingdom Stage "${parsed.name}" imported.`;
         setLastSaveMessage(message);
         toast.success(message);
       })
@@ -503,14 +506,14 @@ export function EditorShell() {
   }
 
   function patchKingdomBuilding(id: string, patch: { x?: number; y?: number }) {
-    setKingdomMap((current) => ({
+    setKingdomStage((current) => ({
       ...current,
       buildings: current.buildings.map((building) => (building.id === id ? { ...building, ...patch } : building)),
     }));
   }
 
   function deleteKingdomBuilding(id: string) {
-    setKingdomMap((current) => ({
+    setKingdomStage((current) => ({
       ...current,
       buildings: current.buildings.filter((building) => building.id !== id),
     }));
@@ -755,13 +758,13 @@ export function EditorShell() {
           activeDocument={activeDocument}
           lastSaveMessage={lastSaveMessage}
           mode={mode}
-          onExportKingdomMap={exportKingdomMap}
+          onExportKingdomStage={exportKingdomStage}
           onExportMap={() => downloadJson(`${map.id}.map.json`, map)}
           onImportAsset={importAsset}
-          onImportKingdomMap={importKingdomMap}
+          onImportKingdomStage={importKingdomStage}
           onImportMap={importMap}
           onLoadAssets={loadAssets}
-          onLoadKingdomMap={loadKingdomMap}
+          onLoadKingdomStage={loadKingdomStage}
           onLoadMap={loadMap}
           onModeChange={setMode}
           onNewAsset={() => {
@@ -771,7 +774,7 @@ export function EditorShell() {
           onNewMap={newMap}
           onPlaytest={playtestCurrentDocument}
           onSaveAsset={saveAsset}
-          onSaveKingdomMap={saveKingdomMap}
+          onSaveKingdomStage={saveKingdomStage}
           onSaveMap={saveMap}
           onToolChange={setTool}
           tool={tool}
@@ -784,7 +787,7 @@ export function EditorShell() {
               levelDocuments={levelDocuments}
               onCreateSandboxLevel={createSandboxLevel}
               onSelectAssets={selectAssets}
-              onSelectKingdomDraft={selectKingdomDraft}
+              onSelectKingdomStage={selectKingdomStage}
               onSelectLevel={selectLevel}
               onSelectPlaceholder={selectPlaceholder}
             />
@@ -856,8 +859,8 @@ export function EditorShell() {
               selectedPartId={selectedPartId}
             />
           ) : mode === "kingdom" ? (
-            <KingdomDraftPanel
-              kingdomMap={kingdomMap}
+            <KingdomStagePanel
+              kingdomStage={kingdomStage}
               onDeleteBuilding={deleteKingdomBuilding}
               onPatchBuilding={patchKingdomBuilding}
               onSelectBuilding={setSelectedKingdomBuildingId}

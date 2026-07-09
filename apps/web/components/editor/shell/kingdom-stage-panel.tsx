@@ -4,7 +4,7 @@ import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { KingdomBuilding, KingdomMapDefinition } from "@idleking/game-core/level-editor";
+import type { KingdomBuilding, KingdomStageDefinition } from "@idleking/game-core/level-editor";
 import { inputClassName } from "./editor-shared";
 
 const CANVAS_WIDTH = 640;
@@ -34,33 +34,33 @@ function projectPoint(
   };
 }
 
-export function KingdomDraftPanel({
-  kingdomMap,
+export function KingdomStagePanel({
+  kingdomStage,
   onDeleteBuilding,
   onPatchBuilding,
   onSelectBuilding,
   selectedBuildingId,
 }: {
-  kingdomMap: KingdomMapDefinition;
+  kingdomStage: KingdomStageDefinition;
   onDeleteBuilding: (id: string) => void;
   onPatchBuilding: (id: string, patch: { x?: number; y?: number }) => void;
   onSelectBuilding: (id: string | null) => void;
   selectedBuildingId: string | null;
 }) {
-  const allPoints = [...kingdomMap.buildings, ...kingdomMap.npcs, ...kingdomMap.props];
+  const allPoints = [...kingdomStage.buildings, ...kingdomStage.npcs, ...kingdomStage.props];
   const bounds = computeBounds(allPoints);
-  const selectedBuilding: KingdomBuilding | undefined = kingdomMap.buildings.find((building) => building.id === selectedBuildingId);
+  const selectedBuilding: KingdomBuilding | undefined = kingdomStage.buildings.find((building) => building.id === selectedBuildingId);
 
   return (
     <section className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto bg-[#0b0b0b] p-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="grid min-h-0 gap-3">
         <div className="rounded-md border border-amber-200/30 bg-amber-500/10 p-3 font-ik-menu text-xs uppercase tracking-wide text-amber-100">
-          Kingdom Draft — not used by live runtime yet
+          Kingdom Stage — not read by the live runtime yet
         </div>
         <p className="font-ik-body text-xs text-zinc-500">
-          Prototype data only ({kingdomMap.status}, v{kingdomMap.version}) — not read by the live Kingdom
-          (kingdom-hub-stage.tsx). Positions are approximate placeholders, not extracted from the real Kingdom. Click a
-          building to select and edit it.
+          {kingdomStage.status === "canon" ? "Canonical" : "Local draft"} data (v{kingdomStage.version}) — kingdom-hub-stage.tsx
+          still renders its own hardcoded values; this document is the migration target, not yet the source it reads from.
+          Click a building to select and edit it.
         </p>
 
         <div
@@ -68,7 +68,7 @@ export function KingdomDraftPanel({
           onClick={() => onSelectBuilding(null)}
           style={{ height: CANVAS_HEIGHT, width: "100%", maxWidth: CANVAS_WIDTH }}
         >
-          {kingdomMap.props.map((prop) => {
+          {kingdomStage.props.map((prop) => {
             const position = projectPoint(prop, bounds);
             return (
               <span
@@ -79,7 +79,7 @@ export function KingdomDraftPanel({
               />
             );
           })}
-          {kingdomMap.npcs.map((npc) => {
+          {kingdomStage.npcs.map((npc) => {
             const position = projectPoint(npc, bounds);
             return (
               <span
@@ -92,7 +92,7 @@ export function KingdomDraftPanel({
               </span>
             );
           })}
-          {kingdomMap.buildings.map((building) => {
+          {kingdomStage.buildings.map((building) => {
             const position = projectPoint(building, bounds);
             const active = building.id === selectedBuildingId;
             return (
@@ -117,7 +117,7 @@ export function KingdomDraftPanel({
         </div>
 
         <p className="font-ik-body text-[0.65rem] text-zinc-600">
-          {kingdomMap.buildings.length} buildings · {kingdomMap.npcs.length} NPCs · {kingdomMap.props.length} props
+          {kingdomStage.buildings.length} buildings · {kingdomStage.npcs.length} NPCs · {kingdomStage.props.length} props
         </p>
       </div>
 
@@ -169,7 +169,7 @@ export function KingdomDraftPanel({
         <div className="mt-2 border-t border-zinc-800 pt-2">
           <h3 className="mb-1 font-ik-menu text-[0.62rem] uppercase tracking-wide text-zinc-500">All buildings</h3>
           <div className="grid gap-0.5">
-            {kingdomMap.buildings.map((building) => (
+            {kingdomStage.buildings.map((building) => (
               <button
                 className={cn(
                   "rounded px-2 py-1 text-left font-ik-body text-xs",
