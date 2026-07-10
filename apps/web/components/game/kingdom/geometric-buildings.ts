@@ -14,16 +14,18 @@ import { BW } from "@/components/game/shared/geometric-figure";
  * be derived without textures.
  */
 
-export type HubBuildingKind = "farm" | "forge" | "forum" | "kitchen" | "mine" | "temple" | "cornucopia";
+export type HubBuildingKind = "bank" | "farm" | "forge" | "forum" | "kitchen" | "market" | "mine" | "temple" | "cornucopia";
 
 export type BuildingSize = { height: number; width: number };
 
 export const BUILDING_SIZES: Record<HubBuildingKind, BuildingSize> = {
+  bank: { height: 126, width: 176 },
   cornucopia: { height: 134, width: 120 },
   farm: { height: 200, width: 240 },
   forge: { height: 210, width: 190 },
   forum: { height: 270, width: 250 },
   kitchen: { height: 190, width: 180 },
+  market: { height: 126, width: 184 },
   mine: { height: 200, width: 210 },
   temple: { height: 240, width: 220 },
 };
@@ -174,6 +176,25 @@ function drawTemple(g: PIXI.Graphics): void {
   g.poly([0, groundY - 200, 8, groundY - 190, 0, groundY - 180, -8, groundY - 190]).fill(BW.white);
 }
 
+function drawBank(g: PIXI.Graphics): void {
+  g.rect(-76, -78, 152, 118).fill(BW.gray0).stroke(STROKE);
+  g.rect(-88, -86, 176, 20).fill(BW.gray1).stroke(STROKE_THIN);
+  g.rect(-48, -40, 96, 80).fill(BW.black).stroke({ color: BW.gray3, width: 2 });
+  g.circle(0, 0, 15).fill(BW.black).stroke(STROKE);
+  g.rect(-62, -58, 24, 18).fill(BW.gray1);
+  g.rect(38, -58, 24, 18).fill(BW.gray1);
+}
+
+function drawMarket(g: PIXI.Graphics): void {
+  g.rect(-82, -56, 164, 96).fill(BW.gray0).stroke(STROKE);
+  g.rect(-92, -86, 184, 32).fill(BW.gray1).stroke(STROKE_THIN);
+  for (let index = 0; index < 5; index++) {
+    g.rect(-88 + index * 36, -84, 30, 28).fill(index % 2 === 0 ? BW.gray4 : BW.gray1);
+  }
+  g.rect(-54, -30, 38, 70).fill(BW.black);
+  g.rect(18, -20, 52, 34).fill(BW.gray1).stroke(STROKE_THIN);
+}
+
 function drawCornucopia(g: PIXI.Graphics): void {
   const groundY = 16;
 
@@ -194,11 +215,13 @@ function drawCornucopia(g: PIXI.Graphics): void {
 }
 
 const BUILDING_DRAWERS: Record<HubBuildingKind, (g: PIXI.Graphics) => void> = {
+  bank: drawBank,
   cornucopia: drawCornucopia,
   farm: drawFarm,
   forge: drawForge,
   forum: drawForum,
   kitchen: drawKitchen,
+  market: drawMarket,
   mine: drawMine,
   temple: drawTemple,
 };

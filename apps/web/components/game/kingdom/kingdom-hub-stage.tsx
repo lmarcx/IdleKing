@@ -483,26 +483,7 @@ function createServiceBuildingVisual({
 
   shadow.position.set(0, 24);
 
-  if (variant === "bank") {
-    const base = new PIXI.Graphics();
-    base.rect(-76, -78, 152, 118).fill(BW.gray0).stroke({ color: BW.white, width: 3 });
-    base.rect(-88, -86, 176, 20).fill(BW.gray1).stroke({ color: BW.gray4, width: 2 });
-    base.rect(-48, -40, 96, 80).fill(BW.black).stroke({ color: BW.gray3, width: 2 });
-    base.circle(0, 0, 15).fill(BW.black).stroke({ color: BW.white, width: 3 });
-    base.rect(-62, -58, 24, 18).fill(BW.gray1);
-    base.rect(38, -58, 24, 18).fill(BW.gray1);
-    building.addChild(base);
-  } else {
-    const stall = new PIXI.Graphics();
-    stall.rect(-82, -56, 164, 96).fill(BW.gray0).stroke({ color: BW.white, width: 3 });
-    stall.rect(-92, -86, 184, 32).fill(BW.gray1).stroke({ color: BW.gray4, width: 2 });
-    for (let index = 0; index < 5; index++) {
-      stall.rect(-88 + index * 36, -84, 30, 28).fill(index % 2 === 0 ? BW.gray4 : BW.gray1);
-    }
-    stall.rect(-54, -30, 38, 70).fill(BW.black);
-    stall.rect(18, -20, 52, 34).fill(BW.gray1).stroke({ color: BW.gray4, width: 2 });
-    building.addChild(stall);
-  }
+  building.addChild(createBuildingGraphics(variant));
 
   const sign = new PIXI.Text({
     text: label,
