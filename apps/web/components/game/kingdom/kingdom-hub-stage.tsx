@@ -1046,10 +1046,14 @@ export function KingdomHubStage() {
     [dispatch],
   );
 
-  // Data-driven interaction routing (Kingdom Stage migration Phase C1). Only Temple, Forge,
-  // Bank, and Market are routed through here so far — every other interactable still wires
-  // its onInteract directly, exactly as before. The router calls the same functions that were
-  // already used for these four buildings; it introduces no new behavior.
+  // Data-driven interaction routing (Kingdom Stage migration Phase C). Temple, Forge, Bank,
+  // Market, Forum, Mine, Kitchen, and Farm are routed through here so far — Time Gate,
+  // Cornucopia, Villageois, and Boto still wire their onInteract directly, exactly as before.
+  // The router calls the same functions that were already used for each building; it
+  // introduces no new behavior. interactionType describes the action category ("open a
+  // building modal"); interactionTargetId describes the precise destination within that
+  // category — this is deliberate (see Phase C2 decision), not a stand-in for per-building
+  // InteractionType variants.
   const resolveInteractionHandler = useCallback(
     (interaction: InteractionDefinition): (() => void) => {
       switch (interaction.interactionType) {
@@ -1060,10 +1064,22 @@ export function KingdomHubStage() {
         case "open_market":
           return openMarket;
         case "open_building_modal":
-          if (interaction.interactionTargetId === "TEMPLE") return openTemple;
-          throw new Error(
-            `resolveInteractionHandler: "open_building_modal" is not routed yet for target "${interaction.interactionTargetId}"`,
-          );
+          switch (interaction.interactionTargetId) {
+            case "TEMPLE":
+              return openTemple;
+            case "FORUM":
+              return () => openPlaceholderBuilding("forum");
+            case "MINE":
+              return () => openPlaceholderBuilding("mine");
+            case "KITCHEN":
+              return () => openPlaceholderBuilding("kitchen");
+            case "FARM":
+              return openFarmSlot;
+            default:
+              throw new Error(
+                `resolveInteractionHandler: "open_building_modal" is not routed yet for target "${interaction.interactionTargetId}"`,
+              );
+          }
         case "open_time_gate":
         case "start_dialogue":
         case "start_level":
@@ -1073,7 +1089,7 @@ export function KingdomHubStage() {
           throw new Error("resolveInteractionHandler: unhandled interactionType");
       }
     },
-    [openBank, openForge, openMarket, openTemple],
+    [openBank, openFarmSlot, openForge, openMarket, openPlaceholderBuilding, openTemple],
   );
 
   const openVillagerDialogue = useCallback(() => {
@@ -1116,7 +1132,7 @@ export function KingdomHubStage() {
         x: FORUM_POSITION.x,
         y: FORUM_POSITION.y,
         radius: stageBuildingRadius("FORUM"),
-        onInteract: () => openPlaceholderBuilding("forum"),
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("FORUM")),
       },
       ...(DEV_MODE
         ? [
@@ -1183,7 +1199,7 @@ export function KingdomHubStage() {
         x: MINE_POSITION.x,
         y: MINE_POSITION.y,
         radius: stageBuildingRadius("MINE"),
-        onInteract: () => openPlaceholderBuilding("mine"),
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("MINE")),
       },
       {
         id: "kitchen",
@@ -1192,7 +1208,7 @@ export function KingdomHubStage() {
         x: KITCHEN_POSITION.x,
         y: KITCHEN_POSITION.y,
         radius: stageBuildingRadius("KITCHEN"),
-        onInteract: () => openPlaceholderBuilding("kitchen"),
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("KITCHEN")),
       },
       {
         id: FARM_SLOT.id,
@@ -1201,7 +1217,7 @@ export function KingdomHubStage() {
         x: FARM_SLOT.x,
         y: FARM_SLOT.y,
         radius: stageBuildingRadius("FARM"),
-        onInteract: openFarmSlot,
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("FARM")),
       },
       {
         id: VILLAGER_NPC.id,
