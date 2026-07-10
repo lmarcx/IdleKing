@@ -41,6 +41,7 @@ import {
   type InteractionDefinition,
   type KingdomBuilding,
   type KingdomNpc,
+  type KingdomStageDefinition,
 } from "@idleking/game-core/level-editor";
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
@@ -66,7 +67,6 @@ const PLAYER_COLLIDER = { height: 28, offsetY: 10, width: 32 } as const;
 const SHOW_HUB_COLLIDER_DEBUG = false;
 const CAMERA_ZOOM = 1.45;
 const MAP_WALK_BOUNDS = { height: 1152, width: 1752, x: 24, y: 24 } as const;
-const PLAYER_START_POSITION = { x: KINGDOM_STAGE_DEFINITION.spawn.x, y: KINGDOM_STAGE_DEFINITION.spawn.y };
 const KINGDOM_HUB_LAYOUT = {
   centralPlaza: { x: 900, y: 600 },
   eastNortheastPlaza: { x: 1416, y: 338 },
@@ -76,50 +76,6 @@ const KINGDOM_HUB_LAYOUT = {
   southwestPlaza: { x: 376, y: 835 },
   westPlaza: { x: 376, y: 338 },
 } as const;
-function stageBuilding(id: KingdomBuilding["id"]): KingdomBuilding {
-  const building = KINGDOM_STAGE_DEFINITION.buildings.find((entry) => entry.id === id);
-  if (!building) throw new Error(`Kingdom Stage is missing building "${id}"`);
-  return building;
-}
-function stageBuildingRadius(id: KingdomBuilding["id"]): number {
-  const radius = stageBuilding(id).interaction?.radius;
-  if (radius === undefined) throw new Error(`Kingdom Stage building "${id}" has no interaction radius`);
-  return radius;
-}
-function stageBuildingLabel(id: KingdomBuilding["id"]): string {
-  const label = stageBuilding(id).interaction?.promptLabel;
-  if (label === undefined) throw new Error(`Kingdom Stage building "${id}" has no prompt label`);
-  return label;
-}
-function stageBuildingInteraction(id: KingdomBuilding["id"]): InteractionDefinition {
-  const interaction = stageBuilding(id).interaction;
-  if (!interaction) throw new Error(`Kingdom Stage building "${id}" has no interaction`);
-  return interaction;
-}
-function stageBuildingBoxCollider(id: KingdomBuilding["id"]): { height: number; width: number; x: number; y: number } {
-  const collision = stageBuilding(id).collision;
-  if (!collision) throw new Error(`Kingdom Stage building "${id}" has no collision`);
-  if (collision.type !== "box" || collision.width === undefined || collision.height === undefined) {
-    throw new Error(`Kingdom Stage building "${id}" collision is not a box`);
-  }
-  return { height: collision.height, width: collision.width, x: collision.x, y: collision.y };
-}
-const FORUM_POSITION = { x: stageBuilding("FORUM").x, y: stageBuilding("FORUM").y };
-const TEMPLE_POSITION = { x: stageBuilding("TEMPLE").x, y: stageBuilding("TEMPLE").y };
-const MINE_POSITION = { x: stageBuilding("MINE").x, y: stageBuilding("MINE").y };
-const KITCHEN_POSITION = { x: stageBuilding("KITCHEN").x, y: stageBuilding("KITCHEN").y };
-const FORGE_POSITION = { x: stageBuilding("FORGE").x, y: stageBuilding("FORGE").y };
-const BANK_POSITION = { x: stageBuilding("BANK").x, y: stageBuilding("BANK").y };
-const MARKET_POSITION = { x: stageBuilding("MARKET").x, y: stageBuilding("MARKET").y };
-const CORNUCOPIA_POSITION = { x: stageBuilding("CORNUCOPIA").x, y: stageBuilding("CORNUCOPIA").y };
-const PORTAL_POSITION = { x: stageBuilding("TIME_GATE").x, y: stageBuilding("TIME_GATE").y };
-const FARM_SLOT = {
-  id: "farm_slot_01",
-  buildingType: "farm",
-  label: stageBuildingLabel("FARM"),
-  x: stageBuilding("FARM").x,
-  y: stageBuilding("FARM").y,
-} as const;
 const KINGDOM_BOX_COLLIDERS: readonly { buildingId: KingdomBuilding["id"]; colliderId: string }[] = [
   { buildingId: "FORUM", colliderId: "forum" },
   { buildingId: "TEMPLE", colliderId: "temple" },
@@ -128,7 +84,7 @@ const KINGDOM_BOX_COLLIDERS: readonly { buildingId: KingdomBuilding["id"]; colli
   { buildingId: "FORGE", colliderId: "forge" },
   { buildingId: "BANK", colliderId: "bank" },
   { buildingId: "MARKET", colliderId: "market" },
-  { buildingId: "FARM", colliderId: FARM_SLOT.id },
+  { buildingId: "FARM", colliderId: "farm_slot_01" },
 ];
 // Central, explicit mapping from canonical Kingdom Stage building ids to their
 // geometric-buildings.ts drawing kind. FARM (bespoke foundation/state visual) and
@@ -171,39 +127,6 @@ const KINGDOM_SERVICE_BUILDINGS: readonly { buildingId: "BANK" | "MARKET"; label
   { buildingId: "BANK", label: "Bank" },
   { buildingId: "MARKET", label: "Market" },
 ];
-function stageNpc(id: string): KingdomNpc {
-  const npc = KINGDOM_STAGE_DEFINITION.npcs.find((entry) => entry.id === id);
-  if (!npc) throw new Error(`Kingdom Stage is missing NPC "${id}"`);
-  return npc;
-}
-function stageNpcRadius(id: string): number {
-  const radius = stageNpc(id).interaction?.radius;
-  if (radius === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no interaction radius`);
-  return radius;
-}
-function stageNpcLabel(id: string): string {
-  const label = stageNpc(id).interaction?.promptLabel;
-  if (label === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no prompt label`);
-  return label;
-}
-function stageNpcInteraction(id: string): InteractionDefinition {
-  const interaction = stageNpc(id).interaction;
-  if (!interaction) throw new Error(`Kingdom Stage NPC "${id}" has no interaction`);
-  return interaction;
-}
-const VILLAGER_NPC = {
-  id: "npc_villager_01",
-  label: stageNpcLabel("npc_villager_01"),
-  text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
-  x: stageNpc("npc_villager_01").x,
-  y: stageNpc("npc_villager_01").y,
-} as const;
-const BOTO_NPC = {
-  id: "npc_boto",
-  label: stageNpcLabel("npc_boto"),
-  x: stageNpc("npc_boto").x,
-  y: stageNpc("npc_boto").y,
-} as const;
 // Kingdom Stage NPCs currently share a single placeholder assetId
 // ("villager_simple_01" for both npc_villager_01 and npc_boto -- see the gap
 // flagged in packages/game-core/content/kingdom/kingdom-stage.ts), so assetId
@@ -252,26 +175,6 @@ type PlaceholderBuildingStatus = {
   unlocked: boolean;
 };
 
-const PLACEHOLDER_BUILDINGS: Record<
-  PlaceholderBuildingId,
-  {
-    label: string;
-    position: Vector2;
-  }
-> = {
-  forum: {
-    label: "Forum",
-    position: FORUM_POSITION,
-  },
-  kitchen: {
-    label: "Kitchen",
-    position: KITCHEN_POSITION,
-  },
-  mine: {
-    label: "Mine",
-    position: MINE_POSITION,
-  },
-};
 const HUB_OVERLAYS: Record<HubOverlayId, { label: string; title: string }> = {
   boto: { label: "Boto", title: "Boto" },
 };
@@ -500,12 +403,12 @@ function renderFarmSlot(foundation: PIXI.Graphics, building: PIXI.Graphics, stat
   building.tint = state === "locked" ? 0x777777 : 0xffffff;
 }
 
-function createFarmSlotVisual(state: BuildingStatus) {
+function createFarmSlotVisual(state: BuildingStatus, position: Vector2) {
   const building = createBuildingGraphics("farm");
   const visual = createHubSprite({
     content: building,
     hintOffsetY: -134,
-    position: FARM_SLOT,
+    position,
     shadowAlpha: 0.45,
     shadowHeight: 24,
     shadowWidth: 104,
@@ -575,7 +478,7 @@ function createServiceBuildingVisual({
   };
 }
 
-function createPortalVisual(): PoiVisual {
+function createPortalVisual(position: Vector2): PoiVisual {
   const container = new PIXI.Container();
   const shadow = createHubShadow(86, 24, 0.46);
   const portal = new PIXI.Container();
@@ -587,8 +490,8 @@ function createPortalVisual(): PoiVisual {
   portal.position.set(0, -22);
   portal.addChild(core, outerRing, innerRing);
   container.addChild(shadow, base, portal, hint);
-  container.position.set(PORTAL_POSITION.x, PORTAL_POSITION.y);
-  container.zIndex = PORTAL_POSITION.y;
+  container.position.set(position.x, position.y);
+  container.zIndex = position.y;
 
   return {
     container,
@@ -730,7 +633,104 @@ function getPlaceholderBuildingState(
   return getEffectiveBuildingState(buildings[buildingId], worldLevel);
 }
 
-export function KingdomHubStage() {
+export type KingdomHubStageProps = {
+  /**
+   * Reads the canonical KINGDOM_STAGE_DEFINITION by default. When provided, every
+   * data read in this component (positions, radii, labels, interactions, colliders,
+   * visuals, spawn) derives from this stage instead -- for Editor Play/Test preview.
+   * /game/kingdom never passes this, so its behavior is unchanged.
+   */
+  stageOverride?: KingdomStageDefinition;
+};
+
+export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
+  const activeStage = stageOverride ?? KINGDOM_STAGE_DEFINITION;
+
+  function stageBuilding(id: KingdomBuilding["id"]): KingdomBuilding {
+    const building = activeStage.buildings.find((entry) => entry.id === id);
+    if (!building) throw new Error(`Kingdom Stage is missing building "${id}"`);
+    return building;
+  }
+  function stageBuildingRadius(id: KingdomBuilding["id"]): number {
+    const radius = stageBuilding(id).interaction?.radius;
+    if (radius === undefined) throw new Error(`Kingdom Stage building "${id}" has no interaction radius`);
+    return radius;
+  }
+  function stageBuildingLabel(id: KingdomBuilding["id"]): string {
+    const label = stageBuilding(id).interaction?.promptLabel;
+    if (label === undefined) throw new Error(`Kingdom Stage building "${id}" has no prompt label`);
+    return label;
+  }
+  function stageBuildingInteraction(id: KingdomBuilding["id"]): InteractionDefinition {
+    const interaction = stageBuilding(id).interaction;
+    if (!interaction) throw new Error(`Kingdom Stage building "${id}" has no interaction`);
+    return interaction;
+  }
+  function stageBuildingBoxCollider(id: KingdomBuilding["id"]): { height: number; width: number; x: number; y: number } {
+    const collision = stageBuilding(id).collision;
+    if (!collision) throw new Error(`Kingdom Stage building "${id}" has no collision`);
+    if (collision.type !== "box" || collision.width === undefined || collision.height === undefined) {
+      throw new Error(`Kingdom Stage building "${id}" collision is not a box`);
+    }
+    return { height: collision.height, width: collision.width, x: collision.x, y: collision.y };
+  }
+  function stageNpc(id: string): KingdomNpc {
+    const npc = activeStage.npcs.find((entry) => entry.id === id);
+    if (!npc) throw new Error(`Kingdom Stage is missing NPC "${id}"`);
+    return npc;
+  }
+  function stageNpcRadius(id: string): number {
+    const radius = stageNpc(id).interaction?.radius;
+    if (radius === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no interaction radius`);
+    return radius;
+  }
+  function stageNpcLabel(id: string): string {
+    const label = stageNpc(id).interaction?.promptLabel;
+    if (label === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no prompt label`);
+    return label;
+  }
+  function stageNpcInteraction(id: string): InteractionDefinition {
+    const interaction = stageNpc(id).interaction;
+    if (!interaction) throw new Error(`Kingdom Stage NPC "${id}" has no interaction`);
+    return interaction;
+  }
+
+  const PLAYER_START_POSITION = { x: activeStage.spawn.x, y: activeStage.spawn.y };
+  const FORUM_POSITION = { x: stageBuilding("FORUM").x, y: stageBuilding("FORUM").y };
+  const TEMPLE_POSITION = { x: stageBuilding("TEMPLE").x, y: stageBuilding("TEMPLE").y };
+  const MINE_POSITION = { x: stageBuilding("MINE").x, y: stageBuilding("MINE").y };
+  const KITCHEN_POSITION = { x: stageBuilding("KITCHEN").x, y: stageBuilding("KITCHEN").y };
+  const FORGE_POSITION = { x: stageBuilding("FORGE").x, y: stageBuilding("FORGE").y };
+  const BANK_POSITION = { x: stageBuilding("BANK").x, y: stageBuilding("BANK").y };
+  const MARKET_POSITION = { x: stageBuilding("MARKET").x, y: stageBuilding("MARKET").y };
+  const CORNUCOPIA_POSITION = { x: stageBuilding("CORNUCOPIA").x, y: stageBuilding("CORNUCOPIA").y };
+  const PORTAL_POSITION = { x: stageBuilding("TIME_GATE").x, y: stageBuilding("TIME_GATE").y };
+  const FARM_SLOT = {
+    id: "farm_slot_01",
+    buildingType: "farm",
+    label: stageBuildingLabel("FARM"),
+    x: stageBuilding("FARM").x,
+    y: stageBuilding("FARM").y,
+  } as const;
+  const VILLAGER_NPC = {
+    id: "npc_villager_01",
+    label: stageNpcLabel("npc_villager_01"),
+    text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
+    x: stageNpc("npc_villager_01").x,
+    y: stageNpc("npc_villager_01").y,
+  } as const;
+  const BOTO_NPC = {
+    id: "npc_boto",
+    label: stageNpcLabel("npc_boto"),
+    x: stageNpc("npc_boto").x,
+    y: stageNpc("npc_boto").y,
+  } as const;
+  const PLACEHOLDER_BUILDINGS: Record<PlaceholderBuildingId, { label: string; position: Vector2 }> = {
+    forum: { label: "Forum", position: FORUM_POSITION },
+    kitchen: { label: "Kitchen", position: KITCHEN_POSITION },
+    mine: { label: "Mine", position: MINE_POSITION },
+  };
+
   const hostRef = useRef<HTMLDivElement | null>(null);
   const isModalOpenRef = useRef(false);
   const isDialogueOpenRef = useRef(false);
@@ -1530,16 +1530,16 @@ export function KingdomHubStage() {
         entityLayer.addChild(serviceVisual.container);
       }
 
-      const portalVisual = createPortalVisual();
+      const portalVisual = createPortalVisual(PORTAL_POSITION);
       poiVisuals.set("portal", portalVisual);
       entityLayer.addChild(portalVisual.container);
 
-      const farmSlot = createFarmSlotVisual(farmStateRef.current);
+      const farmSlot = createFarmSlotVisual(farmStateRef.current, FARM_SLOT);
       renderFarmSlotRef.current = farmSlot.render;
       poiVisuals.set(FARM_SLOT.id, farmSlot);
       entityLayer.addChild(farmSlot.container);
 
-      for (const npc of KINGDOM_STAGE_DEFINITION.npcs) {
+      for (const npc of activeStage.npcs) {
         const figureConfig = resolveNpcFigureConfig(npc.id);
         const npcVisual = createHubSpriteVisual({
           content: createNpcContent(figureConfig.variant, figureConfig.displayHeight),
