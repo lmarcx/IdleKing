@@ -36,7 +36,12 @@ import {
   type ForgeRecipe,
   type TempleXpTarget,
 } from "@idleking/game-core";
-import { KINGDOM_STAGE_DEFINITION, type KingdomBuilding, type KingdomNpc } from "@idleking/game-core/level-editor";
+import {
+  KINGDOM_STAGE_DEFINITION,
+  type InteractionDefinition,
+  type KingdomBuilding,
+  type KingdomNpc,
+} from "@idleking/game-core/level-editor";
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
@@ -85,6 +90,11 @@ function stageBuildingLabel(id: KingdomBuilding["id"]): string {
   const label = stageBuilding(id).interaction?.promptLabel;
   if (label === undefined) throw new Error(`Kingdom Stage building "${id}" has no prompt label`);
   return label;
+}
+function stageBuildingInteraction(id: KingdomBuilding["id"]): InteractionDefinition {
+  const interaction = stageBuilding(id).interaction;
+  if (!interaction) throw new Error(`Kingdom Stage building "${id}" has no interaction`);
+  return interaction;
 }
 const FORUM_POSITION = { x: stageBuilding("FORUM").x, y: stageBuilding("FORUM").y };
 const TEMPLE_POSITION = { x: stageBuilding("TEMPLE").x, y: stageBuilding("TEMPLE").y };
@@ -1036,6 +1046,36 @@ export function KingdomHubStage() {
     [dispatch],
   );
 
+  // Data-driven interaction routing (Kingdom Stage migration Phase C1). Only Temple, Forge,
+  // Bank, and Market are routed through here so far — every other interactable still wires
+  // its onInteract directly, exactly as before. The router calls the same functions that were
+  // already used for these four buildings; it introduces no new behavior.
+  const resolveInteractionHandler = useCallback(
+    (interaction: InteractionDefinition): (() => void) => {
+      switch (interaction.interactionType) {
+        case "open_forge":
+          return openForge;
+        case "open_bank":
+          return openBank;
+        case "open_market":
+          return openMarket;
+        case "open_building_modal":
+          if (interaction.interactionTargetId === "TEMPLE") return openTemple;
+          throw new Error(
+            `resolveInteractionHandler: "open_building_modal" is not routed yet for target "${interaction.interactionTargetId}"`,
+          );
+        case "open_time_gate":
+        case "start_dialogue":
+        case "start_level":
+        case "custom_trigger":
+          throw new Error(`resolveInteractionHandler: interactionType "${interaction.interactionType}" is not routed yet`);
+        default:
+          throw new Error("resolveInteractionHandler: unhandled interactionType");
+      }
+    },
+    [openBank, openForge, openMarket, openTemple],
+  );
+
   const openVillagerDialogue = useCallback(() => {
     if (isModalOpenRef.current || isDialogueOpenRef.current) return;
     spawnWorldFxRef.current?.(VILLAGER_NPC, undefined, 0xc9c9c9);
@@ -1107,7 +1147,7 @@ export function KingdomHubStage() {
         x: TEMPLE_POSITION.x,
         y: TEMPLE_POSITION.y,
         radius: stageBuildingRadius("TEMPLE"),
-        onInteract: openTemple,
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("TEMPLE")),
       },
       {
         id: "forge",
@@ -1116,7 +1156,7 @@ export function KingdomHubStage() {
         x: FORGE_POSITION.x,
         y: FORGE_POSITION.y,
         radius: stageBuildingRadius("FORGE"),
-        onInteract: openForge,
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("FORGE")),
       },
       {
         id: "bank",
@@ -1125,7 +1165,7 @@ export function KingdomHubStage() {
         x: BANK_POSITION.x,
         y: BANK_POSITION.y,
         radius: stageBuildingRadius("BANK"),
-        onInteract: openBank,
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("BANK")),
       },
       {
         id: "market",
@@ -1134,7 +1174,7 @@ export function KingdomHubStage() {
         x: MARKET_POSITION.x,
         y: MARKET_POSITION.y,
         radius: stageBuildingRadius("MARKET"),
-        onInteract: openMarket,
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("MARKET")),
       },
       {
         id: "mine",
@@ -1682,6 +1722,7 @@ export function KingdomHubStage() {
     openPlaceholderBuilding,
     openTemple,
     openVillagerDialogue,
+    resolveInteractionHandler,
   ]);
 
   return (
