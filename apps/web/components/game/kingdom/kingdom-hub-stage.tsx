@@ -204,6 +204,24 @@ const BOTO_NPC = {
   x: stageNpc("npc_boto").x,
   y: stageNpc("npc_boto").y,
 } as const;
+// Kingdom Stage NPCs currently share a single placeholder assetId
+// ("villager_simple_01" for both npc_villager_01 and npc_boto -- see the gap
+// flagged in packages/game-core/content/kingdom/kingdom-stage.ts), so assetId
+// cannot yet discriminate which geometric-figure.ts variant to draw. This maps
+// by canonical NPC id instead, as a deliberate, temporary, explicit stand-in
+// until NPCs get real distinct assetIds and migrate to the GeometricAsset
+// renderer -- not a conversion to GeometricAsset in this commit.
+const KINGDOM_NPC_FIGURES: Partial<
+  Record<string, { displayHeight: number; hintOffsetY: number; shadowHeight: number; shadowWidth: number; variant: Parameters<typeof createFigureGraphics>[0] }>
+> = {
+  npc_boto: { displayHeight: 78, hintOffsetY: -78, shadowHeight: 10, shadowWidth: 28, variant: "robot" },
+  npc_villager_01: { displayHeight: 70, hintOffsetY: -72, shadowHeight: 9, shadowWidth: 24, variant: "villager" },
+};
+function resolveNpcFigureConfig(npcId: string) {
+  const config = KINGDOM_NPC_FIGURES[npcId];
+  if (!config) throw new Error(`No NPC figure mapping for Kingdom Stage NPC "${npcId}"`);
+  return config;
+}
 const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
 const TEMPLE_BUILD_COST = getBuildCost("TEMPLE");
@@ -1521,25 +1539,19 @@ export function KingdomHubStage() {
       poiVisuals.set(FARM_SLOT.id, farmSlot);
       entityLayer.addChild(farmSlot.container);
 
-      const villagerVisual = createHubSpriteVisual({
-        content: createNpcContent("villager", 70),
-        hintOffsetY: -72,
-        position: VILLAGER_NPC,
-        shadowHeight: 9,
-        shadowWidth: 24,
-      });
-      const botoVisual = createHubSpriteVisual({
-        content: createNpcContent("robot", 78),
-        hintOffsetY: -78,
-        position: BOTO_NPC,
-        shadowHeight: 10,
-        shadowWidth: 28,
-      });
-      poiVisuals.set(BOTO_NPC.id, botoVisual);
-      entityLayer.addChild(botoVisual.container);
+      for (const npc of KINGDOM_STAGE_DEFINITION.npcs) {
+        const figureConfig = resolveNpcFigureConfig(npc.id);
+        const npcVisual = createHubSpriteVisual({
+          content: createNpcContent(figureConfig.variant, figureConfig.displayHeight),
+          hintOffsetY: figureConfig.hintOffsetY,
+          position: stageNpc(npc.id),
+          shadowHeight: figureConfig.shadowHeight,
+          shadowWidth: figureConfig.shadowWidth,
+        });
+        poiVisuals.set(npc.id, npcVisual);
+        entityLayer.addChild(npcVisual.container);
+      }
 
-      poiVisuals.set(VILLAGER_NPC.id, villagerVisual);
-      entityLayer.addChild(villagerVisual.container);
       entityLayer.addChild(player);
       player.position.set(playerPosition.x, playerPosition.y);
 
