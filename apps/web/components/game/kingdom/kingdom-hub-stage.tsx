@@ -127,6 +127,11 @@ function stageNpcLabel(id: string): string {
   if (label === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no prompt label`);
   return label;
 }
+function stageNpcInteraction(id: string): InteractionDefinition {
+  const interaction = stageNpc(id).interaction;
+  if (!interaction) throw new Error(`Kingdom Stage NPC "${id}" has no interaction`);
+  return interaction;
+}
 const VILLAGER_NPC = {
   id: "npc_villager_01",
   label: stageNpcLabel("npc_villager_01"),
@@ -1046,14 +1051,22 @@ export function KingdomHubStage() {
     [dispatch],
   );
 
-  // Data-driven interaction routing (Kingdom Stage migration Phase C). Temple, Forge, Bank,
-  // Market, Forum, Mine, Kitchen, and Farm are routed through here so far — Time Gate,
-  // Cornucopia, Villageois, and Boto still wire their onInteract directly, exactly as before.
-  // The router calls the same functions that were already used for each building; it
-  // introduces no new behavior. interactionType describes the action category ("open a
-  // building modal"); interactionTargetId describes the precise destination within that
-  // category — this is deliberate (see Phase C2 decision), not a stand-in for per-building
-  // InteractionType variants.
+  const openVillagerDialogue = useCallback(() => {
+    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
+    spawnWorldFxRef.current?.(VILLAGER_NPC, undefined, 0xc9c9c9);
+    isDialogueOpenRef.current = true;
+    setActiveDialogue({
+      name: VILLAGER_NPC.label,
+      text: VILLAGER_NPC.text,
+    });
+  }, []);
+
+  // Data-driven interaction routing (Kingdom Stage migration Phase C). Every Kingdom
+  // interactable is now routed through here. The router calls the same functions that were
+  // already used for each building/NPC; it introduces no new behavior. interactionType
+  // describes the action category ("open a building modal"); interactionTargetId describes
+  // the precise destination within that category — this is deliberate (see Phase C2 decision),
+  // not a stand-in for per-building InteractionType variants.
   const resolveInteractionHandler = useCallback(
     (interaction: InteractionDefinition): (() => void) => {
       switch (interaction.interactionType) {
@@ -1081,26 +1094,53 @@ export function KingdomHubStage() {
               );
           }
         case "open_time_gate":
+          if (interaction.interactionTargetId === "TIME_GATE") return () => openGlobalHudOverlay("worlds");
+          throw new Error(
+            `resolveInteractionHandler: "open_time_gate" is not routed yet for target "${interaction.interactionTargetId}"`,
+          );
         case "start_dialogue":
-        case "start_level":
+          if (interaction.interactionTargetId === "npc_villager_01") return openVillagerDialogue;
+          throw new Error(
+            `resolveInteractionHandler: "start_dialogue" is not routed yet for target "${interaction.interactionTargetId}"`,
+          );
         case "custom_trigger":
+          switch (interaction.interactionTargetId) {
+            case "CORNUCOPIA":
+              // DEV_MODE gating is structural today: the "cornucopia" interactable entry only
+              // exists in the array when DEV_MODE is true (see below), so this branch is never
+              // reached in production. This check is a deliberate second line of defense so the
+              // router itself can never activate Cornucopia outside DEV_MODE, even if that
+              // structural gating changes later.
+              if (!DEV_MODE) {
+                throw new Error('resolveInteractionHandler: "CORNUCOPIA" is DEV_MODE-only and must not be routed in production');
+              }
+              return openCornucopia;
+            case "npc_boto":
+              return () => openHubOverlay("boto");
+            default:
+              throw new Error(
+                `resolveInteractionHandler: "custom_trigger" is not routed yet for target "${interaction.interactionTargetId}"`,
+              );
+          }
+        case "start_level":
           throw new Error(`resolveInteractionHandler: interactionType "${interaction.interactionType}" is not routed yet`);
         default:
           throw new Error("resolveInteractionHandler: unhandled interactionType");
       }
     },
-    [openBank, openFarmSlot, openForge, openMarket, openPlaceholderBuilding, openTemple],
+    [
+      openBank,
+      openCornucopia,
+      openFarmSlot,
+      openForge,
+      openGlobalHudOverlay,
+      openHubOverlay,
+      openMarket,
+      openPlaceholderBuilding,
+      openTemple,
+      openVillagerDialogue,
+    ],
   );
-
-  const openVillagerDialogue = useCallback(() => {
-    if (isModalOpenRef.current || isDialogueOpenRef.current) return;
-    spawnWorldFxRef.current?.(VILLAGER_NPC, undefined, 0xc9c9c9);
-    isDialogueOpenRef.current = true;
-    setActiveDialogue({
-      name: VILLAGER_NPC.label,
-      text: VILLAGER_NPC.text,
-    });
-  }, []);
 
   useEffect(() => {
     const hostElement = hostRef.current;
@@ -1143,7 +1183,7 @@ export function KingdomHubStage() {
               x: CORNUCOPIA_POSITION.x,
               y: CORNUCOPIA_POSITION.y,
               radius: stageBuildingRadius("CORNUCOPIA"),
-              onInteract: openCornucopia,
+              onInteract: resolveInteractionHandler(stageBuildingInteraction("CORNUCOPIA")),
             },
           ]
         : []),
@@ -1154,7 +1194,7 @@ export function KingdomHubStage() {
         x: PORTAL_POSITION.x,
         y: PORTAL_POSITION.y,
         radius: stageBuildingRadius("TIME_GATE"),
-        onInteract: () => openGlobalHudOverlay("worlds"),
+        onInteract: resolveInteractionHandler(stageBuildingInteraction("TIME_GATE")),
       },
       {
         id: "temple",
@@ -1226,7 +1266,7 @@ export function KingdomHubStage() {
         x: VILLAGER_NPC.x,
         y: VILLAGER_NPC.y,
         radius: stageNpcRadius("npc_villager_01"),
-        onInteract: openVillagerDialogue,
+        onInteract: resolveInteractionHandler(stageNpcInteraction("npc_villager_01")),
       },
       {
         id: BOTO_NPC.id,
@@ -1235,7 +1275,7 @@ export function KingdomHubStage() {
         x: BOTO_NPC.x,
         y: BOTO_NPC.y,
         radius: stageNpcRadius("npc_boto"),
-        onInteract: () => openHubOverlay("boto"),
+        onInteract: resolveInteractionHandler(stageNpcInteraction("npc_boto")),
       },
     ];
 
