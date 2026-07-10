@@ -96,6 +96,14 @@ function stageBuildingInteraction(id: KingdomBuilding["id"]): InteractionDefinit
   if (!interaction) throw new Error(`Kingdom Stage building "${id}" has no interaction`);
   return interaction;
 }
+function stageBuildingBoxCollider(id: KingdomBuilding["id"]): { height: number; width: number; x: number; y: number } {
+  const collision = stageBuilding(id).collision;
+  if (!collision) throw new Error(`Kingdom Stage building "${id}" has no collision`);
+  if (collision.type !== "box" || collision.width === undefined || collision.height === undefined) {
+    throw new Error(`Kingdom Stage building "${id}" collision is not a box`);
+  }
+  return { height: collision.height, width: collision.width, x: collision.x, y: collision.y };
+}
 const FORUM_POSITION = { x: stageBuilding("FORUM").x, y: stageBuilding("FORUM").y };
 const TEMPLE_POSITION = { x: stageBuilding("TEMPLE").x, y: stageBuilding("TEMPLE").y };
 const MINE_POSITION = { x: stageBuilding("MINE").x, y: stageBuilding("MINE").y };
@@ -1505,20 +1513,8 @@ export function KingdomHubStage() {
           position: FORGE_POSITION,
           widthRatio: 0.7,
         }),
-        {
-          height: 58,
-          id: "bank",
-          width: 118,
-          x: BANK_POSITION.x - 59,
-          y: BANK_POSITION.y - 18,
-        },
-        {
-          height: 54,
-          id: "market",
-          width: 130,
-          x: MARKET_POSITION.x - 65,
-          y: MARKET_POSITION.y - 12,
-        },
+        { id: "bank", ...stageBuildingBoxCollider("BANK") },
+        { id: "market", ...stageBuildingBoxCollider("MARKET") },
         createGroundCollider({
           building: "farm",
           heightRatio: 0.3,
