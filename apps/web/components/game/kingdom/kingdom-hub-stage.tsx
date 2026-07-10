@@ -45,7 +45,7 @@ import {
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
-import { createBuildingGraphics, createPortalGraphics } from "./geometric-buildings";
+import { createBuildingGraphics, createPortalGraphics, type HubBuildingKind } from "./geometric-buildings";
 import { BankView } from "./bank-view";
 import { MarketView } from "./market-view";
 import { CornucopiaDevPanel } from "./cornucopia-dev-panel";
@@ -129,6 +129,47 @@ const KINGDOM_BOX_COLLIDERS: readonly { buildingId: KingdomBuilding["id"]; colli
   { buildingId: "BANK", colliderId: "bank" },
   { buildingId: "MARKET", colliderId: "market" },
   { buildingId: "FARM", colliderId: FARM_SLOT.id },
+];
+// Central, explicit mapping from canonical Kingdom Stage building ids to their
+// geometric-buildings.ts drawing kind. FARM (bespoke foundation/state visual) and
+// TIME_GATE (createPortalGraphics, animated sub-parts) are deliberately absent —
+// they are not rendered through this generic sprite/asset path.
+const KINGDOM_HUB_BUILDING_KIND: Partial<Record<KingdomBuilding["id"], HubBuildingKind>> = {
+  BANK: "bank",
+  CORNUCOPIA: "cornucopia",
+  FORGE: "forge",
+  FORUM: "forum",
+  KITCHEN: "kitchen",
+  MARKET: "market",
+  MINE: "mine",
+  TEMPLE: "temple",
+};
+function resolveHubBuildingKind(buildingId: KingdomBuilding["id"]): HubBuildingKind {
+  const kind = KINGDOM_HUB_BUILDING_KIND[buildingId];
+  if (!kind) throw new Error(`No HubBuildingKind visual mapping for Kingdom Stage building "${buildingId}"`);
+  return kind;
+}
+// Visual tuning (hint offset, shadow) is hand-authored per building, not derivable
+// from stage data -- this table is the single place it lives instead of five
+// near-identical createBuildingSprite(...) call sites.
+const KINGDOM_SPRITE_BUILDINGS: readonly {
+  buildingId: KingdomBuilding["id"];
+  devOnly?: boolean;
+  hintOffsetY: number;
+  shadowAlpha?: number;
+  shadowHeight: number;
+  shadowWidth: number;
+}[] = [
+  { buildingId: "FORUM", hintOffsetY: -168, shadowAlpha: 0.48, shadowHeight: 30, shadowWidth: 132 },
+  { buildingId: "TEMPLE", hintOffsetY: -142, shadowAlpha: 0.45, shadowHeight: 25, shadowWidth: 104 },
+  { buildingId: "MINE", hintOffsetY: -126, shadowAlpha: 0.48, shadowHeight: 24, shadowWidth: 108 },
+  { buildingId: "KITCHEN", hintOffsetY: -120, shadowAlpha: 0.45, shadowHeight: 23, shadowWidth: 96 },
+  { buildingId: "FORGE", hintOffsetY: -128, shadowAlpha: 0.48, shadowHeight: 24, shadowWidth: 106 },
+  { buildingId: "CORNUCOPIA", devOnly: true, hintOffsetY: -84, shadowHeight: 16, shadowWidth: 62 },
+];
+const KINGDOM_SERVICE_BUILDINGS: readonly { buildingId: "BANK" | "MARKET"; label: string }[] = [
+  { buildingId: "BANK", label: "Bank" },
+  { buildingId: "MARKET", label: "Market" },
 ];
 function stageNpc(id: string): KingdomNpc {
   const npc = KINGDOM_STAGE_DEFINITION.npcs.find((entry) => entry.id === id);
@@ -1440,93 +1481,35 @@ export function KingdomHubStage() {
         entityLayer.addChild(drawColliderDebug(solidColliders));
       }
 
-      const forumVisual = createBuildingSprite({
-        content: createBuildingGraphics("forum"),
-        hintOffsetY: -168,
-        position: FORUM_POSITION,
-        shadowAlpha: 0.48,
-        shadowHeight: 30,
-        shadowWidth: 132,
-      });
-      poiVisuals.set("forum", forumVisual);
-      entityLayer.addChild(forumVisual.container);
-
-      const templeVisual = createBuildingSprite({
-        content: createBuildingGraphics("temple"),
-        hintOffsetY: -142,
-        position: TEMPLE_POSITION,
-        shadowAlpha: 0.45,
-        shadowHeight: 25,
-        shadowWidth: 104,
-      });
-      poiVisuals.set("temple", templeVisual);
-      entityLayer.addChild(templeVisual.container);
-
-      const mineVisual = createBuildingSprite({
-        content: createBuildingGraphics("mine"),
-        hintOffsetY: -126,
-        position: MINE_POSITION,
-        shadowAlpha: 0.48,
-        shadowHeight: 24,
-        shadowWidth: 108,
-      });
-      poiVisuals.set("mine", mineVisual);
-      entityLayer.addChild(mineVisual.container);
-
-      const kitchenVisual = createBuildingSprite({
-        content: createBuildingGraphics("kitchen"),
-        hintOffsetY: -120,
-        position: KITCHEN_POSITION,
-        shadowAlpha: 0.45,
-        shadowHeight: 23,
-        shadowWidth: 96,
-      });
-      poiVisuals.set("kitchen", kitchenVisual);
-      entityLayer.addChild(kitchenVisual.container);
-
-      const forgeVisual = createBuildingSprite({
-        content: createBuildingGraphics("forge"),
-        hintOffsetY: -128,
-        position: FORGE_POSITION,
-        shadowAlpha: 0.48,
-        shadowHeight: 24,
-        shadowWidth: 106,
-      });
-      poiVisuals.set("forge", forgeVisual);
-      entityLayer.addChild(forgeVisual.container);
-
-      const bankVisual = createServiceBuildingVisual({
-        label: "Bank",
-        position: BANK_POSITION,
-        variant: "bank",
-      });
-      bankVisual.container.eventMode = "static";
-      bankVisual.container.cursor = "pointer";
-      bankVisual.container.on("pointertap", openBank);
-      poiVisuals.set("bank", bankVisual);
-      entityLayer.addChild(bankVisual.container);
-
-      const marketVisual = createServiceBuildingVisual({
-        label: "Market",
-        position: MARKET_POSITION,
-        variant: "market",
-      });
-      marketVisual.container.eventMode = "static";
-      marketVisual.container.cursor = "pointer";
-      marketVisual.container.on("pointertap", openMarket);
-      poiVisuals.set("market", marketVisual);
-      entityLayer.addChild(marketVisual.container);
-
-      if (DEV_MODE) {
-        const cornucopiaVisual = createHubSpriteVisual({
-          content: createBuildingGraphics("cornucopia"),
-          hintOffsetY: -84,
-          position: CORNUCOPIA_POSITION,
-          shadowHeight: 16,
-          shadowWidth: 62,
+      for (const config of KINGDOM_SPRITE_BUILDINGS) {
+        if (config.devOnly && !DEV_MODE) continue;
+        const buildingVisual = createBuildingSprite({
+          content: createBuildingGraphics(resolveHubBuildingKind(config.buildingId)),
+          hintOffsetY: config.hintOffsetY,
+          position: stageBuilding(config.buildingId),
+          shadowAlpha: config.shadowAlpha,
+          shadowHeight: config.shadowHeight,
+          shadowWidth: config.shadowWidth,
         });
-        poiVisuals.set("cornucopia", cornucopiaVisual);
-        entityLayer.addChild(cornucopiaVisual.container);
+        poiVisuals.set(config.buildingId.toLowerCase(), buildingVisual);
+        entityLayer.addChild(buildingVisual.container);
+      }
+
+      const servicePointerHandlers: Record<"BANK" | "MARKET", () => void> = {
+        BANK: openBank,
+        MARKET: openMarket,
+      };
+      for (const config of KINGDOM_SERVICE_BUILDINGS) {
+        const serviceVisual = createServiceBuildingVisual({
+          label: config.label,
+          position: stageBuilding(config.buildingId),
+          variant: resolveHubBuildingKind(config.buildingId) as "bank" | "market",
+        });
+        serviceVisual.container.eventMode = "static";
+        serviceVisual.container.cursor = "pointer";
+        serviceVisual.container.on("pointertap", servicePointerHandlers[config.buildingId]);
+        poiVisuals.set(config.buildingId.toLowerCase(), serviceVisual);
+        entityLayer.addChild(serviceVisual.container);
       }
 
       const portalVisual = createPortalVisual();
