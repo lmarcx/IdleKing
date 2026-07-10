@@ -81,6 +81,11 @@ function stageBuildingRadius(id: KingdomBuilding["id"]): number {
   if (radius === undefined) throw new Error(`Kingdom Stage building "${id}" has no interaction radius`);
   return radius;
 }
+function stageBuildingLabel(id: KingdomBuilding["id"]): string {
+  const label = stageBuilding(id).interaction?.promptLabel;
+  if (label === undefined) throw new Error(`Kingdom Stage building "${id}" has no prompt label`);
+  return label;
+}
 const FORUM_POSITION = { x: stageBuilding("FORUM").x, y: stageBuilding("FORUM").y };
 const TEMPLE_POSITION = { x: stageBuilding("TEMPLE").x, y: stageBuilding("TEMPLE").y };
 const MINE_POSITION = { x: stageBuilding("MINE").x, y: stageBuilding("MINE").y };
@@ -93,7 +98,7 @@ const PORTAL_POSITION = { x: stageBuilding("TIME_GATE").x, y: stageBuilding("TIM
 const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
-  label: "Farm",
+  label: stageBuildingLabel("FARM"),
   x: stageBuilding("FARM").x,
   y: stageBuilding("FARM").y,
 } as const;
@@ -107,16 +112,21 @@ function stageNpcRadius(id: string): number {
   if (radius === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no interaction radius`);
   return radius;
 }
+function stageNpcLabel(id: string): string {
+  const label = stageNpc(id).interaction?.promptLabel;
+  if (label === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no prompt label`);
+  return label;
+}
 const VILLAGER_NPC = {
   id: "npc_villager_01",
-  label: "Villageois Errant",
+  label: stageNpcLabel("npc_villager_01"),
   text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
   x: stageNpc("npc_villager_01").x,
   y: stageNpc("npc_villager_01").y,
 } as const;
 const BOTO_NPC = {
   id: "npc_boto",
-  label: "Boto",
+  label: stageNpcLabel("npc_boto"),
   x: stageNpc("npc_boto").x,
   y: stageNpc("npc_boto").y,
 } as const;
@@ -1061,7 +1071,7 @@ export function KingdomHubStage() {
     const interactables: Interactable[] = [
       {
         id: "forum",
-        label: "Forum",
+        label: stageBuildingLabel("FORUM"),
         type: "building",
         x: FORUM_POSITION.x,
         y: FORUM_POSITION.y,
@@ -1072,7 +1082,7 @@ export function KingdomHubStage() {
         ? [
             {
               id: "cornucopia",
-              label: "Cornucopia",
+              label: stageBuildingLabel("CORNUCOPIA"),
               type: "building" as const,
               x: CORNUCOPIA_POSITION.x,
               y: CORNUCOPIA_POSITION.y,
@@ -1083,7 +1093,7 @@ export function KingdomHubStage() {
         : []),
       {
         id: "portal",
-        label: "Portail",
+        label: stageBuildingLabel("TIME_GATE"),
         type: "building",
         x: PORTAL_POSITION.x,
         y: PORTAL_POSITION.y,
@@ -1092,7 +1102,7 @@ export function KingdomHubStage() {
       },
       {
         id: "temple",
-        label: "Temple",
+        label: stageBuildingLabel("TEMPLE"),
         type: "building",
         x: TEMPLE_POSITION.x,
         y: TEMPLE_POSITION.y,
@@ -1101,7 +1111,7 @@ export function KingdomHubStage() {
       },
       {
         id: "forge",
-        label: "Forge",
+        label: stageBuildingLabel("FORGE"),
         type: "building",
         x: FORGE_POSITION.x,
         y: FORGE_POSITION.y,
@@ -1110,7 +1120,7 @@ export function KingdomHubStage() {
       },
       {
         id: "bank",
-        label: "Bank",
+        label: stageBuildingLabel("BANK"),
         type: "building",
         x: BANK_POSITION.x,
         y: BANK_POSITION.y,
@@ -1119,7 +1129,7 @@ export function KingdomHubStage() {
       },
       {
         id: "market",
-        label: "Market",
+        label: stageBuildingLabel("MARKET"),
         type: "building",
         x: MARKET_POSITION.x,
         y: MARKET_POSITION.y,
@@ -1128,7 +1138,7 @@ export function KingdomHubStage() {
       },
       {
         id: "mine",
-        label: "Mine",
+        label: stageBuildingLabel("MINE"),
         type: "building",
         x: MINE_POSITION.x,
         y: MINE_POSITION.y,
@@ -1137,7 +1147,7 @@ export function KingdomHubStage() {
       },
       {
         id: "kitchen",
-        label: "Kitchen",
+        label: stageBuildingLabel("KITCHEN"),
         type: "building",
         x: KITCHEN_POSITION.x,
         y: KITCHEN_POSITION.y,
