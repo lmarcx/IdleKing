@@ -346,6 +346,20 @@ export function EditorShell() {
     toast.success("Kingdom Stage loaded.");
   }
 
+  function playtestKingdomStage() {
+    const validation = validateKingdomStageDefinition(kingdomStage);
+    if (!validation.ok) {
+      const message = `Cannot playtest: ${validation.errors.join("; ")}`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    saveDocument({ id: kingdomStage.id, type: "kingdom_stage", title: kingdomStage.name }, kingdomStage);
+    refreshDocumentIndex();
+    toast(`Saved "${kingdomStage.name}" and launching Kingdom Stage preview.`);
+    router.push("/game/kingdom/preview");
+  }
+
   function applyImportedMap(raw: string, successMessage: string) {
     let parsed: PlayableMap;
     try {
@@ -773,6 +787,7 @@ export function EditorShell() {
           }}
           onNewMap={newMap}
           onPlaytest={playtestCurrentDocument}
+          onPlaytestKingdomStage={playtestKingdomStage}
           onSaveAsset={saveAsset}
           onSaveKingdomStage={saveKingdomStage}
           onSaveMap={saveMap}

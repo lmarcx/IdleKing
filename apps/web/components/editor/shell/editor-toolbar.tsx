@@ -52,6 +52,7 @@ export function EditorToolbar({
   onNewAsset,
   onNewMap,
   onPlaytest,
+  onPlaytestKingdomStage,
   onSaveAsset,
   onSaveKingdomStage,
   onSaveMap,
@@ -73,6 +74,7 @@ export function EditorToolbar({
   onNewAsset: () => void;
   onNewMap: () => void;
   onPlaytest: () => void;
+  onPlaytestKingdomStage: () => void;
   onSaveAsset: () => void;
   onSaveKingdomStage: () => void;
   onSaveMap: () => void;
@@ -160,8 +162,17 @@ export function EditorToolbar({
             <Download className="mr-2 h-4 w-4" /> Export JSON
           </Button>
           <HiddenFileInput accept=".json,.kingdom.json" label="Import Kingdom" onFile={onImportKingdomStage} />
+          <Button
+            onClick={onPlaytestKingdomStage}
+            size="sm"
+            title="Saves this Kingdom Stage locally, then opens the Play/Test preview at /game/kingdom/preview."
+            variant="outline"
+          >
+            <Grid2X2 className="mr-2 h-4 w-4" />
+            Play/Test Kingdom Stage
+          </Button>
           <span className="font-ik-menu text-[0.62rem] uppercase tracking-wide text-amber-200/70">
-            Kingdom Stage — not read by the live runtime yet
+            Kingdom Stage — Play/Test previews this locally; /game/kingdom still reads canon
           </span>
         </>
       ) : (
