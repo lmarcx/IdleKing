@@ -232,3 +232,33 @@ export function createBuildingGraphics(kind: HubBuildingKind): PIXI.Graphics {
   BUILDING_DRAWERS[kind](g);
   return g;
 }
+
+export type PortalGraphics = {
+  base: PIXI.Graphics;
+  core: PIXI.Graphics;
+  outerRing: PIXI.Graphics;
+  innerRing: PIXI.Graphics;
+};
+
+/**
+ * Time Gate (portal) visual entry point. Unlike other buildings, its ring
+ * layers are animated independently (see kingdom-hub-stage.tsx), so the
+ * pure drawing is split across four graphics instead of one flat
+ * createBuildingGraphics() result — this is a coherent, equally pure entry
+ * point for the same drawing code that used to be inline.
+ */
+export function createPortalGraphics(): PortalGraphics {
+  const base = new PIXI.Graphics();
+  const outerRing = new PIXI.Graphics();
+  const innerRing = new PIXI.Graphics();
+  const core = new PIXI.Graphics();
+
+  base.ellipse(0, 24, 72, 31).fill({ color: BW.gray0, alpha: 0.9 });
+  base.ellipse(0, 24, 72, 31).stroke({ color: BW.gray3, alpha: 0.8, width: 3 });
+  outerRing.ellipse(0, 0, 54, 78).stroke({ color: BW.white, alpha: 0.85, width: 5 });
+  innerRing.ellipse(0, 0, 34, 55).stroke({ color: BW.gray4, alpha: 0.72, width: 3 });
+  core.ellipse(0, 0, 24, 42).fill({ color: BW.gray1, alpha: 0.5 });
+  core.ellipse(0, 0, 18, 34).fill({ color: BW.gray2, alpha: 0.35 });
+
+  return { base, core, outerRing, innerRing };
+}

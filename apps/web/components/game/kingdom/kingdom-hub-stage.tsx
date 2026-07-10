@@ -45,7 +45,7 @@ import {
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
-import { createBuildingGraphics } from "./geometric-buildings";
+import { createBuildingGraphics, createPortalGraphics } from "./geometric-buildings";
 import { BankView } from "./bank-view";
 import { MarketView } from "./market-view";
 import { CornucopiaDevPanel } from "./cornucopia-dev-panel";
@@ -520,20 +520,11 @@ function createPortalVisual(): PoiVisual {
   const container = new PIXI.Container();
   const shadow = createHubShadow(86, 24, 0.46);
   const portal = new PIXI.Container();
-  const base = new PIXI.Graphics();
-  const outerRing = new PIXI.Graphics();
-  const innerRing = new PIXI.Graphics();
-  const core = new PIXI.Graphics();
+  const { base, core, outerRing, innerRing } = createPortalGraphics();
   const hint = createInteractionHint(-88);
   let isNear = false;
 
   shadow.position.set(0, 24);
-  base.ellipse(0, 24, 72, 31).fill({ color: BW.gray0, alpha: 0.9 });
-  base.ellipse(0, 24, 72, 31).stroke({ color: BW.gray3, alpha: 0.8, width: 3 });
-  outerRing.ellipse(0, 0, 54, 78).stroke({ color: BW.white, alpha: 0.85, width: 5 });
-  innerRing.ellipse(0, 0, 34, 55).stroke({ color: BW.gray4, alpha: 0.72, width: 3 });
-  core.ellipse(0, 0, 24, 42).fill({ color: BW.gray1, alpha: 0.5 });
-  core.ellipse(0, 0, 18, 34).fill({ color: BW.gray2, alpha: 0.35 });
   portal.position.set(0, -22);
   portal.addChild(core, outerRing, innerRing);
   container.addChild(shadow, base, portal, hint);
