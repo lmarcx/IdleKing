@@ -36,7 +36,7 @@ import {
   type ForgeRecipe,
   type TempleXpTarget,
 } from "@idleking/game-core";
-import { KINGDOM_STAGE_DEFINITION, type KingdomBuilding } from "@idleking/game-core/level-editor";
+import { KINGDOM_STAGE_DEFINITION, type KingdomBuilding, type KingdomNpc } from "@idleking/game-core/level-editor";
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
@@ -61,7 +61,7 @@ const PLAYER_COLLIDER = { height: 28, offsetY: 10, width: 32 } as const;
 const SHOW_HUB_COLLIDER_DEBUG = false;
 const CAMERA_ZOOM = 1.45;
 const MAP_WALK_BOUNDS = { height: 1152, width: 1752, x: 24, y: 24 } as const;
-const PLAYER_START_POSITION = { x: 900, y: 640 } as const;
+const PLAYER_START_POSITION = { x: KINGDOM_STAGE_DEFINITION.spawn.x, y: KINGDOM_STAGE_DEFINITION.spawn.y };
 const KINGDOM_HUB_LAYOUT = {
   centralPlaza: { x: 900, y: 600 },
   eastNortheastPlaza: { x: 1416, y: 338 },
@@ -97,18 +97,28 @@ const FARM_SLOT = {
   x: stageBuilding("FARM").x,
   y: stageBuilding("FARM").y,
 } as const;
+function stageNpc(id: string): KingdomNpc {
+  const npc = KINGDOM_STAGE_DEFINITION.npcs.find((entry) => entry.id === id);
+  if (!npc) throw new Error(`Kingdom Stage is missing NPC "${id}"`);
+  return npc;
+}
+function stageNpcRadius(id: string): number {
+  const radius = stageNpc(id).interaction?.radius;
+  if (radius === undefined) throw new Error(`Kingdom Stage NPC "${id}" has no interaction radius`);
+  return radius;
+}
 const VILLAGER_NPC = {
   id: "npc_villager_01",
   label: "Villageois Errant",
   text: "Le royaume reprend vie, Majesté. Mais chaque pierre devra être rebâtie.",
-  x: KINGDOM_HUB_LAYOUT.centralPlaza.x - 46,
-  y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 126,
+  x: stageNpc("npc_villager_01").x,
+  y: stageNpc("npc_villager_01").y,
 } as const;
 const BOTO_NPC = {
   id: "npc_boto",
   label: "Boto",
-  x: KINGDOM_HUB_LAYOUT.centralPlaza.x + 58,
-  y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 130,
+  x: stageNpc("npc_boto").x,
+  y: stageNpc("npc_boto").y,
 } as const;
 const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
 const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
@@ -1149,7 +1159,7 @@ export function KingdomHubStage() {
         type: "npc",
         x: VILLAGER_NPC.x,
         y: VILLAGER_NPC.y,
-        radius: 96,
+        radius: stageNpcRadius("npc_villager_01"),
         onInteract: openVillagerDialogue,
       },
       {
@@ -1158,7 +1168,7 @@ export function KingdomHubStage() {
         type: "npc",
         x: BOTO_NPC.x,
         y: BOTO_NPC.y,
-        radius: 92,
+        radius: stageNpcRadius("npc_boto"),
         onInteract: () => openHubOverlay("boto"),
       },
     ];
