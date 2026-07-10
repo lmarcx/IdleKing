@@ -36,6 +36,7 @@ import {
   type ForgeRecipe,
   type TempleXpTarget,
 } from "@idleking/game-core";
+import { KINGDOM_STAGE_DEFINITION, type KingdomBuilding } from "@idleking/game-core/level-editor";
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
@@ -70,21 +71,31 @@ const KINGDOM_HUB_LAYOUT = {
   southwestPlaza: { x: 376, y: 835 },
   westPlaza: { x: 376, y: 338 },
 } as const;
-const FORUM_POSITION = { x: KINGDOM_HUB_LAYOUT.southPlaza.x, y: KINGDOM_HUB_LAYOUT.southPlaza.y + 18 };
-const TEMPLE_POSITION = { x: KINGDOM_HUB_LAYOUT.southeastPlaza.x, y: KINGDOM_HUB_LAYOUT.southeastPlaza.y + 22 };
-const MINE_POSITION = { x: KINGDOM_HUB_LAYOUT.northPlaza.x - 135, y: KINGDOM_HUB_LAYOUT.northPlaza.y + 62 };
-const KITCHEN_POSITION = { x: 585, y: 540 };
-const FORGE_POSITION = { x: KINGDOM_HUB_LAYOUT.northPlaza.x + 135, y: KINGDOM_HUB_LAYOUT.northPlaza.y + 62 };
-const BANK_POSITION = { x: KINGDOM_HUB_LAYOUT.eastNortheastPlaza.x, y: KINGDOM_HUB_LAYOUT.eastNortheastPlaza.y + 18 };
-const MARKET_POSITION = { x: KINGDOM_HUB_LAYOUT.southwestPlaza.x, y: KINGDOM_HUB_LAYOUT.southwestPlaza.y + 14 };
-const CORNUCOPIA_POSITION = { x: KINGDOM_HUB_LAYOUT.centralPlaza.x + 112, y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 20 };
-const PORTAL_POSITION = { x: KINGDOM_HUB_LAYOUT.centralPlaza.x - 128, y: KINGDOM_HUB_LAYOUT.centralPlaza.y + 22 };
+function stageBuilding(id: KingdomBuilding["id"]): KingdomBuilding {
+  const building = KINGDOM_STAGE_DEFINITION.buildings.find((entry) => entry.id === id);
+  if (!building) throw new Error(`Kingdom Stage is missing building "${id}"`);
+  return building;
+}
+function stageBuildingRadius(id: KingdomBuilding["id"]): number {
+  const radius = stageBuilding(id).interaction?.radius;
+  if (radius === undefined) throw new Error(`Kingdom Stage building "${id}" has no interaction radius`);
+  return radius;
+}
+const FORUM_POSITION = { x: stageBuilding("FORUM").x, y: stageBuilding("FORUM").y };
+const TEMPLE_POSITION = { x: stageBuilding("TEMPLE").x, y: stageBuilding("TEMPLE").y };
+const MINE_POSITION = { x: stageBuilding("MINE").x, y: stageBuilding("MINE").y };
+const KITCHEN_POSITION = { x: stageBuilding("KITCHEN").x, y: stageBuilding("KITCHEN").y };
+const FORGE_POSITION = { x: stageBuilding("FORGE").x, y: stageBuilding("FORGE").y };
+const BANK_POSITION = { x: stageBuilding("BANK").x, y: stageBuilding("BANK").y };
+const MARKET_POSITION = { x: stageBuilding("MARKET").x, y: stageBuilding("MARKET").y };
+const CORNUCOPIA_POSITION = { x: stageBuilding("CORNUCOPIA").x, y: stageBuilding("CORNUCOPIA").y };
+const PORTAL_POSITION = { x: stageBuilding("TIME_GATE").x, y: stageBuilding("TIME_GATE").y };
 const FARM_SLOT = {
   id: "farm_slot_01",
   buildingType: "farm",
   label: "Farm",
-  x: 1210,
-  y: 662,
+  x: stageBuilding("FARM").x,
+  y: stageBuilding("FARM").y,
 } as const;
 const VILLAGER_NPC = {
   id: "npc_villager_01",
@@ -1044,7 +1055,7 @@ export function KingdomHubStage() {
         type: "building",
         x: FORUM_POSITION.x,
         y: FORUM_POSITION.y,
-        radius: 138,
+        radius: stageBuildingRadius("FORUM"),
         onInteract: () => openPlaceholderBuilding("forum"),
       },
       ...(DEV_MODE
@@ -1055,7 +1066,7 @@ export function KingdomHubStage() {
               type: "building" as const,
               x: CORNUCOPIA_POSITION.x,
               y: CORNUCOPIA_POSITION.y,
-              radius: 118,
+              radius: stageBuildingRadius("CORNUCOPIA"),
               onInteract: openCornucopia,
             },
           ]
@@ -1066,7 +1077,7 @@ export function KingdomHubStage() {
         type: "building",
         x: PORTAL_POSITION.x,
         y: PORTAL_POSITION.y,
-        radius: 112,
+        radius: stageBuildingRadius("TIME_GATE"),
         onInteract: () => openGlobalHudOverlay("worlds"),
       },
       {
@@ -1075,7 +1086,7 @@ export function KingdomHubStage() {
         type: "building",
         x: TEMPLE_POSITION.x,
         y: TEMPLE_POSITION.y,
-        radius: 122,
+        radius: stageBuildingRadius("TEMPLE"),
         onInteract: openTemple,
       },
       {
@@ -1084,7 +1095,7 @@ export function KingdomHubStage() {
         type: "building",
         x: FORGE_POSITION.x,
         y: FORGE_POSITION.y,
-        radius: 112,
+        radius: stageBuildingRadius("FORGE"),
         onInteract: openForge,
       },
       {
@@ -1093,7 +1104,7 @@ export function KingdomHubStage() {
         type: "building",
         x: BANK_POSITION.x,
         y: BANK_POSITION.y,
-        radius: 104,
+        radius: stageBuildingRadius("BANK"),
         onInteract: openBank,
       },
       {
@@ -1102,7 +1113,7 @@ export function KingdomHubStage() {
         type: "building",
         x: MARKET_POSITION.x,
         y: MARKET_POSITION.y,
-        radius: 112,
+        radius: stageBuildingRadius("MARKET"),
         onInteract: openMarket,
       },
       {
@@ -1111,7 +1122,7 @@ export function KingdomHubStage() {
         type: "building",
         x: MINE_POSITION.x,
         y: MINE_POSITION.y,
-        radius: 116,
+        radius: stageBuildingRadius("MINE"),
         onInteract: () => openPlaceholderBuilding("mine"),
       },
       {
@@ -1120,7 +1131,7 @@ export function KingdomHubStage() {
         type: "building",
         x: KITCHEN_POSITION.x,
         y: KITCHEN_POSITION.y,
-        radius: 108,
+        radius: stageBuildingRadius("KITCHEN"),
         onInteract: () => openPlaceholderBuilding("kitchen"),
       },
       {
@@ -1129,7 +1140,7 @@ export function KingdomHubStage() {
         type: "building_slot",
         x: FARM_SLOT.x,
         y: FARM_SLOT.y,
-        radius: 104,
+        radius: stageBuildingRadius("FARM"),
         onInteract: openFarmSlot,
       },
       {
