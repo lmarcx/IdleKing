@@ -45,7 +45,7 @@ import {
 import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
 import { createSparkGraphics, drawGroundGrid } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
-import { BUILDING_SIZES, createBuildingGraphics, type HubBuildingKind } from "./geometric-buildings";
+import { createBuildingGraphics } from "./geometric-buildings";
 import { BankView } from "./bank-view";
 import { MarketView } from "./market-view";
 import { CornucopiaDevPanel } from "./cornucopia-dev-panel";
@@ -120,6 +120,16 @@ const FARM_SLOT = {
   x: stageBuilding("FARM").x,
   y: stageBuilding("FARM").y,
 } as const;
+const KINGDOM_BOX_COLLIDERS: readonly { buildingId: KingdomBuilding["id"]; colliderId: string }[] = [
+  { buildingId: "FORUM", colliderId: "forum" },
+  { buildingId: "TEMPLE", colliderId: "temple" },
+  { buildingId: "MINE", colliderId: "mine" },
+  { buildingId: "KITCHEN", colliderId: "kitchen" },
+  { buildingId: "FORGE", colliderId: "forge" },
+  { buildingId: "BANK", colliderId: "bank" },
+  { buildingId: "MARKET", colliderId: "market" },
+  { buildingId: "FARM", colliderId: FARM_SLOT.id },
+];
 function stageNpc(id: string): KingdomNpc {
   const npc = KINGDOM_STAGE_DEFINITION.npcs.find((entry) => entry.id === id);
   if (!npc) throw new Error(`Kingdom Stage is missing NPC "${id}"`);
@@ -291,35 +301,6 @@ function getCameraViewport(screenWidth: number, screenHeight: number) {
 
 function isInteractionKey(event: KeyboardEvent): boolean {
   return event.code === "KeyF";
-}
-
-function createGroundCollider({
-  building,
-  heightRatio = 0.32,
-  id,
-  offsetY,
-  position,
-  widthRatio = 0.68,
-}: {
-  building: HubBuildingKind;
-  heightRatio?: number;
-  id: string;
-  offsetY?: number;
-  position: Vector2;
-  widthRatio?: number;
-}): HubCollider {
-  const size = BUILDING_SIZES[building];
-  const width = size.width * widthRatio;
-  const height = size.height * heightRatio;
-  const centerY = position.y + (offsetY ?? size.height * 0.08);
-
-  return {
-    height,
-    id,
-    width,
-    x: position.x - width / 2,
-    y: centerY - height / 2,
-  };
 }
 
 function getPlayerCollider(position: Vector2): HubCollider {
@@ -1473,69 +1454,14 @@ export function KingdomHubStage() {
       drawWorld(backgroundLayer);
 
       solidColliders.push(
-        createGroundCollider({
-          building: "forum",
-          heightRatio: 0.3,
-          id: "forum",
-          offsetY: 26,
-          position: FORUM_POSITION,
-          widthRatio: 0.72,
-        }),
-        createGroundCollider({
-          building: "temple",
-          heightRatio: 0.34,
-          id: "temple",
-          offsetY: 22,
-          position: TEMPLE_POSITION,
-          widthRatio: 0.66,
-        }),
-        createGroundCollider({
-          building: "mine",
-          heightRatio: 0.34,
-          id: "mine",
-          offsetY: 18,
-          position: MINE_POSITION,
-          widthRatio: 0.74,
-        }),
-        createGroundCollider({
-          building: "kitchen",
-          heightRatio: 0.32,
-          id: "kitchen",
-          offsetY: 18,
-          position: KITCHEN_POSITION,
-          widthRatio: 0.68,
-        }),
-        createGroundCollider({
-          building: "forge",
-          heightRatio: 0.34,
-          id: "forge",
-          offsetY: 20,
-          position: FORGE_POSITION,
-          widthRatio: 0.7,
-        }),
-        { id: "bank", ...stageBuildingBoxCollider("BANK") },
-        { id: "market", ...stageBuildingBoxCollider("MARKET") },
-        createGroundCollider({
-          building: "farm",
-          heightRatio: 0.3,
-          id: FARM_SLOT.id,
-          offsetY: 20,
-          position: FARM_SLOT,
-          widthRatio: 0.72,
-        }),
+        ...KINGDOM_BOX_COLLIDERS.map(({ buildingId, colliderId }) => ({
+          id: colliderId,
+          ...stageBuildingBoxCollider(buildingId),
+        })),
       );
 
       if (DEV_MODE) {
-        solidColliders.push(
-          createGroundCollider({
-            building: "cornucopia",
-            heightRatio: 0.34,
-            id: "cornucopia",
-            offsetY: 12,
-            position: CORNUCOPIA_POSITION,
-            widthRatio: 0.68,
-          }),
-        );
+        solidColliders.push({ id: "cornucopia", ...stageBuildingBoxCollider("CORNUCOPIA") });
       }
 
       if (DEV_MODE && SHOW_HUB_COLLIDER_DEBUG) {
