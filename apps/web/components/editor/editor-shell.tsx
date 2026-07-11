@@ -36,9 +36,15 @@ import {
   getTopographyCellState,
   validateKingdomStageDefinition,
   validatePlayableMap,
+  type CollisionShape,
   type GeometricAsset,
   type GeometryShape,
   type GroundTextureId,
+  type InteractionDefinition,
+  type KingdomBuilding,
+  type KingdomCollider,
+  type KingdomNpc,
+  type KingdomProp,
   type KingdomStageDefinition,
   type MapBuilding,
   type MapCollision,
@@ -132,6 +138,86 @@ function downloadJson(name: string, value: unknown) {
   anchor.download = name;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function normalizeCollisionShape(collision: CollisionShape | null): CollisionShape | null {
+  if (!collision) return null;
+  const normalized: { height?: number; radius?: number; type: CollisionShape["type"]; width?: number; x: number; y: number } = {
+    type: collision.type,
+    x: collision.x,
+    y: collision.y,
+  };
+  if (collision.width !== undefined) normalized.width = collision.width;
+  if (collision.height !== undefined) normalized.height = collision.height;
+  if (collision.radius !== undefined) normalized.radius = collision.radius;
+  return normalized;
+}
+
+function normalizeInteractionDefinition(interaction: InteractionDefinition | null): InteractionDefinition | null {
+  if (!interaction) return null;
+  return {
+    interactionType: interaction.interactionType,
+    interactionTargetId: interaction.interactionTargetId,
+    promptLabel: interaction.promptLabel,
+    radius: interaction.radius,
+  };
+}
+
+function byId(a: { id: string }, b: { id: string }): number {
+  return a.id.localeCompare(b.id);
+}
+
+/**
+ * Produces a deterministic, key-order-stable, diff-friendly snapshot of a Kingdom Stage
+ * document -- same semantic content always serializes identically, regardless of the local
+ * document's incidental array/object-key order. Used only for the "Export Canonical Kingdom
+ * Stage" download; never written to the repo automatically (see Export Canonical Kingdom Stage
+ * in EditorToolbar and packages/game-core/content/kingdom/kingdom-stage.ts for the manual
+ * promotion this feeds into).
+ */
+function buildCanonicalKingdomStageExport(stage: KingdomStageDefinition): KingdomStageDefinition {
+  const buildings: KingdomBuilding[] = [...stage.buildings].sort(byId).map((building) => ({
+    id: building.id,
+    assetId: building.assetId,
+    x: building.x,
+    y: building.y,
+    collision: normalizeCollisionShape(building.collision),
+    interaction: normalizeInteractionDefinition(building.interaction),
+  }));
+  const npcs: KingdomNpc[] = [...stage.npcs].sort(byId).map((npc) => ({
+    id: npc.id,
+    assetId: npc.assetId,
+    name: npc.name,
+    x: npc.x,
+    y: npc.y,
+    interaction: normalizeInteractionDefinition(npc.interaction),
+  }));
+  const props: KingdomProp[] = [...stage.props].sort(byId).map((prop) => ({
+    id: prop.id,
+    assetId: prop.assetId,
+    x: prop.x,
+    y: prop.y,
+    ...(prop.rotation !== undefined ? { rotation: prop.rotation } : {}),
+  }));
+  const colliders: KingdomCollider[] = [...stage.colliders].sort(byId).map((collider) => {
+    const shape = normalizeCollisionShape(collider);
+    // KingdomCollider is `{ id } & CollisionShape` (flat), not `{ id, collision }`.
+    return { id: collider.id, ...(shape as CollisionShape) };
+  });
+
+  return {
+    id: stage.id,
+    name: stage.name,
+    // Exporting for canonical promotion always targets "canon", regardless of the local
+    // document's current status -- that is the entire point of this export.
+    status: "canon",
+    version: stage.version,
+    buildings,
+    npcs,
+    props,
+    colliders,
+    spawn: { x: stage.spawn.x, y: stage.spawn.y },
+  };
 }
 
 function setCellState(map: PlayableMap, x: number, y: number, state: TopographyCellState): PlayableMap {
@@ -396,6 +482,23 @@ export function EditorShell() {
 
   function exportKingdomStage() {
     downloadJson(`${kingdomStage.id}.kingdom.json`, kingdomStage);
+  }
+
+  function exportCanonicalKingdomStage() {
+    const validation = validateKingdomStageDefinition(kingdomStage);
+    if (!validation.ok) {
+      const message = `Cannot export: ${validation.errors.join("; ")}`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    downloadJson("kingdom-stage.generated.json", buildCanonicalKingdomStageExport(kingdomStage));
+    const message =
+      "Exported kingdom-stage.generated.json. This is NOT canon yet -- to promote it: " +
+      "1) review the file, 2) replace packages/game-core/content/kingdom/kingdom-stage.ts's data with it " +
+      "(e.g. via scripts/kingdom-stage-promote.mjs --apply), 3) run game-core tests, 4) commit.";
+    setLastSaveMessage(message);
+    toast.success("Exported kingdom-stage.generated.json — review and promote manually (see toolbar tooltip).");
   }
 
   function importKingdomStage(file: File) {
@@ -772,6 +875,7 @@ export function EditorShell() {
           activeDocument={activeDocument}
           lastSaveMessage={lastSaveMessage}
           mode={mode}
+          onExportCanonicalKingdomStage={exportCanonicalKingdomStage}
           onExportKingdomStage={exportKingdomStage}
           onExportMap={() => downloadJson(`${map.id}.map.json`, map)}
           onImportAsset={importAsset}

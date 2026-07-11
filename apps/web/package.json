@@ -11,7 +11,8 @@
     "build": "npm run verify:kingdom-route && npm run build:game-core && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "verify:kingdom-route": "node scripts/assert-kingdom-route.mjs"
+    "verify:kingdom-route": "node scripts/assert-kingdom-route.mjs",
+    "kingdom-stage:promote": "node scripts/kingdom-stage-promote.mjs"
   },
   "dependencies": {
     "@idleking/game-core": "file:../../packages/game-core",

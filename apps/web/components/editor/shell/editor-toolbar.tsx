@@ -1,7 +1,20 @@
 "use client";
 
 import { useRef } from "react";
-import { Download, Eraser, FileJson, FolderOpen, Grid2X2, MousePointer2, Paintbrush, Plus, Save, Shapes, Upload } from "lucide-react";
+import {
+  Download,
+  Eraser,
+  FileCheck2,
+  FileJson,
+  FolderOpen,
+  Grid2X2,
+  MousePointer2,
+  Paintbrush,
+  Plus,
+  Save,
+  Shapes,
+  Upload,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,6 +53,7 @@ export function EditorToolbar({
   activeDocument,
   lastSaveMessage,
   mode,
+  onExportCanonicalKingdomStage,
   onExportKingdomStage,
   onExportMap,
   onImportAsset,
@@ -62,6 +76,7 @@ export function EditorToolbar({
   activeDocument: ActiveDocument;
   lastSaveMessage: string;
   mode: EditorMode;
+  onExportCanonicalKingdomStage: () => void;
   onExportKingdomStage: () => void;
   onExportMap: () => void;
   onImportAsset: (file: File) => void;
@@ -171,8 +186,24 @@ export function EditorToolbar({
             <Grid2X2 className="mr-2 h-4 w-4" />
             Play/Test Kingdom Stage
           </Button>
+          <Button
+            onClick={onExportCanonicalKingdomStage}
+            size="sm"
+            title={
+              "Downloads kingdom-stage.generated.json — a validated, deterministically-ordered " +
+              "snapshot ready for manual review. This does NOT update /game/kingdom or the repo by " +
+              "itself. To promote: 1) review the file, 2) replace the data in " +
+              "packages/game-core/content/kingdom/kingdom-stage.ts with it (e.g. via " +
+              "scripts/kingdom-stage-promote.mjs --apply), 3) run the game-core tests, 4) commit."
+            }
+            variant="outline"
+          >
+            <FileCheck2 className="mr-2 h-4 w-4" />
+            Export Canonical Kingdom Stage
+          </Button>
           <span className="font-ik-menu text-[0.62rem] uppercase tracking-wide text-amber-200/70">
-            Kingdom Stage — Play/Test previews this locally; /game/kingdom still reads canon
+            Kingdom Stage — Play/Test previews this locally; /game/kingdom still reads canon until exported and
+            manually promoted
           </span>
         </>
       ) : (
