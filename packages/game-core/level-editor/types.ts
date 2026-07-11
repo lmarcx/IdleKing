@@ -168,6 +168,13 @@ export type MapEnemy = Readonly<{
   aggroRadius: number;
   loot?: readonly string[];
   deathEvent?: string;
+  /**
+   * Marks this enemy as the encounter that gates a Story dungeon's "boss defeated" completion
+   * condition (see the Story map objective convention documented on MapTrigger). Independent
+   * of `behavior` — a boss can use any movement/AI behavior and still be flagged isBoss: true.
+   * At most one enemy per map should set this to true (enforced by validatePlayableMap).
+   */
+  isBoss?: boolean;
   x: number;
   y: number;
 }>;
@@ -181,6 +188,20 @@ export type MapCollision = Readonly<{
   height: number;
 }>;
 
+/**
+ * Story map objective/exit convention (documented, not a distinct MapTrigger variant): a
+ * trigger with `type: "event"` and `target: "dungeon_exit"` marks a zone the player must reach
+ * to satisfy a "reach the exit" objective for a data-driven Story dungeon. This reuses the
+ * existing "event" trigger type + target string rather than growing the type union — kept
+ * minimal until more objective kinds are needed. It is unrelated to `type: "enter_map"`, which
+ * transitions to a different map/level rather than completing the current one.
+ *
+ * A Story-authored PlayableMap's objective is derived by whichever runtime consumes it (e.g.
+ * StoryMapStage), not by this schema or by validatePlayableMap, as:
+ *   1. if any MapEnemy has `isBoss: true` -> objective is "defeat that enemy"
+ *   2. else if the map has one or more `dungeon_exit` triggers -> objective is "reach any of them"
+ *   3. else -> objective is "defeat every enemy in `enemies`"
+ */
 export type MapTrigger = Readonly<{
   id: string;
   type: "enter_map" | "inspect" | "event" | "dialogue";

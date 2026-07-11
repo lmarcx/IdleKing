@@ -84,5 +84,10 @@ export function validatePlayableMap(map: PlayableMap): MapValidationResult {
     if (!isMapCellWalkable(map, cellX, cellY)) errors.push(`Map ${map.id} spawn ${spawn.id} is not walkable`);
   }
 
+  const bossEnemies = map.enemies.filter((enemy) => enemy.isBoss);
+  if (bossEnemies.length > 1) {
+    errors.push(`Map ${map.id} has more than one enemy flagged isBoss: ${bossEnemies.map((enemy) => enemy.id).join(", ")}`);
+  }
+
   return { ok: errors.length === 0, errors };
 }
