@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deriveStoryMapObjective, isStoryMapObjectiveSatisfied } from "../level-editor/story-map-objectives.js";
+import {
+  deriveStoryMapObjective,
+  isStoryMapObjectiveSatisfied,
+  shouldApplyStoryMapCompletion,
+  type StoryMapStageResult,
+} from "../level-editor/story-map-objectives.js";
 import { TEST_MAP_01 } from "../level-editor/sample-maps.js";
 import type { MapEnemy, MapTrigger, PlayableMap } from "../level-editor/types.js";
 
@@ -111,4 +116,28 @@ test("reach_exit is satisfied exactly by the exitReached flag", () => {
   const objective = { type: "reach_exit", triggerId: "exit_zone" } as const;
   assert.equal(isStoryMapObjectiveSatisfied(objective, { enemies: [], exitReached: false }), false);
   assert.equal(isStoryMapObjectiveSatisfied(objective, { enemies: [], exitReached: true }), true);
+});
+
+function baseStageResult(overrides: Partial<StoryMapStageResult> = {}): StoryMapStageResult {
+  return {
+    bossDefeated: false,
+    completed: true,
+    defeatedEnemyIds: [],
+    exitReached: false,
+    mapId: "test_dungeon",
+    objectiveType: "defeat_all_enemies",
+    ...overrides,
+  };
+}
+
+test("shouldApplyStoryMapCompletion applies when the stage is completed and mapId matches the dungeon", () => {
+  assert.equal(shouldApplyStoryMapCompletion(baseStageResult(), "test_dungeon"), true);
+});
+
+test("shouldApplyStoryMapCompletion rejects a mismatched mapId even when the stage is completed", () => {
+  assert.equal(shouldApplyStoryMapCompletion(baseStageResult({ mapId: "other_map" }), "test_dungeon"), false);
+});
+
+test("shouldApplyStoryMapCompletion rejects a matching mapId that is not yet completed", () => {
+  assert.equal(shouldApplyStoryMapCompletion(baseStageResult({ completed: false }), "test_dungeon"), false);
 });

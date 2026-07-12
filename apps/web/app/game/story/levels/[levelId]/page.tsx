@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { StoryLevelExplorer } from "@/components/game/story-exploration/story-level-explorer";
+import { StoryMapLevelRuntime } from "@/components/game/story-map/story-map-level-runtime";
 import { getStoryBossDefinition, getStoryDungeonDefinition, getStoryLevelDef } from "@idleking/game-core";
+import { getCanonicalStoryMap } from "@idleking/game-core/level-editor";
 
 type StoryLevelPageProps = {
   params: Promise<{
@@ -14,6 +16,11 @@ export default async function StoryLevelPage({ params }: StoryLevelPageProps) {
   const dungeon = getStoryDungeonDefinition(levelId);
 
   if (dungeon) {
+    const canonicalMap = getCanonicalStoryMap(dungeon.id);
+    if (canonicalMap) {
+      return <StoryMapLevelRuntime dungeonId={dungeon.id} map={canonicalMap} />;
+    }
+
     const boss = dungeon.bossId ? getStoryBossDefinition(dungeon.bossId) : undefined;
     const explorerLevel = {
       chapterId: dungeon.chapterId,

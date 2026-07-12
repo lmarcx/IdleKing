@@ -13,3 +13,6 @@ export * from "./story-map-objectives.js";
 // be read by the live Kingdom runtime, not just editor tooling — re-exported here so the
 // editor can still import it via the same @idleking/game-core/level-editor entry point.
 export { KINGDOM_STAGE_DEFINITION } from "../content/kingdom/kingdom-stage.js";
+// Same rationale for the canonical Story map registry (Phase G6): empty until real dungeons
+// are migrated, but re-exported here so both the editor and the live Story route can read it.
+export { STORY_CANONICAL_MAPS, getCanonicalStoryMap, hasCanonicalStoryMap } from "../content/story/maps/index.js";
