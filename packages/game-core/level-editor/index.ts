@@ -7,6 +7,7 @@ export * from "./kingdom-stage.js";
 export * from "./map-loader.js";
 export * from "./sample-assets.js";
 export * from "./sample-maps.js";
+export * from "./story-map-combat.js";
 // Canonical Kingdom Stage data lives under content/ (not level-editor/) since it is meant to
 // be read by the live Kingdom runtime, not just editor tooling — re-exported here so the
 // editor can still import it via the same @idleking/game-core/level-editor entry point.

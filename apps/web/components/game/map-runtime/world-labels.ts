@@ -1,7 +1,11 @@
 import * as PIXI from "pixi.js";
 
-/** A small monospace world-space label, added to a caller-provided labels layer. */
-export function addWorldLabel(labels: PIXI.Container, text: string, x: number, y: number): void {
+/**
+ * A small monospace world-space label, added to a caller-provided labels layer. Returns the
+ * created Text so callers that need to mutate it later (e.g. a live HP readout) can keep a
+ * reference; callers that don't need one can simply ignore the return value.
+ */
+export function addWorldLabel(labels: PIXI.Container, text: string, x: number, y: number): PIXI.Text {
   const label = new PIXI.Text({
     text,
     style: {
@@ -14,6 +18,7 @@ export function addWorldLabel(labels: PIXI.Container, text: string, x: number, y
   label.anchor.set(0.5, 0.5);
   label.position.set(x, y);
   labels.addChild(label);
+  return label;
 }
 
 /** A small outlined circle "kind" badge (e.g. "N"/"O"/"B"/"P"/"E") plus its label text. */

@@ -3,17 +3,23 @@
 import { useEffect, useRef } from "react";
 import * as PIXI from "pixi.js";
 
-import { createAssetRegistry, loadPlayableMap, type PlayableMap } from "@idleking/game-core/level-editor";
 import {
-  addEntityBadge,
+  attackStoryMapRuntimeEnemy,
+  createAssetRegistry,
+  createStoryMapRuntimeEnemy,
+  loadPlayableMap,
+  type PlayableMap,
+  type StoryMapRuntimeEnemy,
+} from "@idleking/game-core/level-editor";
+import {
   addWorldLabel,
   cellKey,
   collidesWithAny,
   computeCameraOffset,
   computeMovementDirection,
   computeMovementStep,
+  createAssetGraphic,
   isWithinWorldBounds,
-  placeAssetGraphic,
   renderBlockedCellOverlay,
   renderGroundTiles,
   renderMapBuilding,
@@ -27,9 +33,15 @@ import {
 const PLAYER_RADIUS = 13;
 const PLAYER_SPEED = 170;
 
+// Basic melee range/attacker stats for the combat technical proof (G4). Not derived from any
+// real player save/equipment -- deliberately isolated from real progression, matching
+// StoryMapAttackerStats' own doc comment in game-core.
+const MELEE_RANGE = 60;
+const PLACEHOLDER_ATTACKER = { attack: 20, critChance: 0 } as const;
+
 /**
- * Result of a Story map stage detecting its win condition. Deliberately minimal in G3 -- no
- * combat, objectives, or rewards exist yet. Shape reserved for G5 (objectives/boss/checkpoint).
+ * Result of a Story map stage detecting its win condition. Deliberately minimal in G4 -- no
+ * objectives/rewards exist yet. Shape reserved for G5 (objectives/boss/checkpoint).
  */
 export type StoryStageResult = {
   status: "completed";
@@ -38,15 +50,16 @@ export type StoryStageResult = {
 export type StoryMapStageProps = {
   map: PlayableMap;
   /**
-   * Called when the stage detects its win condition. Never invoked by StoryMapStage in G3 (no
-   * combat/objectives implemented yet) -- accepted now so the prop shape is stable for G4/G5.
-   * Architecture decision: the Stage only detects victory. It never decides consequences
-   * (completeDungeon, save mutation, reward grants, etc) -- that is strictly the caller's job.
+   * Called when the stage detects its win condition. Never invoked by StoryMapStage in G4 (no
+   * objectives implemented yet, so there is no win condition to detect) -- accepted now so the
+   * prop shape is stable for G5. Architecture decision: the Stage only detects victory. It never
+   * decides consequences (completeDungeon, save mutation, reward grants, etc) -- that is
+   * strictly the caller's job.
    */
   onStageCompleted?: (result: StoryStageResult) => void;
   /**
    * Reserved for the eventual editor Play/Test preview: a true caller must never apply real
-   * consequences even once onStageCompleted starts firing. Not consumed yet in G3.
+   * consequences even once onStageCompleted starts firing. Not consumed yet in G4.
    */
   dryRun?: boolean;
   /** Shows the on-canvas debug panel (map id/grid/entity counts). Off by default. */
@@ -56,10 +69,11 @@ export type StoryMapStageProps = {
 /**
  * Technical skeleton for the future data-driven Story runtime. Reuses the same
  * apps/web/components/game/map-runtime primitives as CustomMapPixiStage (tiles, static
- * entities, collisions, camera, movement, labels/badges) rather than copying its logic.
- * Enemies and triggers are still purely visual here -- no combat bridge, no objective/
- * completion detection, no dungeon_exit interpretation. See the Story migration plan (Phase G)
- * for what each later phase adds.
+ * entities, collisions, camera, movement, labels/badges) rather than copying its logic. Enemies
+ * are now mutable combat entities (game-core's createStoryMapRuntimeEnemy/
+ * attackStoryMapRuntimeEnemy) -- HP, damage, and death only, no objectives/rewards/completion,
+ * no dungeon_exit interpretation. See the Story migration plan (Phase G) for what later phases
+ * add. The map itself is never mutated; runtime enemy state is rebuilt fresh on every mount.
  */
 export function StoryMapStage({ map, debug }: StoryMapStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -78,6 +92,79 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
     const playerPosition = { ...(map.spawns.find((spawn) => spawn.id === "player_start") ?? map.spawns[0]) };
     const player = new PIXI.Graphics();
     let destroyed = false;
+
+    type EnemyVisual = {
+      runtime: StoryMapRuntimeEnemy;
+      displayObjects: PIXI.Container[];
+      hpLabel: PIXI.Text;
+    };
+    const enemyVisuals = new Map<string, EnemyVisual>();
+
+    function createEnemyVisual(runtime: StoryMapRuntimeEnemy): EnemyVisual {
+      const displayObjects: PIXI.Container[] = [];
+
+      const asset = registry.assets.find((item) => item.id === runtime.assetId);
+      if (asset) {
+        const graphic = createAssetGraphic(asset);
+        graphic.position.set(runtime.x, runtime.y);
+        graphic.zIndex = runtime.y;
+        world.addChild(graphic);
+        displayObjects.push(graphic);
+      }
+
+      const badge = new PIXI.Graphics();
+      badge.circle(runtime.x + 8, runtime.y + 8, 12).fill({ color: 0x050505, alpha: 0.9 }).stroke({ color: 0xffb0b0, alpha: 0.95, width: 2 });
+      world.addChild(badge);
+      displayObjects.push(badge);
+
+      const badgeLabel = addWorldLabel(labels, "E", runtime.x + 8, runtime.y + 9);
+      displayObjects.push(badgeLabel);
+
+      const aggro = new PIXI.Graphics();
+      aggro.circle(runtime.x + 24, runtime.y + 32, runtime.aggroRadius).stroke({ color: 0xf2f2f2, alpha: 0.14, width: 1 });
+      world.addChild(aggro);
+      displayObjects.push(aggro);
+
+      const hpLabel = addWorldLabel(labels, `${Math.round(runtime.hpCurrent)}/${Math.round(runtime.hpMax)}`, runtime.x + 8, runtime.y - 22);
+      hpLabel.style.fill = 0xffe08a;
+      displayObjects.push(hpLabel);
+
+      return { runtime, displayObjects, hpLabel };
+    }
+
+    function removeEnemyVisual(visual: EnemyVisual) {
+      for (const displayObject of visual.displayObjects) {
+        displayObject.parent?.removeChild(displayObject);
+      }
+    }
+
+    function findMeleeTarget(): EnemyVisual | null {
+      let nearest: EnemyVisual | null = null;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (const visual of enemyVisuals.values()) {
+        if (visual.runtime.isDead) continue;
+        const distance = Math.hypot(visual.runtime.x - playerPosition.x, visual.runtime.y - playerPosition.y);
+        if (distance <= MELEE_RANGE && distance < nearestDistance) {
+          nearest = visual;
+          nearestDistance = distance;
+        }
+      }
+      return nearest;
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (event.button !== 0) return;
+      const target = findMeleeTarget();
+      if (!target) return;
+
+      const updated = attackStoryMapRuntimeEnemy(target.runtime, PLACEHOLDER_ATTACKER);
+      target.runtime = updated;
+      target.hpLabel.text = `${Math.round(updated.hpCurrent)}/${Math.round(updated.hpMax)}`;
+      if (updated.isDead) {
+        removeEnemyVisual(target);
+        enemyVisuals.delete(updated.id);
+      }
+    }
 
     function drawTiles() {
       const g = new PIXI.Graphics();
@@ -104,14 +191,11 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       for (const npc of map.npcs) {
         renderMapNpc(world, labels, registry, npc);
       }
-      // Enemies are still purely visual (asset + badge + aggro-radius decoration) -- the
-      // MapEnemy -> mutable combat-runtime bridge is explicitly out of scope until G4.
+      // Enemies are mutable combat entities now (see createEnemyVisual/onPointerDown above) --
+      // still no pathfinding/boss-phases/loot/status-effects/objectives/checkpoint (G4 scope).
       for (const enemy of map.enemies) {
-        placeAssetGraphic(world, labels, registry, enemy.assetId, enemy.x, enemy.y, enemy.name);
-        addEntityBadge(world, labels, "E", enemy.x + 8, enemy.y + 8, 0xffb0b0);
-        const aggro = new PIXI.Graphics();
-        aggro.circle(enemy.x + 24, enemy.y + 32, enemy.aggroRadius).stroke({ color: 0xf2f2f2, alpha: 0.14, width: 1 });
-        world.addChild(aggro);
+        const runtime = createStoryMapRuntimeEnemy(enemy);
+        enemyVisuals.set(runtime.id, createEnemyVisual(runtime));
       }
       for (const collision of map.collisions) {
         const g = new PIXI.Graphics();
@@ -203,6 +287,7 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       world.addChild(player);
       window.addEventListener("keydown", onKeyDown);
       window.addEventListener("keyup", onKeyUp);
+      app.canvas.addEventListener("pointerdown", onPointerDown);
       app.ticker.add(tick);
     }
 
@@ -212,6 +297,7 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       destroyed = true;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      app.canvas?.removeEventListener?.("pointerdown", onPointerDown);
       app.ticker?.remove?.(tick);
       if (ready) {
         app.destroy(true, { children: true });
