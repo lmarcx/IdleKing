@@ -12,6 +12,7 @@ import { EditorTree } from "@/components/editor/shell/editor-tree";
 import { KingdomStagePanel } from "@/components/editor/shell/kingdom-stage-panel";
 import { PlaceholderPanel } from "@/components/editor/shell/placeholder-panel";
 import { ProjectTree, type EraOrigin } from "@/components/editor/shell/project-tree";
+import { StoryDungeonEmptyPanel } from "@/components/editor/shell/story-dungeon-empty-panel";
 import {
   STEP_CATEGORY,
   isPlacementStep,
@@ -22,7 +23,9 @@ import {
   type PlaceholderDocumentInfo,
   type Selection,
 } from "@/components/editor/shell/editor-shared";
-import { listDocuments, loadDocument, saveDocument, type EditorDocumentIndexEntry } from "@/lib/editor-document-store";
+import { hasDocument, listDocuments, loadDocument, saveDocument, type EditorDocumentIndexEntry } from "@/lib/editor-document-store";
+import { STORY_ERA_GROUPS } from "@/lib/story-era-groups";
+import { getStoryBossDefinition, getStoryDungeonDefinition, type StoryDungeonDefinition } from "@idleking/game-core";
 import {
   ASSET_CREATOR_PRESETS,
   GROUND_TEXTURES,
@@ -31,6 +34,7 @@ import {
   assertValidAsset,
   createAssetRegistry,
   getAssetsByCategory,
+  getCanonicalStoryMap,
   getGroundTexture,
   getMapTile,
   getTopographyCellState,
@@ -244,6 +248,8 @@ export function EditorShell() {
   const [placeholderDoc, setPlaceholderDoc] = useState<PlaceholderDocumentInfo | null>(null);
   const [map, setMap] = useState<PlayableMap>(() => TEST_MAP_01);
   const [currentMapOrigin, setCurrentMapOrigin] = useState<string | undefined>(undefined);
+  const [activeStoryDungeonId, setActiveStoryDungeonId] = useState<string | null>(null);
+  const [activeStoryMapSource, setActiveStoryMapSource] = useState<"local" | "canon" | null>(null);
   const [kingdomStage, setKingdomStage] = useState<KingdomStageDefinition>(() => KINGDOM_STAGE_DEFINITION);
   const [selectedKingdomBuildingId, setSelectedKingdomBuildingId] = useState<string | null>(null);
   const [documentIndex, setDocumentIndex] = useState<EditorDocumentIndexEntry[]>([]);
@@ -292,15 +298,37 @@ export function EditorShell() {
     return map.triggers.find((item) => item.id === selection.id) ?? null;
   }, [map, selection]);
 
+  const activeStoryDungeon = useMemo(
+    () => (activeStoryDungeonId ? getStoryDungeonDefinition(activeStoryDungeonId) : undefined),
+    [activeStoryDungeonId]
+  );
+  const activeStoryBoss = useMemo(
+    () => (activeStoryDungeon?.bossId ? getStoryBossDefinition(activeStoryDungeon.bossId) : undefined),
+    [activeStoryDungeon]
+  );
+  const activeStoryEraTitle = useMemo(
+    () => STORY_ERA_GROUPS.find((group) => activeStoryDungeon && group.dungeonIds.includes(activeStoryDungeon.id))?.title,
+    [activeStoryDungeon]
+  );
+
   const activeDocument: ActiveDocument = useMemo(() => {
     if (mode === "level") {
-      const status =
-        map.id === "test_map_01"
+      const status = activeStoryDungeonId
+        ? `Story dungeon ${activeStoryDungeonId} — ${activeStoryMapSource === "local" ? "Local (editable)" : "Canon (not yet saved locally)"}`
+        : map.id === "test_map_01"
           ? "Level — test map (playable route)"
           : currentMapOrigin
             ? `Level — sandbox (${currentMapOrigin})`
             : "Level — local draft";
       return { type: "playable_map", id: map.id, title: map.name, status };
+    }
+    if (mode === "story_empty") {
+      return {
+        type: "placeholder",
+        id: activeStoryDungeonId ?? "story_empty",
+        title: activeStoryDungeon?.title ?? "Story dungeon",
+        status: "No authored map yet",
+      };
     }
     if (mode === "assets") {
       return {
@@ -328,9 +356,24 @@ export function EditorShell() {
       status: "Not wired in Editor V2",
       note: placeholderDoc?.note,
     };
-  }, [mode, map.id, map.name, currentMapOrigin, customAssets.length, kingdomStage.id, kingdomStage.name, kingdomStage.status, placeholderDoc]);
+  }, [
+    mode,
+    map.id,
+    map.name,
+    currentMapOrigin,
+    activeStoryDungeonId,
+    activeStoryMapSource,
+    activeStoryDungeon,
+    customAssets.length,
+    kingdomStage.id,
+    kingdomStage.name,
+    kingdomStage.status,
+    placeholderDoc,
+  ]);
 
   function selectLevel(id?: string) {
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     if (!id || id === "test_map_01") {
       setMap(TEST_MAP_01);
       setCurrentMapOrigin(undefined);
@@ -350,6 +393,8 @@ export function EditorShell() {
   }
 
   function createSandboxLevel(origin: EraOrigin) {
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     const label = origin === "era_funebre" ? "Era Funèbre" : "Era Glaciaire";
     const id = `sandbox_${origin}_${Date.now()}`;
     const newSandboxMap: PlayableMap = { ...createEmptyMap(), id, name: `New ${label} Level`, mode: "sandbox", chapter: origin };
@@ -362,17 +407,72 @@ export function EditorShell() {
     toast.success(`Created "${newSandboxMap.name}" (sandbox — not in the story registry).`);
   }
 
+  /**
+   * Story dungeon selection (Phase G7): priority is local document (id === dungeonId) > canonical
+   * PlayableMap > "no authored map yet" empty state. Loading a canonical map here never writes to
+   * localStorage by itself -- only Save/Playtest materializes a local copy, so the canon constant
+   * in game-core is never touched from the editor.
+   */
+  function selectStoryDungeon(dungeonId: string) {
+    const localDoc = loadDocument<PlayableMap>("playable_map", dungeonId);
+    if (localDoc) {
+      setMap(localDoc);
+      setCurrentMapOrigin(dungeonId);
+      setActiveStoryDungeonId(dungeonId);
+      setActiveStoryMapSource("local");
+      setSelection({ kind: "spawn", id: localDoc.spawns[0]?.id ?? "player_start" });
+      setMode("level");
+      return;
+    }
+    const canonicalMap = getCanonicalStoryMap(dungeonId);
+    if (canonicalMap) {
+      setMap(canonicalMap);
+      setCurrentMapOrigin(dungeonId);
+      setActiveStoryDungeonId(dungeonId);
+      setActiveStoryMapSource("canon");
+      setSelection({ kind: "spawn", id: canonicalMap.spawns[0]?.id ?? "player_start" });
+      setMode("level");
+      return;
+    }
+    setActiveStoryDungeonId(dungeonId);
+    setActiveStoryMapSource(null);
+    setMode("story_empty");
+  }
+
+  function createMapForDungeon(dungeon: StoryDungeonDefinition) {
+    if (hasDocument("playable_map", dungeon.id)) {
+      selectStoryDungeon(dungeon.id);
+      return;
+    }
+    const newStoryMap: PlayableMap = { ...createEmptyMap(), id: dungeon.id, name: dungeon.title, mode: "story" };
+    saveDocument({ id: dungeon.id, type: "playable_map", title: newStoryMap.name, origin: dungeon.id }, newStoryMap);
+    refreshDocumentIndex();
+    setMap(newStoryMap);
+    setCurrentMapOrigin(dungeon.id);
+    setActiveStoryDungeonId(dungeon.id);
+    setActiveStoryMapSource("local");
+    setSelection({ kind: "spawn", id: "player_start" });
+    setMode("level");
+    toast.success(`Created a local map for "${dungeon.title}" (${dungeon.id}).`);
+  }
+
   function selectKingdomStage() {
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     const doc = loadDocument<KingdomStageDefinition>("kingdom_stage", "kingdom_stage");
     setKingdomStage(doc ?? KINGDOM_STAGE_DEFINITION);
     setMode("kingdom");
   }
 
   function selectAssets() {
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     setMode("assets");
   }
 
   function selectPlaceholder(info: PlaceholderDocumentInfo) {
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     setPlaceholderDoc(info);
     setMode("placeholder");
   }
@@ -387,6 +487,7 @@ export function EditorShell() {
     }
     saveDocument({ id: map.id, type: "playable_map", title: map.name, origin: currentMapOrigin }, map);
     refreshDocumentIndex();
+    if (activeStoryDungeonId) setActiveStoryMapSource("local");
     setLastSaveMessage(`Map saved locally as ${map.id}.`);
     toast.success(`Map saved locally as ${map.id}.`);
   }
@@ -467,6 +568,8 @@ export function EditorShell() {
     refreshDocumentIndex();
     setMap(parsed);
     setCurrentMapOrigin(undefined);
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     setSelection({ kind: "spawn", id: parsed.spawns[0]?.id ?? "player_start" });
     setLastSaveMessage(successMessage);
     toast.success(successMessage);
@@ -638,6 +741,8 @@ export function EditorShell() {
   }
 
   function newMap() {
+    setActiveStoryDungeonId(null);
+    setActiveStoryMapSource(null);
     const id = `sandbox_level_${Date.now()}`;
     const newMapDoc: PlayableMap = { ...createEmptyMap(), id, name: "New Level" };
     saveDocument({ id, type: "playable_map", title: newMapDoc.name }, newMapDoc);
@@ -649,6 +754,19 @@ export function EditorShell() {
   }
 
   function playtestCurrentDocument() {
+    if (activeStoryDungeonId) {
+      const validation = validatePlayableMap(map);
+      if (!validation.ok) {
+        toast.error(`Cannot playtest: ${validation.errors.join("; ")}`);
+        return;
+      }
+      saveDocument({ id: map.id, type: "playable_map", title: map.name, origin: currentMapOrigin }, map);
+      refreshDocumentIndex();
+      setActiveStoryMapSource("local");
+      toast(`Saved "${map.name}" and launching the Story Map dry-run preview.`);
+      router.push(`/game/story-map-preview/local/${map.id}`);
+      return;
+    }
     if (map.id === "test_map_01") {
       router.push("/game/custom-map/test_map_01");
       return;
@@ -836,7 +954,7 @@ export function EditorShell() {
     setSelection(null);
   }
 
-  function patchSelection(patch: Record<string, string | number | null>) {
+  function patchSelection(patch: Record<string, string | number | boolean | null>) {
     if (!selection) return;
     setMap((current) => ({
       ...current,
@@ -873,6 +991,7 @@ export function EditorShell() {
       <div className="flex min-h-screen flex-col">
         <EditorToolbar
           activeDocument={activeDocument}
+          isStoryDungeonPreview={Boolean(activeStoryDungeonId)}
           lastSaveMessage={lastSaveMessage}
           mode={mode}
           onExportCanonicalKingdomStage={exportCanonicalKingdomStage}
@@ -903,12 +1022,14 @@ export function EditorShell() {
           <aside className="flex min-h-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-950">
             <ProjectTree
               activeDocument={activeDocument}
+              activeStoryDungeonId={activeStoryDungeonId}
               levelDocuments={levelDocuments}
               onCreateSandboxLevel={createSandboxLevel}
               onSelectAssets={selectAssets}
               onSelectKingdomStage={selectKingdomStage}
               onSelectLevel={selectLevel}
               onSelectPlaceholder={selectPlaceholder}
+              onSelectStoryDungeon={selectStoryDungeon}
             />
             {mode === "level" ? (
               <EditorTree
@@ -984,6 +1105,13 @@ export function EditorShell() {
               onPatchBuilding={patchKingdomBuilding}
               onSelectBuilding={setSelectedKingdomBuildingId}
               selectedBuildingId={selectedKingdomBuildingId}
+            />
+          ) : mode === "story_empty" && activeStoryDungeon ? (
+            <StoryDungeonEmptyPanel
+              boss={activeStoryBoss}
+              dungeon={activeStoryDungeon}
+              eraTitle={activeStoryEraTitle ?? activeStoryDungeon.era}
+              onCreateMap={() => createMapForDungeon(activeStoryDungeon)}
             />
           ) : (
             <PlaceholderPanel doc={placeholderDoc} />

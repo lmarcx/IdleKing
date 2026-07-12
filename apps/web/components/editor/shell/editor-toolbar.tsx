@@ -51,6 +51,7 @@ function HiddenFileInput({ accept, label, onFile }: { accept: string; label: str
 
 export function EditorToolbar({
   activeDocument,
+  isStoryDungeonPreview,
   lastSaveMessage,
   mode,
   onExportCanonicalKingdomStage,
@@ -74,6 +75,7 @@ export function EditorToolbar({
   tool,
 }: {
   activeDocument: ActiveDocument;
+  isStoryDungeonPreview: boolean;
   lastSaveMessage: string;
   mode: EditorMode;
   onExportCanonicalKingdomStage: () => void;
@@ -145,14 +147,16 @@ export function EditorToolbar({
             onClick={onPlaytest}
             size="sm"
             title={
-              activeDocument.id === "test_map_01"
-                ? "Launches the canon test_map_01 route."
-                : "Saves this draft locally, then launches it at /game/custom-map/local/…"
+              isStoryDungeonPreview
+                ? "Saves this draft locally, then launches a dry-run StoryMapStage preview — no progression, no rewards, no completeDungeon."
+                : activeDocument.id === "test_map_01"
+                  ? "Launches the canon test_map_01 route."
+                  : "Saves this draft locally, then launches it at /game/custom-map/local/…"
             }
             variant="outline"
           >
             <Grid2X2 className="mr-2 h-4 w-4" />
-            {activeDocument.id === "test_map_01" ? "Play/Test test_map_01" : `Play/Test ${activeDocument.id}`}
+            {isStoryDungeonPreview ? "Play/Test Story Map — dry run" : activeDocument.id === "test_map_01" ? "Play/Test test_map_01" : `Play/Test ${activeDocument.id}`}
           </Button>
         </>
       ) : mode === "assets" ? (

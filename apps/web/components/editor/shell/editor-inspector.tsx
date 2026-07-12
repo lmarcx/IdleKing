@@ -20,7 +20,7 @@ export function EditorInspector({
   onGridChange: (patch: Partial<PlayableMap["grid"]>) => void;
   onMapIdChange: (id: string) => void;
   onMapNameChange: (name: string) => void;
-  onPatchSelection: (patch: Record<string, string | number | null>) => void;
+  onPatchSelection: (patch: Record<string, string | number | boolean | null>) => void;
   selectedEntity: SelectedEntity | null;
   selection: Selection | null;
 }) {
@@ -108,6 +108,16 @@ export function EditorInspector({
                 <label className="col-span-2 grid gap-1 text-xs text-zinc-400">
                   Name
                   <input className={inputClassName()} onChange={(event) => onPatchSelection({ name: event.target.value })} value={String(selectedEntity.name)} />
+                </label>
+              ) : null}
+              {selection?.kind === "enemy" ? (
+                <label className="col-span-2 flex items-center gap-2 text-xs text-zinc-400">
+                  <input
+                    checked={Boolean((selectedEntity as { isBoss?: boolean }).isBoss)}
+                    onChange={(event) => onPatchSelection({ isBoss: event.target.checked })}
+                    type="checkbox"
+                  />
+                  Boss enemy (isBoss — at most one per map)
                 </label>
               ) : null}
             </div>

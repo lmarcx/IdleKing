@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ComponentType } from "react";
+import { useMemo, useState } from "react";
 import {
   Aperture,
   Bot,
@@ -12,11 +12,9 @@ import {
   Hourglass,
   Lock,
   Skull,
-  Snowflake,
   Sparkles,
   Swords,
   Unlock,
-  Waves,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -24,6 +22,7 @@ import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { DUEL_OPPONENTS, type DuelOpponent } from "@/lib/duel-data";
+import { STORY_ERA_GROUPS, type IconType, type StoryEraGroup } from "@/lib/story-era-groups";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import {
@@ -43,8 +42,6 @@ import {
 } from "@idleking/game-core";
 
 type GameState = ReturnType<typeof useGameStore.getState>["state"];
-
-type IconType = ComponentType<{ className?: string; strokeWidth?: number }>;
 
 const UNLOCK_FAILURE_LABELS: Record<string, string> = {
   ERA_ALREADY_UNLOCKED: "Ère déjà débloquée.",
@@ -68,15 +65,6 @@ const STORY_FLAG_LABELS: Record<string, string> = {
   royal_abyss_cleared: "Gouffre Royal terminé",
 };
 
-type StoryEraGroup = Readonly<{
-  icon: IconType;
-  id: EraId;
-  title: string;
-  subtitle: string;
-  dungeonIds: readonly string[];
-  teaser?: true;
-}>;
-
 type TimeGateSection = "story" | "duel";
 
 type EraStatus = "unlocked" | "ready" | "locked" | "teaser";
@@ -87,31 +75,6 @@ type DuelTestEntry = Readonly<{
   title: string;
   detail: string;
 }>;
-
-const STORY_ERA_GROUPS: readonly StoryEraGroup[] = [
-  {
-    icon: Skull,
-    id: "era_funebre",
-    title: "Ère Funèbre",
-    subtitle: "Prologue et ruines cendreuses",
-    dungeonIds: ["prologue_wastelands", "funeral_mausoleum", "ashen_peak", "royal_abyss"],
-  },
-  {
-    icon: Snowflake,
-    id: "era_glaciaire",
-    title: "Ère Glaciaire",
-    subtitle: "Rive, reflets et source du givre",
-    dungeonIds: ["frozen_river", "reflection_cavern", "arathas_academy", "frost_source"],
-  },
-  {
-    icon: Waves,
-    id: "era_deluge",
-    title: "Déluge",
-    subtitle: "Teaser verrouillé",
-    dungeonIds: [],
-    teaser: true,
-  },
-];
 
 const DUEL_TEST_ENTRIES: readonly DuelTestEntry[] = [
   {

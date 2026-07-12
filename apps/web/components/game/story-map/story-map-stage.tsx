@@ -399,10 +399,14 @@ export function StoryMapStage({ map, onStageCompleted, debug }: StoryMapStagePro
       destroyed = true;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      app.canvas?.removeEventListener?.("pointerdown", onPointerDown);
-      app.ticker?.remove?.(tick);
       resetRef.current = null;
+      // app.canvas is a getter backed by the renderer PixiJS creates inside app.init() -- reading
+      // it before that promise has resolved throws (not merely undefined, so `?.` doesn't help).
+      // Everything below was only ever attached once `ready` became true (see setup() above), so
+      // it's both safe and correct to skip all of it when init() hasn't finished yet.
       if (ready) {
+        app.canvas.removeEventListener("pointerdown", onPointerDown);
+        app.ticker.remove(tick);
         app.destroy(true, { children: true });
       }
     };
