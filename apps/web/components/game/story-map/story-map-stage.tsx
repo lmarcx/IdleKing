@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
 import {
   attackStoryMapRuntimeEnemy,
   createAssetRegistry,
   createStoryMapRuntimeEnemy,
+  deriveStoryMapObjective,
+  isStoryMapObjectiveSatisfied,
   loadPlayableMap,
   type PlayableMap,
+  type StoryMapObjective,
   type StoryMapRuntimeEnemy,
+  type StoryMapStageResult,
 } from "@idleking/game-core/level-editor";
 import {
   addWorldLabel,
@@ -19,6 +23,7 @@ import {
   computeMovementDirection,
   computeMovementStep,
   createAssetGraphic,
+  isInsideRect,
   isWithinWorldBounds,
   renderBlockedCellOverlay,
   renderGroundTiles,
@@ -39,27 +44,31 @@ const PLAYER_SPEED = 170;
 const MELEE_RANGE = 60;
 const PLACEHOLDER_ATTACKER = { attack: 20, critChance: 0 } as const;
 
-/**
- * Result of a Story map stage detecting its win condition. Deliberately minimal in G4 -- no
- * objectives/rewards exist yet. Shape reserved for G5 (objectives/boss/checkpoint).
- */
-export type StoryStageResult = {
-  status: "completed";
+type ProgressDisplay = {
+  objectiveType: StoryMapObjective["type"];
+  bossAlive?: boolean;
+  defeatedCount: number;
+  totalCount: number;
+  exitReached: boolean;
 };
 
 export type StoryMapStageProps = {
   map: PlayableMap;
   /**
-   * Called when the stage detects its win condition. Never invoked by StoryMapStage in G4 (no
-   * objectives implemented yet, so there is no win condition to detect) -- accepted now so the
-   * prop shape is stable for G5. Architecture decision: the Stage only detects victory. It never
-   * decides consequences (completeDungeon, save mutation, reward grants, etc) -- that is
-   * strictly the caller's job.
+   * Called exactly once per attempt, when the stage detects its win condition -- never at mere
+   * mount, and never again until resetStage() runs. Architecture decision: the Stage only
+   * detects victory. It never decides consequences (completeDungeon, save mutation, reward
+   * grants, etc) -- that is strictly the caller's job:
+   * - the canonical Story route wrapper applies completeDungeon(dungeonId)
+   * - the editor preview route shows the result and applies nothing
+   * - tests can inspect the result with no side effects at all
    */
-  onStageCompleted?: (result: StoryStageResult) => void;
+  onStageCompleted?: (result: StoryMapStageResult) => void;
   /**
-   * Reserved for the eventual editor Play/Test preview: a true caller must never apply real
-   * consequences even once onStageCompleted starts firing. Not consumed yet in G4.
+   * Reserved for the eventual editor Play/Test preview to flag "this attempt must never touch
+   * the real save" to its own onStageCompleted handler. StoryMapStage itself never mutates
+   * GameState or calls completeDungeon regardless of this flag -- there is nothing here for it
+   * to gate. Not consumed internally; passed through for the caller's own bookkeeping.
    */
   dryRun?: boolean;
   /** Shows the on-canvas debug panel (map id/grid/entity counts). Off by default. */
@@ -70,28 +79,41 @@ export type StoryMapStageProps = {
  * Technical skeleton for the future data-driven Story runtime. Reuses the same
  * apps/web/components/game/map-runtime primitives as CustomMapPixiStage (tiles, static
  * entities, collisions, camera, movement, labels/badges) rather than copying its logic. Enemies
- * are now mutable combat entities (game-core's createStoryMapRuntimeEnemy/
- * attackStoryMapRuntimeEnemy) -- HP, damage, and death only, no objectives/rewards/completion,
- * no dungeon_exit interpretation. See the Story migration plan (Phase G) for what later phases
- * add. The map itself is never mutated; runtime enemy state is rebuilt fresh on every mount.
+ * are mutable combat entities (game-core's createStoryMapRuntimeEnemy/attackStoryMapRuntimeEnemy)
+ * and the stage now derives and tracks a completion objective (game-core's
+ * deriveStoryMapObjective/isStoryMapObjectiveSatisfied) -- still no pathfinding, boss phases,
+ * loot, or status effects. The map itself is never mutated; runtime enemy state, objective
+ * progress, and player position are all rebuilt fresh on every mount (and by the Reset stage
+ * button). See the Story migration plan (Phase G) for what later phases add.
  */
-export function StoryMapStage({ map, debug }: StoryMapStageProps) {
+export function StoryMapStage({ map, onStageCompleted, debug }: StoryMapStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const resetRef = useRef<(() => void) | null>(null);
+  const onStageCompletedRef = useRef(onStageCompleted);
+  onStageCompletedRef.current = onStageCompleted;
+
+  const [progress, setProgress] = useState<ProgressDisplay | null>(null);
+  const [completionResult, setCompletionResult] = useState<StoryMapStageResult | null>(null);
 
   useEffect(() => {
     const nullableHost = hostRef.current;
     if (!nullableHost) return;
     const hostElement: HTMLDivElement = nullableHost;
 
+    const objective = deriveStoryMapObjective(map);
     const registry = createAssetRegistry();
     const loaded = loadPlayableMap(map);
     const app = new PIXI.Application();
     const world = new PIXI.Container();
     const labels = new PIXI.Container();
     const pressed = new Set<string>();
-    const playerPosition = { ...(map.spawns.find((spawn) => spawn.id === "player_start") ?? map.spawns[0]) };
+    const initialPlayerPosition = { ...(map.spawns.find((spawn) => spawn.id === "player_start") ?? map.spawns[0]) };
+    const playerPosition = { ...initialPlayerPosition };
     const player = new PIXI.Graphics();
     let destroyed = false;
+    let exitReached = false;
+    let stageCompleted = false;
+    let restartCount = 0;
 
     type EnemyVisual = {
       runtime: StoryMapRuntimeEnemy;
@@ -117,7 +139,7 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       world.addChild(badge);
       displayObjects.push(badge);
 
-      const badgeLabel = addWorldLabel(labels, "E", runtime.x + 8, runtime.y + 9);
+      const badgeLabel = addWorldLabel(labels, runtime.isBoss ? "BOSS" : "E", runtime.x + 8, runtime.y + 9);
       displayObjects.push(badgeLabel);
 
       const aggro = new PIXI.Graphics();
@@ -136,6 +158,50 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       for (const displayObject of visual.displayObjects) {
         displayObject.parent?.removeChild(displayObject);
       }
+      visual.displayObjects = [];
+    }
+
+    function spawnEnemies() {
+      for (const enemy of map.enemies) {
+        const runtime = createStoryMapRuntimeEnemy(enemy);
+        enemyVisuals.set(runtime.id, createEnemyVisual(runtime));
+      }
+    }
+
+    function syncProgressDisplay() {
+      const bossEntry = objective.type === "boss_defeat" ? enemyVisuals.get(objective.bossEnemyId) : undefined;
+      setProgress({
+        objectiveType: objective.type,
+        bossAlive: bossEntry ? !bossEntry.runtime.isDead : undefined,
+        defeatedCount: [...enemyVisuals.values()].filter((visual) => visual.runtime.isDead).length,
+        totalCount: enemyVisuals.size,
+        exitReached,
+      });
+    }
+
+    // Only ever called after a real event (an attack resolves, or the player moves) -- never
+    // during initial setup, so the callback can never fire at mere mount.
+    function checkObjectiveCompletion() {
+      if (stageCompleted) return;
+      syncProgressDisplay();
+
+      const enemyContext = [...enemyVisuals.values()].map((visual) => ({ id: visual.runtime.id, isDead: visual.runtime.isDead }));
+      if (!isStoryMapObjectiveSatisfied(objective, { enemies: enemyContext, exitReached })) return;
+
+      stageCompleted = true;
+      const defeatedEnemyIds = enemyContext.filter((enemy) => enemy.isDead).map((enemy) => enemy.id);
+      const bossDefeated = objective.type === "boss_defeat" && enemyContext.some((enemy) => enemy.id === objective.bossEnemyId && enemy.isDead);
+      const result: StoryMapStageResult = {
+        mapId: map.id,
+        objectiveType: objective.type,
+        completed: true,
+        defeatedEnemyIds,
+        bossDefeated,
+        exitReached,
+        restartCount,
+      };
+      setCompletionResult(result);
+      onStageCompletedRef.current?.(result);
     }
 
     function findMeleeTarget(): EnemyVisual | null {
@@ -153,7 +219,7 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
     }
 
     function onPointerDown(event: PointerEvent) {
-      if (event.button !== 0) return;
+      if (stageCompleted || event.button !== 0) return;
       const target = findMeleeTarget();
       if (!target) return;
 
@@ -161,10 +227,32 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       target.runtime = updated;
       target.hpLabel.text = `${Math.round(updated.hpCurrent)}/${Math.round(updated.hpMax)}`;
       if (updated.isDead) {
+        // Visuals disappear, but the entry stays in enemyVisuals (with isDead: true) -- objective
+        // checks (defeat_all_enemies, boss_defeat) need to keep seeing dead enemies, not just
+        // alive ones. findMeleeTarget() above already skips isDead entries, so this is safe.
         removeEnemyVisual(target);
-        enemyVisuals.delete(updated.id);
       }
+      checkObjectiveCompletion();
     }
+
+    function resetStage() {
+      playerPosition.x = initialPlayerPosition.x;
+      playerPosition.y = initialPlayerPosition.y;
+      drawPlayer();
+
+      for (const visual of enemyVisuals.values()) {
+        removeEnemyVisual(visual);
+      }
+      enemyVisuals.clear();
+      spawnEnemies();
+
+      exitReached = false;
+      stageCompleted = false;
+      restartCount += 1;
+      setCompletionResult(null);
+      syncProgressDisplay();
+    }
+    resetRef.current = resetStage;
 
     function drawTiles() {
       const g = new PIXI.Graphics();
@@ -191,24 +279,24 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       for (const npc of map.npcs) {
         renderMapNpc(world, labels, registry, npc);
       }
-      // Enemies are mutable combat entities now (see createEnemyVisual/onPointerDown above) --
-      // still no pathfinding/boss-phases/loot/status-effects/objectives/checkpoint (G4 scope).
-      for (const enemy of map.enemies) {
-        const runtime = createStoryMapRuntimeEnemy(enemy);
-        enemyVisuals.set(runtime.id, createEnemyVisual(runtime));
-      }
+      spawnEnemies();
       for (const collision of map.collisions) {
         const g = new PIXI.Graphics();
         renderMapCollisionDebug(g, collision);
         world.addChild(g);
       }
-      // Triggers are rendered generically -- no dungeon_exit (or any other) convention is
-      // interpreted yet; that starts once objectives are implemented (G5+).
+      // The dungeon_exit convention (type "event" + target "dungeon_exit", documented on
+      // MapTrigger in Phase G1) is now interpreted for the reach_exit objective and rendered
+      // distinctly; every other trigger is still generic.
       for (const trigger of map.triggers) {
+        const isDungeonExit = trigger.type === "event" && trigger.target === "dungeon_exit";
+        const tint = isDungeonExit ? 0x8affc1 : 0x9ad9ff;
         const g = new PIXI.Graphics();
-        g.rect(trigger.x, trigger.y, trigger.width, trigger.height).fill({ color: 0x9ad9ff, alpha: 0.07 }).stroke({ color: 0x9ad9ff, alpha: 0.85, width: 2 });
+        g.rect(trigger.x, trigger.y, trigger.width, trigger.height)
+          .fill({ color: tint, alpha: isDungeonExit ? 0.12 : 0.07 })
+          .stroke({ color: tint, alpha: 0.85, width: 2 });
         world.addChild(g);
-        addWorldLabel(labels, "trigger", trigger.x + trigger.width / 2, trigger.y + trigger.height / 2);
+        addWorldLabel(labels, isDungeonExit ? "EXIT" : "trigger", trigger.x + trigger.width / 2, trigger.y + trigger.height / 2);
       }
     }
 
@@ -227,6 +315,16 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       return !collidesWithAny(next, PLAYER_RADIUS, map.collisions);
     }
 
+    function checkExitTrigger() {
+      if (stageCompleted || exitReached || objective.type !== "reach_exit") return;
+      const exitTrigger = map.triggers.find((trigger) => trigger.id === objective.triggerId);
+      if (!exitTrigger) return;
+      if (isInsideRect(playerPosition, exitTrigger, PLAYER_RADIUS)) {
+        exitReached = true;
+        checkObjectiveCompletion();
+      }
+    }
+
     function tick(ticker: PIXI.Ticker) {
       const direction = computeMovementDirection(pressed);
       if (direction.x !== 0 || direction.y !== 0) {
@@ -236,6 +334,7 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
         if (canMoveTo(nextX)) playerPosition.x = nextX.x;
         if (canMoveTo(nextY)) playerPosition.y = nextY.y;
         drawPlayer();
+        checkExitTrigger();
       }
 
       const screenWidth = app.renderer.width / app.renderer.resolution;
@@ -285,6 +384,9 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       drawEntities();
       drawPlayer();
       world.addChild(player);
+      // Shows the initial objective/progress numbers -- this is a display sync, not a
+      // completion check, so it never risks firing onStageCompleted at mount.
+      syncProgressDisplay();
       window.addEventListener("keydown", onKeyDown);
       window.addEventListener("keyup", onKeyUp);
       app.canvas.addEventListener("pointerdown", onPointerDown);
@@ -299,15 +401,57 @@ export function StoryMapStage({ map, debug }: StoryMapStageProps) {
       window.removeEventListener("keyup", onKeyUp);
       app.canvas?.removeEventListener?.("pointerdown", onPointerDown);
       app.ticker?.remove?.(tick);
+      resetRef.current = null;
       if (ready) {
         app.destroy(true, { children: true });
       }
     };
   }, [map]);
 
+  function objectiveLabel(): string {
+    if (!progress) return "";
+    if (progress.objectiveType === "boss_defeat") {
+      return `Boss objective — ${progress.bossAlive ? "Boss alive" : "Boss defeated"}`;
+    }
+    if (progress.objectiveType === "reach_exit") {
+      return `Reach the exit — ${progress.exitReached ? "Exit reached" : "Exit not reached"}`;
+    }
+    if (progress.totalCount === 0) {
+      return "Defeat all enemies — no enemies on this map, objective cannot be completed";
+    }
+    return `Defeat all enemies — ${progress.defeatedCount} / ${progress.totalCount} defeated`;
+  }
+
   return (
     <div className="relative h-full min-h-[620px] w-full">
       <div ref={hostRef} className="h-full min-h-[620px] w-full" />
+      {progress ? (
+        <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-xs rounded-md border border-zinc-700 bg-black/82 p-3 font-ik-body text-xs text-zinc-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+          <div className="font-ik-menu text-[0.65rem] text-zinc-400">Objective</div>
+          <div className="mt-1">{objectiveLabel()}</div>
+        </div>
+      ) : null}
+      <button
+        className="pointer-events-auto absolute bottom-4 right-4 z-10 rounded-md border border-zinc-700 bg-black/82 px-3 py-2 font-ik-menu text-[0.65rem] uppercase tracking-wide text-zinc-100 hover:border-zinc-200"
+        onClick={() => resetRef.current?.()}
+        type="button"
+      >
+        Reset stage
+      </button>
+      {completionResult ? (
+        <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-black/70">
+          <div className="rounded-md border border-emerald-300/40 bg-black/90 p-6 text-center">
+            <p className="font-ik-title text-lg text-emerald-200">Stage completed — dry run, no progression applied</p>
+            <button
+              className="mt-4 rounded-md border border-zinc-700 px-4 py-2 font-ik-menu text-xs uppercase tracking-wide text-zinc-100 hover:border-zinc-200"
+              onClick={() => resetRef.current?.()}
+              type="button"
+            >
+              Reset stage
+            </button>
+          </div>
+        </div>
+      ) : null}
       {debug ? (
         <div className="pointer-events-none absolute right-4 top-4 z-10 w-64 rounded-md border border-zinc-700 bg-black/82 p-3 font-ik-body text-xs text-zinc-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
           <div className="font-ik-menu text-[0.65rem] text-zinc-400">Story Map Debug</div>
