@@ -73,6 +73,14 @@ export type StoryMapStageProps = {
   dryRun?: boolean;
   /** Shows the on-canvas debug panel (map id/grid/entity counts). Off by default. */
   debug?: boolean;
+  /**
+   * Whether the "Reset stage" control is shown/usable. Defaults to true. The dry-run previews
+   * (editor Play/Test, the standalone test_map_01 technical preview) always want this on. A
+   * future canonical live wrapper will pass allowReset={false} once a real dungeon is wired
+   * (Phase G9+), so a player cannot instantly heal-reset a real combat attempt for free -- not
+   * wired to any real canonical map yet in this phase.
+   */
+  allowReset?: boolean;
 };
 
 /**
@@ -86,7 +94,7 @@ export type StoryMapStageProps = {
  * progress, and player position are all rebuilt fresh on every mount (and by the Reset stage
  * button). See the Story migration plan (Phase G) for what later phases add.
  */
-export function StoryMapStage({ map, onStageCompleted, debug }: StoryMapStageProps) {
+export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true }: StoryMapStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const resetRef = useRef<(() => void) | null>(null);
   const onStageCompletedRef = useRef(onStageCompleted);
@@ -435,24 +443,28 @@ export function StoryMapStage({ map, onStageCompleted, debug }: StoryMapStagePro
           <div className="mt-1">{objectiveLabel()}</div>
         </div>
       ) : null}
-      <button
-        className="pointer-events-auto absolute bottom-4 right-4 z-10 rounded-md border border-zinc-700 bg-black/82 px-3 py-2 font-ik-menu text-[0.65rem] uppercase tracking-wide text-zinc-100 hover:border-zinc-200"
-        onClick={() => resetRef.current?.()}
-        type="button"
-      >
-        Reset stage
-      </button>
+      {allowReset ? (
+        <button
+          className="pointer-events-auto absolute bottom-4 right-4 z-10 rounded-md border border-zinc-700 bg-black/82 px-3 py-2 font-ik-menu text-[0.65rem] uppercase tracking-wide text-zinc-100 hover:border-zinc-200"
+          onClick={() => resetRef.current?.()}
+          type="button"
+        >
+          Reset stage
+        </button>
+      ) : null}
       {completionResult ? (
         <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-black/70">
           <div className="rounded-md border border-emerald-300/40 bg-black/90 p-6 text-center">
             <p className="font-ik-title text-lg text-emerald-200">Stage completed — dry run, no progression applied</p>
-            <button
-              className="mt-4 rounded-md border border-zinc-700 px-4 py-2 font-ik-menu text-xs uppercase tracking-wide text-zinc-100 hover:border-zinc-200"
-              onClick={() => resetRef.current?.()}
-              type="button"
-            >
-              Reset stage
-            </button>
+            {allowReset ? (
+              <button
+                className="mt-4 rounded-md border border-zinc-700 px-4 py-2 font-ik-menu text-xs uppercase tracking-wide text-zinc-100 hover:border-zinc-200"
+                onClick={() => resetRef.current?.()}
+                type="button"
+              >
+                Reset stage
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

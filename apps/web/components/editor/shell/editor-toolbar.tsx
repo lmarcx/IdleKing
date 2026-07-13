@@ -55,6 +55,7 @@ export function EditorToolbar({
   lastSaveMessage,
   mode,
   onExportCanonicalKingdomStage,
+  onExportCanonicalStoryMap,
   onExportKingdomStage,
   onExportMap,
   onImportAsset,
@@ -79,6 +80,7 @@ export function EditorToolbar({
   lastSaveMessage: string;
   mode: EditorMode;
   onExportCanonicalKingdomStage: () => void;
+  onExportCanonicalStoryMap: () => void;
   onExportKingdomStage: () => void;
   onExportMap: () => void;
   onImportAsset: (file: File) => void;
@@ -158,6 +160,29 @@ export function EditorToolbar({
             <Grid2X2 className="mr-2 h-4 w-4" />
             {isStoryDungeonPreview ? "Play/Test Story Map — dry run" : activeDocument.id === "test_map_01" ? "Play/Test test_map_01" : `Play/Test ${activeDocument.id}`}
           </Button>
+          {isStoryDungeonPreview ? (
+            <>
+              <Button
+                onClick={onExportCanonicalStoryMap}
+                size="sm"
+                title={
+                  "Downloads <dungeonId>.generated.json — a validated, deterministically-ordered " +
+                  "snapshot ready for manual review. This does NOT update the live Story route or the " +
+                  "repo by itself. To promote: 1) review the file, 2) run " +
+                  "node scripts/story-map-promote.mjs <path> (dry run), 3) re-run with --apply once " +
+                  "satisfied, 4) run the game-core tests, 5) commit."
+                }
+                variant="outline"
+              >
+                <FileCheck2 className="mr-2 h-4 w-4" />
+                Export Canonical Story Map
+              </Button>
+              <span className="font-ik-menu text-[0.62rem] uppercase tracking-wide text-amber-200/70">
+                Local map — Play/Test previews this as a dry run; export does not make it canon until reviewed
+                and promoted (export → review → promote --apply → tests → commit)
+              </span>
+            </>
+          ) : null}
         </>
       ) : mode === "assets" ? (
         <>

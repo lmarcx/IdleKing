@@ -102,7 +102,11 @@ export function StoryMapLevelRuntime({ dungeonId, map }: StoryMapLevelRuntimePro
 
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
-      <StoryMapStage map={map} onStageCompleted={handleStageCompleted} />
+      {/* allowReset is off here: the canonical live wrapper must never let a player instantly
+          heal-reset a real dungeon attempt for free (see StoryMapStageProps' doc comment). The
+          dry-run previews (editor Play/Test, the test_map_01 technical preview) don't set this
+          prop, so they keep the default (true). */}
+      <StoryMapStage allowReset={false} map={map} onStageCompleted={handleStageCompleted} />
       {completion ? (
         <CompletionPanel
           alreadyCompleted={completion.alreadyCompleted}

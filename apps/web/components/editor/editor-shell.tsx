@@ -224,6 +224,127 @@ function buildCanonicalKingdomStageExport(stage: KingdomStageDefinition): Kingdo
   };
 }
 
+function byCoordinate(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  if (a.y !== b.y) return a.y - b.y;
+  return a.x - b.x;
+}
+
+/**
+ * Produces a deterministic, key-order-stable, diff-friendly snapshot of a Story-dungeon-linked
+ * PlayableMap document -- same semantic content always serializes identically, regardless of the
+ * local document's incidental array/object-key order. Used only for the "Export Canonical Story
+ * Map" download; never written to the repo automatically (see Export Canonical Story Map in
+ * EditorToolbar and scripts/story-map-promote.mjs for the manual promotion this feeds into).
+ * Forces id === dungeonId and mode: "story" -- the caller has already checked map.id matches
+ * before calling this, this just makes the invariant explicit in the exported document too.
+ * PlayableMap has no reward/unlock/storyFlag fields to begin with (spatial data only), so there
+ * is nothing of that kind to strip here.
+ */
+function buildCanonicalStoryMapExport(map: PlayableMap, dungeonId: string): PlayableMap {
+  const topography = {
+    cells: [...map.topography.cells].sort(byCoordinate).map((cell) => ({ x: cell.x, y: cell.y, state: cell.state })),
+  };
+  const tiles: MapTile[] = [...map.tiles].sort(byCoordinate).map((tile) => ({
+    x: tile.x,
+    y: tile.y,
+    textureId: tile.textureId,
+    walkable: tile.walkable,
+    ...(tile.movementModifier !== undefined ? { movementModifier: tile.movementModifier } : {}),
+    ...(tile.damage !== undefined ? { damage: tile.damage } : {}),
+  }));
+  const objects: MapObject[] = [...map.objects].sort(byId).map((object) => ({
+    id: object.id,
+    assetId: object.assetId,
+    kind: object.kind,
+    x: object.x,
+    y: object.y,
+    rotation: object.rotation,
+    ...(object.interaction !== undefined ? { interaction: object.interaction } : {}),
+    ...(object.systemInteraction !== undefined ? { systemInteraction: object.systemInteraction } : {}),
+  }));
+  const buildings: MapBuilding[] = [...map.buildings].sort(byId).map((building) => ({
+    id: building.id,
+    assetId: building.assetId,
+    function: building.function,
+    x: building.x,
+    y: building.y,
+    collision: normalizeCollisionShape(building.collision),
+    ...(building.interaction !== undefined ? { interaction: building.interaction } : {}),
+    ...(building.systemInteraction !== undefined ? { systemInteraction: building.systemInteraction } : {}),
+  }));
+  const npcs: MapNpc[] = [...map.npcs].sort(byId).map((npc) => ({
+    id: npc.id,
+    assetId: npc.assetId,
+    name: npc.name,
+    type: npc.type,
+    behavior: npc.behavior,
+    interaction: npc.interaction,
+    ...(npc.systemInteraction !== undefined ? { systemInteraction: npc.systemInteraction } : {}),
+    x: npc.x,
+    y: npc.y,
+  }));
+  const enemies: MapEnemy[] = [...map.enemies].sort(byId).map((enemy) => ({
+    id: enemy.id,
+    assetId: enemy.assetId,
+    enemyId: enemy.enemyId,
+    name: enemy.name,
+    stats: { hp: enemy.stats.hp, attack: enemy.stats.attack, defense: enemy.stats.defense, speed: enemy.stats.speed },
+    behavior: enemy.behavior,
+    aggroRadius: enemy.aggroRadius,
+    ...(enemy.loot !== undefined ? { loot: [...enemy.loot] } : {}),
+    ...(enemy.deathEvent !== undefined ? { deathEvent: enemy.deathEvent } : {}),
+    ...(enemy.isBoss !== undefined ? { isBoss: enemy.isBoss } : {}),
+    x: enemy.x,
+    y: enemy.y,
+  }));
+  const collisions: MapCollision[] = [...map.collisions].sort(byId).map((collision) => ({
+    id: collision.id,
+    type: collision.type,
+    x: collision.x,
+    y: collision.y,
+    width: collision.width,
+    height: collision.height,
+  }));
+  const triggers: MapTrigger[] = [...map.triggers].sort(byId).map((trigger) => ({
+    id: trigger.id,
+    type: trigger.type,
+    x: trigger.x,
+    y: trigger.y,
+    width: trigger.width,
+    height: trigger.height,
+    ...(trigger.target !== undefined ? { target: trigger.target } : {}),
+  }));
+  const puzzles = [...map.puzzles].sort(byId).map((puzzle) => ({
+    id: puzzle.id,
+    sourceId: puzzle.sourceId,
+    action: puzzle.action,
+    targetId: puzzle.targetId,
+    ...(puzzle.condition !== undefined ? { condition: puzzle.condition } : {}),
+  }));
+  const spawns = [...map.spawns].sort(byId).map((spawn) => ({ id: spawn.id, x: spawn.x, y: spawn.y }));
+
+  return {
+    id: dungeonId,
+    name: map.name,
+    version: map.version,
+    world: map.world,
+    mode: "story",
+    chapter: map.chapter,
+    grid: { width: map.grid.width, height: map.grid.height, cellSize: map.grid.cellSize },
+    topography,
+    tiles,
+    objects,
+    buildings,
+    npcs,
+    enemies,
+    collisions,
+    triggers,
+    puzzles,
+    spawns,
+    metadata: { createdWith: "AWorldDreamtLevelEditor", style: "minimal-geometric" },
+  };
+}
+
 function setCellState(map: PlayableMap, x: number, y: number, state: TopographyCellState): PlayableMap {
   return {
     ...map,
@@ -602,6 +723,31 @@ export function EditorShell() {
       "(e.g. via scripts/kingdom-stage-promote.mjs --apply), 3) run game-core tests, 4) commit.";
     setLastSaveMessage(message);
     toast.success("Exported kingdom-stage.generated.json — review and promote manually (see toolbar tooltip).");
+  }
+
+  function exportCanonicalStoryMap() {
+    if (!activeStoryDungeonId) return;
+    const validation = validatePlayableMap(map);
+    if (!validation.ok) {
+      const message = `Cannot export: ${validation.errors.join("; ")}`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    if (map.id !== activeStoryDungeonId) {
+      const message = `Cannot export: map.id ("${map.id}") must equal the linked dungeon id ("${activeStoryDungeonId}").`;
+      setLastSaveMessage(message);
+      toast.error(message);
+      return;
+    }
+    const exported = buildCanonicalStoryMapExport(map, activeStoryDungeonId);
+    downloadJson(`${activeStoryDungeonId}.generated.json`, exported);
+    const message =
+      `Exported ${activeStoryDungeonId}.generated.json. This is NOT canon yet -- to promote it: ` +
+      "1) review the file, 2) run node scripts/story-map-promote.mjs <path> (dry run), " +
+      "3) re-run with --apply once satisfied, 4) run game-core tests, 5) commit.";
+    setLastSaveMessage(message);
+    toast.success(`Exported ${activeStoryDungeonId}.generated.json — review and promote manually (see toolbar tooltip).`);
   }
 
   function importKingdomStage(file: File) {
@@ -995,6 +1141,7 @@ export function EditorShell() {
           lastSaveMessage={lastSaveMessage}
           mode={mode}
           onExportCanonicalKingdomStage={exportCanonicalKingdomStage}
+          onExportCanonicalStoryMap={exportCanonicalStoryMap}
           onExportKingdomStage={exportKingdomStage}
           onExportMap={() => downloadJson(`${map.id}.map.json`, map)}
           onImportAsset={importAsset}
