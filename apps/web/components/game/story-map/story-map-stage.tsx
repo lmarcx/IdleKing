@@ -6,10 +6,16 @@ import * as PIXI from "pixi.js";
 import {
   attackStoryMapRuntimeEnemy,
   createAssetRegistry,
+  createEnemyAiConfig,
+  createEnemyAiRuntime,
   createStoryMapRuntimeEnemy,
   deriveStoryMapObjective,
   isStoryMapObjectiveSatisfied,
   loadPlayableMap,
+  stepEnemyAi,
+  type EnemyAiConfig,
+  type EnemyAiRuntime,
+  type EnemyAiState,
   type PlayableMap,
   type StoryMapObjective,
   type StoryMapRuntimeEnemy,
@@ -37,12 +43,43 @@ import {
 
 const PLAYER_RADIUS = 13;
 const PLAYER_SPEED = 170;
+// No per-enemy hitbox radius exists on MapEnemy yet -- a single placeholder radius is used for
+// every enemy's collision against static map geometry, matching the technical-proof spirit of
+// MELEE_RANGE/PLACEHOLDER_ATTACKER below.
+const ENEMY_RADIUS = 14;
 
 // Basic melee range/attacker stats for the combat technical proof (G4). Not derived from any
 // real player save/equipment -- deliberately isolated from real progression, matching
 // StoryMapAttackerStats' own doc comment in game-core.
 const MELEE_RANGE = 60;
 const PLACEHOLDER_ATTACKER = { attack: 20, critChance: 0 } as const;
+
+// Minimal, visible player HP so enemy contact damage (G10) is observable. Not the real player
+// combat runtime -- no death/checkpoint handling here, that is a separate, later phase. HP just
+// clamps at 0 and stays there.
+const PLACEHOLDER_PLAYER_HP_MAX = 100;
+
+const ENEMY_BADGE_OFFSET = { x: 8, y: 8 };
+const ENEMY_BADGE_LABEL_OFFSET = { x: 8, y: 9 };
+const ENEMY_AGGRO_OFFSET = { x: 24, y: 32 };
+const ENEMY_HP_LABEL_OFFSET = { x: 8, y: -22 };
+
+function enemyStateTint(state: EnemyAiState): number {
+  switch (state) {
+    case "idle":
+      return 0xbfbfbf;
+    case "chasing":
+      return 0xffb347;
+    case "attacking":
+      return 0xff4d4d;
+    case "leashed":
+      return 0x5ec8ff;
+    case "dead":
+      return 0x3a3a3a;
+    default:
+      return 0xffb0b0;
+  }
+}
 
 type ProgressDisplay = {
   objectiveType: StoryMapObjective["type"];
@@ -102,6 +139,7 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
 
   const [progress, setProgress] = useState<ProgressDisplay | null>(null);
   const [completionResult, setCompletionResult] = useState<StoryMapStageResult | null>(null);
+  const [playerHp, setPlayerHp] = useState({ current: PLACEHOLDER_PLAYER_HP_MAX, max: PLACEHOLDER_PLAYER_HP_MAX });
 
   useEffect(() => {
     const nullableHost = hostRef.current;
@@ -122,57 +160,131 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
     let exitReached = false;
     let stageCompleted = false;
     let restartCount = 0;
+    let playerHpCurrent = PLACEHOLDER_PLAYER_HP_MAX;
 
     type EnemyVisual = {
       runtime: StoryMapRuntimeEnemy;
-      displayObjects: PIXI.Container[];
+      ai: EnemyAiRuntime;
+      config: EnemyAiConfig;
+      lastRenderedState: EnemyAiState;
+      assetGraphic: PIXI.Container | null;
+      badge: PIXI.Graphics;
+      badgeLabel: PIXI.Text;
+      aggro: PIXI.Graphics;
       hpLabel: PIXI.Text;
     };
     const enemyVisuals = new Map<string, EnemyVisual>();
 
-    function createEnemyVisual(runtime: StoryMapRuntimeEnemy): EnemyVisual {
-      const displayObjects: PIXI.Container[] = [];
+    function drawEnemyBadge(badge: PIXI.Graphics, state: EnemyAiState) {
+      badge.clear();
+      badge.circle(0, 0, 12).fill({ color: 0x050505, alpha: 0.9 }).stroke({ color: enemyStateTint(state), alpha: 0.95, width: 2 });
+    }
 
+    function createEnemyVisual(runtime: StoryMapRuntimeEnemy, ai: EnemyAiRuntime, config: EnemyAiConfig): EnemyVisual {
+      let assetGraphic: PIXI.Container | null = null;
       const asset = registry.assets.find((item) => item.id === runtime.assetId);
       if (asset) {
-        const graphic = createAssetGraphic(asset);
-        graphic.position.set(runtime.x, runtime.y);
-        graphic.zIndex = runtime.y;
-        world.addChild(graphic);
-        displayObjects.push(graphic);
+        assetGraphic = createAssetGraphic(asset);
+        assetGraphic.position.set(ai.x, ai.y);
+        assetGraphic.zIndex = ai.y;
+        world.addChild(assetGraphic);
       }
 
       const badge = new PIXI.Graphics();
-      badge.circle(runtime.x + 8, runtime.y + 8, 12).fill({ color: 0x050505, alpha: 0.9 }).stroke({ color: 0xffb0b0, alpha: 0.95, width: 2 });
+      drawEnemyBadge(badge, ai.state);
+      badge.position.set(ai.x + ENEMY_BADGE_OFFSET.x, ai.y + ENEMY_BADGE_OFFSET.y);
       world.addChild(badge);
-      displayObjects.push(badge);
 
-      const badgeLabel = addWorldLabel(labels, runtime.isBoss ? "BOSS" : "E", runtime.x + 8, runtime.y + 9);
-      displayObjects.push(badgeLabel);
+      const badgeLabel = addWorldLabel(labels, runtime.isBoss ? "BOSS" : "E", ai.x + ENEMY_BADGE_LABEL_OFFSET.x, ai.y + ENEMY_BADGE_LABEL_OFFSET.y);
 
       const aggro = new PIXI.Graphics();
-      aggro.circle(runtime.x + 24, runtime.y + 32, runtime.aggroRadius).stroke({ color: 0xf2f2f2, alpha: 0.14, width: 1 });
+      aggro.circle(0, 0, runtime.aggroRadius).stroke({ color: 0xf2f2f2, alpha: 0.14, width: 1 });
+      aggro.position.set(ai.x + ENEMY_AGGRO_OFFSET.x, ai.y + ENEMY_AGGRO_OFFSET.y);
       world.addChild(aggro);
-      displayObjects.push(aggro);
 
-      const hpLabel = addWorldLabel(labels, `${Math.round(runtime.hpCurrent)}/${Math.round(runtime.hpMax)}`, runtime.x + 8, runtime.y - 22);
+      const hpLabel = addWorldLabel(
+        labels,
+        `${Math.round(runtime.hpCurrent)}/${Math.round(runtime.hpMax)}`,
+        ai.x + ENEMY_HP_LABEL_OFFSET.x,
+        ai.y + ENEMY_HP_LABEL_OFFSET.y,
+      );
       hpLabel.style.fill = 0xffe08a;
-      displayObjects.push(hpLabel);
 
-      return { runtime, displayObjects, hpLabel };
+      return { runtime, ai, config, lastRenderedState: ai.state, assetGraphic, badge, badgeLabel, aggro, hpLabel };
+    }
+
+    function repositionEnemyVisual(visual: EnemyVisual) {
+      const { x, y } = visual.ai;
+      if (visual.assetGraphic) {
+        visual.assetGraphic.position.set(x, y);
+        visual.assetGraphic.zIndex = y;
+      }
+      if (visual.ai.state !== visual.lastRenderedState) {
+        drawEnemyBadge(visual.badge, visual.ai.state);
+        visual.lastRenderedState = visual.ai.state;
+      }
+      visual.badge.position.set(x + ENEMY_BADGE_OFFSET.x, y + ENEMY_BADGE_OFFSET.y);
+      visual.badgeLabel.position.set(x + ENEMY_BADGE_LABEL_OFFSET.x, y + ENEMY_BADGE_LABEL_OFFSET.y);
+      visual.aggro.position.set(x + ENEMY_AGGRO_OFFSET.x, y + ENEMY_AGGRO_OFFSET.y);
+      visual.hpLabel.position.set(x + ENEMY_HP_LABEL_OFFSET.x, y + ENEMY_HP_LABEL_OFFSET.y);
     }
 
     function removeEnemyVisual(visual: EnemyVisual) {
-      for (const displayObject of visual.displayObjects) {
-        displayObject.parent?.removeChild(displayObject);
-      }
-      visual.displayObjects = [];
+      visual.assetGraphic?.parent?.removeChild(visual.assetGraphic);
+      visual.badge.parent?.removeChild(visual.badge);
+      visual.badgeLabel.parent?.removeChild(visual.badgeLabel);
+      visual.aggro.parent?.removeChild(visual.aggro);
+      visual.hpLabel.parent?.removeChild(visual.hpLabel);
+      visual.assetGraphic = null;
     }
 
     function spawnEnemies() {
       for (const enemy of map.enemies) {
         const runtime = createStoryMapRuntimeEnemy(enemy);
-        enemyVisuals.set(runtime.id, createEnemyVisual(runtime));
+        const ai = createEnemyAiRuntime(enemy);
+        const config = createEnemyAiConfig(enemy);
+        enemyVisuals.set(runtime.id, createEnemyVisual(runtime, ai, config));
+      }
+    }
+
+    function canEntityMoveTo(next: Vector2, radius: number): boolean {
+      const cell = worldToCell(next, map.grid.cellSize);
+      if (loaded.blockingCells.has(cellKey(cell.x, cell.y))) return false;
+      if (!isWithinWorldBounds(next, radius, { width: loaded.widthPx, height: loaded.heightPx })) return false;
+      return !collidesWithAny(next, radius, map.collisions);
+    }
+
+    function applyContactDamageToPlayer(amount: number) {
+      playerHpCurrent = Math.max(0, playerHpCurrent - amount);
+      setPlayerHp({ current: playerHpCurrent, max: PLACEHOLDER_PLAYER_HP_MAX });
+    }
+
+    // Drives every non-dead enemy's AI one tick (game-core's stepEnemyAi decides state/movement;
+    // this Pixi layer only applies it -- no AI logic is duplicated here). No pathfinding: if the
+    // AI's chosen next position collides with static map geometry, the enemy holds its ground for
+    // that tick rather than routing around the obstacle -- a documented limitation, not a bug, and
+    // enemies do not slide along walls the way the player's axis-separated movement does.
+    function stepEnemies(deltaSeconds: number, nowMs: number) {
+      if (stageCompleted) return;
+      for (const visual of enemyVisuals.values()) {
+        if (visual.runtime.isDead && visual.ai.state !== "dead") {
+          visual.ai = { ...visual.ai, state: "dead" };
+        }
+        if (visual.ai.state === "dead") continue;
+
+        const result = stepEnemyAi(visual.ai, visual.config, playerPosition.x, playerPosition.y, deltaSeconds, nowMs);
+        let nextAi = result.enemy;
+        const moved = nextAi.x !== visual.ai.x || nextAi.y !== visual.ai.y;
+        if (moved && !canEntityMoveTo({ x: nextAi.x, y: nextAi.y }, ENEMY_RADIUS)) {
+          nextAi = { ...nextAi, x: visual.ai.x, y: visual.ai.y };
+        }
+
+        visual.ai = nextAi;
+        repositionEnemyVisual(visual);
+
+        if (result.didAttack) {
+          applyContactDamageToPlayer(visual.config.contactDamage);
+        }
       }
     }
 
@@ -217,7 +329,7 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
       let nearestDistance = Number.POSITIVE_INFINITY;
       for (const visual of enemyVisuals.values()) {
         if (visual.runtime.isDead) continue;
-        const distance = Math.hypot(visual.runtime.x - playerPosition.x, visual.runtime.y - playerPosition.y);
+        const distance = Math.hypot(visual.ai.x - playerPosition.x, visual.ai.y - playerPosition.y);
         if (distance <= MELEE_RANGE && distance < nearestDistance) {
           nearest = visual;
           nearestDistance = distance;
@@ -257,6 +369,8 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
       exitReached = false;
       stageCompleted = false;
       restartCount += 1;
+      playerHpCurrent = PLACEHOLDER_PLAYER_HP_MAX;
+      setPlayerHp({ current: playerHpCurrent, max: PLACEHOLDER_PLAYER_HP_MAX });
       setCompletionResult(null);
       syncProgressDisplay();
     }
@@ -317,10 +431,7 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
     }
 
     function canMoveTo(next: Vector2): boolean {
-      const cell = worldToCell(next, map.grid.cellSize);
-      if (loaded.blockingCells.has(cellKey(cell.x, cell.y))) return false;
-      if (!isWithinWorldBounds(next, PLAYER_RADIUS, { width: loaded.widthPx, height: loaded.heightPx })) return false;
-      return !collidesWithAny(next, PLAYER_RADIUS, map.collisions);
+      return canEntityMoveTo(next, PLAYER_RADIUS);
     }
 
     function checkExitTrigger() {
@@ -344,6 +455,8 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
         drawPlayer();
         checkExitTrigger();
       }
+
+      stepEnemies(ticker.deltaMS / 1000, performance.now());
 
       const screenWidth = app.renderer.width / app.renderer.resolution;
       const screenHeight = app.renderer.height / app.renderer.resolution;
@@ -441,6 +554,8 @@ export function StoryMapStage({ map, onStageCompleted, debug, allowReset = true 
         <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-xs rounded-md border border-zinc-700 bg-black/82 p-3 font-ik-body text-xs text-zinc-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
           <div className="font-ik-menu text-[0.65rem] text-zinc-400">Objective</div>
           <div className="mt-1">{objectiveLabel()}</div>
+          <div className="font-ik-menu mt-2 text-[0.65rem] text-zinc-400">Player HP (technical placeholder)</div>
+          <div className="mt-1">{playerHp.current} / {playerHp.max}</div>
         </div>
       ) : null}
       {allowReset ? (
