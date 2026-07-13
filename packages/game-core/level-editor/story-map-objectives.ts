@@ -1,4 +1,5 @@
 import type { PlayableMap } from "./types.js";
+import type { VictoryCondition } from "./victory-condition.js";
 
 export type StoryMapObjective =
   | Readonly<{ type: "boss_defeat"; bossEnemyId: string }>
@@ -18,6 +19,29 @@ export function deriveStoryMapObjective(map: PlayableMap): StoryMapObjective {
   if (exitTrigger) return { type: "reach_exit", triggerId: exitTrigger.id };
 
   return { type: "defeat_all_enemies" };
+}
+
+/**
+ * Preferred entry point for a map's win condition: reads the authored `map.victoryCondition`
+ * when present, otherwise converts deriveStoryMapObjective's shape-based inference into the
+ * equivalent VictoryCondition so callers only need to handle one type. Kept alongside (not
+ * replacing) deriveStoryMapObjective/StoryMapObjective so nothing consuming those directly today
+ * has to change.
+ */
+export function resolveVictoryCondition(map: PlayableMap): VictoryCondition {
+  if (map.victoryCondition) return map.victoryCondition;
+
+  const objective = deriveStoryMapObjective(map);
+  switch (objective.type) {
+    case "boss_defeat":
+      return { kind: "BOSS_ONLY", bossEnemyId: objective.bossEnemyId };
+    case "reach_exit":
+      return { kind: "ESCAPE", triggerId: objective.triggerId };
+    case "defeat_all_enemies":
+      return { kind: "ALL_ENEMIES" };
+    default:
+      return { kind: "ALL_ENEMIES" };
+  }
 }
 
 export type StoryMapObjectiveEnemyContext = Readonly<{ id: string; isDead: boolean }>;

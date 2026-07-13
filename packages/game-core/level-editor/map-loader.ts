@@ -89,5 +89,15 @@ export function validatePlayableMap(map: PlayableMap): MapValidationResult {
     errors.push(`Map ${map.id} has more than one enemy flagged isBoss: ${bossEnemies.map((enemy) => enemy.id).join(", ")}`);
   }
 
+  if (map.victoryCondition) {
+    const condition = map.victoryCondition;
+    if (condition.kind === "BOSS_ONLY" && condition.bossEnemyId && !map.enemies.some((enemy) => enemy.id === condition.bossEnemyId)) {
+      errors.push(`Map ${map.id} victoryCondition BOSS_ONLY references unknown bossEnemyId: ${condition.bossEnemyId}`);
+    }
+    if (condition.kind === "ESCAPE" && !map.triggers.some((trigger) => trigger.id === condition.triggerId)) {
+      errors.push(`Map ${map.id} victoryCondition ESCAPE references unknown triggerId: ${condition.triggerId}`);
+    }
+  }
+
   return { ok: errors.length === 0, errors };
 }

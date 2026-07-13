@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   deriveStoryMapObjective,
   isStoryMapObjectiveSatisfied,
+  resolveVictoryCondition,
   shouldApplyStoryMapCompletion,
   type StoryMapStageResult,
 } from "../level-editor/story-map-objectives.js";
@@ -116,6 +117,25 @@ test("reach_exit is satisfied exactly by the exitReached flag", () => {
   const objective = { type: "reach_exit", triggerId: "exit_zone" } as const;
   assert.equal(isStoryMapObjectiveSatisfied(objective, { enemies: [], exitReached: false }), false);
   assert.equal(isStoryMapObjectiveSatisfied(objective, { enemies: [], exitReached: true }), true);
+});
+
+test("resolveVictoryCondition returns the authored map.victoryCondition when present, ignoring shape-based inference", () => {
+  const map: PlayableMap = {
+    ...withEnemiesAndTriggers([{ ...BASE_ENEMY, id: "enemy_boss", isBoss: true }], [EXIT_TRIGGER]),
+    victoryCondition: { kind: "ALL_ENEMIES" },
+  };
+  assert.deepEqual(resolveVictoryCondition(map), { kind: "ALL_ENEMIES" });
+});
+
+test("resolveVictoryCondition falls back to deriveStoryMapObjective converted to VictoryCondition when unset", () => {
+  const bossMap = withEnemiesAndTriggers([{ ...BASE_ENEMY, id: "enemy_boss", isBoss: true }], [EXIT_TRIGGER]);
+  assert.deepEqual(resolveVictoryCondition(bossMap), { kind: "BOSS_ONLY", bossEnemyId: "enemy_boss" });
+
+  const exitMap = withEnemiesAndTriggers([BASE_ENEMY], [EXIT_TRIGGER]);
+  assert.deepEqual(resolveVictoryCondition(exitMap), { kind: "ESCAPE", triggerId: "exit_zone" });
+
+  const plainMap = withEnemiesAndTriggers([BASE_ENEMY], []);
+  assert.deepEqual(resolveVictoryCondition(plainMap), { kind: "ALL_ENEMIES" });
 });
 
 function baseStageResult(overrides: Partial<StoryMapStageResult> = {}): StoryMapStageResult {

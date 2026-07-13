@@ -1,3 +1,5 @@
+import type { VictoryCondition } from "./victory-condition.js";
+
 export type GeometryShape = "rect" | "circle" | "triangle" | "line" | "polygon";
 
 export type AssetCategory =
@@ -250,6 +252,12 @@ export type PlayableMap = Readonly<{
   triggers: readonly MapTrigger[];
   puzzles: readonly MapPuzzleLink[];
   spawns: readonly MapSpawn[];
+  /**
+   * Explicit, authored win condition for this encounter. When omitted, the runtime falls back to
+   * inferring one from the map's shape (see deriveStoryMapObjective in story-map-objectives.ts) --
+   * kept for maps authored before this field existed, so it is not required retroactively.
+   */
+  victoryCondition?: VictoryCondition;
   metadata: Readonly<{
     createdWith: "AWorldDreamtLevelEditor";
     style: "minimal-geometric";

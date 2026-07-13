@@ -128,6 +128,9 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
       "y": 800
     }
   ],
+  "victoryCondition": {
+    "kind": "ALL_ENEMIES"
+  },
   "metadata": {
     "createdWith": "AWorldDreamtLevelEditor",
     "style": "minimal-geometric"
