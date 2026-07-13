@@ -36,6 +36,7 @@
     "./resources/*": "./dist/resources/*",
     "./items": "./dist/items/index.js",
     "./story": "./dist/story/index.js",
+    "./scenario": "./dist/scenario/index.js",
     "./items/*": "./dist/items/*"
   },
   "files": ["dist"],

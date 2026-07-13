@@ -14,6 +14,7 @@ export * as bank from "./bank/index.js";
 export * as market from "./market/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
+export * as scenario from "./scenario/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export * as resonance from "./resonance/index.js";
