@@ -12,6 +12,7 @@ import { EditorTree } from "@/components/editor/shell/editor-tree";
 import { KingdomStagePanel } from "@/components/editor/shell/kingdom-stage-panel";
 import { PlaceholderPanel } from "@/components/editor/shell/placeholder-panel";
 import { ProjectTree, type EraOrigin } from "@/components/editor/shell/project-tree";
+import { ResizablePanel } from "@/components/editor/shell/resizable-panel";
 import { StoryDungeonEmptyPanel } from "@/components/editor/shell/story-dungeon-empty-panel";
 import {
   STEP_CATEGORY,
@@ -169,6 +170,16 @@ function normalizeInteractionDefinition(interaction: InteractionDefinition | nul
 
 function byId(a: { id: string }, b: { id: string }): number {
   return a.id.localeCompare(b.id);
+}
+
+/**
+ * Whether the in-memory Kingdom Stage document is identical to the compiled canonical
+ * KINGDOM_STAGE_DEFINITION -- not whether its `status` field says "canon" (a loaded/edited local
+ * draft can carry either status value regardless of whether its content still matches canon).
+ * Cheap JSON comparison is fine at this document's size (a few dozen entities).
+ */
+function kingdomStageMatchesCanon(stage: KingdomStageDefinition): boolean {
+  return JSON.stringify(stage) === JSON.stringify(KINGDOM_STAGE_DEFINITION);
 }
 
 /**
@@ -464,10 +475,7 @@ export function EditorShell() {
         type: "kingdom_stage",
         id: kingdomStage.id,
         title: kingdomStage.name,
-        status:
-          kingdomStage.status === "canon"
-            ? "Canonical — not read by live runtime yet"
-            : "Local draft — not read by live runtime yet",
+        status: kingdomStageMatchesCanon(kingdomStage) ? "Matches canonical Kingdom Stage" : "Local changes — not committed as canon",
       };
     }
     return {
@@ -486,9 +494,7 @@ export function EditorShell() {
     activeStoryMapSource,
     activeStoryDungeon,
     customAssets.length,
-    kingdomStage.id,
-    kingdomStage.name,
-    kingdomStage.status,
+    kingdomStage,
     placeholderDoc,
   ]);
 
@@ -1133,8 +1139,8 @@ export function EditorShell() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#070707] text-zinc-100">
-      <div className="flex min-h-screen flex-col">
+    <div className="h-dvh w-screen overflow-hidden bg-[#070707] text-zinc-100">
+      <div className="flex h-full min-h-0 flex-col">
         <EditorToolbar
           activeDocument={activeDocument}
           isStoryDungeonPreview={Boolean(activeStoryDungeonId)}
@@ -1165,38 +1171,40 @@ export function EditorShell() {
           tool={tool}
         />
 
-        <main className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="flex min-h-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-950">
-            <ProjectTree
-              activeDocument={activeDocument}
-              activeStoryDungeonId={activeStoryDungeonId}
-              levelDocuments={levelDocuments}
-              onCreateSandboxLevel={createSandboxLevel}
-              onSelectAssets={selectAssets}
-              onSelectKingdomStage={selectKingdomStage}
-              onSelectLevel={selectLevel}
-              onSelectPlaceholder={selectPlaceholder}
-              onSelectStoryDungeon={selectStoryDungeon}
-            />
-            {mode === "level" ? (
-              <EditorTree
-                activeStep={activeStep}
-                mapCounts={{ enemies: map.enemies.length, npcs: map.npcs.length, objects: map.objects.length }}
-                onSelectAsset={setSelectedAssetId}
-                onSelectTexture={setSelectedTextureId}
-                onStepChange={setActiveStep}
-                onTopographyPaintChange={setTopographyPaint}
-                paletteAssets={paletteAssets}
-                registryAssetsCount={registry.assets.length}
-                selectedAssetId={selectedAssetId}
-                selectedTextureId={selectedTextureId}
-                topographyPaint={topographyPaint}
+        <main className="flex min-h-0 flex-1 overflow-hidden">
+          <ResizablePanel collapsedLabel="Project" defaultWidth={240} side="left">
+            <aside className="flex h-full min-h-0 flex-col overflow-auto border-r border-zinc-800 bg-zinc-950">
+              <ProjectTree
+                activeDocument={activeDocument}
+                activeStoryDungeonId={activeStoryDungeonId}
+                levelDocuments={levelDocuments}
+                onCreateSandboxLevel={createSandboxLevel}
+                onSelectAssets={selectAssets}
+                onSelectKingdomStage={selectKingdomStage}
+                onSelectLevel={selectLevel}
+                onSelectPlaceholder={selectPlaceholder}
+                onSelectStoryDungeon={selectStoryDungeon}
               />
-            ) : null}
-          </aside>
+              {mode === "level" ? (
+                <EditorTree
+                  activeStep={activeStep}
+                  mapCounts={{ enemies: map.enemies.length, npcs: map.npcs.length, objects: map.objects.length }}
+                  onSelectAsset={setSelectedAssetId}
+                  onSelectTexture={setSelectedTextureId}
+                  onStepChange={setActiveStep}
+                  onTopographyPaintChange={setTopographyPaint}
+                  paletteAssets={paletteAssets}
+                  registryAssetsCount={registry.assets.length}
+                  selectedAssetId={selectedAssetId}
+                  selectedTextureId={selectedTextureId}
+                  topographyPaint={topographyPaint}
+                />
+              ) : null}
+            </aside>
+          </ResizablePanel>
 
           {mode === "level" ? (
-            <div className="grid min-h-0 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="flex min-h-0 flex-1">
               <EditorCanvas
                 isPainting={isPainting}
                 map={map}
@@ -1213,16 +1221,18 @@ export function EditorShell() {
                 selection={selection}
               />
 
-              <EditorInspector
-                map={map}
-                onDeleteSelection={deleteSelection}
-                onGridChange={(patch) => setMap({ ...map, grid: { ...map.grid, ...patch } })}
-                onMapIdChange={(id) => setMap({ ...map, id })}
-                onMapNameChange={(name) => setMap({ ...map, name })}
-                onPatchSelection={patchSelection}
-                selectedEntity={selectedEntity}
-                selection={selection}
-              />
+              <ResizablePanel collapsedLabel="Inspector" defaultWidth={360} side="right">
+                <EditorInspector
+                  map={map}
+                  onDeleteSelection={deleteSelection}
+                  onGridChange={(patch) => setMap({ ...map, grid: { ...map.grid, ...patch } })}
+                  onMapIdChange={(id) => setMap({ ...map, id })}
+                  onMapNameChange={(name) => setMap({ ...map, name })}
+                  onPatchSelection={patchSelection}
+                  selectedEntity={selectedEntity}
+                  selection={selection}
+                />
+              </ResizablePanel>
             </div>
           ) : mode === "assets" ? (
             <AssetModePanel
@@ -1248,6 +1258,7 @@ export function EditorShell() {
           ) : mode === "kingdom" ? (
             <KingdomStagePanel
               kingdomStage={kingdomStage}
+              matchesCanon={kingdomStageMatchesCanon(kingdomStage)}
               onDeleteBuilding={deleteKingdomBuilding}
               onPatchBuilding={patchKingdomBuilding}
               onSelectBuilding={setSelectedKingdomBuildingId}

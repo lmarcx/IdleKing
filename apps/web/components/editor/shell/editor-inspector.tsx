@@ -25,7 +25,7 @@ export function EditorInspector({
   selection: Selection | null;
 }) {
   return (
-    <aside className="min-h-0 overflow-auto border-l border-zinc-800 bg-zinc-950 p-3">
+    <aside className="h-full min-h-0 overflow-auto border-l border-zinc-800 bg-zinc-950 p-3">
       <div className="grid gap-3">
         <div className="grid gap-2 rounded-md border border-zinc-800 p-3">
           <h2 className="font-ik-menu text-xs text-zinc-300">Map</h2>

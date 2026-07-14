@@ -22,7 +22,7 @@ export function EditorCanvas({
   selection: Selection | null;
 }) {
   return (
-    <section className="min-h-[560px] overflow-auto bg-[#0b0b0b] p-4">
+    <section className="h-full min-h-[320px] min-w-0 flex-1 overflow-auto bg-[#0b0b0b] p-4">
       <div className="relative w-fit">
         <div className="grid w-fit border border-zinc-700" style={{ gridTemplateColumns: `repeat(${map.grid.width}, ${map.grid.cellSize}px)` }}>
           {Array.from({ length: map.grid.width * map.grid.height }, (_, index) => {

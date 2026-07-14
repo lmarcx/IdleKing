@@ -36,12 +36,14 @@ function projectPoint(
 
 export function KingdomStagePanel({
   kingdomStage,
+  matchesCanon,
   onDeleteBuilding,
   onPatchBuilding,
   onSelectBuilding,
   selectedBuildingId,
 }: {
   kingdomStage: KingdomStageDefinition;
+  matchesCanon: boolean;
   onDeleteBuilding: (id: string) => void;
   onPatchBuilding: (id: string, patch: { x?: number; y?: number }) => void;
   onSelectBuilding: (id: string | null) => void;
@@ -54,12 +56,17 @@ export function KingdomStagePanel({
   return (
     <section className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto bg-[#0b0b0b] p-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="grid min-h-0 gap-3">
-        <div className="rounded-md border border-amber-200/30 bg-amber-500/10 p-3 font-ik-menu text-xs uppercase tracking-wide text-amber-100">
-          Kingdom Stage — not read by the live runtime yet
+        <div
+          className={cn(
+            "rounded-md border p-3 font-ik-menu text-xs uppercase tracking-wide",
+            matchesCanon ? "border-zinc-800 bg-zinc-950 text-zinc-400" : "border-amber-200/30 bg-amber-500/10 text-amber-100"
+          )}
+        >
+          {matchesCanon ? "Matches canonical Kingdom Stage" : "Local changes — not committed as canon"}
         </div>
         <p className="font-ik-body text-xs text-zinc-500">
-          {kingdomStage.status === "canon" ? "Canonical" : "Local draft"} data (v{kingdomStage.version}) — kingdom-hub-stage.tsx
-          still renders its own hardcoded values; this document is the migration target, not yet the source it reads from.
+          v{kingdomStage.version} — kingdom-hub-stage.tsx reads this canonical definition by default; local edits here
+          only reach it once exported and manually promoted (Export Canonical → promote --apply → tests → commit).
           Click a building to select and edit it.
         </p>
 
