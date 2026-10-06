@@ -28,6 +28,8 @@ export type LaunchMiniGameRunOptions = {
 };
 
 export type LaunchMiniGameRunBlockedReason =
+  | "BUILDING_LOCKED"
+  | "BUILDING_NOT_BUILT"
   | "RUN_ALREADY_ACTIVE"
   | "NOT_ENOUGH_WORLD_ENERGY"
   | "NOT_ENOUGH_RESOURCES";
@@ -243,6 +245,9 @@ export function canLaunchMiniGameRun(
   kind: MiniGameKind,
   options: Pick<LaunchMiniGameRunOptions, "worldEnergyCost" | "resourceCosts"> = {},
 ): LaunchMiniGameRunBlockedReason | null {
+  const building = state.buildings[kind];
+  if (!building.unlocked) return "BUILDING_LOCKED";
+  if (!building.built) return "BUILDING_NOT_BUILT";
   if (state.miniGames.activeRun?.status === "running") return "RUN_ALREADY_ACTIVE";
 
   const worldEnergyCost = normalizeWorldEnergyCost(options.worldEnergyCost ?? getMiniGameWorldEnergyCost(kind));

@@ -160,7 +160,7 @@ export function BankView({ embedded = false }: { embedded?: boolean }) {
           unlocked: true,
         },
       },
-      resources: addQty(addQty(addQty(current.resources, "WOOD", 25), "STONE", 25), "COPPER", 25),
+      resources: addQty(addQty(addQty(current.resources, "old_wood", 25), "iron_ore", 25), "quartz", 25),
       inventory: {
         items: [
           ...current.inventory.items,

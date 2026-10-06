@@ -50,8 +50,8 @@ export function recruitVillager(state: GameState): RecruitVillagerResult {
   const cost = recruitVillagerCost(state.villagers.list.length);
 
   const costStock: ResourceStock = {
-    MEAT: cost.meat,
-    GOLD: cost.gold,
+    tough_meat: cost.meat,
+    silver_ore: cost.gold,
   };
 
   if (!hasAtLeast(state.resources, costStock)) {

@@ -25,8 +25,12 @@ import { DUEL_OPPONENTS, type DuelOpponent } from "@/lib/duel-data";
 import { STORY_ERA_GROUPS, type IconType, type StoryEraGroup } from "@/lib/story-era-groups";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
+import { BuildingBuildSection } from "@/components/game/kingdom/building-modal";
 import {
   ERA_REGISTRY,
+  buildBuilding,
+  getBuildCost,
+  hasAtLeast,
   STORY_DUNGEON_REGISTRY,
   canEnterDungeon,
   canUnlockEraAtTimeGate,
@@ -490,6 +494,18 @@ export function TimeGatePanel() {
   const selectedEraUnlocked = selectedEraStatus === "unlocked";
   const canUnlockSelectedEra = canUnlockEraAtTimeGate(state, selectedGroup.id);
   const showPips = timeGate.maxLevel > 0 && timeGate.maxLevel <= 8;
+  const timeGateBuildCost = getBuildCost("TIME_GATE");
+  const canBuildTimeGate = timeGate.unlocked && !timeGate.built && hasAtLeast(state.resources, timeGateBuildCost);
+
+  function handleBuildTimeGate() {
+    const result = buildBuilding(useGameStore.getState().state, "TIME_GATE");
+    if (!result.ok) {
+      toast.error(`Construction impossible : ${result.reason}`, { id: "time-gate-build" });
+      return;
+    }
+    dispatch(() => result.next);
+    toast.success("Time Gate construite", { id: "time-gate-build" });
+  }
 
   function handleUnlockEra(eraId: EraId) {
     const result = unlockEraAtTimeGate(useGameStore.getState().state, eraId);
@@ -554,6 +570,16 @@ export function TimeGatePanel() {
           <StatChip icon={Globe2} tip={`World Level ${state.progression.worldLevel}`} value={`${state.progression.worldLevel}`} />
         </div>
       </div>
+
+      {!timeGate.built ? (
+        <BuildingBuildSection
+          canBuild={canBuildTimeGate}
+          cost={timeGateBuildCost}
+          label={timeGate.unlocked ? (canBuildTimeGate ? "Construire" : "Ressources insuffisantes") : "Verrouillée"}
+          onBuild={handleBuildTimeGate}
+          resources={state.resources}
+        />
+      ) : null}
 
       {/* Mode tabs */}
       <div aria-label="Modes de jeu" className="ik-seg ik-anim-rise-in" role="tablist" style={{ animationDelay: "40ms" }}>

@@ -3,37 +3,45 @@ import type { BuildingId } from "./types.js";
 
 /**
  * Returns the construction cost for a building at base tier (MVP).
- * Costs are deliberately simple and can be rebalanced later.
+ *
+ * Costs only use canonical resources the player can actually gather by the time the building
+ * unlocks (see STORY_DUNGEON_REGISTRY.buildingUnlocks):
+ * - Mine / Farm (after the Prologue): Prologue Shadow drops (iron_ore, shadow_residue).
+ * - Temple / Forum (after the Mausolee): Mine (iron_ore, quartz) + Farm (old_wood).
+ * - Forge / Market / Bank / Kitchen (after Rive Figee): same pool, larger amounts.
+ * - Time Gate (needed before Era Glaciaire): adds spectral_dust from Chapter I dungeons.
+ *
+ * DEFERRED balancing: amounts are placeholders.
  */
 export function getBuildCost(buildingId: BuildingId): ResourceStock {
   switch (buildingId) {
-    case "FORUM":
-      return { WOOD: 20, STONE: 20, WATER: 10, GOLD: 10 };
+    case "MINE":
+      return { iron_ore: 4 };
 
     case "FARM":
-      return { STONE: 10, WOOD: 5 };
-
-    case "MINE":
-      return { STONE: 15, WOOD: 5 };
-
-    case "KITCHEN":
-      return { WOOD: 20, STONE: 10, WATER: 5, GOLD: 5 };
+      return { iron_ore: 2, shadow_residue: 1 };
 
     case "TEMPLE":
-      return { WOOD: 30, STONE: 60 };
+      return { iron_ore: 8, quartz: 6 };
+
+    case "FORUM":
+      return { iron_ore: 6, old_wood: 10 };
 
     case "FORGE":
-      return { WOOD: 50, STONE: 40, IRON: 25 };
+      return { iron_ore: 12, old_wood: 8, quartz: 4 };
+
+    case "KITCHEN":
+      return { iron_ore: 4, old_wood: 8 };
 
     case "MARKET":
-      return { WOOD: 35, STONE: 20, GOLD: 20 };
+      return { old_wood: 10, quartz: 4 };
+
+    case "BANK":
+      return { iron_ore: 10, quartz: 8 };
 
     case "TIME_GATE":
     case "WORLD_GATE":
-      return { STONE: 80, GOLD: 25 };
-
-    case "BANK":
-      return { WOOD: 40, STONE: 50, GOLD: 30 };
+      return { iron_ore: 10, quartz: 10, spectral_dust: 4 };
 
     default:
       return {};

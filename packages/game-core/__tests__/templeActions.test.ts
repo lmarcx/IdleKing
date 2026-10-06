@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { grantStock, isStockDrained } from "./support/fixtures.js";
 
 import { createInitialGameState } from "../game/state.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
@@ -184,17 +185,12 @@ test("Temple dev override works after build and still consumes construction reso
   const cost = getBuildCost("TEMPLE");
   const state = {
     ...base,
-    resources: {
-      WOOD: cost.WOOD ?? 0,
-      STONE: cost.STONE ?? 0,
-      XP_GLOBAL: 7,
-    },
+    resources: { ...grantStock({}, cost), XP_GLOBAL: 7 },
   };
 
   const built = buildBuilding(state, "TEMPLE", { allowLocked: true });
   assert.equal(built.ok, true);
-  assert.equal(getQty(built.next.resources, "WOOD"), 0);
-  assert.equal(getQty(built.next.resources, "STONE"), 0);
+  assert.equal(isStockDrained(built.next.resources, cost), true);
 
   const result = convertTempleGlobalXp(built.next, "worldWxp", 7, { allowLocked: true });
 

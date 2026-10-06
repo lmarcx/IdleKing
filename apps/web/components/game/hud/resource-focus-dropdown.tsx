@@ -23,7 +23,7 @@ function getDefaultFocusResource(resources: ResourceStock): ResourceId {
   const firstNonZero = ALL_RESOURCES.find((resourceId) => getQty(resources, resourceId) > 0);
   if (firstNonZero) return firstNonZero;
   if (ALL_RESOURCES.includes("XP_GLOBAL")) return "XP_GLOBAL";
-  return "WOOD";
+  return "iron_ore";
 }
 
 export function ResourceFocusDropdown({ resources }: ResourceFocusDropdownProps) {

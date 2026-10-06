@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { getBuildCost } from "../building/buildCosts.js";
 
 import { buildBuilding } from "../game/buildingBuildActions.js";
 import { completeChapterAction } from "../game/actions.js";
@@ -73,12 +74,7 @@ test("Forum world rank-up refills world hp and energy at the new level", () => {
   state = completeChapterAction(state, 1).next;
   state = {
     ...state,
-    resources: {
-      WOOD: 20,
-      STONE: 20,
-      WATER: 10,
-      GOLD: 10,
-    },
+    resources: getBuildCost("FORUM"),
   };
 
   const built = buildBuilding(state, "FORUM");

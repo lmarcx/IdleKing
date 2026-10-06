@@ -15,7 +15,7 @@ export type DuelColumnConfig = {
 
 export type DuelReward = {
   amount: number;
-  resourceId: "XP_GLOBAL" | "WOOD" | "STONE" | "IRON";
+  resourceId: "XP_GLOBAL" | "old_wood" | "quartz" | "iron_ore";
 };
 
 export const RESURRECTED_SCARECROW_BOSS = {
@@ -53,9 +53,9 @@ export const SCARECROW_DUEL_REWARDS = {
   playerXp: 30,
   resources: [
     { amount: 20, resourceId: "XP_GLOBAL" },
-    { amount: 15, resourceId: "WOOD" },
-    { amount: 10, resourceId: "STONE" },
-    { amount: 3, resourceId: "IRON" },
+    { amount: 15, resourceId: "old_wood" },
+    { amount: 10, resourceId: "quartz" },
+    { amount: 3, resourceId: "iron_ore" },
   ] satisfies DuelReward[],
 } as const;
 

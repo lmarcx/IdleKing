@@ -49,11 +49,11 @@ test("recruitVillager spends resources and adds a villager with full stamina", (
   // Provide enough resources for the current cost.
   s = {
     ...s,
-    resources: addQty(addQty(s.resources, "MEAT", cost.meat), "GOLD", cost.gold),
+    resources: addQty(addQty(s.resources, "tough_meat", cost.meat), "silver_ore", cost.gold),
   };
 
-  const meatBefore = getQty(s.resources, "MEAT");
-  const goldBefore = getQty(s.resources, "GOLD");
+  const meatBefore = getQty(s.resources, "tough_meat");
+  const goldBefore = getQty(s.resources, "silver_ore");
 
   const r = recruitVillager(s);
   assert.equal(r.ok, true);
@@ -61,8 +61,8 @@ test("recruitVillager spends resources and adds a villager with full stamina", (
   assert.equal(r.next.villagers.list.length, beforeCount + 1);
   assert.equal(r.next.villagers.list[beforeCount].stamina, 100);
 
-  assert.equal(getQty(r.next.resources, "MEAT"), meatBefore - cost.meat);
-  assert.equal(getQty(r.next.resources, "GOLD"), goldBefore - cost.gold);
+  assert.equal(getQty(r.next.resources, "tough_meat"), meatBefore - cost.meat);
+  assert.equal(getQty(r.next.resources, "silver_ore"), goldBefore - cost.gold);
 });
 
 test("recruitVillager fails if not enough resources", () => {

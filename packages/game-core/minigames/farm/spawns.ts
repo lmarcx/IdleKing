@@ -10,6 +10,7 @@ export const FARM_RESOURCE_AMOUNT_PLACEHOLDERS = {
   tomato: 1,
   carrot: 1,
   tough_meat: 1,
+  old_wood: 1,
 } as const satisfies Readonly<Partial<Record<CanonicalResourceId, number>>>;
 
 export const FARM_RESOURCE_TABLE: readonly {
@@ -20,6 +21,8 @@ export const FARM_RESOURCE_TABLE: readonly {
   { id: "tomato", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.tomato, weight: 5 },
   { id: "carrot", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.carrot, weight: 4 },
   { id: "tough_meat", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.tough_meat, weight: 2 },
+  // Freeze §10: Old Wood comes from gathering around the Kingdom (Farm runs).
+  { id: "old_wood", amount: FARM_RESOURCE_AMOUNT_PLACEHOLDERS.old_wood, weight: 4 },
 ];
 
 export function validateFarmResourceTable(table = FARM_RESOURCE_TABLE): void {

@@ -60,7 +60,7 @@ export const RESOURCE_DEFINITIONS: readonly ResourceDefinition[] = [
   resource({ id: "quartz", name: "Quartz", type: "gem", rarity: "COMMON", value: common, sources: ["mine"], uses: ["forge_accessory", "forge_rings", "forge_upgrade"] }),
   resource({ id: "sapphire", name: "Sapphire", type: "gem", rarity: "RARE", value: rare, sources: ["mine", "glacial_elites"], uses: ["forge_frost_gear", "forge_rings", "forge_staff"] }),
   resource({ id: "pale_diamond", name: "Pale Diamond", type: "gem", rarity: "EPIC", value: epic, sources: ["mine_rare"], uses: ["forge_legendary_frost", "forge_catalyst"] }),
-  resource({ id: "old_wood", name: "Old Wood", type: "wood", rarity: "COMMON", value: common, sources: ["mine_gathering", "farm_gathering"], uses: ["forge_early_weapons", "forge_armor", "forge_shield"] }),
+  resource({ id: "old_wood", name: "Old Wood", type: "wood", rarity: "COMMON", value: common, sources: ["farm"], uses: ["forge_early_weapons", "forge_armor", "forge_shield", "kingdom_construction"] }),
   resource({ id: "ashwood", name: "Ashwood", type: "wood", rarity: "UNCOMMON", value: uncommon, sources: ["corrupted_dragonoids", "farm"], uses: ["forge_funeral_weapons", "forge_funeral_armor"] }),
   resource({ id: "frostpine", name: "Frostpine", type: "wood", rarity: "UNCOMMON", value: uncommon, sources: ["gathering_glacial_era"], uses: ["forge_frost_bow", "forge_frost_staff"] }),
   resource({ id: "frostroot", name: "Frostroot", type: "vegetable", rarity: "UNCOMMON", value: uncommon, sources: ["farm_glacial_era"], uses: ["kitchen_frost_resist"] }),

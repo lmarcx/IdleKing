@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { grantStock, isStockDrained } from "./support/fixtures.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -536,19 +537,13 @@ test("Forge dev override works after build and still consumes construction resou
   const cost = getBuildCost("FORGE");
   s = {
     ...s,
-    resources: {
-      WOOD: cost.WOOD ?? 0,
-      STONE: cost.STONE ?? 0,
-      IRON: cost.IRON ?? 0,
-      iron_ore: 4,
-    },
+    resources: grantStock({ iron_ore: 4 }, cost),
   };
 
   const built = buildBuilding(s, "FORGE", { allowLocked: true });
   assert.equal(built.ok, true);
-  assert.equal(getQty(built.next.resources, "WOOD"), 0);
-  assert.equal(getQty(built.next.resources, "STONE"), 0);
-  assert.equal(getQty(built.next.resources, "IRON"), 0);
+  assert.equal(getCanonicalResourceQuantity(built.next.resources, "iron_ore"), 4);
+  assert.equal(getCanonicalResourceQuantity(built.next.resources, "quartz"), 0);
 
   const crafted = forgeCraft(built.next, "iron_sword", { allowLocked: true, seed: 103 });
 

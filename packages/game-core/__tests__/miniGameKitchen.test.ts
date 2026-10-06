@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { withBuiltBuildings } from "./support/fixtures.js";
 import { loadGameWithReport } from "../game/save.js";
 import {
   finalizeKitchenRun,
@@ -13,7 +14,7 @@ import {
 import { getQty } from "../resources/types.js";
 
 function createKitchenReadyState() {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   return {
     ...state,
     resources: {

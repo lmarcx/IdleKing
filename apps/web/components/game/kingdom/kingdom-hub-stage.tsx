@@ -154,6 +154,8 @@ const BANK_BUILD_COST = getBuildCost("BANK");
 const MARKET_BUILD_COST = getBuildCost("MARKET");
 const FARM_BUILD_COST = getBuildCost("FARM");
 const FORUM_BUILD_COST = getBuildCost("FORUM");
+const MINE_BUILD_COST = getBuildCost("MINE");
+const KITCHEN_BUILD_COST = getBuildCost("KITCHEN");
 
 type Vector2 = {
   x: number;
@@ -773,6 +775,8 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
   const effectiveForum = getEffectiveBuildingState(state.buildings.forum, state.progression.worldLevel);
   const effectiveBank = getEffectiveBuildingState(state.buildings.bank, state.progression.worldLevel);
   const effectiveMarket = getEffectiveBuildingState(state.buildings.market, state.progression.worldLevel);
+  const effectiveMine = getEffectiveBuildingState(state.buildings.mine, state.progression.worldLevel);
+  const effectiveKitchen = getEffectiveBuildingState(state.buildings.kitchen, state.progression.worldLevel);
   const placeholderBuilding = placeholderBuildingId ? PLACEHOLDER_BUILDINGS[placeholderBuildingId] : null;
   const placeholderBuildingState = placeholderBuildingId
     ? getPlaceholderBuildingState(state.buildings, placeholderBuildingId, state.progression.worldLevel)
@@ -783,6 +787,8 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
   const canBuildForum = effectiveForum.unlocked && !effectiveForum.built && hasAtLeast(state.resources, FORUM_BUILD_COST);
   const canBuildBank = effectiveBank.unlocked && !effectiveBank.built && hasAtLeast(state.resources, BANK_BUILD_COST);
   const canBuildMarket = effectiveMarket.unlocked && !effectiveMarket.built && hasAtLeast(state.resources, MARKET_BUILD_COST);
+  const canBuildMine = effectiveMine.unlocked && !effectiveMine.built && hasAtLeast(state.resources, MINE_BUILD_COST);
+  const canBuildKitchen = effectiveKitchen.unlocked && !effectiveKitchen.built && hasAtLeast(state.resources, KITCHEN_BUILD_COST);
   const forumRequiredWxp = wxpNext(state.progression.worldLevel);
   const canRankUpForum =
     effectiveForum.built && forumRequiredWxp > 0 && state.progression.worldWxp >= forumRequiredWxp;
@@ -959,7 +965,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
   }, [dispatch]);
 
   const handleBuildCoreBuilding = useCallback(
-    (buildingId: Extract<BuildingId, "FORUM" | "TEMPLE" | "FORGE" | "BANK" | "MARKET">) => {
+    (buildingId: Extract<BuildingId, "FORUM" | "TEMPLE" | "FORGE" | "BANK" | "MARKET" | "MINE" | "KITCHEN">) => {
       const result = buildBuilding(useGameStore.getState().state, buildingId, { allowLocked: DEV_MODE });
       if (!result.ok) {
         toast.error(`Build failed: ${result.reason}`);
@@ -967,26 +973,24 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
       }
 
       dispatch(() => result.next);
-      const position =
-        buildingId === "FORUM"
-          ? FORUM_POSITION
-          : buildingId === "TEMPLE"
-          ? TEMPLE_POSITION
-          : buildingId === "FORGE"
-            ? FORGE_POSITION
-            : buildingId === "BANK"
-              ? BANK_POSITION
-              : MARKET_POSITION;
-      const label =
-        buildingId === "FORUM"
-          ? "Forum built"
-          : buildingId === "TEMPLE"
-          ? "Temple built"
-          : buildingId === "FORGE"
-            ? "Forge built"
-            : buildingId === "BANK"
-              ? "Bank built"
-              : "Market built";
+      const position = {
+        BANK: BANK_POSITION,
+        FORGE: FORGE_POSITION,
+        FORUM: FORUM_POSITION,
+        KITCHEN: KITCHEN_POSITION,
+        MARKET: MARKET_POSITION,
+        MINE: MINE_POSITION,
+        TEMPLE: TEMPLE_POSITION,
+      }[buildingId];
+      const label = {
+        BANK: "Bank built",
+        FORGE: "Forge built",
+        FORUM: "Forum built",
+        KITCHEN: "Kitchen built",
+        MARKET: "Market built",
+        MINE: "Mine built",
+        TEMPLE: "Temple built",
+      }[buildingId];
       spawnWorldFxRef.current?.(position, "Built", buildingId === "TEMPLE" || buildingId === "BANK" ? 0xc9c9c9 : 0xf2f2f2);
 
       if (buildingId === "FORUM") {
@@ -1769,9 +1773,29 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               />
 
               {placeholderBuildingId === "mine" ? (
-                <MineMiniGamePanel embedded />
+                effectiveMine.built ? (
+                  <MineMiniGamePanel embedded />
+                ) : (
+                  <BuildingBuildSection
+                    canBuild={canBuildMine}
+                    cost={MINE_BUILD_COST}
+                    label={getBuildActionLabel(effectiveMine, canBuildMine, "MINE")}
+                    onBuild={() => handleBuildCoreBuilding("MINE")}
+                    resources={state.resources}
+                  />
+                )
               ) : placeholderBuildingId === "kitchen" ? (
-                <KitchenMiniGamePanel embedded />
+                effectiveKitchen.built ? (
+                  <KitchenMiniGamePanel embedded />
+                ) : (
+                  <BuildingBuildSection
+                    canBuild={canBuildKitchen}
+                    cost={KITCHEN_BUILD_COST}
+                    label={getBuildActionLabel(effectiveKitchen, canBuildKitchen, "KITCHEN")}
+                    onBuild={() => handleBuildCoreBuilding("KITCHEN")}
+                    resources={state.resources}
+                  />
+                )
               ) : placeholderBuildingId === "forum" ? (
                 <div className="space-y-3">
                   {!effectiveForum.built ? (

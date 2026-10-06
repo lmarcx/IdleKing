@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { withBuiltBuildings } from "./support/fixtures.js";
 import {
   breakMineRockTile,
   digMineSoilTile,
@@ -56,7 +57,7 @@ function makeBoard(options: {
 }
 
 function requireStartedMine(board: MineBoard) {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   const started = startMineRun(state, { board, seed: board.seed, nowMs: 2_000 });
   assert.equal(started.ok, true);
   if (!started.ok) throw new Error("Expected mine run to start");
@@ -221,7 +222,7 @@ test("Mine run fails when run Energy reaches zero and discards rewards", () => {
 });
 
 test("Mine actions fail outside an active mine run", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
 
   const dug = digMineSoilTile(state, 1, 1);
   const broken = breakMineRockTile(state, 1, 1);
