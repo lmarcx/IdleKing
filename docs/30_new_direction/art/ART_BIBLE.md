@@ -1,5 +1,7 @@
 # 🎨 IDLEKING — ART BIBLE V1
 
+> ⚠️ **Rendu en jeu : voir [`ART_DIRECTION_DECISION.md`](ART_DIRECTION_DECISION.md) (D-A10)** — B&W géométrique dessiné en code. Les consignes de production illustrée/raster de ce document sont gelées (historique) ; le ton et l'identité restent valables.
+
 Status : DRAFT V1
 
 Autorité :

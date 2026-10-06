@@ -6,12 +6,16 @@
 > Niveau **ART_BIBLES** de la hiérarchie (entre `DESIGN_FREEZE` et `GAME DESIGN DOCS`).
 > Les bibles art **ne contredisent jamais** le Freeze ni le Lore (voir Canon Rules de l'index).
 
+> ⚠️ **Décision D-A10 (2026-10-06)** — la direction en jeu est **B&W géométrique dessiné en code**.
+> Voir [`ART_DIRECTION_DECISION.md`](ART_DIRECTION_DECISION.md), qui **prime sur les 8 bibles** pour
+> le rendu. Les concepts PNG (`concepts/`, `production/`) sont archivés, conservés mais non utilisés.
+
 ---
 
 ## 0. Chaîne d'autorité interne
 
 ```txt
-LORE / SCRIPT  ▸  DESIGN_FREEZE_V1  ▸  ART_BIBLE
+LORE / SCRIPT  ▸  DESIGN_FREEZE_V1  ▸  ART_DIRECTION_DECISION (rendu)  ▸  ART_BIBLE (ton/identité)
         ▸  CHARACTER_BIBLE · BOSS_BIBLE · ENVIRONMENT_BIBLE · UI_BIBLE
         ▸  ASSET_PRODUCTION_BIBLE  ▸  PROMPT_BIBLE  ▸  ASSETS
 ART_BACKLOG_BIBLE  pilote l'ORDRE de production (transverse).
