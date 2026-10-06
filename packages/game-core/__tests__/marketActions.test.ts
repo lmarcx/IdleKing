@@ -23,12 +23,12 @@ test("buy resource spends ECU and grants ResourceStock", () => {
     wallet: grantCurrency(createMarketTestState().wallet, "ECU", 20),
   };
 
-  const result = marketBuy(state, "resource_wood", 3);
+  const result = marketBuy(state, "resource_old_wood", 3);
 
   assert.equal(result.ok, true);
-  assert.equal(result.ecuAmount, 6);
-  assert.equal(getCurrencyBalance(result.next.wallet, "ECU"), 14);
-  assert.equal(getQty(result.next.resources, "WOOD"), 3);
+  assert.equal(result.ecuAmount, 15);
+  assert.equal(getCurrencyBalance(result.next.wallet, "ECU"), 5);
+  assert.equal(getQty(result.next.resources, "old_wood"), 3);
 });
 
 test("buy consumable spends ECU and grants inventory item", () => {
@@ -76,26 +76,26 @@ test("buy fails with insufficient ECU", () => {
     wallet: grantCurrency(createMarketTestState().wallet, "ECU", 1),
   };
 
-  const result = marketBuy(state, "resource_iron", 1);
+  const result = marketBuy(state, "resource_iron_ore", 1);
 
   assert.equal(result.ok, false);
   assert.equal(result.reason, "INSUFFICIENT_ECU");
   assert.equal(getCurrencyBalance(result.next.wallet, "ECU"), 1);
-  assert.equal(getQty(result.next.resources, "IRON"), 0);
+  assert.equal(getQty(result.next.resources, "iron_ore"), 0);
 });
 
 test("sell resource removes ResourceStock and grants ECU", () => {
   const state = {
     ...createMarketTestState(),
-    resources: addQty({}, "WOOD", 5),
+    resources: addQty({}, "old_wood", 5),
   };
 
-  const result = marketSell(state, "WOOD", 2);
+  const result = marketSell(state, "old_wood", 2);
 
   assert.equal(result.ok, true);
-  assert.equal(result.ecuAmount, 2);
-  assert.equal(getQty(result.next.resources, "WOOD"), 3);
-  assert.equal(getCurrencyBalance(result.next.wallet, "ECU"), 2);
+  assert.equal(result.ecuAmount, 4);
+  assert.equal(getQty(result.next.resources, "old_wood"), 3);
+  assert.equal(getCurrencyBalance(result.next.wallet, "ECU"), 4);
 });
 
 test("sell consumable removes inventory item and grants ECU", () => {

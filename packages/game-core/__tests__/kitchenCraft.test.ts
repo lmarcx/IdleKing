@@ -9,7 +9,7 @@ import { addQty, getQty } from "../resources/types.js";
 test("Kitchen craft consumes ingredients, produces plate, drains villager stamina", () => {
   let s = createInitialGameState();
 
-  // Chapter 1 unlocks kitchen
+  // Kitchen is unlocked by a Story dungeon first clear
   s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   // Build kitchen (unlocked but not auto-built)
@@ -22,7 +22,7 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
   };
 
   // Add ingredients
-  s = { ...s, resources: addQty(addQty(s.resources, "MEAT", 2), "WATER", 1) };
+  s = { ...s, resources: addQty(addQty(s.resources, "tough_meat", 2), "carrot", 1) };
 
   const vId = s.villagers.list[0].id;
   const staminaBefore = s.villagers.list[0].stamina;
@@ -32,8 +32,8 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
 
   assert.equal(r.ok, true);
   assert.equal(getQty(r.next.resources, "PLATE_STEW"), stewBefore + 1);
-  assert.equal(getQty(r.next.resources, "MEAT"), 0);
-  assert.equal(getQty(r.next.resources, "WATER"), 0);
+  assert.equal(getQty(r.next.resources, "tough_meat"), 0);
+  assert.equal(getQty(r.next.resources, "carrot"), 0);
 
   const staminaAfter = r.next.villagers.list[0].stamina;
   assert.ok(staminaAfter < staminaBefore);

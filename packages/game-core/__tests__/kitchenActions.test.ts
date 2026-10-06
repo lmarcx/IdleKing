@@ -26,10 +26,10 @@ test("Kitchen cookDish consumes ingredients, produces dish, drains villager stam
   let s = createInitialGameState();
   s = unlockAndBuildKitchen(s);
 
-  // Give ingredients for STEW: 2 MEAT + 1 WATER
+  // Give ingredients for STEW: 2 tough_meat + 1 carrot
   s = {
     ...s,
-    resources: addQty(addQty(s.resources, "MEAT", 2), "WATER", 1),
+    resources: addQty(addQty(s.resources, "tough_meat", 2), "carrot", 1),
   };
 
   const vId = s.villagers.list[0].id;
@@ -40,8 +40,8 @@ test("Kitchen cookDish consumes ingredients, produces dish, drains villager stam
   const r = cookDish(s, "STEW", vId);
   assert.equal(r.ok, true);
 
-  assert.equal(getQty(r.next.resources, "MEAT"), 0);
-  assert.equal(getQty(r.next.resources, "WATER"), 0);
+  assert.equal(getQty(r.next.resources, "tough_meat"), 0);
+  assert.equal(getQty(r.next.resources, "carrot"), 0);
   assert.equal(getQty(r.next.resources, "PLATE_STEW"), plateBefore + 1);
 
   const staminaAfter = r.next.villagers.list[0].stamina;
@@ -73,7 +73,7 @@ test("Kitchen cookDish fails if villager has no stamina", () => {
   // Give ingredients so only stamina can block.
   s = {
     ...s,
-    resources: addQty(addQty(s.resources, "MEAT", 2), "WATER", 1),
+    resources: addQty(addQty(s.resources, "tough_meat", 2), "carrot", 1),
   };
 
   // Force villager stamina to 0.

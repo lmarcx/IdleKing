@@ -16,7 +16,7 @@ test("Forum rank-up requires forum unlocked and built", () => {
     assert.equal(r.reason, "FORUM_LOCKED");
   }
 
-  // Unlock forum via chapter 1
+  // Forum is unlocked by a Story dungeon first clear
   s = withUnlockedBuildings(s, ["FORUM"]);
 
   // Still not built

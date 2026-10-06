@@ -6,7 +6,7 @@ import { withUnlockedBuildings } from "./support/fixtures.js";
 import { restVillager, REST_STAMINA_GAIN } from "../game/forumRestActions.js";
 
 function unlockAndBuildForum(s: ReturnType<typeof createInitialGameState>) {
-  // Chapter 1 unlocks Forum in MVP.
+  // Forum is unlocked by a Story dungeon first clear.
   s = withUnlockedBuildings(s, ["FORUM"]);
 
   s = {

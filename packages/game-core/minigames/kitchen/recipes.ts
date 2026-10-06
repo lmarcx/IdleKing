@@ -5,7 +5,7 @@ export const KITCHEN_RECIPES: KitchenRecipe[] = [
   {
     id: "STEW",
     name: "Stew",
-    ingredientCosts: { MEAT: 2, WATER: 1 },
+    ingredientCosts: { tough_meat: 2, carrot: 1 },
     rarity: "COMMON",
     baseRewardItemId: "food_stew",
     patternComplexity: 3,
@@ -13,7 +13,7 @@ export const KITCHEN_RECIPES: KitchenRecipe[] = [
   {
     id: "SALAD",
     name: "Salad",
-    ingredientCosts: { WATER: 1, CARROT: 1, TOMATO: 1 },
+    ingredientCosts: { tomato: 2, carrot: 1 },
     rarity: "COMMON",
     baseRewardItemId: "food_salad",
     patternComplexity: 4,
@@ -21,7 +21,7 @@ export const KITCHEN_RECIPES: KitchenRecipe[] = [
 ];
 
 const PATTERN_INPUTS: KitchenPatternInput[] = ["up", "right", "down", "left"];
-const DECOY_RESOURCES: ResourceId[] = ["STONE", "WOOD", "COPPER", "WHEAT", "EGG", "APPLE"];
+const DECOY_RESOURCES: ResourceId[] = ["old_wood", "iron_ore", "quartz", "frostroot", "frozen_fish", "bone_fragment"];
 
 function clampInt(value: number, min: number, max: number): number {
   return Math.min(Math.max(Math.floor(value), min), max);
