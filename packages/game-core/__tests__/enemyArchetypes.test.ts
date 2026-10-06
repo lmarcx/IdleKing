@@ -5,7 +5,12 @@ import {
   DUNGEON_ENCOUNTERS,
   ENEMY_ARCHETYPES,
   getBossArchetype,
+  getBossPattern,
+  getBossPhaseIndex,
   getDungeonEncounterArchetypes,
+  planBossAttack,
+  planRangedEnemyShot,
+  validateBossPatterns,
   grantEnemyKillLoot,
   rollEnemyKillLoot,
   validateDungeonEncounters,
@@ -81,4 +86,47 @@ test("DUNGEON_ENCOUNTERS covers exactly the story dungeons", () => {
     DUNGEON_ENCOUNTERS.map((encounter) => encounter.dungeonId).sort(),
     STORY_DUNGEON_REGISTRY.map((dungeon) => dungeon.id).sort(),
   );
+});
+
+test("every MVP boss has an attack pattern matching its story phase count", () => {
+  assert.doesNotThrow(() => validateBossPatterns(STORY_BOSS_REGISTRY));
+  for (const boss of STORY_BOSS_REGISTRY) {
+    assert.equal(getBossPattern(boss.id)?.phases.length, boss.phases);
+  }
+});
+
+test("boss phases advance on HP thresholds and never revert", () => {
+  const pattern = getBossPattern("dragon_shadow")!;
+  assert.equal(getBossPhaseIndex(pattern, 1), 0);
+  assert.equal(getBossPhaseIndex(pattern, 0.51), 0);
+  assert.equal(getBossPhaseIndex(pattern, 0.5), 1);
+  assert.equal(getBossPhaseIndex(pattern, 0.9, 1), 1);
+});
+
+test("planned attacks produce readable telegraphed hazards", () => {
+  const boss = { x: 0, y: 0 };
+  const player = { x: 300, y: 0 };
+  const random = () => 0.5;
+  const slam = planBossAttack({ kind: "slam", damage: 10, radius: 80, windupMs: 800 }, boss, player, random);
+  assert.deepEqual(slam, [{ kind: "ground", center: player, radius: 80, damage: 10, windupMs: 800 }]);
+
+  const volley = planBossAttack({ kind: "volley", damage: 5, count: 3, spreadDegrees: 90, speed: 300, windupMs: 600 }, boss, player, random);
+  assert.equal(volley.length, 3);
+  const middle = volley[1];
+  assert.equal(middle.kind, "projectile");
+  if (middle.kind === "projectile") {
+    assert.ok(Math.abs(middle.direction.x - 1) < 1e-9 && Math.abs(middle.direction.y) < 1e-9);
+  }
+
+  const rain = planBossAttack({ kind: "rain", damage: 5, count: 4, radius: 60, scatter: 200, windupMs: 900 }, boss, player, random);
+  assert.equal(rain.length, 4);
+  assert.deepEqual(rain[0].kind === "ground" && rain[0].center, player);
+});
+
+test("ranged archetypes fire telegraphed shots at the player", () => {
+  const archer = ENEMY_ARCHETYPES.find((archetype) => archetype.id === "ombre_archer")!;
+  const shot = planRangedEnemyShot(archer, { x: 0, y: 0 }, { x: 0, y: 100 });
+  assert.equal(shot.damage, archer.stats.contactDamage);
+  assert.ok(shot.windupMs >= 300);
+  assert.ok(Math.abs(shot.direction.y - 1) < 1e-9);
 });

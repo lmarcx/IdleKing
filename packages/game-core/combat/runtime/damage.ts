@@ -51,7 +51,9 @@ export function isPlayerDead(state: CombatRuntimeState): boolean {
 
 export function performBasicAttack(
   state: CombatRuntimeState,
-  rng?: Pick<SeededRng, "nextFloat">
+  rng?: Pick<SeededRng, "nextFloat">,
+  /** Weapon family coefficient (combat/weaponProfiles.ts); defaults to the base coefficient. */
+  options: Readonly<{ weaponCoefficient?: number }> = {}
 ): BasicAttackResult {
   if (isPlayerDead(state)) {
     return { ok: false, next: state, reason: "PLAYER_DEAD" };
@@ -64,7 +66,7 @@ export function performBasicAttack(
     {
       baseDamage: BASIC_ATTACK_BASE_DAMAGE,
       attack: state.player.attack,
-      weaponCoefficient: BASIC_ATTACK_WEAPON_COEFFICIENT,
+      weaponCoefficient: options.weaponCoefficient ?? BASIC_ATTACK_WEAPON_COEFFICIENT,
       targetDef: state.enemy.def,
       critChance: state.player.critChance,
       critDamage: state.player.critDamage,

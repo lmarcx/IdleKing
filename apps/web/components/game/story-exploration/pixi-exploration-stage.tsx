@@ -62,10 +62,7 @@ type PixiExplorationStageProps = {
 
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
-const MELEE_ATTACK_COOLDOWN_MS = 280;
 const MELEE_DURATION_MS = 120;
-const MELEE_RANGE = 86;
-const RANGED_ATTACK_COOLDOWN_MS = 450;
 const PROJECTILE_MAX_RANGE = 620;
 const PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
@@ -107,6 +104,8 @@ type Vector2 = {
   y: number;
 };
 
+type WeaponAttackProfile = combat.WeaponAttackProfile;
+
 type ActiveMeleeAttack = {
   ageMs: number;
   direction: Vector2;
@@ -114,9 +113,11 @@ type ActiveMeleeAttack = {
   graphic: PIXI.Graphics;
   hitEnemyIds: Set<EnemyId>;
   position: Vector2;
+  profile: WeaponAttackProfile;
 };
 
 type ActiveProjectile = {
+  damageCoefficient: number;
   direction: Vector2;
   distanceTravelled: number;
   graphic: PIXI.Graphics;
@@ -124,6 +125,10 @@ type ActiveProjectile = {
   position: Vector2;
   speed: number;
 };
+
+function getMeleeHalfAngle(profile: WeaponAttackProfile): number {
+  return profile.shape === "burst" ? Math.PI : profile.halfAngleRadians ?? MELEE_ATTACK_HALF_ANGLE_RADIANS;
+}
 
 type ActiveLootPopup = {
   ageMs: number;
@@ -170,7 +175,29 @@ type ActiveEnemy = StoryLevelEnemy & {
   hpBar: PIXI.Graphics;
   shadow: PIXI.Graphics;
   wasChasing: boolean;
+  /** Next time (performance.now ms) a ranged shot or boss attack may start. */
+  nextAttackAtMs: number;
+  bossPhaseIndex: number;
+  bossAttackCursor: number;
 };
+
+/** A telegraphed enemy hazard (game-core enemies/patterns) living in the stage. */
+type ActiveGroundHazard = {
+  ageMs: number;
+  graphic: PIXI.Graphics;
+  hazard: coreEnemies.GroundHazard;
+  resolved: boolean;
+};
+
+type ActiveEnemyProjectile = {
+  graphic: PIXI.Graphics;
+  hazard: coreEnemies.ProjectileHazard;
+  position: Vector2;
+  traveled: number;
+  windupRemainingMs: number;
+};
+
+const GROUND_HAZARD_LINGER_MS = 220;
 
 type PoiKind = "chest" | "rune" | "shrine";
 
@@ -498,10 +525,14 @@ function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
     baseScale,
     body,
     container,
+    bossAttackCursor: 0,
+    bossPhaseIndex: 0,
     debugScenario: false,
     deathFadeMs: 0,
     hitFlashMs: 0,
     hpBar,
+    // Grace period so nothing fires on the very first frame of a fight.
+    nextAttackAtMs: -Infinity,
     shadow,
     wasChasing: false,
   };
@@ -721,6 +752,10 @@ export function PixiExplorationStage({
     const sparkleBursts: ActiveSparkleBurst[] = [];
     const combatFx = createCombatFxManager(fxLayer);
     const enemies: ActiveEnemy[] = [];
+    const groundHazards: ActiveGroundHazard[] = [];
+    const enemyProjectiles: ActiveEnemyProjectile[] = [];
+    const hazardLayer = new PIXI.Container();
+    const hazardRng = random.createSeededRng((Date.now() ^ 0x9e3779b9) >>> 0);
     const securedRewards = new Map<string, number>();
     const poiVisuals: PoiVisual[] = [];
     const interactedPoiIds = new Set<string>();
@@ -741,6 +776,8 @@ export function PixiExplorationStage({
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
     let runtimeEnemyId: EnemyId | null = null;
+    // Weapons define left/right click (Freeze §5); resolved from the equipped main/off hand.
+    const weaponProfile = combat.resolveWeaponLoadoutProfile(useGameStore.getState().state);
     let runtimeState = createStoryCombatRuntimeState(combatLoadoutRef.current, {
       hp: GRUNT_HP,
       maxHp: GRUNT_HP,
@@ -1149,54 +1186,66 @@ export function PixiExplorationStage({
       mouseInput.isRangedHeld = false;
     }
 
-    function createMeleeAttack(now: number) {
-      if (now - lastMeleeAttackAt < MELEE_ATTACK_COOLDOWN_MS) return;
-      lastMeleeAttackAt = now;
+    /** Left click = weapon primary, right click = secondary (or off-hand). */
+    function performWeaponAction(profile: WeaponAttackProfile, now: number, slot: "primary" | "secondary") {
+      const lastAt = slot === "primary" ? lastMeleeAttackAt : lastRangedAttackAt;
+      if (now - lastAt < profile.cooldownMs) return;
+      if (slot === "primary") lastMeleeAttackAt = now;
+      else lastRangedAttackAt = now;
+
+      if (profile.shape === "projectile" || profile.shape === "spread") {
+        createWeaponProjectiles(profile);
+        return;
+      }
 
       const graphic = new PIXI.Graphics();
-      const attack: ActiveMeleeAttack = {
+      meleeAttacks.push({
         ageMs: 0,
         direction: { ...playerFacing },
-        durationMs: MELEE_DURATION_MS,
+        durationMs: profile.shape === "burst" ? MELEE_DURATION_MS * 1.6 : MELEE_DURATION_MS,
         graphic,
         hitEnemyIds: new Set(),
         position: { ...playerPosition },
-      };
-
-      meleeAttacks.push(attack);
+        profile,
+      });
       attackLayer.addChild(graphic);
     }
 
-    function createRangedAttack(now: number) {
-      if (now - lastRangedAttackAt < RANGED_ATTACK_COOLDOWN_MS) return;
-      lastRangedAttackAt = now;
-
-      const direction = normalizeVector(
+    function createWeaponProjectiles(profile: WeaponAttackProfile) {
+      const aim = normalizeVector(
         {
           x: mouseInput.pointerWorldPosition.x - playerPosition.x,
           y: mouseInput.pointerWorldPosition.y - playerPosition.y,
         },
         playerFacing
       );
-      const graphic = new PIXI.Graphics();
-      graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
-      graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
-
-      const projectile: ActiveProjectile = {
-        direction,
-        distanceTravelled: 0,
-        graphic,
-        maxRange: PROJECTILE_MAX_RANGE,
-        position: {
-          x: playerPosition.x + direction.x * 28,
-          y: playerPosition.y + direction.y * 28,
-        },
-        speed: PROJECTILE_SPEED,
-      };
-
-      projectiles.push(projectile);
-      attackLayer.addChild(graphic);
-      graphic.position.set(projectile.position.x, projectile.position.y);
+      const count = Math.max(1, profile.projectileCount ?? 1);
+      const spreadRadians = profile.spreadRadians ?? 0;
+      for (let index = 0; index < count; index += 1) {
+        const offset = count === 1 ? 0 : -spreadRadians / 2 + (spreadRadians * index) / (count - 1);
+        const direction = {
+          x: aim.x * Math.cos(offset) - aim.y * Math.sin(offset),
+          y: aim.x * Math.sin(offset) + aim.y * Math.cos(offset),
+        };
+        const graphic = new PIXI.Graphics();
+        graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
+        graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
+        const projectile: ActiveProjectile = {
+          damageCoefficient: profile.damageCoefficient,
+          direction,
+          distanceTravelled: 0,
+          graphic,
+          maxRange: profile.range ?? PROJECTILE_MAX_RANGE,
+          position: {
+            x: playerPosition.x + direction.x * 28,
+            y: playerPosition.y + direction.y * 28,
+          },
+          speed: profile.projectileSpeed ?? PROJECTILE_SPEED,
+        };
+        projectiles.push(projectile);
+        attackLayer.addChild(graphic);
+        graphic.position.set(projectile.position.x, projectile.position.y);
+      }
     }
 
     function handlePointerMove(event: PointerEvent) {
@@ -1624,9 +1673,9 @@ export function PixiExplorationStage({
       }
     }
 
-    function performRuntimeBasicAttack(enemy: ActiveEnemy) {
+    function performRuntimeBasicAttack(enemy: ActiveEnemy, weaponCoefficient?: number) {
       selectRuntimeEnemy(enemy);
-      const result = combat.performBasicAttack(runtimeState, runtimeRng);
+      const result = combat.performBasicAttack(runtimeState, runtimeRng, { weaponCoefficient });
       runtimeState = result.next;
       if (!result.ok) return;
 
@@ -1761,15 +1810,15 @@ export function PixiExplorationStage({
         const isHit = isTargetInsideAttackCone({
           attackDirection: attack.direction,
           attackPosition: attack.position,
-          halfAngleRadians: MELEE_ATTACK_HALF_ANGLE_RADIANS,
-          range: MELEE_RANGE,
+          halfAngleRadians: getMeleeHalfAngle(attack.profile),
+          range: attack.profile.range,
           targetPosition: enemy.position,
           targetRadius: enemy.radius,
         });
 
         if (!isHit) continue;
         attack.hitEnemyIds.add(enemy.id);
-        performRuntimeBasicAttack(enemy);
+        performRuntimeBasicAttack(enemy, attack.profile.damageCoefficient);
       }
     }
 
@@ -1778,7 +1827,7 @@ export function PixiExplorationStage({
         if (!isEnemyAlive(enemy)) continue;
         if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
 
-        performRuntimeBasicAttack(enemy);
+        performRuntimeBasicAttack(enemy, projectile.damageCoefficient);
         return true;
       }
 
@@ -1798,8 +1847,14 @@ export function PixiExplorationStage({
       enemy.attackLungeX = (dx / dist) * 18;
       enemy.attackLungeY = (dy / dist) * 18;
 
+      applyIncomingPlayerDamage(enemy.contactDamage, now);
+    }
+
+    /** Any enemy damage (contact, projectile, ground hazard) goes through the combat runtime here. */
+    function applyIncomingPlayerDamage(rawDamage: number, now: number) {
+      if (isPlayerDefeated) return;
       const previousHp = runtimeState.player.hpCurrent;
-      const incomingDamage = Math.max(0, Math.round(enemy.contactDamage * getIncomingPlayerDamageMultiplier(now)));
+      const incomingDamage = Math.max(0, Math.round(rawDamage * getIncomingPlayerDamageMultiplier(now)));
       const isLethal = incomingDamage >= previousHp;
       combatFx.spawnImpactBurst(
         { x: playerPosition.x, y: playerPosition.y - 20 },
@@ -1881,7 +1936,18 @@ export function PixiExplorationStage({
 
         enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
         enemy.attackAnimMs = Math.max(0, enemy.attackAnimMs - deltaMs);
-        updateEnemyMovement(enemy, playerPosition, deltaSeconds);
+        const distanceToPlayer = Math.hypot(playerPosition.x - enemy.position.x, playerPosition.y - enemy.position.y);
+        const holdsRange =
+          !enemy.isBoss &&
+          enemy.attackStyle === "ranged" &&
+          distanceToPlayer < enemy.detectionRadius &&
+          distanceToPlayer <= coreEnemies.RANGED_ENEMY_KEEP_DISTANCE;
+        if (holdsRange) {
+          enemy.state = "chasing";
+        } else {
+          updateEnemyMovement(enemy, playerPosition, deltaSeconds);
+        }
+        updateEnemyAttacks(enemy, now);
 
         // Aggro telegraph — a converging ring locks onto the enemy the moment
         // it starts chasing, so incoming pressure reads before the first hit.
@@ -1896,6 +1962,134 @@ export function PixiExplorationStage({
 
         if (isCircleIntersectingCircle(enemy.position, enemy.radius, playerPosition, PLAYER_SIZE / 2)) {
           damagePlayerFromEnemy(enemy, now);
+        }
+      }
+    }
+
+    function updateEnemyAttacks(enemy: ActiveEnemy, now: number) {
+      if (enemy.state !== "chasing" || !enemy.archetypeId) return;
+      const archetype = coreEnemies.getEnemyArchetype(enemy.archetypeId);
+      if (!archetype) return;
+      if (enemy.nextAttackAtMs === -Infinity) {
+        enemy.nextAttackAtMs = now + 700;
+        return;
+      }
+
+      if (enemy.isBoss && archetype.bossId) {
+        const pattern = coreEnemies.getBossPattern(archetype.bossId);
+        if (!pattern) return;
+        const phaseIndex = coreEnemies.getBossPhaseIndex(pattern, enemy.hp / enemy.maxHp, enemy.bossPhaseIndex);
+        if (phaseIndex !== enemy.bossPhaseIndex) {
+          enemy.bossPhaseIndex = phaseIndex;
+          enemy.bossAttackCursor = 0;
+          enemy.moveSpeed = archetype.stats.moveSpeed * pattern.phases[phaseIndex].moveSpeedMultiplier;
+          enemy.nextAttackAtMs = now + 900;
+          combatFx.spawnWindupRing({ ...enemy.position }, enemy.radius + 40, 700, {
+            follow: () => ({ x: enemy.position.x, y: enemy.position.y }),
+            lethal: true,
+          });
+          lootPopups.push(
+            createFloatingText({
+              color: TELEGRAPH_COLORS.lethal,
+              label: `PHASE ${phaseIndex + 1}`,
+              layer: lootPopupLayer,
+              position: { x: enemy.position.x, y: enemy.position.y - enemy.radius - 70 },
+            })
+          );
+          playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+          return;
+        }
+        if (now < enemy.nextAttackAtMs) return;
+        const phase = pattern.phases[enemy.bossPhaseIndex];
+        const attack = phase.attacks[enemy.bossAttackCursor % phase.attacks.length];
+        enemy.bossAttackCursor += 1;
+        enemy.nextAttackAtMs = now + phase.attackIntervalMs;
+        enemy.attackAnimMs = ENEMY_ATTACK_ANIM_MS;
+        for (const hazard of coreEnemies.planBossAttack(attack, enemy.position, playerPosition, hazardRng.nextFloat)) {
+          spawnEnemyHazard(hazard);
+        }
+        return;
+      }
+
+      if (enemy.attackStyle !== "ranged" || now < enemy.nextAttackAtMs) return;
+      enemy.nextAttackAtMs = now + enemy.attackCooldownMs;
+      enemy.attackAnimMs = ENEMY_ATTACK_ANIM_MS;
+      spawnEnemyHazard(coreEnemies.planRangedEnemyShot(archetype, enemy.position, playerPosition));
+    }
+
+    function spawnEnemyHazard(hazard: coreEnemies.EnemyHazard) {
+      const graphic = new PIXI.Graphics();
+      if (hazard.kind === "ground") {
+        hazardLayer.addChild(graphic);
+        groundHazards.push({ ageMs: 0, graphic, hazard, resolved: false });
+        return;
+      }
+      fxLayer.addChild(graphic);
+      enemyProjectiles.push({
+        graphic,
+        hazard,
+        position: { ...hazard.origin },
+        traveled: 0,
+        windupRemainingMs: hazard.windupMs,
+      });
+    }
+
+    function updateEnemyHazards(deltaMs: number, now: number) {
+      const playerRadius = PLAYER_SIZE / 2;
+
+      for (let index = groundHazards.length - 1; index >= 0; index -= 1) {
+        const ground = groundHazards[index];
+        ground.ageMs += deltaMs;
+        const { center, radius, windupMs, damage } = ground.hazard;
+        const progress = clamp(ground.ageMs / windupMs, 0, 1);
+        ground.graphic.clear();
+        if (!ground.resolved) {
+          // Outline = final footprint; the filled disc grows until impact.
+          ground.graphic.circle(center.x, center.y, radius).stroke({ color: TELEGRAPH_COLORS.lethal, width: 2, alpha: 0.85 });
+          ground.graphic.circle(center.x, center.y, radius * progress).fill({ color: TELEGRAPH_COLORS.lethal, alpha: 0.12 + progress * 0.18 });
+          if (progress >= 1) {
+            ground.resolved = true;
+            ground.ageMs = 0;
+            combatFx.spawnImpactBurst({ ...center }, { lethal: true, radius: radius * 0.6 });
+            if (Math.hypot(playerPosition.x - center.x, playerPosition.y - center.y) <= radius + playerRadius * 0.5) {
+              applyIncomingPlayerDamage(damage, now);
+            }
+          }
+          continue;
+        }
+        const fade = 1 - clamp(ground.ageMs / GROUND_HAZARD_LINGER_MS, 0, 1);
+        ground.graphic.circle(center.x, center.y, radius).fill({ color: BW.white, alpha: 0.25 * fade });
+        if (fade <= 0) {
+          ground.graphic.destroy();
+          groundHazards.splice(index, 1);
+        }
+      }
+
+      for (let index = enemyProjectiles.length - 1; index >= 0; index -= 1) {
+        const projectile = enemyProjectiles[index];
+        const { hazard } = projectile;
+        projectile.graphic.clear();
+        if (projectile.windupRemainingMs > 0) {
+          projectile.windupRemainingMs -= deltaMs;
+          const charge = 1 - clamp(projectile.windupRemainingMs / hazard.windupMs, 0, 1);
+          projectile.graphic
+            .circle(projectile.position.x, projectile.position.y, hazard.radius * (0.6 + charge))
+            .stroke({ color: TELEGRAPH_COLORS.damage, width: 2, alpha: 0.4 + charge * 0.5 });
+          continue;
+        }
+        const step = hazard.speed * (deltaMs / 1000);
+        projectile.position.x += hazard.direction.x * step;
+        projectile.position.y += hazard.direction.y * step;
+        projectile.traveled += step;
+        projectile.graphic
+          .circle(projectile.position.x, projectile.position.y, hazard.radius)
+          .fill({ color: BW.white, alpha: 0.95 })
+          .stroke({ color: BW.gray0, width: 2 });
+        const hit = isCircleIntersectingCircle(projectile.position, hazard.radius, playerPosition, playerRadius * 0.7);
+        if (hit) applyIncomingPlayerDamage(hazard.damage, now);
+        if (hit || projectile.traveled >= hazard.maxRange) {
+          projectile.graphic.destroy();
+          enemyProjectiles.splice(index, 1);
         }
       }
     }
@@ -1919,11 +2113,11 @@ export function PixiExplorationStage({
       }
 
       if (!isPlayerDefeated && mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) {
-        createMeleeAttack(now);
+        performWeaponAction(weaponProfile.primary, now, "primary");
       }
 
       if (!isPlayerDefeated && mouseInput.activeMouseAction === "ranged" && mouseInput.isRangedHeld) {
-        createRangedAttack(now);
+        performWeaponAction(weaponProfile.secondary, now, "secondary");
       }
 
       for (let index = meleeAttacks.length - 1; index >= 0; index -= 1) {
@@ -1965,8 +2159,8 @@ export function PixiExplorationStage({
       for (const attack of meleeAttacks) {
         const progress = clamp(attack.ageMs / attack.durationMs, 0, 1);
         renderMeleeSweep(attack.graphic, progress, {
-          halfAngle: MELEE_ATTACK_HALF_ANGLE_RADIANS,
-          range: MELEE_RANGE,
+          halfAngle: getMeleeHalfAngle(attack.profile),
+          range: attack.profile.range,
         });
         attack.graphic.position.set(attack.position.x, attack.position.y);
         attack.graphic.rotation = Math.atan2(attack.direction.y, attack.direction.x);
@@ -2086,6 +2280,7 @@ export function PixiExplorationStage({
 
       removeExpiredSkillEffects(nowMs);
       updateEnemies(ticker.deltaMS, nowMs);
+      updateEnemyHazards(ticker.deltaMS, nowMs);
       updateAttacks(ticker.deltaMS, nowMs);
       applyActiveSkillEffectDamage(nowMs);
       updatePoiVisuals(nowMs);
@@ -2167,6 +2362,7 @@ export function PixiExplorationStage({
       app.stage.addChild(uiLayer);
       world.addChild(backgroundLayer);
       world.addChild(worldLayer);
+      world.addChild(hazardLayer);
       world.addChild(entityLayer);
       world.addChild(fxLayer);
       entityLayer.sortableChildren = true;

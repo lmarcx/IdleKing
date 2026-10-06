@@ -5,3 +5,4 @@ export * from "./bosses.js";
 export * from "./simulator.js";
 export * from "./core/index.js";
 export * from "./runtime/index.js";
+export * from "./weaponProfiles.js";
