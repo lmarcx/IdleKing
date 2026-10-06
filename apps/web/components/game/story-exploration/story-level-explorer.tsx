@@ -24,6 +24,14 @@ import { PixiExplorationStage, type ExplorationCombatHudState, type ExplorationS
 type StoryLevelExplorerProps = {
   dungeonId: string;
   level: ExplorerHudLevel;
+  /**
+   * Editor Play/Test: plays this layout (an unsaved editor map) instead of the dungeon's live one,
+   * and never touches the save — no completeDungeon, no loot written.
+   */
+  dryRunLayout?: DungeonLayout;
+  /** Where "Retour" goes (defaults to the Kingdom). */
+  returnHref?: string;
+  returnLabel?: string;
 };
 
 const MAP_WIDTH = 2400;
@@ -117,6 +125,7 @@ function CompletionPanel({
   label,
   onReplay,
   onReturn,
+  returnLabel,
   rewards,
   xp,
 }: {
@@ -124,6 +133,7 @@ function CompletionPanel({
   label: string;
   onReplay: () => void;
   onReturn: () => void;
+  returnLabel: string;
   rewards: DisplayRewards;
   xp?: DungeonXpReward;
 }) {
@@ -134,31 +144,33 @@ function CompletionPanel({
           {isReplay ? "Donjon nettoye" : "Objectifs valides"}
         </p>
         <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">{label}</h2>
-        <div className="mt-5 rounded-md border border-amber-200/18 bg-black/45 p-4 text-left">
-          <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            {isReplay ? "Recompenses de replay" : "Recompenses"}
-          </p>
-          <div className="mt-3 grid gap-2 font-ik-body text-sm text-amber-50">
-            {xp && xp.playerXp > 0 ? (
-              <div className="flex items-center justify-between gap-3">
-                <span>XP joueur</span>
-                <span className="font-ik-menu text-emerald-200">+{xp.playerXp}</span>
-              </div>
-            ) : null}
-            {xp && xp.globalXp > 0 ? (
-              <div className="flex items-center justify-between gap-3">
-                <span>XP globale (Temple)</span>
-                <span className="font-ik-menu text-emerald-200">+{xp.globalXp}</span>
-              </div>
-            ) : null}
-            {rewardEntries(rewards).map(([resourceId, amount]) => (
-              <div className="flex items-center justify-between gap-3" key={resourceId}>
-                <span>{resourceId}</span>
-                <span className="font-ik-menu text-emerald-200">+{amount}</span>
-              </div>
-            ))}
+        {xp || rewardEntries(rewards).length > 0 ? (
+          <div className="mt-5 rounded-md border border-amber-200/18 bg-black/45 p-4 text-left">
+            <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              {isReplay ? "Recompenses de replay" : "Recompenses"}
+            </p>
+            <div className="mt-3 grid gap-2 font-ik-body text-sm text-amber-50">
+              {xp && xp.playerXp > 0 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span>XP joueur</span>
+                  <span className="font-ik-menu text-emerald-200">+{xp.playerXp}</span>
+                </div>
+              ) : null}
+              {xp && xp.globalXp > 0 ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span>XP globale (Temple)</span>
+                  <span className="font-ik-menu text-emerald-200">+{xp.globalXp}</span>
+                </div>
+              ) : null}
+              {rewardEntries(rewards).map(([resourceId, amount]) => (
+                <div className="flex items-center justify-between gap-3" key={resourceId}>
+                  <span>{resourceId}</span>
+                  <span className="font-ik-menu text-emerald-200">+{amount}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
         <button
           className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/25 bg-black/40 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100"
           onClick={onReplay}
@@ -173,7 +185,7 @@ function CompletionPanel({
           type="button"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Retour au Royaume
+          {returnLabel}
         </button>
       </div>
     </div>
@@ -206,23 +218,32 @@ function LockedPanel({ onReturn }: { onReturn: () => void }) {
  * Story dungeons are replayable (Freeze §12). Each run is a fresh mount of StoryLevelRun; "Rejouer"
  * bumps the key. A run started on an already-cleared dungeon is a replay: per LEVELDESIGN.md it
  * drops objectives and narrative beats and keeps pure combat — clearing the enemies completes it,
- * and completeDungeon() grants the replay rewards.
+ * and completeDungeon() grants the replay rewards. With `dryRunLayout` (editor Play/Test) the run
+ * is always a first clear and nothing is written to the save.
  */
 export function StoryLevelExplorer(props: StoryLevelExplorerProps) {
   const [runIndex, setRunIndex] = useState(0);
   return <StoryLevelRun key={runIndex} {...props} onReplay={() => setRunIndex((index) => index + 1)} />;
 }
 
-function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps & { onReplay: () => void }) {
+function StoryLevelRun({
+  dryRunLayout,
+  dungeonId,
+  level,
+  onReplay,
+  returnHref = "/game/kingdom",
+  returnLabel = "Retour au Royaume",
+}: StoryLevelExplorerProps & { onReplay: () => void }) {
   const router = useRouter();
   const dispatch = useGameStore((s) => s.dispatch);
   const gameState = useGameStore((s) => s.state);
+  const dryRun = dryRunLayout !== undefined;
   // Frozen at mount: completing the first clear mid-run must not turn this run into a replay.
-  const [isReplay] = useState(() => gameState.story.completedDungeonIds.has(dungeonId));
-  const layout = useMemo(() => getDungeonLayout(dungeonId), [dungeonId]);
+  const [isReplay] = useState(() => !dryRun && gameState.story.completedDungeonIds.has(dungeonId));
+  const layout = useMemo(() => dryRunLayout ?? getDungeonLayout(dungeonId), [dryRunLayout, dungeonId]);
   const mapWidth = layout?.width ?? MAP_WIDTH;
   const mapHeight = layout?.height ?? MAP_HEIGHT;
-  const canCompleteDungeon = canEnterDungeon(gameState, dungeonId);
+  const canCompleteDungeon = dryRun || canEnterDungeon(gameState, dungeonId);
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const [playerPosition, setPlayerPosition] = useState(() => layout?.playerSpawn ?? { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 });
   const pointsOfInterest = useMemo(
@@ -315,6 +336,10 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
 
   useEffect(() => {
     if (!readyToComplete || completion) return;
+    if (dryRun) {
+      setCompletion({ rewards: {} });
+      return;
+    }
 
     const result = completeDungeon(useGameStore.getState().state, dungeonId);
     if (!result.ok) return;
@@ -324,7 +349,7 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
       rewards: rewardBundleToDisplayRewards(result.rewards),
       xp: result.xp,
     });
-  }, [readyToComplete, completion, dispatch, dungeonId]);
+  }, [readyToComplete, completion, dispatch, dryRun, dungeonId]);
 
   // Once a full-screen resolution panel (completion / locked) takes over, the
   // gameplay HUD underneath is hidden — otherwise its own exit link and
@@ -335,6 +360,7 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
         completedBeatIds={completedBeatIds}
+        dryRun={dryRun}
         inputBlocked={isGameHudOverlayOpen || completion !== null || !canCompleteDungeon || activeDialogue !== null}
         interactablePoiIds={interactablePoiIds}
         isReplay={isReplay}
@@ -377,14 +403,15 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
       {completion ? (
         <CompletionPanel
           isReplay={isReplay}
-          label="Donjon complete"
+          label={dryRun ? "Test termine — aucune progression appliquee" : "Donjon complete"}
           onReplay={onReplay}
-          onReturn={() => router.push("/game/kingdom")}
+          onReturn={() => router.push(returnHref)}
+          returnLabel={returnLabel}
           rewards={completion.rewards}
           xp={completion.xp}
         />
       ) : null}
-      {!canCompleteDungeon ? <LockedPanel onReturn={() => router.push("/game/kingdom")} /> : null}
+      {!canCompleteDungeon ? <LockedPanel onReturn={() => router.push(returnHref)} /> : null}
     </section>
   );
 }

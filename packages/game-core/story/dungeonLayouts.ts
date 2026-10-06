@@ -1,7 +1,9 @@
+import { getCanonicalStoryMap, isCanonicalStoryRuntimeReady } from "../content/story/maps/index.js";
 import { getDungeonEncounter, type DungeonEncounter } from "../enemies/encounters.js";
 import { getEnemyArchetypeOrThrow } from "../enemies/registry.js";
 import { getLevelScript } from "./levelScripts.js";
 import { STORY_DUNGEON_REGISTRY } from "./progressionMvp.js";
+import { playableMapToDungeonLayout } from "./storyMapLayout.js";
 
 /**
  * Story dungeon layouts — the spatial level design of each dungeon (LEVELDESIGN.md: successive
@@ -11,9 +13,11 @@ import { STORY_DUNGEON_REGISTRY } from "./progressionMvp.js";
  * met (the zone before it is cleared, or a narrative beat is done), so the player meets the
  * encounters and the story in order and cannot rush the boss. Geometry is in world pixels.
  *
- * The Prologue is hand-authored around its script; the other dungeons are built from their
- * encounter roster by a deterministic room template (`buildLinearLayout`) until they get
- * bespoke maps from the level editor.
+ * Source of truth: the dungeon's canonical level-editor map (content/story/maps), once it is
+ * flagged runtime-ready — see storyMapLayout.ts for the map → layout conventions. Without one,
+ * the built-in layouts below are used: the Prologue is hand-authored around its script, the
+ * other dungeons come from their encounter roster through a deterministic room template
+ * (`buildLinearLayout`). These built-in layouts also seeded the canonical maps.
  */
 
 export type LayoutVec = Readonly<{ x: number; y: number }>;
@@ -330,11 +334,31 @@ const AUTHORED_LAYOUTS: Readonly<Record<string, DungeonLayout>> = {
   prologue_wastelands: PROLOGUE_LAYOUT,
 };
 
+export function getDungeonTheme(dungeonId: string): LayoutTheme {
+  return dungeonId === "prologue_wastelands" ? "wastelands" : (THEME_BY_DUNGEON[dungeonId] ?? "wastelands");
+}
+
+/** Layout of a Story dungeon from its canonical editor map, whatever its runtime-ready flag. */
+export function getCanonicalDungeonLayout(dungeonId: string): DungeonLayout | undefined {
+  const map = getCanonicalStoryMap(dungeonId);
+  if (!map) return undefined;
+  return playableMapToDungeonLayout(map, dungeonId, {
+    theme: getDungeonTheme(dungeonId),
+    beatOrder: getLevelScript(dungeonId)?.beats.map((beat) => beat.id),
+  });
+}
+
+/** The built-in (code) layout, used when a dungeon has no runtime-ready canonical map. */
+export function getBuiltInDungeonLayout(dungeonId: string): DungeonLayout | undefined {
+  return AUTHORED_LAYOUTS[dungeonId] ?? buildLinearLayout(dungeonId);
+}
+
 const LAYOUT_CACHE = new Map<string, DungeonLayout | undefined>();
 
 export function getDungeonLayout(dungeonId: string): DungeonLayout | undefined {
   if (!LAYOUT_CACHE.has(dungeonId)) {
-    LAYOUT_CACHE.set(dungeonId, AUTHORED_LAYOUTS[dungeonId] ?? buildLinearLayout(dungeonId));
+    const layout = isCanonicalStoryRuntimeReady(dungeonId) ? getCanonicalDungeonLayout(dungeonId) : undefined;
+    LAYOUT_CACHE.set(dungeonId, layout ?? getBuiltInDungeonLayout(dungeonId));
   }
   return LAYOUT_CACHE.get(dungeonId);
 }
@@ -354,8 +378,17 @@ function overlapsCircle(area: LayoutRect, point: LayoutVec, radius: number): boo
   return Math.hypot(point.x - nearestX, point.y - nearestY) < radius;
 }
 
-/** Boot/test validation: placements are inside their zones, never inside walls, roster matches. */
-export function validateDungeonLayout(layout: DungeonLayout): void {
+export type DungeonLayoutValidationOptions = Readonly<{
+  /**
+   * Require the placements to match the dungeon's encounter roster. On for built-in layouts
+   * (generated from that roster); off for editor maps, where the designer owns the roster.
+   */
+  requireEncounterRoster?: boolean;
+}>;
+
+/** Boot/test validation: placements are inside their zones, never inside walls, beats follow the script. */
+export function validateDungeonLayout(layout: DungeonLayout, options: DungeonLayoutValidationOptions = {}): void {
+  const requireEncounterRoster = options.requireEncounterRoster ?? true;
   const where = `Layout ${layout.dungeonId}`;
   const solid = layout.obstacles;
   if (solid.some((wall) => overlapsCircle(wall, layout.playerSpawn, 24))) throw new Error(`${where}: player spawn inside an obstacle`);
@@ -393,8 +426,8 @@ export function validateDungeonLayout(layout: DungeonLayout): void {
     }
   }
 
-  // The layout must place exactly the dungeon roster.
-  const encounter = getDungeonEncounter(layout.dungeonId);
+  // Built-in layouts must place exactly the dungeon roster.
+  const encounter = requireEncounterRoster ? getDungeonEncounter(layout.dungeonId) : undefined;
   if (encounter) {
     const expected = [
       ...encounter.groups.flatMap((group) => Array.from({ length: group.count }, () => group.archetypeId)),
@@ -405,10 +438,28 @@ export function validateDungeonLayout(layout: DungeonLayout): void {
   }
 }
 
+/** Errors that would prevent an editor map from running as this dungeon (empty when playable). */
+export function getStoryMapRuntimeErrors(dungeonId: string, layout: DungeonLayout): string[] {
+  const errors: string[] = [];
+  if (layout.zones.every((zone) => zone.enemies.length === 0)) errors.push(`Layout ${dungeonId}: no enemy to defeat`);
+  try {
+    validateDungeonLayout(layout, { requireEncounterRoster: false });
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+  return errors;
+}
+
 export function validateDungeonLayouts(): void {
   for (const dungeon of STORY_DUNGEON_REGISTRY) {
-    const layout = getDungeonLayout(dungeon.id);
-    if (!layout) throw new Error(`Dungeon ${dungeon.id} has no layout`);
-    validateDungeonLayout(layout);
+    const builtIn = getBuiltInDungeonLayout(dungeon.id);
+    if (!builtIn) throw new Error(`Dungeon ${dungeon.id} has no layout`);
+    validateDungeonLayout(builtIn);
+    if (isCanonicalStoryRuntimeReady(dungeon.id)) {
+      const canonical = getCanonicalDungeonLayout(dungeon.id);
+      if (!canonical) throw new Error(`Dungeon ${dungeon.id} is runtime-ready but has no canonical map`);
+      const errors = getStoryMapRuntimeErrors(dungeon.id, canonical);
+      if (errors.length > 0) throw new Error(errors.join("; "));
+    }
   }
 }

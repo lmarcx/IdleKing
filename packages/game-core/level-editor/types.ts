@@ -192,7 +192,26 @@ export type MapCollision = Readonly<{
   y: number;
   width: number;
   height: number;
+  /** Story dungeons: visual family of the obstacle (wall, pillar, tomb, crystal…). Defaults to wall. */
+  kind?: string;
 }>;
+
+/** Condition that opens a Story gate (mirrors story/dungeonLayouts GateCondition). */
+export type StoryGateCondition =
+  | Readonly<{ kind: "zone_cleared"; zoneId: string }>
+  | Readonly<{ kind: "beat_done"; beatId: string }>;
+
+/**
+ * Role of a trigger in a Story dungeon (read by story/storyMapLayout.ts):
+ * - zone: a room. Enemies standing inside it belong to it (aggro, "room cleared"); with
+ *   `spawnOnBeat` they only appear once that narrative beat is done (scripted ambush).
+ * - gate: a door that blocks movement until its condition is met.
+ * - beat: where a LevelScript beat is triggered (press F), optionally gated by an extra condition.
+ */
+export type StoryTriggerRole =
+  | Readonly<{ kind: "zone"; zoneId: string; label?: string; spawnOnBeat?: string }>
+  | Readonly<{ kind: "gate"; opensWhen: StoryGateCondition }>
+  | Readonly<{ kind: "beat"; beatId: string; requires?: Readonly<{ zoneCleared?: string; bossDefeated?: true }> }>;
 
 /**
  * Story map objective/exit convention (documented, not a distinct MapTrigger variant): a
@@ -216,6 +235,7 @@ export type MapTrigger = Readonly<{
   width: number;
   height: number;
   target?: string;
+  story?: StoryTriggerRole;
 }>;
 
 export type MapPuzzleLink = Readonly<{

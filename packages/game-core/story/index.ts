@@ -6,3 +6,4 @@ export * from "./cinematics.js";
 export * from "./levelScripts.js";
 export * from "./scenarioAdapter.js";
 export * from "./dungeonLayouts.js";
+export * from "./storyMapLayout.js";

@@ -737,10 +737,19 @@ export type {
 export type { UnlockId } from "./story/types.js";
 export {
   buildLinearLayout,
+  getBuiltInDungeonLayout,
+  getCanonicalDungeonLayout,
   getDungeonLayout,
+  getDungeonTheme,
+  getStoryMapRuntimeErrors,
   validateDungeonLayout,
   validateDungeonLayouts,
 } from "./story/dungeonLayouts.js";
+export {
+  OPEN_ZONE_ID,
+  dungeonLayoutToPlayableMap,
+  playableMapToDungeonLayout,
+} from "./story/storyMapLayout.js";
 export type {
   DungeonLayout,
   GateCondition,

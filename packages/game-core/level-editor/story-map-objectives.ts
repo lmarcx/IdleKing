@@ -92,13 +92,3 @@ export type StoryMapStageResult = Readonly<{
   /** How many times the stage was reset before this result. Bookkeeping only, not reward-bearing. */
   restartCount?: number;
 }>;
-
-/**
- * Pure guard the canonical route wrapper uses to decide whether to apply a StoryMapStage result
- * as a dungeon completion: the stage must actually be completed, and mapId must match the
- * dungeonId the wrapper is running -- a mismatch means the wrong map got wired to this dungeon,
- * so no consequence should be applied.
- */
-export function shouldApplyStoryMapCompletion(result: StoryMapStageResult, dungeonId: string): boolean {
-  return result.completed && result.mapId === dungeonId;
-}

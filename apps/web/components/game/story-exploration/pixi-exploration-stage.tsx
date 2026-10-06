@@ -64,6 +64,8 @@ import {
 } from "@idleking/game-core/skills";
 
 type PixiExplorationStageProps = {
+  /** Editor Play/Test: loot is shown but never written to the save. */
+  dryRun?: boolean;
   inputBlocked?: boolean;
   /** Level design of a story dungeon (game-core story/dungeonLayouts). */
   layout?: DungeonLayout;
@@ -642,6 +644,7 @@ function formatLootLabel(resourceId: string): string {
 
 export function PixiExplorationStage({
   completedBeatIds,
+  dryRun = false,
   inputBlocked = false,
   interactablePoiIds,
   isReplay = false,
@@ -656,6 +659,8 @@ export function PixiExplorationStage({
 }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(inputBlocked);
+  const dryRunRef = useRef(dryRun);
+  dryRunRef.current = dryRun;
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
   const onPoiInteractRef = useRef(onPoiInteractAction);
@@ -1546,6 +1551,7 @@ export function PixiExplorationStage({
         securedRewards.set(item.name, (securedRewards.get(item.name) ?? 0) + 1);
       }
       if (loot.materials.length === 0 && loot.equipment.length === 0) return;
+      if (dryRunRef.current) return;
       useGameStore.getState().dispatch((state) => coreEnemies.grantEnemyKillLoot(state, loot));
     }
 

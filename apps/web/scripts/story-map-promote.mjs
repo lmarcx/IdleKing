@@ -100,7 +100,8 @@ async function main() {
   }
 
   const { validatePlayableMap, getCanonicalStoryMap } = await import("@idleking/game-core/level-editor");
-  const { getStoryDungeonDefinition } = await import("@idleking/game-core");
+  const { getStoryDungeonDefinition, getDungeonTheme, getLevelScript, getStoryMapRuntimeErrors, playableMapToDungeonLayout } =
+    await import("@idleking/game-core");
 
   const validation = validatePlayableMap(exported);
   if (!validation.ok) {
@@ -117,6 +118,17 @@ async function main() {
   }
   if (exported.mode !== "story") {
     fail(`Cannot promote: map.mode must be "story" (was "${exported.mode}").`);
+  }
+
+  // The live Story runtime plays canonical maps through playableMapToDungeonLayout: refuse a map
+  // it could not play (beats out of script order, enemies inside walls, unknown gate targets...).
+  const runtimeLayout = playableMapToDungeonLayout(exported, dungeonId, {
+    theme: getDungeonTheme(dungeonId),
+    beatOrder: getLevelScript(dungeonId)?.beats.map((beat) => beat.id),
+  });
+  const runtimeErrors = getStoryMapRuntimeErrors(dungeonId, runtimeLayout);
+  if (runtimeErrors.length > 0) {
+    fail(`Map is not playable as Story dungeon "${dungeonId}":\n${runtimeErrors.map((error) => `  - ${error}`).join("\n")}`);
   }
 
   const expectedFilename = `${dungeonId}.generated.json`;

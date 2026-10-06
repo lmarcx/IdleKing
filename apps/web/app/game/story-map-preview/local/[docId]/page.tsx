@@ -4,22 +4,43 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { StoryLevelExplorer } from "@/components/game/story-exploration/story-level-explorer";
 import { StoryMapStage } from "@/components/game/story-map/story-map-stage";
 import { loadDocument } from "@/lib/editor-document-store";
+import {
+  getDungeonTheme,
+  getLevelScript,
+  getStoryDungeonDefinition,
+  getStoryMapRuntimeErrors,
+  playableMapToDungeonLayout,
+  type DungeonLayout,
+} from "@idleking/game-core";
 import { validatePlayableMap, type PlayableMap, type StoryMapStageResult } from "@idleking/game-core/level-editor";
 
 type LoadState =
   | { status: "loading" }
   | { status: "not-found" }
   | { status: "invalid"; errors: readonly string[] }
-  | { status: "ready"; map: PlayableMap };
+  | { status: "ready"; map: PlayableMap; story?: { dungeonId: string; title: string; layout: DungeonLayout } };
+
+/** A draft linked to a Story dungeon (map.id = dungeonId) is played by the real Story explorer. */
+function toStoryPreview(map: PlayableMap): { errors: string[]; story?: { dungeonId: string; title: string; layout: DungeonLayout } } {
+  const dungeon = getStoryDungeonDefinition(map.id);
+  if (!dungeon) return { errors: [] };
+  const layout = playableMapToDungeonLayout(map, dungeon.id, {
+    theme: getDungeonTheme(dungeon.id),
+    beatOrder: getLevelScript(dungeon.id)?.beats.map((beat) => beat.id),
+  });
+  const errors = getStoryMapRuntimeErrors(dungeon.id, layout);
+  return { errors, story: errors.length === 0 ? { dungeonId: dungeon.id, title: dungeon.title, layout } : undefined };
+}
 
 /**
- * Dry-run Story Map preview for locally-saved editor documents (Phase G7). Mirrors
- * /game/custom-map/local/[docId] but renders StoryMapStage instead of CustomMapPixiStage, and
- * never touches GameState -- onStageCompleted only toasts. This is what the editor's Play/Test
- * button launches for a Story-dungeon-linked draft; it never goes through the canonical
- * /game/story/levels/[levelId] route and never calls completeDungeon.
+ * Dry-run Story Map preview for locally-saved editor documents: what the editor's Play/Test
+ * button launches for a Story-dungeon-linked draft. The draft is played by the same Story
+ * explorer as the live route (combat, skills, boss patterns, beats, gates), in dry-run mode:
+ * no completeDungeon, no loot written to the save. A map that is not a Story dungeon falls back
+ * to the bare StoryMapStage.
  */
 export default function LocalStoryMapPreviewPage() {
   const params = useParams<{ docId: string }>();
@@ -29,7 +50,7 @@ export default function LocalStoryMapPreviewPage() {
   // identical but reference-different `map`, which -- since its own effect is keyed on [map] --
   // tears down and remounts the PixiJS app a second time before the first mount's async
   // app.init() has settled. Caching by docId keeps `map` identity stable across the double-invoke.
-  const loadedMapRef = useRef<{ docId: string; map: PlayableMap } | null>(null);
+  const loadedMapRef = useRef<Extract<LoadState, { status: "ready" }> & { docId: string } | null>(null);
 
   useEffect(() => {
     const docId = Array.isArray(params.docId) ? params.docId[0] : params.docId;
@@ -39,7 +60,7 @@ export default function LocalStoryMapPreviewPage() {
     }
     const cached = loadedMapRef.current;
     if (cached && cached.docId === docId) {
-      setState({ status: "ready", map: cached.map });
+      setState(cached);
       return;
     }
     const doc = loadDocument<PlayableMap>("playable_map", docId);
@@ -52,8 +73,14 @@ export default function LocalStoryMapPreviewPage() {
       setState({ status: "invalid", errors: validation.errors });
       return;
     }
-    loadedMapRef.current = { docId, map: doc };
-    setState({ status: "ready", map: doc });
+    const preview = toStoryPreview(doc);
+    if (preview.errors.length > 0) {
+      setState({ status: "invalid", errors: preview.errors });
+      return;
+    }
+    const ready = { status: "ready" as const, map: doc, story: preview.story };
+    loadedMapRef.current = { ...ready, docId };
+    setState(ready);
   }, [params.docId]);
 
   function handleStageCompleted(result: StoryMapStageResult) {
@@ -93,6 +120,23 @@ export default function LocalStoryMapPreviewPage() {
           </ul>
         </div>
       </div>
+    );
+  }
+
+  if (state.story) {
+    return (
+      <main className="mx-auto w-full max-w-[1800px] p-2 sm:p-3">
+        <div className="mb-2 rounded-md border border-sky-200/30 bg-sky-500/10 px-3 py-2 font-ik-menu text-[0.65rem] uppercase tracking-wide text-sky-100">
+          Play/Test — {state.story.title} — dry run — no progression or rewards
+        </div>
+        <StoryLevelExplorer
+          dryRunLayout={state.story.layout}
+          dungeonId={state.story.dungeonId}
+          level={{ id: state.story.dungeonId, recommendedPower: 0, title: state.story.title }}
+          returnHref="/editor"
+          returnLabel="Retour a l'editeur"
+        />
+      </main>
     );
   }
 

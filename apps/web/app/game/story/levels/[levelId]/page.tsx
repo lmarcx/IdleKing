@@ -1,9 +1,7 @@
 import Link from "next/link";
 
 import { StoryLevelExplorer } from "@/components/game/story-exploration/story-level-explorer";
-import { StoryMapLevelRuntime } from "@/components/game/story-map/story-map-level-runtime";
 import { getStoryDungeonDefinition } from "@idleking/game-core";
-import { getCanonicalStoryMap, isCanonicalStoryRuntimeReady } from "@idleking/game-core/level-editor";
 
 type StoryLevelPageProps = {
   params: Promise<{
@@ -34,11 +32,8 @@ export default async function StoryLevelPage({ params }: StoryLevelPageProps) {
     );
   }
 
-  const canonicalMap = getCanonicalStoryMap(dungeon.id);
-  if (canonicalMap && isCanonicalStoryRuntimeReady(dungeon.id)) {
-    return <StoryMapLevelRuntime dungeonId={dungeon.id} map={canonicalMap} />;
-  }
-
+  // The explorer plays the dungeon's canonical editor map (getDungeonLayout), or its built-in
+  // layout when the map is not flagged runtime-ready.
   const explorerLevel = {
     id: dungeon.id,
     recommendedPower: (dungeon.unlockConditions.minWorldLevel ?? 1) * 10,

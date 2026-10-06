@@ -5,8 +5,6 @@ import {
   deriveStoryMapObjective,
   isStoryMapObjectiveSatisfied,
   resolveVictoryCondition,
-  shouldApplyStoryMapCompletion,
-  type StoryMapStageResult,
 } from "../level-editor/story-map-objectives.js";
 import { TEST_MAP_01 } from "../level-editor/sample-maps.js";
 import type { MapEnemy, MapTrigger, PlayableMap } from "../level-editor/types.js";
@@ -136,28 +134,4 @@ test("resolveVictoryCondition falls back to deriveStoryMapObjective converted to
 
   const plainMap = withEnemiesAndTriggers([BASE_ENEMY], []);
   assert.deepEqual(resolveVictoryCondition(plainMap), { kind: "ALL_ENEMIES" });
-});
-
-function baseStageResult(overrides: Partial<StoryMapStageResult> = {}): StoryMapStageResult {
-  return {
-    bossDefeated: false,
-    completed: true,
-    defeatedEnemyIds: [],
-    exitReached: false,
-    mapId: "test_dungeon",
-    objectiveType: "defeat_all_enemies",
-    ...overrides,
-  };
-}
-
-test("shouldApplyStoryMapCompletion applies when the stage is completed and mapId matches the dungeon", () => {
-  assert.equal(shouldApplyStoryMapCompletion(baseStageResult(), "test_dungeon"), true);
-});
-
-test("shouldApplyStoryMapCompletion rejects a mismatched mapId even when the stage is completed", () => {
-  assert.equal(shouldApplyStoryMapCompletion(baseStageResult({ mapId: "other_map" }), "test_dungeon"), false);
-});
-
-test("shouldApplyStoryMapCompletion rejects a matching mapId that is not yet completed", () => {
-  assert.equal(shouldApplyStoryMapCompletion(baseStageResult({ completed: false }), "test_dungeon"), false);
 });

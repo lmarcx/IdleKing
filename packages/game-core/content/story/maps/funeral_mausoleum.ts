@@ -1,0 +1,270 @@
+import type { PlayableMap } from "../../../level-editor/types.js";
+
+export const FUNERAL_MAUSOLEUM_MAP: PlayableMap = {
+  "id": "funeral_mausoleum",
+  "name": "Mausolée Funèbre",
+  "version": 1,
+  "world": "story",
+  "mode": "story",
+  "chapter": "chapter_i_funebre",
+  "grid": {
+    "width": 106,
+    "height": 65,
+    "cellSize": 20
+  },
+  "topography": {
+    "cells": []
+  },
+  "tiles": [],
+  "objects": [],
+  "buildings": [],
+  "npcs": [],
+  "enemies": [
+    {
+      "id": "ame_egaree_1",
+      "assetId": "enemy_shard_01",
+      "enemyId": "ame_egaree",
+      "name": "Âme Égarée",
+      "stats": {
+        "hp": 99,
+        "attack": 8,
+        "defense": 0,
+        "speed": 81
+      },
+      "behavior": "ranged",
+      "aggroRadius": 360,
+      "x": 667,
+      "y": 448
+    },
+    {
+      "id": "ame_egaree_2",
+      "assetId": "enemy_shard_01",
+      "enemyId": "ame_egaree",
+      "name": "Âme Égarée",
+      "stats": {
+        "hp": 99,
+        "attack": 8,
+        "defense": 0,
+        "speed": 81
+      },
+      "behavior": "ranged",
+      "aggroRadius": 360,
+      "x": 899,
+      "y": 419
+    },
+    {
+      "id": "squelette_guerrier_3",
+      "assetId": "enemy_shard_01",
+      "enemyId": "squelette_guerrier",
+      "name": "Squelette Guerrier",
+      "stats": {
+        "hp": 110,
+        "attack": 12,
+        "defense": 0,
+        "speed": 90
+      },
+      "behavior": "chase",
+      "aggroRadius": 280,
+      "x": 637,
+      "y": 621
+    },
+    {
+      "id": "squelette_guerrier_4",
+      "assetId": "enemy_shard_01",
+      "enemyId": "squelette_guerrier",
+      "name": "Squelette Guerrier",
+      "stats": {
+        "hp": 110,
+        "attack": 12,
+        "defense": 0,
+        "speed": 90
+      },
+      "behavior": "chase",
+      "aggroRadius": 280,
+      "x": 1453,
+      "y": 403
+    },
+    {
+      "id": "squelette_archer_5",
+      "assetId": "enemy_shard_01",
+      "enemyId": "squelette_archer",
+      "name": "Squelette Archer",
+      "stats": {
+        "hp": 77,
+        "attack": 11,
+        "defense": 0,
+        "speed": 77
+      },
+      "behavior": "ranged",
+      "aggroRadius": 360,
+      "x": 1700,
+      "y": 401
+    },
+    {
+      "id": "ame_tourmentee_6",
+      "assetId": "enemy_shard_01",
+      "enemyId": "ame_tourmentee",
+      "name": "Âme Tourmentée",
+      "stats": {
+        "hp": 83,
+        "attack": 13,
+        "defense": 0,
+        "speed": 72
+      },
+      "behavior": "ranged",
+      "aggroRadius": 360,
+      "x": 1465,
+      "y": 633
+    }
+  ],
+  "collisions": [
+    {
+      "id": "obstacle_1",
+      "type": "box",
+      "x": 0,
+      "y": 0,
+      "width": 2120,
+      "height": 60,
+      "kind": "wall"
+    },
+    {
+      "id": "obstacle_2",
+      "type": "box",
+      "x": 0,
+      "y": 1240,
+      "width": 2120,
+      "height": 60,
+      "kind": "wall"
+    },
+    {
+      "id": "obstacle_3",
+      "type": "box",
+      "x": 0,
+      "y": 0,
+      "width": 60,
+      "height": 1300,
+      "kind": "wall"
+    },
+    {
+      "id": "obstacle_4",
+      "type": "box",
+      "x": 2060,
+      "y": 0,
+      "width": 60,
+      "height": 1300,
+      "kind": "wall"
+    },
+    {
+      "id": "obstacle_5",
+      "type": "box",
+      "x": 584,
+      "y": 163,
+      "width": 108,
+      "height": 109,
+      "kind": "tomb"
+    },
+    {
+      "id": "obstacle_6",
+      "type": "box",
+      "x": 750,
+      "y": 1066,
+      "width": 118,
+      "height": 63,
+      "kind": "pillar"
+    },
+    {
+      "id": "obstacle_7",
+      "type": "box",
+      "x": 1000,
+      "y": 60,
+      "width": 60,
+      "height": 470,
+      "kind": "wall"
+    },
+    {
+      "id": "obstacle_8",
+      "type": "box",
+      "x": 1000,
+      "y": 770,
+      "width": 60,
+      "height": 470,
+      "kind": "wall"
+    },
+    {
+      "id": "obstacle_9",
+      "type": "box",
+      "x": 1676,
+      "y": 173,
+      "width": 97,
+      "height": 100,
+      "kind": "tomb"
+    },
+    {
+      "id": "obstacle_10",
+      "type": "box",
+      "x": 1325,
+      "y": 1065,
+      "width": 90,
+      "height": 73,
+      "kind": "pillar"
+    }
+  ],
+  "triggers": [
+    {
+      "id": "zone_room_1",
+      "type": "event",
+      "x": 60,
+      "y": 60,
+      "width": 1000,
+      "height": 1180,
+      "story": {
+        "kind": "zone",
+        "zoneId": "room_1",
+        "label": "Salle 1"
+      }
+    },
+    {
+      "id": "zone_room_2",
+      "type": "event",
+      "x": 1060,
+      "y": 60,
+      "width": 1000,
+      "height": 1180,
+      "story": {
+        "kind": "zone",
+        "zoneId": "room_2",
+        "label": "Salle 2"
+      }
+    },
+    {
+      "id": "gate_room_1",
+      "type": "event",
+      "x": 1000,
+      "y": 530,
+      "width": 60,
+      "height": 240,
+      "story": {
+        "kind": "gate",
+        "opensWhen": {
+          "kind": "zone_cleared",
+          "zoneId": "room_1"
+        }
+      }
+    }
+  ],
+  "puzzles": [],
+  "spawns": [
+    {
+      "id": "player_start",
+      "x": 200,
+      "y": 650
+    }
+  ],
+  "victoryCondition": {
+    "kind": "ALL_ENEMIES"
+  },
+  "metadata": {
+    "createdWith": "AWorldDreamtLevelEditor",
+    "style": "minimal-geometric"
+  }
+};
