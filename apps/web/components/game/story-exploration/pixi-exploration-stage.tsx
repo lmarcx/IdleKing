@@ -13,6 +13,8 @@ import {
 } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { createGateGraphics, createObstacleGraphics } from "@/components/game/shared/geometric-dungeon";
+import { createAssetGraphic, renderFloorTiles } from "@/components/game/map-runtime";
+import { createAssetRegistry } from "@idleking/game-core/level-editor";
 import { createEnemySilhouetteGraphics } from "@/components/game/shared/geometric-enemies";
 import { createBillyCompanion, type BillyCompanion } from "@/components/game/shared/companions";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
@@ -83,6 +85,9 @@ type PixiExplorationStageProps = {
   onPoiInteractAction?: (poiId: string) => void;
   pointsOfInterest: ExplorationStagePoi[];
 };
+
+/** Built-in geometric assets the editor maps' decor refers to. */
+const DECOR_ASSET_REGISTRY = createAssetRegistry();
 
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
@@ -2559,6 +2564,20 @@ export function PixiExplorationStage({
         })
       );
       if (layout) {
+        // Editor map ground textures and decor (objects, buildings, NPCs) — drawn, never fight.
+        if (layout.floor) {
+          const floor = new PIXI.Graphics();
+          renderFloorTiles(floor, layout.floor);
+          backgroundLayer.addChild(floor);
+        }
+        for (const item of layout.decor ?? []) {
+          const asset = DECOR_ASSET_REGISTRY.assets.find((candidate) => candidate.id === item.assetId);
+          if (!asset) continue;
+          const graphic = createAssetGraphic(asset);
+          graphic.position.set(item.x, item.y);
+          graphic.rotation = (item.rotation * Math.PI) / 180;
+          worldLayer.addChild(graphic);
+        }
         for (const obstacleDef of layout.obstacles) {
           worldLayer.addChild(createObstacleGraphics(obstacleDef.kind, obstacleDef));
         }

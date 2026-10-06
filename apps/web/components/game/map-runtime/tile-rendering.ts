@@ -1,4 +1,5 @@
 import * as PIXI from "pixi.js";
+import type { LayoutFloor } from "@idleking/game-core";
 import { GROUND_TEXTURES, getGroundTexture, getMapTile, type PlayableMap } from "@idleking/game-core/level-editor";
 
 import { colorFromHex } from "./asset-graphics";
@@ -35,6 +36,21 @@ export function renderGroundTiles(g: PIXI.Graphics, map: PlayableMap): void {
         .stroke({ color: colorFromHex(texture.stroke), alpha: 0.34, width: 1 });
       drawTileDetail(g, texture.id, px, py, map.grid.cellSize);
     }
+  }
+}
+
+/** Painted ground tiles of a Story dungeon layout (unpainted cells keep the dungeon's own ground). */
+export function renderFloorTiles(g: PIXI.Graphics, floor: LayoutFloor): void {
+  const size = floor.cellSize;
+  for (const tile of floor.tiles) {
+    const texture = getGroundTexture(tile.textureId);
+    if (!texture) continue;
+    const px = tile.x * size;
+    const py = tile.y * size;
+    g.rect(px, py, size, size)
+      .fill({ color: colorFromHex(texture.fill), alpha: 1 })
+      .stroke({ color: colorFromHex(texture.stroke), alpha: 0.34, width: 1 });
+    drawTileDetail(g, texture.id, px, py, size);
   }
 }
 

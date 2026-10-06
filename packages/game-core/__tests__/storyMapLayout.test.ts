@@ -104,3 +104,39 @@ test("runtime errors flag a Story map that cannot be played", () => {
   const prologue = playableMapToDungeonLayout(emptyStoryMap(), "prologue_wastelands");
   assert.ok(getStoryMapRuntimeErrors("prologue_wastelands", prologue).some((error) => error.includes("script order")));
 });
+
+test("painted tiles become the floor; water/lava tiles become invisible barriers", () => {
+  const map = emptyStoryMap({
+    tiles: [
+      { x: 1, y: 1, textureId: "grass", walkable: true },
+      { x: 2, y: 1, textureId: "water", walkable: false },
+      { x: 3, y: 1, textureId: "water", walkable: false },
+      { x: 1, y: 1, textureId: "ice", walkable: true },
+    ],
+  });
+  const layout = playableMapToDungeonLayout(map, "fixture");
+  assert.deepEqual(layout.floor, {
+    cellSize: 100,
+    tiles: [
+      { x: 1, y: 1, textureId: "ice" },
+      { x: 2, y: 1, textureId: "water" },
+      { x: 3, y: 1, textureId: "water" },
+    ],
+  });
+  assert.deepEqual(layout.obstacles, [{ kind: "barrier", x: 200, y: 100, width: 200, height: 100 }]);
+});
+
+test("objects and buildings are drawn as decor and block with their asset collision; NPCs never block", () => {
+  const map = emptyStoryMap({
+    objects: [{ id: "tree", assetId: "tree_simple_01", kind: "nature", x: 400, y: 100, rotation: 0 }],
+    buildings: [{ id: "house", assetId: "house_small_01", function: "house", x: 600, y: 100, collision: null }],
+    npcs: [{ id: "erix", assetId: "npc_villager_01", name: "Erix", type: "villager", behavior: "idle", interaction: "dialogue", x: 800, y: 300 }],
+  });
+  const layout = playableMapToDungeonLayout(map, "fixture");
+  assert.deepEqual(layout.decor?.map((item) => [item.id, item.kind]), [["tree", "nature"], ["house", "building"], ["erix", "npc"]]);
+  // tree_simple_01: circle r14 at (28,58); house_small_01: box 80x60 at (0,20).
+  assert.deepEqual(layout.obstacles, [
+    { kind: "barrier", x: 414, y: 144, width: 28, height: 28 },
+    { kind: "barrier", x: 600, y: 120, width: 80, height: 60 },
+  ]);
+});

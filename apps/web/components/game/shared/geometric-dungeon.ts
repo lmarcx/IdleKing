@@ -14,6 +14,9 @@ export function createObstacleGraphics(kind: LayoutObstacleKind, area: LayoutRec
   const cy = y + h / 2;
 
   switch (kind) {
+    case "barrier":
+      // Solid but invisible: the floor tile or decor asset underneath is what the player sees.
+      break;
     case "wall": {
       g.rect(x, y, w, h).fill({ color: BW.gray0 }).stroke({ color: BW.gray2, width: 2 });
       // Brick courses so long walls read as masonry, not as UI panels.

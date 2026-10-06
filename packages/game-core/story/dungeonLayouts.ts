@@ -25,7 +25,8 @@ export type LayoutRect = Readonly<{ x: number; y: number; width: number; height:
 
 export type LayoutTheme = "wastelands" | "funeral" | "ash" | "glacial" | "academy" | "abyss";
 
-export type LayoutObstacleKind = "wall" | "pillar" | "ruin" | "rock" | "tomb" | "crystal" | "shelf" | "coral";
+/** "barrier" is solid but invisible: water/lava tiles and decor collisions, drawn by the floor/decor. */
+export type LayoutObstacleKind = "wall" | "pillar" | "ruin" | "rock" | "tomb" | "crystal" | "shelf" | "coral" | "barrier";
 
 export type LayoutObstacle = LayoutRect & Readonly<{ kind: LayoutObstacleKind }>;
 
@@ -62,6 +63,22 @@ export type LayoutBeatAnchor = Readonly<{
   requires?: Readonly<{ zoneCleared?: string; bossDefeated?: true }>;
 }>;
 
+/** Ground textures painted in the editor (cell coordinates). Unpainted cells show the theme ground. */
+export type LayoutFloor = Readonly<{
+  cellSize: number;
+  tiles: readonly Readonly<{ x: number; y: number; textureId: string }>[];
+}>;
+
+/** Editor objects, buildings and NPCs: drawn from their geometric asset, never fight. */
+export type LayoutDecor = Readonly<{
+  id: string;
+  assetId: string;
+  kind: "nature" | "object" | "puzzle" | "decoration" | "building" | "npc";
+  x: number;
+  y: number;
+  rotation: number;
+}>;
+
 export type DungeonLayout = Readonly<{
   dungeonId: string;
   theme: LayoutTheme;
@@ -73,6 +90,8 @@ export type DungeonLayout = Readonly<{
   zones: readonly LayoutZone[];
   /** Ordered narrative beat anchors (LevelScript beats). Empty for unscripted dungeons. */
   beats: readonly LayoutBeatAnchor[];
+  floor?: LayoutFloor;
+  decor?: readonly LayoutDecor[];
 }>;
 
 const WALL = 60;

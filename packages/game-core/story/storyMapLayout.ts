@@ -1,9 +1,11 @@
 import { getEnemyArchetypeOrThrow } from "../enemies/registry.js";
-import { loadPlayableMap } from "../level-editor/map-loader.js";
-import type { MapCollision, MapEnemy, MapTrigger, PlayableMap } from "../level-editor/types.js";
+import { createAssetRegistry } from "../level-editor/asset-registry.js";
+import type { AssetRegistry, CollisionShape, MapCollision, MapEnemy, MapTrigger, PlayableMap } from "../level-editor/types.js";
 import type {
   DungeonLayout,
   LayoutBeatAnchor,
+  LayoutDecor,
+  LayoutFloor,
   LayoutGate,
   LayoutObstacle,
   LayoutObstacleKind,
@@ -18,8 +20,10 @@ import type {
  * be turned back into an editable PlayableMap.
  *
  * Map → layout conventions:
- * - obstacles: `collisions` (their `kind`, default "wall") + non-walkable cells (topography /
- *   tiles), merged into rectangles;
+ * - obstacles: `collisions` (their `kind`, default "wall"); dead topography cells → "wall";
+ *   non-walkable ground tiles (water, lava…) → invisible "barrier" (the floor draws them);
+ *   decor whose asset has a collision → invisible "barrier" (the decor draws it);
+ * - floor: painted ground tiles; decor: objects, buildings and NPCs (drawn, never fight);
  * - zones / gates / beats: triggers carrying a `story` role (see StoryTriggerRole);
  * - enemies: `enemyId` is an enemy archetype id; an enemy belongs to the first zone containing
  *   it, enemies outside every zone go to an implicit "open" zone covering the whole map;
@@ -32,7 +36,7 @@ const BEAT_TRIGGER_SIZE = 80;
 const STORY_MAP_CELL_SIZE = 20;
 const DEFAULT_ENEMY_ASSET_ID = "enemy_shard_01";
 
-const OBSTACLE_KINDS: readonly LayoutObstacleKind[] = ["wall", "pillar", "ruin", "rock", "tomb", "crystal", "shelf", "coral"];
+const OBSTACLE_KINDS: readonly LayoutObstacleKind[] = ["wall", "pillar", "ruin", "rock", "tomb", "crystal", "shelf", "coral", "barrier"];
 
 function toObstacleKind(kind: string | undefined): LayoutObstacleKind {
   return OBSTACLE_KINDS.includes(kind as LayoutObstacleKind) ? (kind as LayoutObstacleKind) : "wall";
@@ -46,18 +50,18 @@ function containsPoint(area: LayoutRect, point: { x: number; y: number }): boole
   return point.x >= area.x && point.x <= area.x + area.width && point.y >= area.y && point.y <= area.y + area.height;
 }
 
-/** Merges blocking cells into rectangles: horizontal runs per row, then identical runs stacked. */
-function blockingCellRects(map: PlayableMap): LayoutObstacle[] {
-  const { blockingCells } = loadPlayableMap(map);
-  if (blockingCells.size === 0) return [];
-  const size = map.grid.cellSize;
-  const open = new Map<string, { x0: number; x1: number; y0: number; y1: number }>();
-  const done: { x0: number; x1: number; y0: number; y1: number }[] = [];
+type CellBlock = { x0: number; x1: number; y0: number; y1: number };
 
-  for (let y = 0; y < map.grid.height; y += 1) {
+/** Merges cells into rectangles: horizontal runs per row, then identical runs stacked. */
+function mergeCells(cells: ReadonlySet<string>, gridWidth: number, gridHeight: number): CellBlock[] {
+  if (cells.size === 0) return [];
+  const open = new Map<string, CellBlock>();
+  const done: CellBlock[] = [];
+
+  for (let y = 0; y < gridHeight; y += 1) {
     const runs: { x0: number; x1: number }[] = [];
-    for (let x = 0; x < map.grid.width; x += 1) {
-      if (!blockingCells.has(`${x}:${y}`)) continue;
+    for (let x = 0; x < gridWidth; x += 1) {
+      if (!cells.has(`${x}:${y}`)) continue;
       const last = runs.at(-1);
       if (last && last.x1 === x - 1) last.x1 = x;
       else runs.push({ x0: x, x1: x });
@@ -81,18 +85,80 @@ function blockingCellRects(map: PlayableMap): LayoutObstacle[] {
     }
   }
   done.push(...open.values());
+  return done;
+}
 
-  return done.map((block) => ({
-    kind: "wall" as const,
-    x: block.x0 * size,
-    y: block.y0 * size,
-    width: (block.x1 - block.x0 + 1) * size,
-    height: (block.y1 - block.y0 + 1) * size,
-  }));
+type PaintedTile = { x: number; y: number; textureId: string; walkable: boolean };
+
+/** Last painted tile per cell (the editor paints over earlier tiles). */
+function paintedTiles(map: PlayableMap): Map<string, PaintedTile> {
+  const tiles = new Map<string, PaintedTile>();
+  for (const tile of map.tiles) {
+    if (tile.x < 0 || tile.y < 0 || tile.x >= map.grid.width || tile.y >= map.grid.height) continue;
+    tiles.set(`${tile.x}:${tile.y}`, { x: tile.x, y: tile.y, textureId: tile.textureId, walkable: tile.walkable });
+  }
+  return tiles;
+}
+
+/** Dead topography cells become walls; non-walkable painted tiles become invisible barriers. */
+function blockingCellRects(map: PlayableMap, tiles: ReadonlyMap<string, PaintedTile>): LayoutObstacle[] {
+  const walls = new Set<string>();
+  for (const cell of map.topography.cells) {
+    if (cell.state !== "playable") walls.add(`${cell.x}:${cell.y}`);
+  }
+  const barriers = new Set<string>();
+  for (const [key, tile] of tiles) {
+    if (!tile.walkable && !walls.has(key)) barriers.add(key);
+  }
+  const size = map.grid.cellSize;
+  const toObstacles = (cells: ReadonlySet<string>, kind: LayoutObstacleKind): LayoutObstacle[] =>
+    mergeCells(cells, map.grid.width, map.grid.height).map((block) => ({
+      kind,
+      x: block.x0 * size,
+      y: block.y0 * size,
+      width: (block.x1 - block.x0 + 1) * size,
+      height: (block.y1 - block.y0 + 1) * size,
+    }));
+  return [...toObstacles(walls, "wall"), ...toObstacles(barriers, "barrier")];
+}
+
+function collisionRect(shape: CollisionShape | null | undefined, x: number, y: number): LayoutRect | undefined {
+  if (!shape || shape.type === "none") return undefined;
+  if (shape.type === "circle") {
+    const radius = shape.radius ?? 0;
+    return radius > 0 ? { x: x + shape.x - radius, y: y + shape.y - radius, width: radius * 2, height: radius * 2 } : undefined;
+  }
+  const width = shape.width ?? 0;
+  const height = shape.height ?? 0;
+  return width > 0 && height > 0 ? { x: x + shape.x, y: y + shape.y, width, height } : undefined;
+}
+
+function collectDecor(map: PlayableMap, registry: AssetRegistry): { decor: LayoutDecor[]; solids: LayoutObstacle[] } {
+  const defaultCollision = (assetId: string) => registry.assets.find((asset) => asset.id === assetId)?.defaultCollision;
+  const decor: LayoutDecor[] = [];
+  const solids: LayoutObstacle[] = [];
+  const addSolid = (area: LayoutRect | undefined) => {
+    if (area) solids.push({ kind: "barrier", ...area });
+  };
+  for (const object of map.objects) {
+    decor.push({ id: object.id, assetId: object.assetId, kind: object.kind, x: object.x, y: object.y, rotation: object.rotation });
+    addSolid(collisionRect(defaultCollision(object.assetId), object.x, object.y));
+  }
+  for (const building of map.buildings) {
+    decor.push({ id: building.id, assetId: building.assetId, kind: "building", x: building.x, y: building.y, rotation: 0 });
+    addSolid(collisionRect(building.collision ?? defaultCollision(building.assetId), building.x, building.y));
+  }
+  // NPCs are drawn but never block the way.
+  for (const npc of map.npcs) {
+    decor.push({ id: npc.id, assetId: npc.assetId, kind: "npc", x: npc.x, y: npc.y, rotation: 0 });
+  }
+  return { decor, solids };
 }
 
 export type PlayableMapToLayoutOptions = Readonly<{
   theme?: LayoutTheme;
+  /** Assets the decor resolves against (collisions). Defaults to the built-in registry. */
+  registry?: AssetRegistry;
   /** LevelScript beat ids: beat anchors are sorted in this order (unknown ids go last). */
   beatOrder?: readonly string[];
 }>;
@@ -106,6 +172,8 @@ export function playableMapToDungeonLayout(
   const height = map.grid.height * map.grid.cellSize;
   const spawn = map.spawns.find((candidate) => candidate.id === "player_start") ?? map.spawns[0];
 
+  const tiles = paintedTiles(map);
+  const { decor, solids } = collectDecor(map, options.registry ?? createAssetRegistry());
   const obstacles: LayoutObstacle[] = [
     ...map.collisions.map((collision) => ({
       kind: toObstacleKind(collision.kind),
@@ -114,8 +182,13 @@ export function playableMapToDungeonLayout(
       width: collision.width,
       height: collision.height,
     })),
-    ...blockingCellRects(map),
+    ...blockingCellRects(map, tiles),
+    ...solids,
   ];
+  const floor: LayoutFloor | undefined =
+    tiles.size > 0
+      ? { cellSize: map.grid.cellSize, tiles: [...tiles.values()].map(({ x, y, textureId }) => ({ x, y, textureId })) }
+      : undefined;
 
   const gates: LayoutGate[] = [];
   const zoneDefs: { id: string; label: string; rect: LayoutRect; spawnOnBeat?: string }[] = [];
@@ -176,6 +249,8 @@ export function playableMapToDungeonLayout(
     gates,
     zones,
     beats,
+    ...(floor ? { floor } : {}),
+    ...(decor.length > 0 ? { decor } : {}),
   };
 }
 
@@ -206,7 +281,10 @@ function toMapEnemy(archetypeId: string, x: number, y: number, index: number): M
   };
 }
 
-/** Turns a layout into an editor map that converts back to the same layout. */
+/**
+ * Turns a built-in layout into an editor map that converts back to the same layout (used to seed
+ * the canonical maps). Built-in layouts have no floor or decor, so none is written.
+ */
 export function dungeonLayoutToPlayableMap(layout: DungeonLayout, meta: LayoutToPlayableMapMeta): PlayableMap {
   const cellSize = STORY_MAP_CELL_SIZE;
   const collisions: MapCollision[] = layout.obstacles.map((obstacle, index) => ({

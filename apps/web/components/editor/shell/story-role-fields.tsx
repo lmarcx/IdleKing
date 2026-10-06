@@ -12,7 +12,7 @@ import type {
 
 import { inputClassName, type Selection, type SelectedEntity } from "./editor-shared";
 
-const OBSTACLE_KINDS: readonly LayoutObstacleKind[] = ["wall", "pillar", "ruin", "rock", "tomb", "crystal", "shelf", "coral"];
+const OBSTACLE_KINDS: readonly LayoutObstacleKind[] = ["wall", "pillar", "ruin", "rock", "tomb", "crystal", "shelf", "coral", "barrier"];
 
 type Patch = Record<string, unknown>;
 

@@ -89,7 +89,9 @@ How the runtime reads a Story map:
 | Editor data | In game |
 |---|---|
 | Collision box + **Obstacle kind** (wall, pillar, tomb, crystal…) | Solid obstacle, drawn with that shape family |
-| Non-walkable cell (topography / tile) | Solid wall |
+| Dead topography cell | Solid wall |
+| Painted ground tile | Drawn as the floor (unpainted cells keep the dungeon's ground); water / lava tiles are solid |
+| Object, building, NPC | Drawn from its geometric asset; objects and buildings block with their asset collision, NPCs never block |
 | Trigger, **Story role = zone** | A room. Enemies inside it belong to it (aggro, "room cleared"). *Enemies spawn on beat* turns it into a scripted ambush |
 | Trigger, **Story role = gate** | A door that opens when a room is cleared or a beat is done |
 | Trigger, **Story role = beat** | Where a script beat (LevelScript) is played with F; *Also requires* adds "room cleared" / "boss defeated" |
@@ -102,12 +104,12 @@ The inspector's **Story runtime** panel shows live whether the draft is playable
 
 - Browser save writes to local storage; committed JSON files still need to be added to the repo manually after export.
 - The V0 scene is a readable preview with simple movement, not full gameplay.
-- Outside Story dungeons, NPC, trigger, puzzle, and building interactions are represented in JSON but not wired to gameplay. In Story dungeons, ground textures are not drawn yet (the theme background is), and objects/NPCs/buildings are ignored.
+- Outside Story dungeons, NPC, trigger, puzzle, and building interactions are represented in JSON but not wired to gameplay. In Story dungeons, decor is static (no interaction, no dialogue), only built-in assets are drawn (custom assets made in the Assets tab live in the browser only), and tile movement modifiers / lava damage are not applied.
 - The editor still lacks undo/redo, drag handles, multi-select, and direct file-system writes.
 
 ## Next Improvements
 
 - Add import from uploaded `.map.json` and `.asset.json` files.
 - Add drag placement, resize handles, undo/redo, and richer entity property forms.
-- Draw Story map ground textures and decor objects in the live explorer.
+- Apply tile movement modifiers and damage, and make NPC interactions playable in Story dungeons.
 - Add file-backed save commands or a small local authoring API for development mode.
