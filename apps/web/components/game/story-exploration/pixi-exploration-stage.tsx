@@ -629,7 +629,7 @@ export function PixiExplorationStage({
   const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState<Omit<ExplorationCombatHudState, "skillBar">>({
     dashCooldownSeconds: 0,
-    enemiesRemaining: 0,
+    enemiesRemaining: createInitialEnemies(levelId).length,
     isDefeated: false,
     playerHealth: {
       current: playerMaxHp,
