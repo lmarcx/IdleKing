@@ -6,6 +6,8 @@ import type { StoryState } from "./state.js";
 import type { CanonicalBuildingId } from "../building/types.js";
 import { CANONICAL_BUILDING_IDS } from "../building/progression.js";
 import { applyUnlocks } from "../game/unlocks.js";
+import { applyPlayerXpGain } from "../game/playerXpActions.js";
+import { addQty } from "../resources/types.js";
 
 export type MvpStoryChapterId = "prologue" | "chapter_i_funebre" | "chapter_ii_glaciaire";
 
@@ -69,12 +71,19 @@ export type StoryBossDefinition = Readonly<{
   storyFlagsProduced: readonly string[];
 }>;
 
+/** XP granted by a dungeon completion: player XP and Temple "XP globale" (XP_GLOBAL → WXP). */
+export type DungeonXpReward = Readonly<{
+  playerXp: number;
+  globalXp: number;
+}>;
+
 export type DungeonCompletionResult =
   | Readonly<{
       ok: true;
       firstClear: boolean;
       bossDefeatedId?: string;
       rewards: RewardBundle;
+      xp: DungeonXpReward;
       next: GameState;
     }>
   | Readonly<{
@@ -117,6 +126,44 @@ const COMMON_FIRST_CLEAR_REWARDS: RewardBundle = {
 export const STORY_MIN_WORLD_LEVEL = {
   chapter_ii_glaciaire: 5,
 } as const;
+
+/**
+ * DEFERRED balancing — first-clear XP per dungeon (single source of truth). Replays grant
+ * STORY_REPLAY_XP_RATIO of it. Tuned so that:
+ * - Chapter I first clears reach ~World Level 4; a handful of Chapter I replays reach the
+ *   Chapter II gate (STORY_MIN_WORLD_LEVEL), i.e. the gate asks for some farming, never a grind wall;
+ * - Player Level lands around 5-6 at the end of Chapter I and 10-11 at the end of Chapter II.
+ */
+export const STORY_DUNGEON_FIRST_CLEAR_XP: Readonly<Record<string, DungeonXpReward>> = {
+  prologue_wastelands: { playerXp: 250, globalXp: 300 },
+  funeral_mausoleum: { playerXp: 400, globalXp: 500 },
+  frozen_river: { playerXp: 600, globalXp: 700 },
+  time_vestige: { playerXp: 900, globalXp: 900 },
+  ashen_peak: { playerXp: 2000, globalXp: 1500 },
+  silent_retreat_camp: { playerXp: 2500, globalXp: 2000 },
+  white_fall_tower: { playerXp: 3000, globalXp: 2500 },
+  reflection_cavern: { playerXp: 4500, globalXp: 3500 },
+  arathas_academy: { playerXp: 5500, globalXp: 4500 },
+  royal_abyss: { playerXp: 6500, globalXp: 5000 },
+  frost_source: { playerXp: 9000, globalXp: 7000 },
+};
+
+export const STORY_REPLAY_XP_RATIO = 0.25;
+
+export function getDungeonXpReward(dungeonId: string, firstClear: boolean): DungeonXpReward {
+  const base = STORY_DUNGEON_FIRST_CLEAR_XP[dungeonId] ?? { playerXp: 0, globalXp: 0 };
+  if (firstClear) return base;
+  return {
+    playerXp: Math.floor(base.playerXp * STORY_REPLAY_XP_RATIO),
+    globalXp: Math.floor(base.globalXp * STORY_REPLAY_XP_RATIO),
+  };
+}
+
+function applyDungeonXp(state: GameState, xp: DungeonXpReward): GameState {
+  const withPlayerXp = xp.playerXp > 0 ? applyPlayerXpGain(state, xp.playerXp).next : state;
+  if (xp.globalXp <= 0) return withPlayerXp;
+  return { ...withPlayerXp, resources: addQty(withPlayerXp.resources, "XP_GLOBAL", xp.globalXp) };
+}
 
 export const STORY_CHAPTER_REGISTRY: readonly StoryChapterDefinition[] = [
   {
@@ -599,12 +646,15 @@ export function completeDungeon(
     for (const flag of chapter.storyFlagsProduced) nextStory.completedEvents.add(flag);
   }
 
+  const xp = getDungeonXpReward(dungeon.id, shouldFirstClear);
+
   return {
     ok: true,
     firstClear: shouldFirstClear,
     bossDefeatedId: boss?.id,
     rewards: shouldFirstClear ? dungeon.firstClearRewards : dungeon.replayRewards,
-    next: applyDungeonBuildingUnlocks({ ...rewarded, story: nextStory }, dungeon.id),
+    xp,
+    next: applyDungeonBuildingUnlocks(applyDungeonXp({ ...rewarded, story: nextStory }, xp), dungeon.id),
   };
 }
 
@@ -664,6 +714,9 @@ export function validateStoryProgressionRegistry(
     producedFlags.add(completedDungeon(dungeon.id));
     producedFlags.add(firstClear(dungeon.id));
     validateUnlockConditionShape(dungeon.unlockConditions, `dungeon ${dungeon.id}`);
+    if (dungeons === STORY_DUNGEON_REGISTRY && !STORY_DUNGEON_FIRST_CLEAR_XP[dungeon.id]) {
+      throw new Error(`Dungeon ${dungeon.id} has no first-clear XP entry`);
+    }
     for (const buildingId of dungeon.buildingUnlocks) {
       if (!(CANONICAL_BUILDING_IDS as readonly string[]).includes(buildingId)) {
         throw new Error(`Dungeon ${dungeon.id} unlocks unknown building: ${buildingId}`);

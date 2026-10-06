@@ -655,6 +655,9 @@ export {
   canEnterDungeon,
   completeDungeon,
   applyDungeonBuildingUnlocks,
+  getDungeonXpReward,
+  STORY_DUNGEON_FIRST_CLEAR_XP,
+  STORY_REPLAY_XP_RATIO,
   getBuildingUnlockDungeon,
   reconcileStoryBuildingUnlocks,
   completeStoryEvent,
@@ -734,6 +737,7 @@ export type {
   StoryBossDefinition,
   StoryChapterDefinition,
   StoryDungeonDefinition,
+  DungeonXpReward,
   StoryUnlockRequirementStatus,
   StoryUnlockConditions,
 } from "./story/progressionMvp.js";

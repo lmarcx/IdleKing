@@ -44,6 +44,11 @@ function clampSavedResourceQuantity(value: unknown): number {
   return Math.min(RESOURCE_MAX_STACK, Math.max(0, Math.floor(value)));
 }
 
+function clampSavedXpBank(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.floor(value));
+}
+
 function normalizeResourceStockState(value: unknown): ResourceStock {
   if (!value || typeof value !== "object") return {};
   const allowed = new Set<string>(ALL_RESOURCES);
@@ -51,7 +56,8 @@ function normalizeResourceStockState(value: unknown): ResourceStock {
 
   for (const [resourceId, amount] of Object.entries(value as Record<string, unknown>)) {
     if (!allowed.has(resourceId)) continue;
-    const quantity = clampSavedResourceQuantity(amount);
+    // XP_GLOBAL is the Temple's XP bank, not a stackable resource: it is not capped at 999.
+    const quantity = resourceId === "XP_GLOBAL" ? clampSavedXpBank(amount) : clampSavedResourceQuantity(amount);
     if (quantity > 0) stock[resourceId as keyof ResourceStock] = quantity;
   }
 
