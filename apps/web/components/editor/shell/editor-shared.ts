@@ -41,6 +41,17 @@ export type MarkerViewModel = {
   className: string;
 };
 
+/** Footprint of a collision / trigger drawn under the markers (rooms, gates, walls…). */
+export type AreaViewModel = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
+  className: string;
+};
+
 export const EDITOR_STEPS = [
   "Topographie",
   "Textures",

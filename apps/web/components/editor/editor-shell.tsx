@@ -14,19 +14,30 @@ import { PlaceholderPanel } from "@/components/editor/shell/placeholder-panel";
 import { ProjectTree, type EraOrigin } from "@/components/editor/shell/project-tree";
 import { ResizablePanel } from "@/components/editor/shell/resizable-panel";
 import { StoryDungeonEmptyPanel } from "@/components/editor/shell/story-dungeon-empty-panel";
+import { enemyPatchFromArchetype } from "@/components/editor/shell/story-role-fields";
 import {
   STEP_CATEGORY,
   isPlacementStep,
   type ActiveDocument,
   type EditorMode,
   type EditorTool,
+  type AreaViewModel,
   type MarkerViewModel,
   type PlaceholderDocumentInfo,
   type Selection,
 } from "@/components/editor/shell/editor-shared";
 import { hasDocument, listDocuments, loadDocument, saveDocument, type EditorDocumentIndexEntry } from "@/lib/editor-document-store";
 import { STORY_ERA_GROUPS } from "@/lib/story-era-groups";
-import { getStoryBossDefinition, getStoryDungeonDefinition, type StoryDungeonDefinition } from "@idleking/game-core";
+import {
+  enemies as coreEnemies,
+  getDungeonTheme,
+  getLevelScript,
+  getStoryBossDefinition,
+  getStoryDungeonDefinition,
+  getStoryMapRuntimeErrors,
+  playableMapToDungeonLayout,
+  type StoryDungeonDefinition,
+} from "@idleking/game-core";
 import {
   ASSET_CREATOR_PRESETS,
   GROUND_TEXTURES,
@@ -315,6 +326,7 @@ function buildCanonicalStoryMapExport(map: PlayableMap, dungeonId: string): Play
     y: collision.y,
     width: collision.width,
     height: collision.height,
+    ...(collision.kind !== undefined ? { kind: collision.kind } : {}),
   }));
   const triggers: MapTrigger[] = [...map.triggers].sort(byId).map((trigger) => ({
     id: trigger.id,
@@ -324,6 +336,7 @@ function buildCanonicalStoryMapExport(map: PlayableMap, dungeonId: string): Play
     width: trigger.width,
     height: trigger.height,
     ...(trigger.target !== undefined ? { target: trigger.target } : {}),
+    ...(trigger.story !== undefined ? { story: structuredClone(trigger.story) } : {}),
   }));
   const puzzles = [...map.puzzles].sort(byId).map((puzzle) => ({
     id: puzzle.id,
@@ -434,6 +447,15 @@ export function EditorShell() {
     () => (activeStoryDungeonId ? getStoryDungeonDefinition(activeStoryDungeonId) : undefined),
     [activeStoryDungeonId]
   );
+  // Live check of what the Story runtime would make of this map (same as the promote script).
+  const storyRuntimeErrors = useMemo(() => {
+    if (!activeStoryDungeonId) return [];
+    const layout = playableMapToDungeonLayout(map, activeStoryDungeonId, {
+      theme: getDungeonTheme(activeStoryDungeonId),
+      beatOrder: getLevelScript(activeStoryDungeonId)?.beats.map((beat) => beat.id),
+    });
+    return getStoryMapRuntimeErrors(activeStoryDungeonId, layout);
+  }, [activeStoryDungeonId, map]);
   const activeStoryBoss = useMemo(
     () => (activeStoryDungeon?.bossId ? getStoryBossDefinition(activeStoryDungeon.bossId) : undefined),
     [activeStoryDungeon]
@@ -974,7 +996,7 @@ export function EditorShell() {
     }
 
     if (activeStep === 6) {
-      const entity: MapEnemy = {
+      const baseEnemy: MapEnemy = {
         id: `enemy_${map.enemies.length + 1}`,
         assetId: selectedAsset.id,
         enemyId: selectedAsset.id,
@@ -985,6 +1007,11 @@ export function EditorShell() {
         x: px,
         y: py,
       };
+      // Story dungeons play enemy archetypes: start from the dungeon's first regular archetype.
+      const storyArchetypeId = activeStoryDungeonId
+        ? (coreEnemies.getDungeonEncounter(activeStoryDungeonId)?.groups[0]?.archetypeId ?? "ombre_errante")
+        : undefined;
+      const entity: MapEnemy = storyArchetypeId ? { ...baseEnemy, ...enemyPatchFromArchetype(storyArchetypeId) } : baseEnemy;
       setMap((current) => ({ ...current, enemies: [...current.enemies, entity] }));
       setSelection({ kind: "enemy", id: entity.id });
       return;
@@ -1106,7 +1133,7 @@ export function EditorShell() {
     setSelection(null);
   }
 
-  function patchSelection(patch: Record<string, string | number | boolean | null>) {
+  function patchSelection(patch: Record<string, unknown>) {
     if (!selection) return;
     setMap((current) => ({
       ...current,
@@ -1127,6 +1154,38 @@ export function EditorShell() {
     setAssetDraft(next);
     setSelectedPartId(next.parts[0]?.id ?? "");
   }
+
+  const areas: AreaViewModel[] = [
+    ...map.collisions.map((item) => ({
+      id: `collision:${item.id}`,
+      x: item.x,
+      y: item.y,
+      width: item.width,
+      height: item.height,
+      label: item.kind ?? "",
+      className: "border-zinc-400 bg-zinc-200/15 text-zinc-300",
+    })),
+    ...map.triggers.map((item) => {
+      const role = item.story;
+      const label =
+        role?.kind === "zone"
+          ? `zone ${role.zoneId}${role.spawnOnBeat ? ` · ambush @${role.spawnOnBeat}` : ""}`
+          : role?.kind === "gate"
+            ? `gate · ${role.opensWhen.kind === "zone_cleared" ? `cleared ${role.opensWhen.zoneId}` : `after ${role.opensWhen.beatId}`}`
+            : role?.kind === "beat"
+              ? `beat ${role.beatId}`
+              : item.id;
+      const className =
+        role?.kind === "zone"
+          ? "border-sky-300/70 text-sky-200"
+          : role?.kind === "gate"
+            ? "border-amber-300 bg-amber-300/20 text-amber-100"
+            : role?.kind === "beat"
+              ? "border-violet-300 bg-violet-400/15 text-violet-100"
+              : "border-cyan-200/60 text-cyan-100";
+      return { id: `trigger:${item.id}`, x: item.x, y: item.y, width: item.width, height: item.height, label, className };
+    }),
+  ];
 
   const markers: MarkerViewModel[] = [
     ...map.objects.map((item) => ({ kind: "object" as const, id: item.id, x: item.x, y: item.y, label: item.kind === "nature" ? "N" : "O", className: "border-emerald-300 text-emerald-100" })),
@@ -1206,6 +1265,7 @@ export function EditorShell() {
           {mode === "level" ? (
             <div className="flex min-h-0 flex-1">
               <EditorCanvas
+                areas={areas}
                 isPainting={isPainting}
                 map={map}
                 markers={markers}
@@ -1231,6 +1291,8 @@ export function EditorShell() {
                   onPatchSelection={patchSelection}
                   selectedEntity={selectedEntity}
                   selection={selection}
+                  storyDungeonId={activeStoryDungeonId}
+                  storyRuntimeErrors={storyRuntimeErrors}
                 />
               </ResizablePanel>
             </div>

@@ -17,14 +17,16 @@ import {
 } from "@idleking/game-core";
 import { validatePlayableMap, type PlayableMap, type StoryMapStageResult } from "@idleking/game-core/level-editor";
 
+type StoryPreview = { dungeonId: string; title: string; recommendedPower: number; layout: DungeonLayout };
+
 type LoadState =
   | { status: "loading" }
   | { status: "not-found" }
   | { status: "invalid"; errors: readonly string[] }
-  | { status: "ready"; map: PlayableMap; story?: { dungeonId: string; title: string; layout: DungeonLayout } };
+  | { status: "ready"; map: PlayableMap; story?: StoryPreview };
 
 /** A draft linked to a Story dungeon (map.id = dungeonId) is played by the real Story explorer. */
-function toStoryPreview(map: PlayableMap): { errors: string[]; story?: { dungeonId: string; title: string; layout: DungeonLayout } } {
+function toStoryPreview(map: PlayableMap): { errors: string[]; story?: StoryPreview } {
   const dungeon = getStoryDungeonDefinition(map.id);
   if (!dungeon) return { errors: [] };
   const layout = playableMapToDungeonLayout(map, dungeon.id, {
@@ -32,7 +34,8 @@ function toStoryPreview(map: PlayableMap): { errors: string[]; story?: { dungeon
     beatOrder: getLevelScript(dungeon.id)?.beats.map((beat) => beat.id),
   });
   const errors = getStoryMapRuntimeErrors(dungeon.id, layout);
-  return { errors, story: errors.length === 0 ? { dungeonId: dungeon.id, title: dungeon.title, layout } : undefined };
+  const recommendedPower = (dungeon.unlockConditions.minWorldLevel ?? 1) * 10;
+  return { errors, story: errors.length === 0 ? { dungeonId: dungeon.id, title: dungeon.title, recommendedPower, layout } : undefined };
 }
 
 /**
@@ -132,7 +135,7 @@ export default function LocalStoryMapPreviewPage() {
         <StoryLevelExplorer
           dryRunLayout={state.story.layout}
           dungeonId={state.story.dungeonId}
-          level={{ id: state.story.dungeonId, recommendedPower: 0, title: state.story.title }}
+          level={{ id: state.story.dungeonId, recommendedPower: state.story.recommendedPower, title: state.story.title }}
           returnHref="/editor"
           returnLabel="Retour a l'editeur"
         />

@@ -376,6 +376,8 @@ function StoryLevelRun({
       {isPlaying ? (
         <>
           <CombatHud
+            exitHref={returnHref}
+            exitLabel={returnLabel}
             mode="story"
             playerHealth={combatHud?.playerHealth}
             playerMana={combatHud?.playerMana}

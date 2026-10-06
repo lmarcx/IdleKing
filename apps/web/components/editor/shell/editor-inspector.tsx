@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { type PlayableMap } from "@idleking/game-core/level-editor";
 import { Trash2 } from "lucide-react";
 import { getSelectionLabel, inputClassName, type Selection, type SelectedEntity } from "./editor-shared";
+import { StoryRoleFields } from "./story-role-fields";
 
 export function EditorInspector({
   map,
@@ -14,15 +15,20 @@ export function EditorInspector({
   onPatchSelection,
   selectedEntity,
   selection,
+  storyDungeonId,
+  storyRuntimeErrors,
 }: {
   map: PlayableMap;
   onDeleteSelection: () => void;
   onGridChange: (patch: Partial<PlayableMap["grid"]>) => void;
   onMapIdChange: (id: string) => void;
   onMapNameChange: (name: string) => void;
-  onPatchSelection: (patch: Record<string, string | number | boolean | null>) => void;
+  onPatchSelection: (patch: Record<string, unknown>) => void;
   selectedEntity: SelectedEntity | null;
   selection: Selection | null;
+  /** Set when the map is a Story dungeon: shows the Story fields and the runtime check. */
+  storyDungeonId?: string | null;
+  storyRuntimeErrors?: readonly string[];
 }) {
   return (
     <aside className="h-full min-h-0 overflow-auto border-l border-zinc-800 bg-zinc-950 p-3">
@@ -52,6 +58,21 @@ export function EditorInspector({
             </label>
           </div>
         </div>
+
+        {storyDungeonId ? (
+          <div className="grid gap-1 rounded-md border border-zinc-800 p-3">
+            <h2 className="font-ik-menu text-xs text-zinc-300">Story runtime</h2>
+            {storyRuntimeErrors && storyRuntimeErrors.length > 0 ? (
+              <ul className="grid gap-1 text-xs text-red-300">
+                {storyRuntimeErrors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-emerald-300">Playable as {storyDungeonId}.</p>
+            )}
+          </div>
+        ) : null}
 
         <div className="grid gap-2 rounded-md border border-zinc-800 p-3">
           <div className="flex items-center justify-between">
@@ -119,6 +140,15 @@ export function EditorInspector({
                   />
                   Boss enemy (isBoss — at most one per map)
                 </label>
+              ) : null}
+              {storyDungeonId && selection ? (
+                <StoryRoleFields
+                  dungeonId={storyDungeonId}
+                  map={map}
+                  onPatch={onPatchSelection}
+                  selectedEntity={selectedEntity}
+                  selection={selection}
+                />
               ) : null}
             </div>
           ) : null}

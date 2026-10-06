@@ -2,9 +2,10 @@
 
 import { cn } from "@/lib/utils";
 import { GROUND_TEXTURES, getGroundTexture, getMapTile, getTopographyCellState, type PlayableMap } from "@idleking/game-core/level-editor";
-import { TEXTURE_BACKGROUNDS, type MarkerViewModel, type Selection } from "./editor-shared";
+import { TEXTURE_BACKGROUNDS, type AreaViewModel, type MarkerViewModel, type Selection } from "./editor-shared";
 
 export function EditorCanvas({
+  areas = [],
   isPainting,
   map,
   markers,
@@ -13,6 +14,7 @@ export function EditorCanvas({
   onMarkerClick,
   selection,
 }: {
+  areas?: readonly AreaViewModel[];
   isPainting: boolean;
   map: PlayableMap;
   markers: readonly MarkerViewModel[];
@@ -56,6 +58,15 @@ export function EditorCanvas({
             );
           })}
         </div>
+        {areas.map((area) => (
+          <div
+            className={cn("pointer-events-none absolute border border-dashed", area.className)}
+            key={area.id}
+            style={{ left: area.x, top: area.y, width: area.width, height: area.height }}
+          >
+            <span className="absolute left-1 top-0.5 font-ik-menu text-[0.6rem] uppercase tracking-wide">{area.label}</span>
+          </div>
+        ))}
         {markers.map((marker) => (
           <button
             className={cn(
