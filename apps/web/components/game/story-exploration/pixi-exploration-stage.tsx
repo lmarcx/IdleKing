@@ -13,6 +13,7 @@ import {
 } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { createGateGraphics, createObstacleGraphics } from "@/components/game/shared/geometric-dungeon";
+import { createEnemySilhouetteGraphics } from "@/components/game/shared/geometric-enemies";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import {
@@ -536,7 +537,8 @@ function drawWorld({
 function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
   const container = new PIXI.Container();
   const shadow = createShadow(enemy.radius * 0.95, enemy.radius * 0.34, 0.45);
-  const body = createFigureGraphics("hostile");
+  // Archetype enemies get their family silhouette; legacy grunts keep the generic hostile figure.
+  const body = enemy.archetypeId ? createEnemySilhouetteGraphics(enemy.silhouette, enemy.tier) : createFigureGraphics("hostile");
   const hpBar = new PIXI.Graphics();
   const baseScale = figureScaleFor(enemy.radius * 3.2);
 
