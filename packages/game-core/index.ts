@@ -654,6 +654,9 @@ export {
 export {
   canEnterDungeon,
   completeDungeon,
+  applyDungeonBuildingUnlocks,
+  getBuildingUnlockDungeon,
+  reconcileStoryBuildingUnlocks,
   completeStoryEvent,
   applyBossFirstClearSpecialRewards,
   getAvailableChapters,

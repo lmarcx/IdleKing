@@ -61,8 +61,11 @@ const STORY_FLAG_LABELS: Record<string, string> = {
   frozen_river_cleared: "Rive Figée terminée",
   funeral_mausoleum_cleared: "Mausolée Funèbre terminé",
   prologue_complete: "Prologue terminé",
-  reflection_cavern_cleared: "Caverne aux Reflets terminée",
+  reflection_cavern_cleared: "Caverne aux Chants terminée",
   royal_abyss_cleared: "Gouffre Royal terminé",
+  silent_retreat_camp_cleared: "Camp de la Retraite Silencieuse terminé",
+  time_vestige_cleared: "Vestige du Temps terminé",
+  white_fall_tower_cleared: "Tour de la Chute Blanche terminée",
 };
 
 type TimeGateSection = "story" | "duel";

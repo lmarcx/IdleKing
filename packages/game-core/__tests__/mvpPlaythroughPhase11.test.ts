@@ -26,11 +26,14 @@ import {
 const MVP_PLAYTHROUGH_DUNGEONS = [
   "prologue_wastelands",
   "funeral_mausoleum",
-  "ashen_peak",
   "frozen_river",
+  "time_vestige",
+  "ashen_peak",
+  "silent_retreat_camp",
+  "white_fall_tower",
   "reflection_cavern",
-  "royal_abyss",
   "arathas_academy",
+  "royal_abyss",
   "frost_source",
 ] as const;
 
@@ -124,6 +127,8 @@ test("full MVP playthrough succeeds from Prologue to Chapter II end", () => {
 
   assert.ok(getAvailableChapters(state).some((chapter) => chapter.chapterId === "chapter_i_funebre"));
   state = completeFirstClear(state, "funeral_mausoleum");
+  state = completeFirstClear(state, "frozen_river");
+  state = completeFirstClear(state, "time_vestige");
   state = completeFirstClear(state, "ashen_peak");
   assertBossDefeated(state, "dragon_shadow");
   assert.equal(state.story.completedEvents.has("chapter_i_complete"), true);
@@ -142,10 +147,11 @@ test("full MVP playthrough succeeds from Prologue to Chapter II end", () => {
 
   assert.ok(getAvailableChapters(state).some((chapter) => chapter.chapterId === "chapter_ii_glaciaire"));
   for (const dungeonId of [
-    "frozen_river",
+    "silent_retreat_camp",
+    "white_fall_tower",
     "reflection_cavern",
-    "royal_abyss",
     "arathas_academy",
+    "royal_abyss",
     "frost_source",
   ] as const) {
     state = completeFirstClear(state, dungeonId);
@@ -165,11 +171,14 @@ test("MVP playthrough graph stays scoped to active Prologue through Chapter II c
   assert.deepEqual(MVP_PLAYTHROUGH_DUNGEONS, [
     "prologue_wastelands",
     "funeral_mausoleum",
-    "ashen_peak",
     "frozen_river",
+    "time_vestige",
+    "ashen_peak",
+    "silent_retreat_camp",
+    "white_fall_tower",
     "reflection_cavern",
-    "royal_abyss",
     "arathas_academy",
+    "royal_abyss",
     "frost_source",
   ]);
   for (const dungeonId of MVP_PLAYTHROUGH_DUNGEONS) {
@@ -183,6 +192,8 @@ test("Story gates ignore POWER and PlayerLevel during the MVP playthrough", () =
   let state = buildTimeGateWithRealHelper(createInitialGameState());
   state = completeFirstClear(state, "prologue_wastelands");
   state = completeFirstClear(state, "funeral_mausoleum");
+  state = completeFirstClear(state, "frozen_river");
+  state = completeFirstClear(state, "time_vestige");
   state = completeFirstClear(state, "ashen_peak");
   state = withWorldLevelFixture(state, 5);
   state = unlockEraAtTimeGate(state, "era_glaciaire").next;
@@ -198,5 +209,5 @@ test("Story gates ignore POWER and PlayerLevel during the MVP playthrough", () =
     equipmentPower: 0,
   } as GameState & { power: number; equipmentPower: number };
 
-  assert.equal(canEnterDungeon(noisyState, "frozen_river"), true);
+  assert.equal(canEnterDungeon(noisyState, "silent_retreat_camp"), true);
 });

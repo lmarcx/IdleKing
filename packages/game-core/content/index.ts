@@ -60,6 +60,7 @@ import {
 } from "../specialItems/index.js";
 import {
   completeDungeon,
+  getStoryChapterDefinition,
   STORY_BOSS_REGISTRY,
   STORY_CHAPTER_REGISTRY,
   STORY_DUNGEON_REGISTRY,
@@ -474,6 +475,16 @@ function validateAntiScope(
   }
 }
 
+function chapterDungeonIds(chapterId: string): readonly string[] {
+  return getStoryChapterDefinition(chapterId)?.dungeonIds ?? [];
+}
+
+function chapterDungeonIdsBefore(chapterId: string, dungeonId: string): readonly string[] {
+  const ids = chapterDungeonIds(chapterId);
+  const index = ids.indexOf(dungeonId);
+  return index < 0 ? ids : ids.slice(0, index);
+}
+
 function validateStoryFirstClearAndSpecialRewards(errors: string[]): void {
   let state = createInitialGameState();
   const prologue = completeDungeon(state, "prologue_wastelands");
@@ -501,7 +512,9 @@ function validateStoryFirstClearAndSpecialRewards(errors: string[]): void {
     errors.push("Replay must not grant unique boss resource again");
   }
 
-  state = completeDungeon(state, "funeral_mausoleum").next;
+  for (const dungeonId of chapterDungeonIdsBefore("chapter_i_funebre", "ashen_peak")) {
+    state = completeDungeon(state, dungeonId).next;
+  }
   const dragon = completeDungeon(state, "ashen_peak");
   if (!dragon.ok) {
     errors.push(`dragon_shadow first clear failed: ${dragon.reason}`);
@@ -518,7 +531,7 @@ function validateStoryFirstClearAndSpecialRewards(errors: string[]): void {
   if (state.specialItems.fragmentDuTemps < 1) errors.push("dragon_shadow first clear must grant Fragment du Temps");
   if (!state.story.completedEvents.has("chapter_i_complete")) errors.push("dragon_shadow path must produce chapter_i_complete");
 
-  for (const dungeonId of ["frozen_river", "reflection_cavern", "royal_abyss", "arathas_academy", "frost_source"]) {
+  for (const dungeonId of chapterDungeonIds("chapter_ii_glaciaire")) {
     const result = completeDungeon(state, dungeonId);
     if (!result.ok) {
       errors.push(`${dungeonId} first clear failed: ${result.reason}`);
@@ -684,7 +697,10 @@ function validateStoryTimeGateSoftLockGuards(): void {
   if (!replay.ok || replay.firstClear || getCurrencyBalance(replay.next.wallet, "BOSS_TOKEN") !== 1) {
     throw new Error("Replay must stay possible without duplicating unique rewards");
   }
-  state = completeDungeon(prologue.next, "funeral_mausoleum").next;
+  state = prologue.next;
+  for (const dungeonId of chapterDungeonIdsBefore("chapter_i_funebre", "ashen_peak")) {
+    state = completeDungeon(state, dungeonId).next;
+  }
   const dragon = completeDungeon(state, "ashen_peak");
   if (!dragon.ok || !dragon.next.specialItems.kaleidoscopeOwned || dragon.next.specialItems.fragmentDuTemps !== 1) {
     throw new Error("dragon_shadow first clear must grant the Kaleidoscope and one Fragment du Temps");
@@ -698,7 +714,7 @@ function validateStoryTimeGateSoftLockGuards(): void {
     throw new Error("Time Gate must consume Fragment and unlock era_glaciaire");
   }
   state = unlockedEra.next;
-  for (const dungeonId of ["frozen_river", "reflection_cavern", "royal_abyss", "arathas_academy", "frost_source"] as const) {
+  for (const dungeonId of chapterDungeonIds("chapter_ii_glaciaire")) {
     const result = completeDungeon(state, dungeonId);
     if (!result.ok) throw new Error(`Chapter II path blocked after Time Gate: ${dungeonId}`);
     state = result.next;

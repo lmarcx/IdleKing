@@ -18,6 +18,7 @@ import { wxpNext } from "@idleking/game-core/progression";
 import {
   FORGE_RECIPES,
   buildBuilding,
+  getBuildingUnlockDungeon,
   convertTempleGlobalXp,
   forgeCraft,
   getBuildCost,
@@ -584,8 +585,11 @@ function getBuildingStatusLabel(building: { unlocked: boolean; built: boolean; s
   }
 }
 
-function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, canBuild: boolean) {
-  if (!building.unlocked) return "Verrouillé";
+function getBuildActionLabel(building: { unlocked: boolean; built: boolean }, canBuild: boolean, buildingId?: string) {
+  if (!building.unlocked) {
+    const source = buildingId ? getBuildingUnlockDungeon(buildingId) : undefined;
+    return source ? `Débloqué par : ${source.title}` : "Verrouillé";
+  }
   if (building.built) return "Construit";
   if (!canBuild) return "Ressources insuffisantes";
   return "Construire";
@@ -1774,7 +1778,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
                     <BuildingBuildSection
                       canBuild={canBuildForum}
                       cost={FORUM_BUILD_COST}
-                      label={getBuildActionLabel(effectiveForum, canBuildForum)}
+                      label={getBuildActionLabel(effectiveForum, canBuildForum, "FORUM")}
                       onBuild={() => handleBuildCoreBuilding("FORUM")}
                       resources={state.resources}
                     />
@@ -1908,7 +1912,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               <BuildingBuildSection
                 canBuild={canBuildTemple}
                 cost={TEMPLE_BUILD_COST}
-                label={getBuildActionLabel(effectiveTemple, canBuildTemple)}
+                label={getBuildActionLabel(effectiveTemple, canBuildTemple, "TEMPLE")}
                 onBuild={() => handleBuildCoreBuilding("TEMPLE")}
                 resources={state.resources}
               />
@@ -1963,7 +1967,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               <BuildingBuildSection
                 canBuild={canBuildForge}
                 cost={FORGE_BUILD_COST}
-                label={getBuildActionLabel(effectiveForge, canBuildForge)}
+                label={getBuildActionLabel(effectiveForge, canBuildForge, "FORGE")}
                 onBuild={() => handleBuildCoreBuilding("FORGE")}
                 resources={state.resources}
               />
@@ -2059,7 +2063,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               <BuildingBuildSection
                 canBuild={canBuildBank}
                 cost={BANK_BUILD_COST}
-                label={getBuildActionLabel(effectiveBank, canBuildBank)}
+                label={getBuildActionLabel(effectiveBank, canBuildBank, "BANK")}
                 onBuild={() => handleBuildCoreBuilding("BANK")}
                 resources={state.resources}
               />
@@ -2102,7 +2106,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               <BuildingBuildSection
                 canBuild={canBuildMarket}
                 cost={MARKET_BUILD_COST}
-                label={getBuildActionLabel(effectiveMarket, canBuildMarket)}
+                label={getBuildActionLabel(effectiveMarket, canBuildMarket, "MARKET")}
                 onBuild={() => handleBuildCoreBuilding("MARKET")}
                 resources={state.resources}
               />
@@ -2146,7 +2150,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               <BuildingBuildSection
                 canBuild={canBuildFarm}
                 cost={FARM_BUILD_COST}
-                label={getBuildActionLabel(effectiveFarm, canBuildFarm)}
+                label={getBuildActionLabel(effectiveFarm, canBuildFarm, "FARM")}
                 onBuild={handleBuildFarm}
                 resources={state.resources}
               />

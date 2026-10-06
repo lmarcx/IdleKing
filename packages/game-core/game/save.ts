@@ -11,6 +11,7 @@ import { normalizeMiniGameRuntimeState } from "../minigames/index.js";
 import { normalizeBankState } from "../bank/index.js";
 import { normalizeSpecialItemsState } from "../specialItems/index.js";
 import { normalizeEffectSetsState } from "../effectSets/index.js";
+import { reconcileStoryBuildingUnlocks } from "../story/progressionMvp.js";
 import { ALL_RESOURCES, type ResourceStock } from "../resources/types.js";
 import { RESOURCE_MAX_STACK } from "../resources/index.js";
 
@@ -167,7 +168,7 @@ function reviveGameState(state: GameState, nowMs = Date.now()): GameState {
     },
   };
 
-  return ensureMvpStarterRing(revived);
+  return ensureMvpStarterRing(reconcileStoryBuildingUnlocks(revived));
 }
 
 /**

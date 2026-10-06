@@ -196,6 +196,8 @@ function runMvpPlaythroughFromNormalizedState(state: GameState): GameState {
   };
   next = completeFirstClear(next, "prologue_wastelands");
   next = completeFirstClear(next, "funeral_mausoleum");
+  next = completeFirstClear(next, "frozen_river");
+  next = completeFirstClear(next, "time_vestige");
   next = completeFirstClear(next, "ashen_peak");
   next = {
     ...next,
@@ -208,7 +210,7 @@ function runMvpPlaythroughFromNormalizedState(state: GameState): GameState {
   assert.equal(era.ok, true);
   if (!era.ok) return next;
   next = era.next;
-  for (const dungeonId of ["frozen_river", "reflection_cavern", "royal_abyss", "arathas_academy", "frost_source"] as const) {
+  for (const dungeonId of ["silent_retreat_camp", "white_fall_tower", "reflection_cavern", "arathas_academy", "royal_abyss", "frost_source"] as const) {
     next = completeFirstClear(next, dungeonId);
   }
   return next;

@@ -61,16 +61,17 @@ test("Prologue is available at the start and Chapter I is locked until Prologue 
 test("Chapter II is locked until Chapter I flags and required WorldLevel are reached", () => {
   let state = createInitialGameState();
   state = completeDungeon(state, "prologue_wastelands").next;
-  state = completeDungeon(state, "funeral_mausoleum").next;
-  state = completeDungeon(state, "ashen_peak").next;
+  for (const dungeonId of ["funeral_mausoleum", "frozen_river", "time_vestige", "ashen_peak"]) {
+    state = completeDungeon(state, dungeonId).next;
+  }
 
   assert.equal(state.story.completedEvents.has("chapter_i_complete"), true);
   assert.equal(getAvailableChapters(state).some((chapter) => chapter.chapterId === "chapter_ii_glaciaire"), false);
-  assert.equal(canEnterDungeon(state, "frozen_river"), false);
+  assert.equal(canEnterDungeon(state, "silent_retreat_camp"), false);
 
   const worldReady = withWorldLevel(state, 5);
   assert.equal(getAvailableChapters(worldReady).some((chapter) => chapter.chapterId === "chapter_ii_glaciaire"), true);
-  assert.equal(canEnterDungeon(worldReady, "frozen_river"), true);
+  assert.equal(canEnterDungeon(worldReady, "silent_retreat_camp"), true);
 });
 
 test("canEnterDungeon fails on missing storyFlag and insufficient WorldLevel only", () => {
@@ -78,10 +79,10 @@ test("canEnterDungeon fails on missing storyFlag and insufficient WorldLevel onl
   assert.equal(canEnterDungeon(state, "funeral_mausoleum"), false);
 
   const missingWorldLevel = withStoryFlags(state, ["chapter_i_complete"]);
-  assert.equal(canEnterDungeon(missingWorldLevel, "frozen_river"), false);
+  assert.equal(canEnterDungeon(missingWorldLevel, "silent_retreat_camp"), false);
 
   const storyAndWorldReady = withWorldLevel(missingWorldLevel, 5);
-  assert.equal(canEnterDungeon(storyAndWorldReady, "frozen_river"), true);
+  assert.equal(canEnterDungeon(storyAndWorldReady, "silent_retreat_camp"), true);
 });
 
 test("canEnterDungeon does not gate on POWER or PlayerLevel", () => {
@@ -96,8 +97,8 @@ test("canEnterDungeon does not gate on POWER or PlayerLevel", () => {
     equipmentPower: 0,
   } as GameState & { power: number; equipmentPower: number };
 
-  assert.equal(canEnterDungeon(state, "frozen_river"), true);
-  assert.equal(getAvailableDungeons(state).some((dungeon) => dungeon.id === "frozen_river"), true);
+  assert.equal(canEnterDungeon(state, "silent_retreat_camp"), true);
+  assert.equal(getAvailableDungeons(state).some((dungeon) => dungeon.id === "silent_retreat_camp"), true);
 });
 
 test("first clear grants unique rewards and replay removes unique rewards", () => {
@@ -133,7 +134,7 @@ test("Gouffre Royal is a boss dungeon with Seigneur de la Pluie Dechu", () => {
   const dungeon = getStoryDungeonDefinition("royal_abyss");
   assert.ok(dungeon);
   assert.equal(dungeon.title, "Gouffre Royal");
-  assert.equal(dungeon.era, "era_funebre");
+  assert.equal(dungeon.era, "era_glaciaire");
   assert.equal(dungeon.chapterId, "chapter_ii_glaciaire");
   assert.equal(dungeon.type, "boss");
   assert.equal(dungeon.replayable, true);
@@ -154,7 +155,7 @@ test("story dungeon lock reasons expose missing Story and WorldLevel gates for U
     ["worldLevel", "storyFlag"],
   );
   assert.ok(reasons.some((reason) => reason.kind === "worldLevel" && reason.required === 5 && reason.current === 1));
-  assert.ok(reasons.some((reason) => reason.kind === "storyFlag" && reason.flag === "reflection_cavern_cleared"));
+  assert.ok(reasons.some((reason) => reason.kind === "storyFlag" && reason.flag === "arathas_academy_cleared"));
 });
 
 test("Allaeva has two phases in the MVP boss registry", () => {

@@ -75,9 +75,9 @@ test("canonical building migration fills status, levels, and new building placeh
 
     assert.equal(loaded.state.buildings.forum.level, 3);
     assert.equal(loaded.state.buildings.forum.status, "built");
-    assert.equal(loaded.state.buildings.market.status, "unlocked");
+    assert.equal(loaded.state.buildings.market.status, "locked");
     assert.equal(loaded.state.buildings.worldGate.status, "unlocked");
-    assert.equal(loaded.state.buildings.bank.status, "unlocked");
+    assert.equal(loaded.state.buildings.bank.status, "locked");
   } finally {
     Date.now = previousDateNow;
     globalThis.localStorage = previousLocalStorage;
