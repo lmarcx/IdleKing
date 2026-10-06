@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AvailableEquipmentPanel } from "@/components/game/character/available-equipment-panel";
 import { CharacterStatsPanel } from "@/components/game/character/character-stats-panel";
 import { EquipmentDoll } from "@/components/game/character/equipment-doll";
-import { FAKE_EQUIPMENT } from "@/components/game/character/fake-equipment";
 import type {
   CharacterEquipment,
   CharacterStat,
@@ -32,14 +31,6 @@ type EquipmentMetadata = {
   value?: number;
 };
 
-const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipment["rarity"], ItemRarity> = {
-  common: "COMMON",
-  uncommon: "UNCOMMON",
-  rare: "RARE",
-  epic: "EPIC",
-  legendary: "LEGENDARY",
-};
-
 const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]> = {
   COMMON: "common",
   UNCOMMON: "uncommon",
@@ -47,17 +38,6 @@ const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]>
   EPIC: "epic",
   LEGENDARY: "legendary",
 };
-
-function getFixturePower(item: CharacterEquipment): number | undefined {
-  if (item.stats.power !== undefined) return item.stats.power;
-
-  const attack = item.stats.atk ?? 0;
-  const defense = item.stats.def ?? 0;
-  const hp = item.stats.hp ?? 0;
-  const power = Math.round(attack * 2 + defense * 1.5 + hp * 0.2);
-
-  return power > 0 ? power : undefined;
-}
 
 function toCoreEquipmentSlot(slot: CharacterEquipment["slot"]): EquipmentSlot {
   if (slot === "weapon") return "main_hand";
@@ -70,41 +50,6 @@ function toCharacterEquipmentSlot(slot: EquipmentSlot): EquipmentSlotId {
   if (slot === "off_hand") return "offhand";
   return slot as EquipmentSlotId;
 }
-
-const DEV_EQUIPMENT_FIXTURES: Array<EquipmentItem & EquipmentMetadata> = FAKE_EQUIPMENT.map((item) => ({
-  affixes: [],
-  baseItemId: item.id,
-  baseStats: {
-    hp: item.stats.hp,
-    attack: item.stats.atk,
-    defense: item.stats.def,
-    power: getFixturePower(item),
-  },
-  description: item.description,
-  icon: item.icon,
-  id: item.id,
-  ilvl: item.itemLevel,
-  instanceId: item.id,
-  itemLevel: item.itemLevel,
-  kind: "equipment",
-  name: item.name,
-  rarity: CHARACTER_TO_CORE_RARITY[item.rarity],
-  rolledStats: {
-    hp: item.stats.hp,
-    attack: item.stats.atk,
-    defense: item.stats.def,
-    power: getFixturePower(item),
-  },
-  slot: toCoreEquipmentSlot(item.slot),
-  upgradeLevel: 0,
-  stats: {
-    hp: item.stats.hp,
-    attack: item.stats.atk,
-    defense: item.stats.def,
-    power: getFixturePower(item),
-  },
-  value: item.value,
-}));
 
 function getCharacterRarity(item: EquipmentItem): CharacterEquipment["rarity"] {
   return item.rarity ? CORE_TO_CHARACTER_RARITY[item.rarity] : "common";
@@ -136,15 +81,9 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
   };
 }
 
-function hasEquipmentItems(items: unknown[]) {
-  return items.some((item) => normalizeEquipmentItem(item));
-}
-
 export function CharacterView() {
   const { openOverlay } = useGameHudOverlay();
   const state = useGameStore((s) => s.state);
-  const hydrated = useGameStore((s) => s.hydrated);
-  const dispatch = useGameStore((s) => s.dispatch);
   const equipPlayerItem = useGameStore((s) => s.equipPlayerItem);
   const equipPlayerRing = useGameStore((s) => s.equipPlayerRing);
   const unequipPlayerItem = useGameStore((s) => s.unequipPlayerItem);
@@ -180,22 +119,6 @@ export function CharacterView() {
     () => ringSlotIds.map((itemId) => (itemId ? equippedById.get(itemId) ?? null : null)),
     [equippedById, ringSlotIds],
   );
-
-  useEffect(() => {
-    if (!hydrated || process.env.NODE_ENV === "production") return;
-    if (hasEquipmentItems(state.inventory.items)) return;
-
-    dispatch((current) => {
-      if (hasEquipmentItems(current.inventory.items)) return current;
-
-      return {
-        ...current,
-        inventory: {
-          items: [...current.inventory.items, ...DEV_EQUIPMENT_FIXTURES],
-        },
-      };
-    });
-  }, [dispatch, hydrated, state.inventory.items]);
 
   const stats = useMemo<CharacterStat[]>(
     () => [
