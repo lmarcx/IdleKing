@@ -1,7 +1,11 @@
-import type { BossDef } from "./types.js";
+import type { BossDef } from "../combat/types.js";
 import { CRIT_DAMAGE_DEFAULT } from "../power/constants.js";
 
-export const BOSSES: Record<string, BossDef> = {
+/**
+ * Expedition-only bosses (pre-Freeze idle simulator). Not part of the Story roster — the canon
+ * enemies and bosses live in enemies/ and story/progressionMvp. Expeditions are OUT of the MVP.
+ */
+export const EXPEDITION_BOSSES: Record<string, BossDef> = {
   // ----------------------------
   // VOLCANIC (Boss 1-2) — FIRE
   // ----------------------------
