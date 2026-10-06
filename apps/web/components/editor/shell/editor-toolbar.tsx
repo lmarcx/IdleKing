@@ -1,0 +1,267 @@
+"use client";
+
+import { useRef } from "react";
+import {
+  Download,
+  Eraser,
+  FileCheck2,
+  FileJson,
+  FolderOpen,
+  Grid2X2,
+  MousePointer2,
+  Paintbrush,
+  Plus,
+  Save,
+  Shapes,
+  Upload,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { ActiveDocument, EditorMode, EditorTool } from "./editor-shared";
+
+const TOOLS = ["brush", "eraser", "select"] as const;
+const MODES: readonly { id: EditorMode; label: string }[] = [
+  { id: "level", label: "Level" },
+  { id: "assets", label: "Assets" },
+  { id: "kingdom", label: "Kingdom" },
+];
+
+function HiddenFileInput({ accept, label, onFile }: { accept: string; label: string; onFile: (file: File) => void }) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  return (
+    <>
+      <Button onClick={() => inputRef.current?.click()} size="sm" variant="outline">
+        <Upload className="mr-2 h-4 w-4" /> {label}
+      </Button>
+      <input
+        accept={accept}
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onFile(file);
+          event.target.value = "";
+        }}
+        ref={inputRef}
+        type="file"
+      />
+    </>
+  );
+}
+
+export function EditorToolbar({
+  activeDocument,
+  isStoryDungeonPreview,
+  lastSaveMessage,
+  mode,
+  onExportCanonicalKingdomStage,
+  onExportCanonicalStoryMap,
+  onExportKingdomStage,
+  onExportMap,
+  onImportAsset,
+  onImportKingdomStage,
+  onImportMap,
+  onLoadAssets,
+  onLoadKingdomStage,
+  onLoadMap,
+  onModeChange,
+  onNewAsset,
+  onNewMap,
+  onPlaytest,
+  onPlaytestKingdomStage,
+  onSaveAsset,
+  onSaveKingdomStage,
+  onSaveMap,
+  onToolChange,
+  tool,
+}: {
+  activeDocument: ActiveDocument;
+  isStoryDungeonPreview: boolean;
+  lastSaveMessage: string;
+  mode: EditorMode;
+  onExportCanonicalKingdomStage: () => void;
+  onExportCanonicalStoryMap: () => void;
+  onExportKingdomStage: () => void;
+  onExportMap: () => void;
+  onImportAsset: (file: File) => void;
+  onImportKingdomStage: (file: File) => void;
+  onImportMap: (file: File) => void;
+  onLoadAssets: () => void;
+  onLoadKingdomStage: () => void;
+  onLoadMap: () => void;
+  onModeChange: (mode: EditorMode) => void;
+  onNewAsset: () => void;
+  onNewMap: () => void;
+  onPlaytest: () => void;
+  onPlaytestKingdomStage: () => void;
+  onSaveAsset: () => void;
+  onSaveKingdomStage: () => void;
+  onSaveMap: () => void;
+  onToolChange: (tool: EditorTool) => void;
+  tool: EditorTool;
+}) {
+  return (
+    <header className="flex flex-wrap items-center gap-2 border-b border-zinc-800 bg-black px-3 py-3">
+      <div className="flex gap-1 rounded-md border border-zinc-800 p-0.5">
+        {MODES.map((item) => (
+          <button
+            aria-pressed={mode === item.id}
+            className={cn(
+              "rounded px-3 py-1.5 font-ik-menu text-xs",
+              mode === item.id ? "bg-zinc-100 text-zinc-950" : "text-zinc-400 hover:text-zinc-100"
+            )}
+            key={item.id}
+            onClick={() => onModeChange(item.id)}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className="rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 font-ik-body text-[0.68rem] text-zinc-400"
+        title={activeDocument.note ?? activeDocument.status}
+      >
+        <span className="text-zinc-200">Editing: {activeDocument.title}</span>
+        <span className="mx-1.5 text-zinc-700">·</span>
+        {activeDocument.status}
+      </div>
+
+      <div className="mx-1 h-6 w-px bg-zinc-800" />
+
+      {mode === "level" ? (
+        <>
+          <Button onClick={onNewMap} size="sm" variant="outline">
+            <Plus className="mr-2 h-4 w-4" /> New Map
+          </Button>
+          <Button onClick={onSaveMap} size="sm" variant="outline">
+            <Save className="mr-2 h-4 w-4" /> Save Map
+          </Button>
+          <Button onClick={onLoadMap} size="sm" variant="outline">
+            <FolderOpen className="mr-2 h-4 w-4" /> Load Map
+          </Button>
+          <Button onClick={onExportMap} size="sm" variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Export JSON
+          </Button>
+          <HiddenFileInput accept=".json,.map.json" label="Import Map" onFile={onImportMap} />
+          <Button
+            onClick={onPlaytest}
+            size="sm"
+            title={
+              isStoryDungeonPreview
+                ? "Saves this draft locally, then launches a dry-run StoryMapStage preview — no progression, no rewards, no completeDungeon."
+                : activeDocument.id === "test_map_01"
+                  ? "Launches the canon test_map_01 route."
+                  : "Saves this draft locally, then launches it at /game/custom-map/local/…"
+            }
+            variant="outline"
+          >
+            <Grid2X2 className="mr-2 h-4 w-4" />
+            {isStoryDungeonPreview ? "Play/Test Story Map — dry run" : activeDocument.id === "test_map_01" ? "Play/Test test_map_01" : `Play/Test ${activeDocument.id}`}
+          </Button>
+          {isStoryDungeonPreview ? (
+            <Button
+              onClick={onExportCanonicalStoryMap}
+              size="sm"
+              title={
+                "Downloads <dungeonId>.generated.json — a validated, deterministically-ordered " +
+                "snapshot ready for manual review. This does NOT update the live Story route or the " +
+                "repo by itself. To promote: 1) review the file, 2) run " +
+                "node scripts/story-map-promote.mjs <path> (dry run), 3) re-run with --apply once " +
+                "satisfied, 4) run the game-core tests, 5) commit."
+              }
+              variant="outline"
+            >
+              <FileCheck2 className="mr-2 h-4 w-4" />
+              Export Canonical Story Map
+            </Button>
+          ) : null}
+        </>
+      ) : mode === "assets" ? (
+        <>
+          <Button onClick={onSaveAsset} size="sm" variant="outline">
+            <FileJson className="mr-2 h-4 w-4" /> Save Asset
+          </Button>
+          <Button onClick={onLoadAssets} size="sm" variant="ghost">
+            Load Assets
+          </Button>
+          <HiddenFileInput accept=".json,.asset.json" label="Import Asset" onFile={onImportAsset} />
+        </>
+      ) : mode === "kingdom" ? (
+        <>
+          <Button onClick={onSaveKingdomStage} size="sm" variant="outline">
+            <Save className="mr-2 h-4 w-4" /> Save Kingdom Stage
+          </Button>
+          <Button onClick={onLoadKingdomStage} size="sm" variant="outline">
+            <FolderOpen className="mr-2 h-4 w-4" /> Load Kingdom Stage
+          </Button>
+          <Button onClick={onExportKingdomStage} size="sm" variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Export JSON
+          </Button>
+          <HiddenFileInput accept=".json,.kingdom.json" label="Import Kingdom" onFile={onImportKingdomStage} />
+          <Button
+            onClick={onPlaytestKingdomStage}
+            size="sm"
+            title="Saves this Kingdom Stage locally, then opens the Play/Test preview at /game/kingdom/preview."
+            variant="outline"
+          >
+            <Grid2X2 className="mr-2 h-4 w-4" />
+            Play/Test Kingdom Stage
+          </Button>
+          <Button
+            onClick={onExportCanonicalKingdomStage}
+            size="sm"
+            title={
+              "Downloads kingdom-stage.generated.json — a validated, deterministically-ordered " +
+              "snapshot ready for manual review. This does NOT update /game/kingdom or the repo by " +
+              "itself. To promote: 1) review the file, 2) replace the data in " +
+              "packages/game-core/content/kingdom/kingdom-stage.ts with it (e.g. via " +
+              "scripts/kingdom-stage-promote.mjs --apply), 3) run the game-core tests, 4) commit."
+            }
+            variant="outline"
+          >
+            <FileCheck2 className="mr-2 h-4 w-4" />
+            Export Canonical Kingdom Stage
+          </Button>
+        </>
+      ) : (
+        <span className="font-ik-menu text-xs uppercase tracking-wide text-zinc-600">
+          Nothing to save — this section is a placeholder
+        </span>
+      )}
+
+      {mode === "level" || mode === "assets" ? (
+        <Button onClick={onNewAsset} size="sm" variant="outline">
+          <Shapes className="mr-2 h-4 w-4" /> New Asset
+        </Button>
+      ) : null}
+
+      <div className="ml-auto flex items-center gap-3">
+        {mode === "level" ? (
+          <div className="flex gap-1">
+            {TOOLS.map((item) => {
+              const Icon = item === "brush" ? Paintbrush : item === "eraser" ? Eraser : MousePointer2;
+              return (
+                <button
+                  aria-label={item}
+                  aria-pressed={tool === item}
+                  className={cn(
+                    "h-8 rounded-md border px-2.5",
+                    tool === item ? "border-zinc-100 bg-zinc-100 text-zinc-950" : "border-zinc-800 bg-black text-zinc-400"
+                  )}
+                  key={item}
+                  onClick={() => onToolChange(item)}
+                  type="button"
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        <span className="text-xs text-zinc-500">{lastSaveMessage}</span>
+      </div>
+    </header>
+  );
+}

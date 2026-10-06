@@ -1,0 +1,47 @@
+{
+  "id": "villager_simple_01",
+  "name": "Simple NPC 01",
+  "category": "characters",
+  "style": "minimal-geometric",
+  "parts": [
+    {
+      "id": "body",
+      "shape": "triangle",
+      "x": 24,
+      "y": 30,
+      "width": 32,
+      "height": 42,
+      "fill": "#1b1b1b",
+      "stroke": "#d7d7d7",
+      "strokeWidth": 2,
+      "opacity": 1,
+      "rotation": 180,
+      "layer": 1
+    },
+    {
+      "id": "head",
+      "shape": "circle",
+      "x": 24,
+      "y": 14,
+      "radius": 12,
+      "fill": "#242424",
+      "stroke": "#f1f1f1",
+      "strokeWidth": 2,
+      "opacity": 1,
+      "rotation": 0,
+      "layer": 2
+    }
+  ],
+  "defaultCollision": {
+    "type": "circle",
+    "x": 24,
+    "y": 50,
+    "radius": 16
+  },
+  "defaultInteraction": {
+    "type": "dialogue",
+    "target": "npc_intro",
+    "label": "Talk"
+  },
+  "tags": ["npc", "character"]
+}

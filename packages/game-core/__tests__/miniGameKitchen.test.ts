@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { withBuiltBuildings } from "./support/fixtures.js";
 import { loadGameWithReport } from "../game/save.js";
 import {
   finalizeKitchenRun,
@@ -13,15 +14,14 @@ import {
 import { getQty } from "../resources/types.js";
 
 function createKitchenReadyState() {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   return {
     ...state,
     resources: {
       ...state.resources,
-      MEAT: 10,
-      WATER: 10,
-      CARROT: 10,
-      TOMATO: 10,
+      tough_meat: 10,
+      carrot: 10,
+      tomato: 10,
     },
   };
 }
@@ -45,8 +45,8 @@ test("Kitchen start consumes recipe ingredients", () => {
 
   assert.equal(started.ok, true);
   if (!started.ok) return;
-  assert.equal(getQty(started.next.resources, "MEAT"), 8);
-  assert.equal(getQty(started.next.resources, "WATER"), 9);
+  assert.equal(getQty(started.next.resources, "tough_meat"), 8);
+  assert.equal(getQty(started.next.resources, "carrot"), 9);
 });
 
 test("Kitchen wrong pattern input reduces success points", () => {
@@ -154,7 +154,7 @@ test("old saves migrate safely with Kitchen mini-game defaults", () => {
       worldEnergyCost: 10,
       consumedCosts: {
         worldEnergy: 10,
-        resources: { MEAT: 2, WATER: 1 },
+        resources: { tough_meat: 2, carrot: 1 },
       },
       temporaryRewards: {},
       runResources: {

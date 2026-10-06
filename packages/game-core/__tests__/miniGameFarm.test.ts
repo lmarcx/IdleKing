@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { withBuiltBuildings } from "./support/fixtures.js";
 import {
   abandonFarmRun,
   FARM_GOLDEN_TIMER_BONUS_MS,
@@ -28,7 +29,7 @@ function makeSpawn(patch: Partial<FarmSpawn> = {}): FarmSpawn {
 }
 
 function requireStartedFarm(options: Parameters<typeof startFarmRun>[1] = {}) {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   const started = startFarmRun(state, { nowMs: 2_000, seed: 42, ...options });
   assert.equal(started.ok, true);
   if (!started.ok) throw new Error("Expected farm run to start");
@@ -47,7 +48,7 @@ test("Farm spawn generation is deterministic", () => {
 });
 
 test("Farm start consumes World Energy", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
 
   const started = startFarmRun(state, { nowMs: 2_000, worldEnergyCost: 12 });
 
@@ -222,7 +223,7 @@ test("Farm abandon discards temporary rewards", () => {
 });
 
 test("Farm actions fail outside an active Farm run", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
 
   const hit = hitFarmSpawn(state, "spawn-1");
   const ticked = tickFarmTimer(state, 1_000);

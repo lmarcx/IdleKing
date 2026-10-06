@@ -2,15 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { cookDish } from "../game/kitchenActions.js";
 import { addQty, getQty } from "../resources/types.js";
 
 test("Kitchen craft consumes ingredients, produces plate, drains villager stamina", () => {
   let s = createInitialGameState();
 
-  // Chapter 1 unlocks kitchen
-  s = completeChapterAction(s, 1).next;
+  // Kitchen is unlocked by a Story dungeon first clear
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   // Build kitchen (unlocked but not auto-built)
   s = {
@@ -22,7 +22,7 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
   };
 
   // Add ingredients
-  s = { ...s, resources: addQty(addQty(s.resources, "MEAT", 2), "WATER", 1) };
+  s = { ...s, resources: addQty(addQty(s.resources, "tough_meat", 2), "carrot", 1) };
 
   const vId = s.villagers.list[0].id;
   const staminaBefore = s.villagers.list[0].stamina;
@@ -32,8 +32,8 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
 
   assert.equal(r.ok, true);
   assert.equal(getQty(r.next.resources, "PLATE_STEW"), stewBefore + 1);
-  assert.equal(getQty(r.next.resources, "MEAT"), 0);
-  assert.equal(getQty(r.next.resources, "WATER"), 0);
+  assert.equal(getQty(r.next.resources, "tough_meat"), 0);
+  assert.equal(getQty(r.next.resources, "carrot"), 0);
 
   const staminaAfter = r.next.villagers.list[0].stamina;
   assert.ok(staminaAfter < staminaBefore);
@@ -41,7 +41,7 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
 
 test("Kitchen craft fails if not built", () => {
   let s = createInitialGameState();
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   const r = cookDish(s, "STEW", "v1");
   assert.equal(r.ok, false);
@@ -50,7 +50,7 @@ test("Kitchen craft fails if not built", () => {
 
 test("Kitchen craft fails if not enough resources", () => {
   let s = createInitialGameState();
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   s = {
     ...s,

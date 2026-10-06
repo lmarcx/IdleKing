@@ -1,3 +1,5 @@
+import { SKILL_REGISTRY } from "../../skills/registry.js";
+import { SKILL_IDS, type SkillCategory, type SkillId } from "../../skills/types.js";
 import { generateEquipmentItem } from "../../equipment/index.js";
 import type { EquipmentItem, ItemRarity } from "../../items/types.js";
 import type { SeededRng } from "../../random/index.js";
@@ -52,6 +54,17 @@ export type CraftEquipmentFromRecipeResult =
         | "NOT_ENOUGH_RESOURCES";
     }>;
 
+function pickRingSkillInCategory(category: SkillCategory, seed: string): SkillId {
+  const candidates = SKILL_IDS.filter((skillId) => SKILL_REGISTRY[skillId].category === category);
+  if (candidates.length === 0) throw new Error(`No skill in category ${category}`);
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return candidates[(hash >>> 0) % candidates.length];
+}
+
 export function craftEquipmentFromRecipe(input: CraftEquipmentFromRecipeInput): CraftEquipmentFromRecipeResult {
   const recipes = input.recipes ?? FORGE_RECIPES;
   const outputBases = input.outputBases ?? FORGE_OUTPUT_BASES;
@@ -88,6 +101,10 @@ export function craftEquipmentFromRecipe(input: CraftEquipmentFromRecipeInput): 
     name: outputBase.baseName,
     rarity: rolledRarity,
     seed: input.seed ?? `${recipe.id}:${input.itemLevel}:${rolledRarity}`,
+    setId: recipe.setId,
+    skillId: recipe.ringSkillCategory
+      ? pickRingSkillInCategory(recipe.ringSkillCategory, String(input.seed ?? `${recipe.id}:${input.itemLevel}`))
+      : undefined,
     slot: outputBase.slot,
   });
 

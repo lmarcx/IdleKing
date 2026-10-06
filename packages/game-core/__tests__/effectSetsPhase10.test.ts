@@ -302,7 +302,10 @@ test("story first clears unlock their narrative Effect Sets", () => {
   if (!prologue.ok) return;
   assert.equal(hasUnlockedEffectSet(prologue.next, "shadow_veil"), true);
 
-  state = completeDungeon(prologue.next, "funeral_mausoleum").next;
+  state = prologue.next;
+  for (const dungeonId of ["funeral_mausoleum", "frozen_river", "time_vestige"]) {
+    state = completeDungeon(state, dungeonId).next;
+  }
   const dragon = completeDungeon(state, "ashen_peak");
   assert.equal(dragon.ok, true);
   if (!dragon.ok) return;

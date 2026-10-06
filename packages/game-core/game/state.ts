@@ -115,10 +115,10 @@ export function createInitialGameState(params: { nowMs?: number } = {}): GameSta
       mine: { ...lockedBuilding },
       kitchen: { ...lockedBuilding },
       forge: { ...lockedBuilding },
-      market: { ...unlockedBuilding },
+      market: { ...lockedBuilding },
       worldGate: { ...unlockedBuilding },
       timeGate: { ...unlockedBuilding },
-      bank: { ...unlockedBuilding },
+      bank: { ...lockedBuilding },
 
       // Toujours accessible (pas de build/unlock/activate requis)
       cornucopia: {

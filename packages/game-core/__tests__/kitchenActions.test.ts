@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { cookDish } from "../game/kitchenActions.js";
 import { addQty, getQty } from "../resources/types.js";
 
 function unlockAndBuildKitchen(s: ReturnType<typeof createInitialGameState>) {
   // Chapter progression is linear in MVP.
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   // Kitchen must be built to allow cooking actions.
   s = {
@@ -26,10 +26,10 @@ test("Kitchen cookDish consumes ingredients, produces dish, drains villager stam
   let s = createInitialGameState();
   s = unlockAndBuildKitchen(s);
 
-  // Give ingredients for STEW: 2 MEAT + 1 WATER
+  // Give ingredients for STEW: 2 tough_meat + 1 carrot
   s = {
     ...s,
-    resources: addQty(addQty(s.resources, "MEAT", 2), "WATER", 1),
+    resources: addQty(addQty(s.resources, "tough_meat", 2), "carrot", 1),
   };
 
   const vId = s.villagers.list[0].id;
@@ -40,8 +40,8 @@ test("Kitchen cookDish consumes ingredients, produces dish, drains villager stam
   const r = cookDish(s, "STEW", vId);
   assert.equal(r.ok, true);
 
-  assert.equal(getQty(r.next.resources, "MEAT"), 0);
-  assert.equal(getQty(r.next.resources, "WATER"), 0);
+  assert.equal(getQty(r.next.resources, "tough_meat"), 0);
+  assert.equal(getQty(r.next.resources, "carrot"), 0);
   assert.equal(getQty(r.next.resources, "PLATE_STEW"), plateBefore + 1);
 
   const staminaAfter = r.next.villagers.list[0].stamina;
@@ -50,7 +50,7 @@ test("Kitchen cookDish consumes ingredients, produces dish, drains villager stam
 
 test("Kitchen cookDish fails if not built", () => {
   let s = createInitialGameState();
-  s = completeChapterAction(s, 1).next; // unlocked but not built
+  s = withUnlockedBuildings(s, ["KITCHEN"]); // unlocked but not built
 
   const r = cookDish(s, "STEW", "v1");
   assert.equal(r.ok, false);
@@ -73,7 +73,7 @@ test("Kitchen cookDish fails if villager has no stamina", () => {
   // Give ingredients so only stamina can block.
   s = {
     ...s,
-    resources: addQty(addQty(s.resources, "MEAT", 2), "WATER", 1),
+    resources: addQty(addQty(s.resources, "tough_meat", 2), "carrot", 1),
   };
 
   // Force villager stamina to 0.

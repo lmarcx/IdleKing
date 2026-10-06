@@ -49,14 +49,26 @@ test("cornucopia refuses invalid quantity", () => {
   assert.equal(result.error, "INVALID_AMOUNT");
 });
 
-test("cornucopia clamps quantity to the dev safe maximum", () => {
+test("cornucopia clamps quantity to the resource stack max (999)", () => {
   const state = createInitialGameState();
   const result = claimCornucopia(state, { resourceId: "WOOD", amount: 10000000 });
 
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.equal(result.amount, 999999);
-  assert.equal(getQty(result.next.resources, "WOOD"), 999999);
+  assert.equal(result.amount, 999);
+  assert.equal(getQty(result.next.resources, "WOOD"), 999);
+});
+
+test("cornucopia refuses to claim more once the stack is already full", () => {
+  const state = createInitialGameState();
+  const filled = claimCornucopia(state, { resourceId: "WOOD", amount: 999 });
+  assert.equal(filled.ok, true);
+  if (!filled.ok) return;
+
+  const result = claimCornucopia(filled.next, { resourceId: "WOOD", amount: 1 });
+  assert.equal(result.ok, false);
+  if (result.ok) return;
+  assert.equal(result.error, "STACK_FULL");
 });
 
 test("cornucopia claim grants the selected resource without consuming stamina", () => {

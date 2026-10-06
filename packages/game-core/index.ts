@@ -1,5 +1,6 @@
 export * as power from "./power/index.js";
 export * as loot from "./loot/index.js";
+export * as enemies from "./enemies/index.js";
 export * as progression from "./progression/index.js";
 export * as economy from "./economy/index.js";
 export * as currencies from "./currencies/index.js";
@@ -14,11 +15,13 @@ export * as bank from "./bank/index.js";
 export * as market from "./market/index.js";
 export * as items from "./items/index.js";
 export * as story from "./story/index.js";
+export * as scenario from "./scenario/index.js";
 export * as character from "./character/index.js";
 export * as equipment from "./equipment/index.js";
 export * as resonance from "./resonance/index.js";
 export * as effectSets from "./effectSets/index.js";
 export * as content from "./content/index.js";
+export * as levelEditor from "./level-editor/index.js";
 export * as random from "./random/index.js";
 export * as registry from "./registry/index.js";
 export * as skills from "./skills/index.js";
@@ -73,6 +76,36 @@ export type {
   ClaimCornucopiaError,
   ClaimCornucopiaResult,
 } from "./building/cornucopiaActions.js";
+export {
+  claimCornucopiaCurrency,
+  claimCornucopiaEffectSet,
+  claimCornucopiaEquipment,
+  claimCornucopiaEra,
+  claimCornucopiaSpecialItem,
+  claimCornucopiaUnlock,
+  getCornucopiaCurrencyClaimables,
+  getCornucopiaEffectSetClaimables,
+  getCornucopiaEquipmentRarityOptions,
+  getCornucopiaEquipmentSetOptions,
+  getCornucopiaEquipmentSlotOptions,
+  getCornucopiaEraClaimables,
+  getCornucopiaRingSkillOptions,
+  getCornucopiaSpecialItemClaimables,
+  getCornucopiaUnlockClaimables,
+} from "./building/cornucopiaDevActions.js";
+export type {
+  ClaimCornucopiaCurrencyError,
+  ClaimCornucopiaCurrencyResult,
+  ClaimCornucopiaEffectSetError,
+  ClaimCornucopiaEffectSetResult,
+  ClaimCornucopiaEquipmentError,
+  ClaimCornucopiaEquipmentResult,
+  ClaimCornucopiaSpecialItemError,
+  ClaimCornucopiaSpecialItemResult,
+  ClaimCornucopiaUnlockError,
+  ClaimCornucopiaUnlockResult,
+  CornucopiaSpecialItemId,
+} from "./building/cornucopiaDevActions.js";
 export {
   BUILDING_MAX_LEVEL,
   CANONICAL_BUILDING_IDS,
@@ -216,6 +249,16 @@ export type {
   CraftEquipmentFromRecipeResult,
 } from "./building/forge/craft.js";
 export {
+  removeInventoryItem,
+} from "./game/inventoryActions.js";
+export type {
+  RemoveInventoryItemError,
+  RemoveInventoryItemResult,
+} from "./game/inventoryActions.js";
+export {
+  removeItem,
+} from "./items/inventory.js";
+export {
   forgeRecycleEquipment,
 } from "./building/forge/recycle.js";
 export type {
@@ -232,6 +275,7 @@ export type {
 export {
   forgeCraft,
   forgeRecycle,
+  isItemEquipped,
   forgeUpgrade,
 } from "./game/forgeActions.js";
 export type {
@@ -601,17 +645,14 @@ export type {
   SkillUpgradeResult,
 } from "./combat/skills/index.js";
 export {
-  STORY_LEVEL_PLACEHOLDER_REWARDS,
-  completeStoryLevelAction,
-} from "./game/storyLevelActions.js";
-export {
-  completeStoryLevel,
-  getStoryLevelDef,
-  getVisibleStoryChaptersWithLevels,
-} from "./story/levels.js";
-export {
   canEnterDungeon,
   completeDungeon,
+  applyDungeonBuildingUnlocks,
+  getDungeonXpReward,
+  STORY_DUNGEON_FIRST_CLEAR_XP,
+  STORY_REPLAY_XP_RATIO,
+  getBuildingUnlockDungeon,
+  reconcileStoryBuildingUnlocks,
   completeStoryEvent,
   applyBossFirstClearSpecialRewards,
   getAvailableChapters,
@@ -689,7 +730,38 @@ export type {
   StoryBossDefinition,
   StoryChapterDefinition,
   StoryDungeonDefinition,
+  DungeonXpReward,
   StoryUnlockRequirementStatus,
   StoryUnlockConditions,
 } from "./story/progressionMvp.js";
-export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";
+export type { UnlockId } from "./story/types.js";
+export {
+  buildLinearLayout,
+  getBuiltInDungeonLayout,
+  getCanonicalDungeonLayout,
+  getDungeonLayout,
+  getDungeonTheme,
+  getStoryMapRuntimeErrors,
+  validateDungeonLayout,
+  validateDungeonLayouts,
+} from "./story/dungeonLayouts.js";
+export {
+  OPEN_ZONE_ID,
+  dungeonLayoutToPlayableMap,
+  playableMapToDungeonLayout,
+} from "./story/storyMapLayout.js";
+export type {
+  DungeonLayout,
+  GateCondition,
+  LayoutBeatAnchor,
+  LayoutDecor,
+  LayoutEnemyPlacement,
+  LayoutFloor,
+  LayoutGate,
+  LayoutObstacle,
+  LayoutObstacleKind,
+  LayoutRect,
+  LayoutTheme,
+  LayoutVec,
+  LayoutZone,
+} from "./story/dungeonLayouts.js";

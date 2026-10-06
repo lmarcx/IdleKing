@@ -1,6 +1,7 @@
 import type { EquipmentSlot, ItemRarity } from "../items/types.js";
 import type { WeightedEntry } from "../random/index.js";
 import type { CanonicalResourceId } from "../resources/index.js";
+import { ENEMY_ARCHETYPE_LOOT_TABLES } from "../enemies/registry.js";
 
 export type EnemyMaterialDropDefinition = {
   chance: number;
@@ -58,4 +59,6 @@ export const ENEMY_LOOT_TABLES: readonly EnemyLootTableDefinition[] = [
       { resourceId: "dark_amalgam_core", chance: 1, minAmount: 1, maxAmount: 1 },
     ],
   },
+  // One table per enemy archetype (enemies/registry.ts), generated from ENEMIES_DATABASE_V2 drops.
+  ...ENEMY_ARCHETYPE_LOOT_TABLES.map((table) => ({ id: table.id, drops: [...table.drops] })),
 ];

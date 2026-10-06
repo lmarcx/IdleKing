@@ -184,7 +184,10 @@ test("boss first clears grant special story items without resource registry use"
   assert.equal(prologue.next.specialItems.dropOfDarknessOwned, true);
   assert.equal(prologue.next.specialItems.kaleidoscopeOwned, false);
 
-  state = completeDungeon(prologue.next, "funeral_mausoleum").next;
+  state = prologue.next;
+  for (const dungeonId of ["funeral_mausoleum", "frozen_river", "time_vestige"]) {
+    state = completeDungeon(state, dungeonId).next;
+  }
   const dragon = completeDungeon(state, "ashen_peak");
   assert.equal(dragon.ok, true);
   if (!dragon.ok) return;

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Grid2X2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,12 @@ export default function SettingsPage() {
       <div className="flex flex-wrap gap-2">
         <Link href="/">
           <Button variant="secondary">Back to Title</Button>
+        </Link>
+        <Link href="/editor">
+          <Button variant="outline">
+            <Grid2X2 className="mr-2 h-4 w-4" />
+            Level Editor
+          </Button>
         </Link>
         <Button variant="destructive" onClick={() => setOpen(true)}>
           Clear Save

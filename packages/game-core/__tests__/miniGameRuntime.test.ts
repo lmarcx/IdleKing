@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
+import { withBuiltBuildings } from "./support/fixtures.js";
 import { loadGameWithReport } from "../game/save.js";
 import {
   abandonMiniGameRun,
@@ -13,7 +14,7 @@ import {
 import { getQty } from "../resources/types.js";
 
 test("mini-game launch fails without required World Energy", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   const depleted = {
     ...state,
     world: {
@@ -31,7 +32,7 @@ test("mini-game launch fails without required World Energy", () => {
 });
 
 test("mini-game launch consumes World Energy and creates a running run", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
 
   const result = launchMiniGameRun(state, "farm", { worldEnergyCost: 12, nowMs: 2_000, id: "run-1" });
 
@@ -45,7 +46,7 @@ test("mini-game launch consumes World Energy and creates a running run", () => {
 });
 
 test("mini-game success commits temporary rewards", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   const launched = launchMiniGameRun(state, "mine", { nowMs: 2_000 });
   assert.equal(launched.ok, true);
   if (!launched.ok) return;
@@ -66,7 +67,7 @@ test("mini-game success commits temporary rewards", () => {
 });
 
 test("mini-game failure discards temporary rewards", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   const launched = launchMiniGameRun(state, "mine", { nowMs: 2_000 });
   assert.equal(launched.ok, true);
   if (!launched.ok) return;
@@ -86,7 +87,7 @@ test("mini-game failure discards temporary rewards", () => {
 });
 
 test("mini-game abandon discards temporary rewards and counts as failure", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
   const launched = launchMiniGameRun(state, "farm", { nowMs: 2_000 });
   assert.equal(launched.ok, true);
   if (!launched.ok) return;
@@ -105,7 +106,7 @@ test("mini-game abandon discards temporary rewards and counts as failure", () =>
 });
 
 test("mini-game run-local HP and Energy initialize on launch", () => {
-  const state = createInitialGameState({ nowMs: 1_000 });
+  const state = withBuiltBuildings(createInitialGameState({ nowMs: 1_000 }), ["mine", "farm", "kitchen"]);
 
   const launched = launchMiniGameRun(state, "mine", { nowMs: 2_000 });
 

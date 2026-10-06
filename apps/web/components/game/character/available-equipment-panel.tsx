@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 
 import { EquipmentTooltip } from "./equipment-tooltip";
 import {
+  EQUIPMENT_DRAG_MIME,
   getEquipmentRarityClass,
   getEquipmentRarityLabel,
   type CharacterEquipment,
+  type EquipmentDragPayload,
 } from "./types";
 
 type ActiveEquipment = {
@@ -46,8 +48,15 @@ function EquipmentGridItem({
         "hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-300/35",
         getEquipmentRarityClass(item.rarity)
       )}
+      draggable
       onBlur={onClose}
       onClick={open}
+      onDragStart={(event) => {
+        const payload: EquipmentDragPayload = { id: item.id, slot: item.slot };
+        event.dataTransfer.setData(EQUIPMENT_DRAG_MIME, JSON.stringify(payload));
+        event.dataTransfer.effectAllowed = "move";
+        onClose();
+      }}
       onFocus={open}
       onMouseEnter={() => {
         onKeepOpen();
@@ -70,11 +79,13 @@ function EquipmentGridItem({
 export function AvailableEquipmentPanel({
   equippedItemIds,
   items,
+  onDelete,
   onEquip,
   onUnequip,
 }: {
   equippedItemIds: Set<string>;
   items: CharacterEquipment[];
+  onDelete?: (item: CharacterEquipment) => void;
   onEquip: (item: CharacterEquipment) => void;
   onUnequip: (item: CharacterEquipment) => void;
 }) {
@@ -146,6 +157,14 @@ export function AvailableEquipmentPanel({
           }
           setActiveEquipment(null);
         }}
+        onDelete={
+          onDelete
+            ? (item) => {
+                onDelete(item);
+                setActiveEquipment(null);
+              }
+            : undefined
+        }
         onMouseEnter={clearCloseTimer}
         onMouseLeave={closeTooltip}
       />

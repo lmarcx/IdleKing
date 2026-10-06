@@ -1,14 +1,20 @@
 import * as PIXI from "pixi.js";
 
+import {
+  BW,
+  createFigureGraphics,
+  figureScaleFor,
+  type FigureVariant,
+} from "./geometric-figure";
+
 /**
- * Shared player avatar used across every PixiJS game mode (Kingdom hub, Story
- * exploration, Duel arena…). It renders the king sprite with a code-driven
- * 4-direction feel — horizontal flip for left/right, a walk bob with lean,
- * idle breathing and a reactive contact shadow — instead of rotating a flat
- * sprite to face the aim vector (which looked wrong for a standing character).
+ * Shared character avatar used across every PixiJS game mode (Kingdom hub,
+ * Story exploration, Duel arena…). It renders a geometric B&W silhouette with
+ * a code-driven 4-direction feel — horizontal flip for left/right, a walk bob
+ * with lean, idle breathing and a reactive contact shadow.
  *
- * The sprite is loaded lazily via `setSprite` so the container can be created
- * before textures finish loading.
+ * The silhouette is drawn procedurally (see geometric-figure.ts); there is no
+ * texture loading involved anymore.
  */
 
 export type PlayerFacing = { x: number; y: number };
@@ -16,25 +22,24 @@ export type PlayerFacing = { x: number; y: number };
 export type PlayerVisualUpdate = {
   /** Seconds since an arbitrary epoch — drives the cyclic animations. */
   elapsedSeconds: number;
-  /** Aim / movement facing. `x` sign flips the sprite, `y < 0` dims it (back). */
+  /** Aim / movement facing. `x` sign flips the figure, `y < 0` dims it (back). */
   facing: PlayerFacing;
   /** Whether the player is actively moving (enables the walk cycle). */
   moving: boolean;
-  /** Optional tint override (e.g. red hit-flash). Falls back to facing tint. */
+  /** Optional tint override (e.g. hit-flash). Falls back to facing tint. */
   flashTint?: number | null;
 };
 
 export type PlayerVisual = {
   container: PIXI.Container;
-  setSprite: (texture: PIXI.Texture) => void;
   update: (opts: PlayerVisualUpdate) => void;
 };
 
 export type CreatePlayerVisualOptions = {
-  /** On-screen height of the sprite in pixels. */
+  /** Which silhouette to draw (defaults to the king / player). */
+  variant?: FigureVariant;
+  /** On-screen height of the figure in pixels. */
   displayHeight?: number;
-  /** Vertical sprite anchor (1 = bottom). Tune so the feet sit on the ground. */
-  anchorY?: number;
   /** Contact-shadow half-width / half-height. */
   shadowWidth?: number;
   shadowHeight?: number;
@@ -43,7 +48,7 @@ export type CreatePlayerVisualOptions = {
   shadowOffsetY?: number;
   /**
    * Combat modes only: render a 360° directional aim arrow orbiting the player.
-   * The standing king sprite cannot point up/down (single front pose), so this
+   * The standing figure cannot point up/down (single front pose), so this
    * arrow is what communicates the full aim direction to the player.
    */
   aimIndicator?: boolean;
@@ -55,29 +60,23 @@ export type CreatePlayerVisualOptions = {
   aimColor?: number;
 };
 
-function applyDisplayHeight(sprite: PIXI.Sprite, height: number): number {
-  const textureHeight = Math.max(sprite.texture.height, 1);
-  const scale = height / textureHeight;
-  sprite.scale.set(scale);
-  return scale;
-}
-
 export function createPlayerVisual(options: CreatePlayerVisualOptions = {}): PlayerVisual {
+  const variant = options.variant ?? "king";
   const displayHeight = options.displayHeight ?? 104;
-  const anchorY = options.anchorY ?? 0.86;
   const shadowWidth = options.shadowWidth ?? 26;
   const shadowHeight = options.shadowHeight ?? 9;
-  const shadowAlpha = options.shadowAlpha ?? 0.44;
-  const shadowOffsetY = options.shadowOffsetY ?? 24;
+  const shadowAlpha = options.shadowAlpha ?? 0.5;
+  const shadowOffsetY = options.shadowOffsetY ?? 4;
   const aimRadius = options.aimRadius ?? 40;
   const aimCenterY = options.aimCenterY ?? -30;
-  const aimColor = options.aimColor ?? 0xf0c26a;
+  const aimColor = options.aimColor ?? BW.white;
 
   const container = new PIXI.Container();
   const shadow = new PIXI.Graphics();
   const body = new PIXI.Container();
 
-  shadow.ellipse(0, shadowOffsetY, shadowWidth, shadowHeight).fill({ color: 0x000000, alpha: shadowAlpha });
+  // Hard-edged contact shadow — flat gray ellipse, no blur.
+  shadow.ellipse(0, shadowOffsetY, shadowWidth, shadowHeight).fill({ color: BW.gray1, alpha: shadowAlpha });
 
   // 360° aim arrow (combat modes). Drawn pointing toward +x at rotation 0 and
   // re-oriented every frame from the facing vector — kept out of `body` so it
@@ -91,31 +90,21 @@ export function createPlayerVisual(options: CreatePlayerVisualOptions = {}): Pla
       .lineTo(-5, 7)
       .closePath()
       .fill({ color: aimColor })
-      .stroke({ color: 0x1a1206, width: 1.5, join: "round" });
+      .stroke({ color: BW.black, width: 1.5, join: "round" });
   }
 
-  // Placeholder shown until the king texture is loaded.
-  const placeholder = new PIXI.Graphics();
-  placeholder.roundRect(-16, -42, 32, 46, 9).fill(0x1a2330).stroke({ color: 0xf0c26a, width: 2 });
-  body.addChild(placeholder);
+  const figure = createFigureGraphics(variant);
+  const baseScale = figureScaleFor(displayHeight);
+  figure.scale.set(baseScale);
+  body.addChild(figure);
 
   container.addChild(shadow, body);
   if (aim) container.addChild(aim);
 
-  let sprite: PIXI.Sprite | null = null;
-  let baseScale = 1;
   let facingX = 1;
 
   return {
     container,
-    setSprite(texture: PIXI.Texture) {
-      placeholder.destroy();
-      sprite = new PIXI.Sprite(texture);
-      sprite.anchor.set(0.5, anchorY);
-      sprite.roundPixels = true;
-      baseScale = applyDisplayHeight(sprite, displayHeight);
-      body.addChildAt(sprite, 0);
-    },
     update({ elapsedSeconds, facing, moving, flashTint }: PlayerVisualUpdate) {
       if (Math.abs(facing.x) > 0.2) {
         facingX = facing.x > 0 ? 1 : -1;
@@ -129,10 +118,8 @@ export function createPlayerVisual(options: CreatePlayerVisualOptions = {}): Pla
       body.position.y = -bob;
       body.rotation = lean;
 
-      if (sprite) {
-        sprite.scale.set(baseScale * facingX, baseScale * breath);
-        sprite.tint = flashTint != null ? flashTint : facing.y < -0.35 ? 0xb9c1d2 : 0xffffff;
-      }
+      figure.scale.set(baseScale * facingX, baseScale * breath);
+      figure.tint = flashTint != null ? flashTint : facing.y < -0.35 ? 0xbdbdbd : 0xffffff;
 
       // Shadow tightens and fades a touch as the feet lift on each step.
       shadow.scale.set(moving ? 1 + step * 0.08 : 1 + Math.sin(elapsedSeconds * 2.4 + Math.PI) * 0.04, moving ? 1 - step * 0.16 : 1);

@@ -32,7 +32,7 @@ test("Mine outputs are registered canonical resources and validate at boot", () 
 test("Farm outputs are registered canonical resources and validate at boot", () => {
   assert.deepEqual(
     FARM_RESOURCE_TABLE.map(({ id }) => id),
-    ["tomato", "carrot", "tough_meat"],
+    ["tomato", "carrot", "tough_meat", "old_wood"],
   );
   assert.doesNotThrow(() => validateFarmResourceTable());
   for (const output of FARM_RESOURCE_TABLE) {

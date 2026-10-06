@@ -60,17 +60,22 @@ export const MARKET_RESOURCE_PLACEHOLDER_VALUES: Partial<Record<ResourceId, numb
   PLATE_SALAD: 8,
 };
 
-const MARKET_RESOURCE_IDS: ResourceId[] = ["WOOD", "STONE", "WATER", "MEAT", "COPPER", "IRON"];
+// Common canonical materials the Kingdom can buy (Farm / Mine / early dungeon drops).
+const MARKET_RESOURCE_IDS: ResourceId[] = ["old_wood", "iron_ore", "quartz", "tough_meat", "tomato", "carrot"];
+
+/** Legacy ids keep their placeholder value (old saves can still sell them); canon ids use the registry. */
+function getResourceMarketValue(resourceId: ResourceId): number {
+  const canonicalDefinition = getResourceDefinition(resourceId);
+  return MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId]
+    ?? (canonicalDefinition ? calculateResourceValue(canonicalDefinition.id, 1) : 1);
+}
 
 export const MARKET_RESOURCE_ENTRIES: MarketResourceEntry[] = MARKET_RESOURCE_IDS.map((resourceId) => {
-  const value = MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId] ?? 1;
+  const value = getResourceMarketValue(resourceId);
   return {
-    id: `resource_${resourceId.toLowerCase()}`,
+    id: `resource_${resourceId}`,
     category: "resources",
-    label: resourceId
-      .split("_")
-      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
-      .join(" "),
+    label: getResourceDefinition(resourceId)?.name ?? resourceId,
     resourceId,
     buyPrice: ecu(value),
     sellPrice: sellPriceFromBuy(value),
@@ -156,10 +161,7 @@ export function getMarketBuyPrice(entry: MarketCatalogEntry): MarketPrice {
 }
 
 export function getResourceMarketSellPrice(resourceId: ResourceId): MarketPrice {
-  const canonicalDefinition = getResourceDefinition(resourceId);
-  const value = MARKET_RESOURCE_PLACEHOLDER_VALUES[resourceId]
-    ?? (canonicalDefinition ? calculateResourceValue(canonicalDefinition.id, 1) : 1);
-  return sellPriceFromBuy(value);
+  return sellPriceFromBuy(getResourceMarketValue(resourceId));
 }
 
 export function getMarketSellPrice(target: MarketCatalogEntry | Item | ResourceId): MarketPrice {

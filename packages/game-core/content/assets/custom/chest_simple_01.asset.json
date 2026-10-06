@@ -1,0 +1,62 @@
+{
+  "id": "chest_simple_01",
+  "name": "Simple Chest 01",
+  "category": "objects",
+  "style": "minimal-geometric",
+  "parts": [
+    {
+      "id": "box",
+      "shape": "rect",
+      "x": 0,
+      "y": 18,
+      "width": 48,
+      "height": 28,
+      "fill": "#181818",
+      "stroke": "#eeeeee",
+      "strokeWidth": 2,
+      "opacity": 1,
+      "rotation": 0,
+      "layer": 1
+    },
+    {
+      "id": "lid",
+      "shape": "line",
+      "x": 0,
+      "y": 28,
+      "width": 48,
+      "height": 0,
+      "fill": "#eeeeee",
+      "stroke": "#eeeeee",
+      "strokeWidth": 2,
+      "opacity": 1,
+      "rotation": 0,
+      "layer": 2
+    },
+    {
+      "id": "lock",
+      "shape": "circle",
+      "x": 24,
+      "y": 34,
+      "radius": 4,
+      "fill": "#eeeeee",
+      "stroke": "#eeeeee",
+      "strokeWidth": 1,
+      "opacity": 1,
+      "rotation": 0,
+      "layer": 3
+    }
+  ],
+  "defaultCollision": {
+    "type": "box",
+    "x": 0,
+    "y": 18,
+    "width": 48,
+    "height": 28
+  },
+  "defaultInteraction": {
+    "type": "inspect",
+    "target": "chest_loot",
+    "label": "Open"
+  },
+  "tags": ["object", "loot", "chest"]
+}

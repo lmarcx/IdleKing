@@ -162,7 +162,7 @@ export function MarketView({ embedded = false }: { embedded?: boolean }) {
         },
       },
       wallet: grantCurrency(current.wallet, "ECU", 100),
-      resources: addQty(addQty(current.resources, "WOOD", 5), "STONE", 5),
+      resources: addQty(addQty(current.resources, "old_wood", 5), "iron_ore", 5),
       inventory: {
         items: [
           ...current.inventory.items,

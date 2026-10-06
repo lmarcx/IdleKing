@@ -41,14 +41,14 @@ export function WorldModeSidebar({ activeMode, onChangeMode }: WorldModeSidebarP
             className={cn(
               "group grid min-h-24 place-items-center gap-1.5 rounded-lg border bg-black/35 p-2 text-center transition",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55",
-              isActive && "border-amber-200/75 bg-amber-200/[0.07] shadow-[0_0_26px_rgba(198,168,91,0.16)]",
+              isActive && "border-amber-200/75 bg-amber-200/[0.07] shadow-[0_0_26px_rgba(242,242,242,0.14)]",
               !isActive && "border-amber-200/18 hover:border-amber-200/45 hover:bg-white/[0.035]"
             )}
             key={mode.id}
             onClick={() => onChangeMode(mode.id)}
             type="button"
           >
-            <span className="grid h-11 w-11 place-items-center rounded-full border border-amber-200/25 bg-black/45 shadow-[inset_0_0_14px_rgba(198,168,91,0.08)] transition-transform group-hover:scale-105">
+            <span className="grid h-11 w-11 place-items-center rounded-full border border-amber-200/25 bg-black/45 shadow-[inset_0_0_14px_rgba(242,242,242,0.08)] transition-transform group-hover:scale-105">
               <Icon aria-hidden="true" className="h-6 w-6 text-amber-100" />
             </span>
             <span className="ik-story-heading text-xs text-amber-50">{mode.label}</span>

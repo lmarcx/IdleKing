@@ -35,9 +35,9 @@ export function WorldModeTriangle() {
         >
           <defs>
             <linearGradient id="world-triangle-line" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0" stopColor="rgba(201,166,84,0.72)" />
-              <stop offset="0.5" stopColor="rgba(56,189,248,0.55)" />
-              <stop offset="1" stopColor="rgba(168,85,247,0.48)" />
+              <stop offset="0" stopColor="rgba(201,201,201,0.72)" />
+              <stop offset="0.5" stopColor="rgba(154,154,154,0.55)" />
+              <stop offset="1" stopColor="rgba(106,106,106,0.48)" />
             </linearGradient>
           </defs>
           <path
@@ -49,14 +49,14 @@ export function WorldModeTriangle() {
           <path
             d="M352 83 120 382h464L352 83Z"
             fill="none"
-            stroke="rgba(56,189,248,0.16)"
+            stroke="rgba(242,242,242,0.16)"
             strokeWidth="10"
             strokeLinecap="round"
             filter="blur(10px)"
           />
-          <circle cx="352" cy="83" r="5" fill="rgba(201,166,84,0.85)" />
-          <circle cx="120" cy="382" r="5" fill="rgba(56,189,248,0.78)" />
-          <circle cx="584" cy="382" r="5" fill="rgba(168,85,247,0.72)" />
+          <circle cx="352" cy="83" r="5" fill="rgba(201,201,201,0.85)" />
+          <circle cx="120" cy="382" r="5" fill="rgba(154,154,154,0.78)" />
+          <circle cx="584" cy="382" r="5" fill="rgba(106,106,106,0.72)" />
         </svg>
 
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/5 blur-3xl" />

@@ -101,13 +101,15 @@ function runPlaythrough(state: GameState): GameState {
   let next = buildTimeGate(state);
   next = completeFirstClear(next, "prologue_wastelands");
   next = completeFirstClear(next, "funeral_mausoleum");
+  next = completeFirstClear(next, "frozen_river");
+  next = completeFirstClear(next, "time_vestige");
   next = completeFirstClear(next, "ashen_peak");
   next = { ...next, progression: { ...next.progression, worldLevel: 5 } };
   const era = unlockEraAtTimeGate(next, "era_glaciaire");
   assert.equal(era.ok, true);
   if (!era.ok) return next;
   next = era.next;
-  for (const dungeonId of ["frozen_river", "reflection_cavern", "royal_abyss", "arathas_academy", "frost_source"] as const) {
+  for (const dungeonId of ["silent_retreat_camp", "white_fall_tower", "reflection_cavern", "arathas_academy", "royal_abyss", "frost_source"] as const) {
     next = completeFirstClear(next, dungeonId);
   }
   return next;
@@ -207,6 +209,11 @@ test("Time Gate consumes Fragment without blocking Chapter II and replay does no
   state = replay.next;
 
   state = completeFirstClear(state, "funeral_mausoleum");
+
+  state = completeFirstClear(state, "frozen_river");
+
+  state = completeFirstClear(state, "time_vestige");
+
   state = completeFirstClear(state, "ashen_peak");
   assert.equal(state.specialItems.fragmentDuTemps, 1);
   state = { ...state, progression: { ...state.progression, worldLevel: 5 } };
@@ -218,7 +225,7 @@ test("Time Gate consumes Fragment without blocking Chapter II and replay does no
   assert.equal(isEraUnlocked(unlocked.next, "era_glaciaire"), true);
 
   state = unlocked.next;
-  for (const dungeonId of ["frozen_river", "reflection_cavern", "royal_abyss", "arathas_academy", "frost_source"] as const) {
+  for (const dungeonId of ["silent_retreat_camp", "white_fall_tower", "reflection_cavern", "arathas_academy", "royal_abyss", "frost_source"] as const) {
     state = completeFirstClear(state, dungeonId);
   }
   assert.equal(state.story.completedEvents.has("chapter_ii_complete"), true);

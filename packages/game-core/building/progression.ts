@@ -148,10 +148,11 @@ export function getBuildingUpgradeCost(buildingId: BuildingId, currentLevel: num
   if (!isCanonicalBuildingId(buildingId)) return {};
   const nextLevel = Math.max(2, Math.floor(currentLevel) + 1);
 
+  // DEFERRED balancing: canonical placeholder upgrade curve.
   return {
-    GOLD: nextLevel * 5,
-    STONE: nextLevel * 10,
-    WOOD: nextLevel * 10,
+    iron_ore: nextLevel * 6,
+    old_wood: nextLevel * 6,
+    quartz: nextLevel * 3,
   };
 }
 

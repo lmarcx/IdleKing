@@ -1,0 +1,115 @@
+# Level Editor V0
+
+## Access
+
+- From the game UI: open `/game/settings`, then click `Level Editor`.
+- Direct editor route: `/editor`.
+- Test map route: `/game/custom-map/test_map_01`.
+- Map list route: `/game/custom-map`.
+
+Run the web app with:
+
+```bash
+npm --workspace @idleking/web run dev
+```
+
+## What Improved
+
+- Settings now exposes a visible `Level Editor` entry.
+- The editor has clearer steps: Topographie, Textures, Nature, Batiments, PNJ, Objets, Ennemis, Collisions / Triggers.
+- The palette is filtered by the active step.
+- Brush, eraser, and select tools are available.
+- Dead cells are visually distinct and blocked for object placement.
+- Placed entities can be selected, edited, and deleted.
+- Local save/load messages and object counters are visible.
+- The Pixi test scene renders tiles, blocked cells, spawn, objects, buildings, NPCs, enemies, collisions, triggers, and a debug panel.
+
+## Create an Asset
+
+Open `/editor`, use the right panel `Asset Creator`, then add primitive parts:
+
+- `rect`
+- `circle`
+- `triangle`
+- `line`
+- `polygon`
+
+The shape list shows every part in layer order. Select a part to edit x, y, width, height, radius, rotation, fill, stroke, stroke width, opacity, and layer. Parts can be duplicated, deleted, moved forward, or moved backward.
+
+`Save Asset` adds the asset to the editor's local library and persists it in browser local storage. `Export` downloads the asset JSON. Versioned sample assets live in:
+
+```text
+packages/game-core/content/assets/custom/*.asset.json
+```
+
+## Create a Map
+
+Use the top step bar:
+
+1. Topographie: brush dead or playable cells.
+2. Textures: paint playable cells with grass, dirt, sand, water, rock, ice, lava, or stone.
+3. Nature: place natural assets.
+4. Batiments: place buildings with default collision and interaction.
+5. PNJ: place NPC markers.
+6. Objets: place interactive or decorative objects.
+7. Ennemis: place enemies with basic stats.
+8. Collisions / Triggers: place manual collision boxes or trigger zones.
+
+Use `Brush` to paint or place, `Eraser` to clear the current layer, and `Select` to inspect placed markers. `Save Map` stores the current draft in browser local storage. `Load Map` restores it. `Export JSON` downloads a `.map.json` file.
+
+Versioned sample maps live in:
+
+```text
+packages/game-core/content/maps/custom/*.map.json
+packages/game-core/content/maps/map.manifest.json
+```
+
+## Runtime Loading
+
+The TypeScript map format is defined in:
+
+```text
+packages/game-core/level-editor/types.ts
+```
+
+The loader and validation utilities are in:
+
+```text
+packages/game-core/level-editor/map-loader.ts
+```
+
+The Pixi preview route `/game/custom-map/test_map_01` loads `TEST_MAP_01`, renders map tiles, overlays dead cells and collisions, draws geometric assets, displays the player spawn, and shows a debug panel with map counts.
+
+## Story Dungeons
+
+Every Story dungeon has a canonical map in `packages/game-core/content/story/maps/<dungeonId>.ts`, and that map **is** the dungeon the player plays: the live route `/game/story/levels/<dungeonId>` runs the full Story explorer (combat, skills, boss patterns, dialogue beats, Billy) on it through `packages/game-core/story/storyMapLayout.ts`.
+
+How the runtime reads a Story map:
+
+| Editor data | In game |
+|---|---|
+| Collision box + **Obstacle kind** (wall, pillar, tomb, crystal…) | Solid obstacle, drawn with that shape family |
+| Dead topography cell | Solid wall |
+| Painted ground tile | Drawn as the floor (unpainted cells keep the dungeon's ground); water / lava tiles are solid |
+| Object, building, NPC | Drawn from its geometric asset; objects and buildings block with their asset collision, NPCs never block |
+| Trigger, **Story role = zone** | A room. Enemies inside it belong to it (aggro, "room cleared"). *Enemies spawn on beat* turns it into a scripted ambush |
+| Trigger, **Story role = gate** | A door that opens when a room is cleared or a beat is done |
+| Trigger, **Story role = beat** | Where a script beat (LevelScript) is played with F; *Also requires* adds "room cleared" / "boss defeated" |
+| Enemy + **Enemy archetype** | That archetype's stats, attacks, boss patterns and loot. Enemies outside every room join an implicit open room |
+| `player_start` spawn | Player spawn |
+
+The inspector's **Story runtime** panel shows live whether the draft is playable (beats in script order, enemies outside walls, known gate targets…). **Play/Test** runs the same explorer in dry-run mode (no progression, no loot saved). To ship a change: *Export Canonical Story Map*, then `node scripts/story-map-promote.mjs <file> --apply` from `apps/web` (it refuses a map the runtime cannot play), then commit. A dungeon removed from `STORY_CANONICAL_RUNTIME_READY_DUNGEON_IDS` falls back to its built-in layout (`story/dungeonLayouts.ts`).
+
+## Known Limits
+
+- Browser save writes to local storage; committed JSON files still need to be added to the repo manually after export.
+- The V0 scene is a readable preview with simple movement, not full gameplay.
+- Outside Story dungeons, NPC, trigger, puzzle, and building interactions are represented in JSON but not wired to gameplay. In Story dungeons, decor is static (no interaction, no dialogue), only built-in assets are drawn (custom assets made in the Assets tab live in the browser only), and tile movement modifiers / lava damage are not applied.
+- The editor still lacks undo/redo, drag handles, multi-select, and direct file-system writes.
+
+## Next Improvements
+
+- Add import from uploaded `.map.json` and `.asset.json` files.
+- Add drag placement, resize handles, undo/redo, and richer entity property forms.
+- Apply tile movement modifiers and damage, and make NPC interactions playable in Story dungeons.
+- Add file-backed save commands or a small local authoring API for development mode.

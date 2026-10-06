@@ -5,7 +5,7 @@ import { resolveChoiceRoom } from "./choiceResolver.js";
 import type { ExpeditionRoom, ExpeditionRunState, ExpeditionConfig } from "./types.js";
 import { generateExpedition } from "./generator.js";
 import { simulateCombat } from "../combat/simulator.js";
-import { BOSSES } from "../combat/bosses.js";
+import { EXPEDITION_BOSSES } from "./bosses.js";
 
 export type EncounterOutcome = {
   win: boolean;
@@ -104,8 +104,8 @@ export function runExpeditionLevel(params: {
 
     if (room.type === "BOSS") {
       const bossId = room.bossId;
-      const boss = (BOSSES as any)[bossId];
-      if (!boss) throw new Error(`Unknown bossId ${bossId}. Add it to combat/bosses.ts`);
+      const boss = (EXPEDITION_BOSSES as any)[bossId];
+      if (!boss) throw new Error(`Unknown bossId ${bossId}. Add it to expedition/bosses.ts`);
 
       const isSpecial = params.config.expeditionLevel === 10;
 

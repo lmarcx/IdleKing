@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { restVillager, REST_STAMINA_GAIN } from "../game/forumRestActions.js";
 
 function unlockAndBuildForum(s: ReturnType<typeof createInitialGameState>) {
-  // Chapter 1 unlocks Forum in MVP.
-  s = completeChapterAction(s, 1).next;
+  // Forum is unlocked by a Story dungeon first clear.
+  s = withUnlockedBuildings(s, ["FORUM"]);
 
   s = {
     ...s,
@@ -31,7 +31,7 @@ test("restVillager requires Forum unlocked and built", () => {
   }
 
   // Unlocked but not built
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["FORUM"]);
   {
     const r = restVillager(s, "v1");
     assert.equal(r.ok, false);

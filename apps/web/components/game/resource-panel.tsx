@@ -36,7 +36,7 @@ export function ResourcePanel() {
               <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
                 <img
                   alt={`Icône ${resource.id}`}
-                  className="h-4 w-4 shrink-0 object-contain opacity-90 drop-shadow-[0_0_6px_rgba(201,166,84,0.18)]"
+                  className="h-4 w-4 shrink-0 object-contain opacity-90 drop-shadow-[0_0_6px_rgba(242,242,242,0.18)]"
                   onError={handleResourceIconError}
                   src={getResourceAssetPath(resource.id)}
                 />

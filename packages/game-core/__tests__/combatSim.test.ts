@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { simulateCombat } from "../combat/simulator.js";
-import { BOSSES } from "../combat/bosses.js";
+import { EXPEDITION_BOSSES } from "../expedition/bosses.js";
 import type { CombatTickInput } from "../combat/types.js";
 
 test("combat sim runs and produces a winner", () => {
-  const boss = BOSSES.BOSS_1;
+  const boss = EXPEDITION_BOSSES.BOSS_1;
 
   const playerStats = {
     hp: 1200,

@@ -47,7 +47,7 @@ function ModeCard({
       className={cn(
         "grid min-h-40 rounded-lg border bg-black/42 p-4 text-left transition",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55",
-        isSelected && "border-amber-200/75 bg-amber-200/[0.08] shadow-[0_0_28px_rgba(198,168,91,0.16)]",
+        isSelected && "border-amber-200/75 bg-amber-200/[0.08] shadow-[0_0_28px_rgba(242,242,242,0.14)]",
         !isSelected && !mode.disabled && "border-amber-200/18 hover:border-amber-200/45 hover:bg-white/[0.035]",
         mode.disabled && "cursor-not-allowed border-slate-300/10 opacity-58"
       )}
@@ -89,7 +89,7 @@ function OpponentCard({
       className={cn(
         "block w-full rounded-lg border bg-black/42 p-4 text-left transition",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/55",
-        isSelected && "border-amber-200/80 bg-amber-200/[0.08] shadow-[0_0_28px_rgba(198,168,91,0.16)]",
+        isSelected && "border-amber-200/80 bg-amber-200/[0.08] shadow-[0_0_28px_rgba(242,242,242,0.14)]",
         !isSelected && "border-amber-200/18 hover:border-amber-200/45 hover:bg-white/[0.035]"
       )}
       onClick={() => onSelect(opponent.id)}

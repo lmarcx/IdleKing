@@ -3,6 +3,11 @@ import { grantRewardBundle, type RewardBundle } from "../rewards/index.js";
 import { grantDropOfDarkness, grantFragmentDuTemps, grantKaleidoscope } from "../specialItems/index.js";
 import { applyNarrativeEffectSetUnlock } from "../effectSets/index.js";
 import type { StoryState } from "./state.js";
+import type { CanonicalBuildingId } from "../building/types.js";
+import { CANONICAL_BUILDING_IDS } from "../building/progression.js";
+import { applyUnlocks } from "../game/unlocks.js";
+import { applyPlayerXpGain } from "../game/playerXpActions.js";
+import { addQty } from "../resources/types.js";
 
 export type MvpStoryChapterId = "prologue" | "chapter_i_funebre" | "chapter_ii_glaciaire";
 
@@ -50,6 +55,11 @@ export type StoryDungeonDefinition = Readonly<{
   firstClearRewards: RewardBundle;
   replayRewards: RewardBundle;
   storyFlagsProduced: readonly string[];
+  /**
+   * Kingdom buildings unlocked (not built) when this dungeon is completed. Applied idempotently,
+   * so save reconciliation can re-apply it for players who cleared the dungeon before it existed.
+   */
+  buildingUnlocks: readonly CanonicalBuildingId[];
 }>;
 
 export type StoryBossDefinition = Readonly<{
@@ -61,12 +71,19 @@ export type StoryBossDefinition = Readonly<{
   storyFlagsProduced: readonly string[];
 }>;
 
+/** XP granted by a dungeon completion: player XP and Temple "XP globale" (XP_GLOBAL → WXP). */
+export type DungeonXpReward = Readonly<{
+  playerXp: number;
+  globalXp: number;
+}>;
+
 export type DungeonCompletionResult =
   | Readonly<{
       ok: true;
       firstClear: boolean;
       bossDefeatedId?: string;
       rewards: RewardBundle;
+      xp: DungeonXpReward;
       next: GameState;
     }>
   | Readonly<{
@@ -110,6 +127,44 @@ export const STORY_MIN_WORLD_LEVEL = {
   chapter_ii_glaciaire: 5,
 } as const;
 
+/**
+ * DEFERRED balancing — first-clear XP per dungeon (single source of truth). Replays grant
+ * STORY_REPLAY_XP_RATIO of it. Tuned so that:
+ * - Chapter I first clears reach ~World Level 4; a handful of Chapter I replays reach the
+ *   Chapter II gate (STORY_MIN_WORLD_LEVEL), i.e. the gate asks for some farming, never a grind wall;
+ * - Player Level lands around 5-6 at the end of Chapter I and 10-11 at the end of Chapter II.
+ */
+export const STORY_DUNGEON_FIRST_CLEAR_XP: Readonly<Record<string, DungeonXpReward>> = {
+  prologue_wastelands: { playerXp: 250, globalXp: 300 },
+  funeral_mausoleum: { playerXp: 400, globalXp: 500 },
+  frozen_river: { playerXp: 600, globalXp: 700 },
+  time_vestige: { playerXp: 900, globalXp: 900 },
+  ashen_peak: { playerXp: 2000, globalXp: 1500 },
+  silent_retreat_camp: { playerXp: 2500, globalXp: 2000 },
+  white_fall_tower: { playerXp: 3000, globalXp: 2500 },
+  reflection_cavern: { playerXp: 4500, globalXp: 3500 },
+  arathas_academy: { playerXp: 5500, globalXp: 4500 },
+  royal_abyss: { playerXp: 6500, globalXp: 5000 },
+  frost_source: { playerXp: 9000, globalXp: 7000 },
+};
+
+export const STORY_REPLAY_XP_RATIO = 0.25;
+
+export function getDungeonXpReward(dungeonId: string, firstClear: boolean): DungeonXpReward {
+  const base = STORY_DUNGEON_FIRST_CLEAR_XP[dungeonId] ?? { playerXp: 0, globalXp: 0 };
+  if (firstClear) return base;
+  return {
+    playerXp: Math.floor(base.playerXp * STORY_REPLAY_XP_RATIO),
+    globalXp: Math.floor(base.globalXp * STORY_REPLAY_XP_RATIO),
+  };
+}
+
+function applyDungeonXp(state: GameState, xp: DungeonXpReward): GameState {
+  const withPlayerXp = xp.playerXp > 0 ? applyPlayerXpGain(state, xp.playerXp).next : state;
+  if (xp.globalXp <= 0) return withPlayerXp;
+  return { ...withPlayerXp, resources: addQty(withPlayerXp.resources, "XP_GLOBAL", xp.globalXp) };
+}
+
 export const STORY_CHAPTER_REGISTRY: readonly StoryChapterDefinition[] = [
   {
     chapterId: "prologue",
@@ -127,7 +182,7 @@ export const STORY_CHAPTER_REGISTRY: readonly StoryChapterDefinition[] = [
     era: "era_funebre",
     order: 1,
     unlockConditions: { storyFlags: ["prologue_complete"], minWorldLevel: 1 },
-    dungeonIds: ["funeral_mausoleum", "ashen_peak"],
+    dungeonIds: ["funeral_mausoleum", "frozen_river", "time_vestige", "ashen_peak"],
     bossIds: ["dragon_shadow"],
     storyFlagsProduced: ["chapter_i_complete", "kaleidoscope_chapter_i_component_ready"],
   },
@@ -139,10 +194,11 @@ export const STORY_CHAPTER_REGISTRY: readonly StoryChapterDefinition[] = [
     // DEFERRED balancing: WorldLevel gate is a placeholder for the Ch II stability requirement.
     unlockConditions: { storyFlags: ["chapter_i_complete"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
     dungeonIds: [
-      "frozen_river",
+      "silent_retreat_camp",
+      "white_fall_tower",
       "reflection_cavern",
-      "royal_abyss",
       "arathas_academy",
+      "royal_abyss",
       "frost_source",
     ],
     bossIds: ["frost_amalgam", "fallen_rain_lord", "corrupted_archmage", "allaeva"],
@@ -204,7 +260,7 @@ export const STORY_BOSS_REGISTRY: readonly StoryBossDefinition[] = [
 export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
   {
     id: "prologue_wastelands",
-    title: "Terres Desolees",
+    title: "Terres Désolées",
     era: "era_funebre",
     chapterId: "prologue",
     order: 0,
@@ -221,10 +277,12 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
       currencies: [{ currencyId: "ECU", amount: 5 }],
     },
     storyFlagsProduced: ["kingdom_discovered", "prologue_complete", completedDungeon("prologue_wastelands")],
+    // The ruins around the Kingdom give the first gathering grounds.
+    buildingUnlocks: ["MINE", "FARM"],
   },
   {
     id: "funeral_mausoleum",
-    title: "Mausolee Funebre",
+    title: "Mausolée Funèbre",
     era: "era_funebre",
     chapterId: "chapter_i_funebre",
     order: 1,
@@ -235,17 +293,56 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
     firstClearRewards: COMMON_FIRST_CLEAR_REWARDS,
     replayRewards: COMMON_REPLAY_REWARDS,
     storyFlagsProduced: ["funeral_mausoleum_cleared", completedDungeon("funeral_mausoleum")],
+    // DUNGEON_DATABASE D1: Temple unlock. The Forum ships with it so banked WXP can be spent.
+    buildingUnlocks: ["TEMPLE", "FORUM"],
+  },
+  {
+    id: "frozen_river",
+    title: "Rive Figée du Fleuve de Vie",
+    era: "era_funebre",
+    chapterId: "chapter_i_funebre",
+    order: 2,
+    type: "story",
+    replayable: true,
+    bossId: null,
+    unlockConditions: { storyFlags: ["funeral_mausoleum_cleared"], minWorldLevel: 1 },
+    firstClearRewards: COMMON_FIRST_CLEAR_REWARDS,
+    replayRewards: COMMON_REPLAY_REWARDS,
+    storyFlagsProduced: ["frozen_river_cleared", completedDungeon("frozen_river")],
+    // STORY_CHAPTERS Ch I: Tobo appears and the Kingdom reconstruction begins.
+    buildingUnlocks: ["FORGE", "MARKET", "BANK", "KITCHEN"],
+  },
+  {
+    id: "time_vestige",
+    title: "Vestige du Temps",
+    era: "era_funebre",
+    chapterId: "chapter_i_funebre",
+    order: 3,
+    type: "story",
+    replayable: true,
+    bossId: null,
+    unlockConditions: { storyFlags: ["frozen_river_cleared"], minWorldLevel: 1 },
+    firstClearRewards: {
+      resources: [{ resourceId: "spectral_dust", amount: 3 }],
+      currencies: [{ currencyId: "ECU", amount: 25 }],
+    },
+    replayRewards: {
+      resources: [{ resourceId: "spectral_dust", amount: 1 }],
+      currencies: [{ currencyId: "ECU", amount: 5 }],
+    },
+    storyFlagsProduced: ["time_vestige_cleared", completedDungeon("time_vestige")],
+    buildingUnlocks: [],
   },
   {
     id: "ashen_peak",
     title: "Pic des Cendres",
     era: "era_funebre",
     chapterId: "chapter_i_funebre",
-    order: 2,
+    order: 4,
     type: "boss",
     replayable: true,
     bossId: "dragon_shadow",
-    unlockConditions: { storyFlags: ["funeral_mausoleum_cleared"], minWorldLevel: 1 },
+    unlockConditions: { storyFlags: ["time_vestige_cleared"], minWorldLevel: 1 },
     firstClearRewards: {
       resources: [{ resourceId: "dragon_ash_core", amount: 1 }],
       currencies: [{ currencyId: "BOSS_TOKEN", amount: 1 }],
@@ -255,31 +352,54 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
       currencies: [{ currencyId: "ECU", amount: 10 }],
     },
     storyFlagsProduced: ["chapter_i_complete", completedDungeon("ashen_peak")],
+    buildingUnlocks: [],
   },
   {
-    id: "frozen_river",
-    title: "Rive Figee",
+    id: "silent_retreat_camp",
+    title: "Camp de la Retraite Silencieuse",
     era: "era_glaciaire",
     chapterId: "chapter_ii_glaciaire",
-    order: 3,
+    order: 5,
     type: "story",
     replayable: true,
     bossId: null,
     unlockConditions: { storyFlags: ["chapter_i_complete"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
     firstClearRewards: COMMON_FIRST_CLEAR_REWARDS,
     replayRewards: COMMON_REPLAY_REWARDS,
-    storyFlagsProduced: ["frozen_river_cleared", completedDungeon("frozen_river")],
+    storyFlagsProduced: ["silent_retreat_camp_cleared", completedDungeon("silent_retreat_camp")],
+    buildingUnlocks: [],
+  },
+  {
+    id: "white_fall_tower",
+    title: "Tour de la Chute Blanche",
+    era: "era_glaciaire",
+    chapterId: "chapter_ii_glaciaire",
+    order: 6,
+    type: "story",
+    replayable: true,
+    bossId: null,
+    unlockConditions: { storyFlags: ["silent_retreat_camp_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
+    firstClearRewards: {
+      resources: [{ resourceId: "archival_fragment", amount: 3 }],
+      currencies: [{ currencyId: "ECU", amount: 25 }],
+    },
+    replayRewards: {
+      resources: [{ resourceId: "archival_fragment", amount: 1 }],
+      currencies: [{ currencyId: "ECU", amount: 5 }],
+    },
+    storyFlagsProduced: ["white_fall_tower_cleared", completedDungeon("white_fall_tower")],
+    buildingUnlocks: [],
   },
   {
     id: "reflection_cavern",
-    title: "Caverne aux Reflets",
+    title: "Caverne aux Chants",
     era: "era_glaciaire",
     chapterId: "chapter_ii_glaciaire",
-    order: 4,
+    order: 7,
     type: "boss",
     replayable: true,
     bossId: "frost_amalgam",
-    unlockConditions: { storyFlags: ["frozen_river_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
+    unlockConditions: { storyFlags: ["white_fall_tower_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
     firstClearRewards: {
       resources: [{ resourceId: "frost_amalgam_core", amount: 1 }],
       currencies: [{ currencyId: "BOSS_TOKEN", amount: 1 }],
@@ -289,37 +409,18 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
       currencies: [{ currencyId: "ECU", amount: 10 }],
     },
     storyFlagsProduced: ["reflection_cavern_cleared", completedDungeon("reflection_cavern")],
-  },
-  {
-    id: "royal_abyss",
-    title: "Gouffre Royal",
-    era: "era_funebre",
-    chapterId: "chapter_ii_glaciaire",
-    order: 5,
-    type: "boss",
-    replayable: true,
-    bossId: "fallen_rain_lord",
-    unlockConditions: { storyFlags: ["reflection_cavern_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
-    firstClearRewards: {
-      resources: [{ resourceId: "pearlescent_scale", amount: 1 }],
-      currencies: [{ currencyId: "BOSS_TOKEN", amount: 1 }],
-    },
-    replayRewards: {
-      resources: [{ resourceId: "cold_shell_fragment", amount: 2 }],
-      currencies: [{ currencyId: "ECU", amount: 10 }],
-    },
-    storyFlagsProduced: ["royal_abyss_cleared", completedDungeon("royal_abyss")],
+    buildingUnlocks: [],
   },
   {
     id: "arathas_academy",
-    title: "Academie d'Arathas",
+    title: "Académie d'Arathas",
     era: "era_glaciaire",
     chapterId: "chapter_ii_glaciaire",
-    order: 6,
+    order: 8,
     type: "boss",
     replayable: true,
     bossId: "corrupted_archmage",
-    unlockConditions: { storyFlags: ["royal_abyss_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
+    unlockConditions: { storyFlags: ["reflection_cavern_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
     firstClearRewards: {
       resources: [{ resourceId: "archmage_sigil", amount: 1 }],
       currencies: [{ currencyId: "BOSS_TOKEN", amount: 1 }],
@@ -329,17 +430,39 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
       currencies: [{ currencyId: "ECU", amount: 10 }],
     },
     storyFlagsProduced: ["arathas_academy_cleared", completedDungeon("arathas_academy")],
+    buildingUnlocks: [],
+  },
+  {
+    id: "royal_abyss",
+    title: "Gouffre Royal",
+    era: "era_glaciaire",
+    chapterId: "chapter_ii_glaciaire",
+    order: 9,
+    type: "boss",
+    replayable: true,
+    bossId: "fallen_rain_lord",
+    unlockConditions: { storyFlags: ["arathas_academy_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
+    firstClearRewards: {
+      resources: [{ resourceId: "pearlescent_scale", amount: 1 }],
+      currencies: [{ currencyId: "BOSS_TOKEN", amount: 1 }],
+    },
+    replayRewards: {
+      resources: [{ resourceId: "cold_shell_fragment", amount: 2 }],
+      currencies: [{ currencyId: "ECU", amount: 10 }],
+    },
+    storyFlagsProduced: ["royal_abyss_cleared", completedDungeon("royal_abyss")],
+    buildingUnlocks: [],
   },
   {
     id: "frost_source",
     title: "Source du Givre",
     era: "era_glaciaire",
     chapterId: "chapter_ii_glaciaire",
-    order: 7,
+    order: 10,
     type: "boss",
     replayable: true,
     bossId: "allaeva",
-    unlockConditions: { storyFlags: ["arathas_academy_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
+    unlockConditions: { storyFlags: ["royal_abyss_cleared"], minWorldLevel: STORY_MIN_WORLD_LEVEL.chapter_ii_glaciaire },
     firstClearRewards: {
       resources: [{ resourceId: "frozen_queen_tear", amount: 1 }],
       currencies: [{ currencyId: "BOSS_TOKEN", amount: 1 }],
@@ -349,6 +472,7 @@ export const STORY_DUNGEON_REGISTRY: readonly StoryDungeonDefinition[] = [
       currencies: [{ currencyId: "ECU", amount: 15 }],
     },
     storyFlagsProduced: ["chapter_ii_complete", "time_gate_phase_8_ready", completedDungeon("frost_source")],
+    buildingUnlocks: [],
   },
 ] as const;
 
@@ -522,16 +646,41 @@ export function completeDungeon(
     for (const flag of chapter.storyFlagsProduced) nextStory.completedEvents.add(flag);
   }
 
+  const xp = getDungeonXpReward(dungeon.id, shouldFirstClear);
+
   return {
     ok: true,
     firstClear: shouldFirstClear,
     bossDefeatedId: boss?.id,
     rewards: shouldFirstClear ? dungeon.firstClearRewards : dungeon.replayRewards,
-    next: {
-      ...rewarded,
-      story: nextStory,
-    },
+    xp,
+    next: applyDungeonBuildingUnlocks(applyDungeonXp({ ...rewarded, story: nextStory }, xp), dungeon.id),
   };
+}
+
+/** The story dungeon whose completion unlocks `buildingId`, for "unlocked by" UI hints. */
+export function getBuildingUnlockDungeon(buildingId: string): StoryDungeonDefinition | undefined {
+  return STORY_DUNGEON_REGISTRY.find((dungeon) => (dungeon.buildingUnlocks as readonly string[]).includes(buildingId));
+}
+
+/** Unlocks the Kingdom buildings a dungeon grants. Idempotent; never builds anything. */
+export function applyDungeonBuildingUnlocks(state: GameState, dungeonId: string): GameState {
+  const dungeon = getStoryDungeonDefinition(dungeonId);
+  if (!dungeon) return state;
+  const missing = dungeon.buildingUnlocks.filter((buildingId) => !state.story.unlocked.has(buildingId));
+  return missing.length > 0 ? applyUnlocks(state, missing) : state;
+}
+
+/**
+ * Re-applies the building unlocks of every completed dungeon. Run on save load so players who
+ * cleared dungeons before `buildingUnlocks` existed are not stuck with locked buildings.
+ */
+export function reconcileStoryBuildingUnlocks(state: GameState): GameState {
+  let next = state;
+  for (const dungeon of STORY_DUNGEON_REGISTRY) {
+    if (next.story.completedDungeonIds.has(dungeon.id)) next = applyDungeonBuildingUnlocks(next, dungeon.id);
+  }
+  return next;
 }
 
 export function validateStoryProgressionRegistry(
@@ -543,6 +692,7 @@ export function validateStoryProgressionRegistry(
   const dungeonIds = new Set<string>();
   const bossIds = new Set<string>();
   const producedFlags = new Set<string>();
+  const unlockedBuildings = new Set<string>();
   const allowedBossIds = new Set(["dark_amalgam", "dragon_shadow", "frost_amalgam", "fallen_rain_lord", "corrupted_archmage", "allaeva"]);
   const allowedChapterIds = new Set<MvpStoryChapterId>(["prologue", "chapter_i_funebre", "chapter_ii_glaciaire"]);
 
@@ -564,6 +714,16 @@ export function validateStoryProgressionRegistry(
     producedFlags.add(completedDungeon(dungeon.id));
     producedFlags.add(firstClear(dungeon.id));
     validateUnlockConditionShape(dungeon.unlockConditions, `dungeon ${dungeon.id}`);
+    if (dungeons === STORY_DUNGEON_REGISTRY && !STORY_DUNGEON_FIRST_CLEAR_XP[dungeon.id]) {
+      throw new Error(`Dungeon ${dungeon.id} has no first-clear XP entry`);
+    }
+    for (const buildingId of dungeon.buildingUnlocks) {
+      if (!(CANONICAL_BUILDING_IDS as readonly string[]).includes(buildingId)) {
+        throw new Error(`Dungeon ${dungeon.id} unlocks unknown building: ${buildingId}`);
+      }
+      if (unlockedBuildings.has(buildingId)) throw new Error(`Building ${buildingId} is unlocked by two dungeons`);
+      unlockedBuildings.add(buildingId);
+    }
   }
 
   for (const boss of bosses) {

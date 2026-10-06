@@ -1,12 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { grantStock, isStockDrained, withUnlockedBuildings } from "./support/fixtures.js";
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as gameCore from "../index.js";
+import { getSkillDefinition } from "../skills/registry.js";
 import {
   FORGE_RECIPES,
+  getForgeOutputBase,
   getCanonicalForgeRecipeRequiredLevel,
   getAvailableForgeRecipes,
   getForgeRecipe,
@@ -47,7 +50,6 @@ import {
 import { getBuildCost } from "../building/buildCosts.js";
 import { createDefaultWalletState, getCurrencyBalance, grantCurrency } from "../currencies/index.js";
 import { calculateFinalCharacterStats, createDefaultPlayerEquipmentState, equipItem, generateEquipmentItem } from "../equipment/index.js";
-import { completeChapterAction } from "../game/actions.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
 import { forgeCraft, forgeRecycle, forgeUpgrade } from "../game/forgeActions.js";
 import { loadGame } from "../game/save.js";
@@ -81,10 +83,8 @@ function createForgeTestState(): GameState {
   };
 }
 
-function progressToChapter4AndBuildForge(s: ReturnType<typeof createInitialGameState>) {
-  for (const ch of [1, 2, 3, 4] as const) {
-    s = completeChapterAction(s, ch).next;
-  }
+function unlockAndBuildForge(s: ReturnType<typeof createInitialGameState>) {
+  s = withUnlockedBuildings(s, ["FORGE"]);
 
   return {
     ...s,
@@ -346,7 +346,7 @@ test("Forge weapon family ladder is canonical from Forge Level 1 to 10", () => {
 });
 
 test("Forge craft follows the weapon ladder for Sword, Dagger, and Staff", () => {
-  let state = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 1);
+  let state = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 1);
   state = { ...state, resources: grantCraftResources(state.resources, { iron_ore: 20, silver_ore: 5, old_wood: 5, sapphire: 5 }) };
 
   const sword = forgeCraft(state, "weapon_sword", { seed: 201 });
@@ -368,7 +368,7 @@ test("Forge craft follows the weapon ladder for Sword, Dagger, and Staff", () =>
 });
 
 test("Forge boss weapons require boss defeat, Forge Level, and resources", () => {
-  let state = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 2);
+  let state = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 2);
   state = {
     ...state,
     resources: grantCraftResources(state.resources, {
@@ -393,7 +393,7 @@ test("Forge boss weapons require boss defeat, Forge Level, and resources", () =>
 });
 
 test("Forge boss weapon remains locked when Forge Level is below its family ladder", () => {
-  let state = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 9);
+  let state = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 9);
   state = withDefeatedBoss(state, "corrupted_archmage");
   state = {
     ...state,
@@ -471,7 +471,7 @@ test("Forge recipe validation rejects weapon ladder contradictions and bad boss 
 });
 
 test("Forge craft no longer needs a villager and spends recipe resources", () => {
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = {
     ...s,
     resources: grantCraftResources(s.resources, { iron_ore: 10 }),
@@ -501,9 +501,14 @@ test("Forge has MVP recipes that create real equipment items", () => {
   assert.ok(recipeIds.includes("BASIC_SWORD"));
   assert.ok(recipeIds.includes("BASIC_ARMOR"));
   assert.ok(recipeIds.includes("BASIC_CAPE"));
-  assert.ok(recipeIds.includes("BASIC_ARTIFACT"));
+  assert.ok(recipeIds.includes("BASIC_GLOVES"));
+  assert.ok(recipeIds.includes("BASIC_BELT"));
+  assert.ok(recipeIds.includes("BASIC_BOOTS"));
+  // Artifact is inert in the MVP (D-11): it must not be craftable.
+  assert.equal(recipeIds.includes("BASIC_ARTIFACT"), false);
+  assert.equal(FORGE_RECIPES.some((recipe) => recipe.outputBaseId === "relic"), false);
 
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = { ...s, resources: grantCraftResources(s.resources, { iron_ore: 20, old_wood: 20, quartz: 20, sapphire: 20 }) };
 
   const crafted = forgeCraft(s, "BASIC_CAPE", { seed: 102 });
@@ -519,9 +524,7 @@ test("Forge has MVP recipes that create real equipment items", () => {
 
 test("Forge craft still requires the Forge building", () => {
   let s = createForgeTestState();
-  for (const ch of [1, 2, 3, 4] as const) {
-    s = completeChapterAction(s, ch).next;
-  }
+  s = withUnlockedBuildings(s, ["FORGE"]);
   s = { ...s, resources: grantCraftResources(s.resources, { iron_ore: 4 }) };
 
   const result = forgeCraft(s, "iron_sword");
@@ -536,19 +539,13 @@ test("Forge dev override works after build and still consumes construction resou
   const cost = getBuildCost("FORGE");
   s = {
     ...s,
-    resources: {
-      WOOD: cost.WOOD ?? 0,
-      STONE: cost.STONE ?? 0,
-      IRON: cost.IRON ?? 0,
-      iron_ore: 4,
-    },
+    resources: grantStock({ iron_ore: 4 }, cost),
   };
 
   const built = buildBuilding(s, "FORGE", { allowLocked: true });
   assert.equal(built.ok, true);
-  assert.equal(getQty(built.next.resources, "WOOD"), 0);
-  assert.equal(getQty(built.next.resources, "STONE"), 0);
-  assert.equal(getQty(built.next.resources, "IRON"), 0);
+  assert.equal(getCanonicalResourceQuantity(built.next.resources, "iron_ore"), 4);
+  assert.equal(getCanonicalResourceQuantity(built.next.resources, "quartz"), 0);
 
   const crafted = forgeCraft(built.next, "iron_sword", { allowLocked: true, seed: 103 });
 
@@ -558,7 +555,7 @@ test("Forge dev override works after build and still consumes construction resou
 });
 
 test("Forge craft refuses when resources are insufficient", () => {
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = { ...s, resources: grantCraftResources(s.resources, { quartz: 2 }) };
 
   const result = forgeCraft(s, "copper_ring");
@@ -570,7 +567,7 @@ test("Forge craft refuses when resources are insufficient", () => {
 });
 
 test("Forge crafted itemLevel depends on worldLevel", () => {
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = {
     ...s,
     progression: { ...s.progression, worldLevel: 7 },
@@ -590,7 +587,7 @@ test("Forge recipe is locked below required Forge level and unlocked at that lev
   const recipe = getForgeRecipe("weapon_dagger");
   assert.ok(recipe);
 
-  let s = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 1);
+  let s = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 1);
   assert.equal(getForgeRecipeLockReason(s, recipe), "FORGE_LEVEL_TOO_LOW");
 
   s = withForgeLevel(s, 2);
@@ -598,7 +595,7 @@ test("Forge recipe is locked below required Forge level and unlocked at that lev
 });
 
 test("forgeCraft refuses recipes locked by Forge level", () => {
-  let s = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 1);
+  let s = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 1);
   s = {
     ...s,
     resources: grantCraftResources(s.resources, { iron_ore: 10, silver_ore: 10 }),
@@ -613,7 +610,7 @@ test("forgeCraft refuses recipes locked by Forge level", () => {
 });
 
 test("getAvailableForgeRecipes filters by Forge level", () => {
-  const level1 = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 1);
+  const level1 = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 1);
   const level2 = withForgeLevel(level1, 2);
 
   const level1Ids = getAvailableForgeRecipes(level1).map((recipe) => recipe.id);
@@ -629,7 +626,7 @@ test("Forge optional WorldLevel requirement locks recipes until met", () => {
   assert.ok(recipe);
 
   const belowWorld = withForgeLevel({
-    ...progressToChapter4AndBuildForge(createForgeTestState()),
+    ...unlockAndBuildForge(createForgeTestState()),
     progression: { playerLevel: 1, playerXp: 0, worldLevel: 4, worldWxp: 0 },
   }, 9);
   const atWorld = {
@@ -642,7 +639,7 @@ test("Forge optional WorldLevel requirement locks recipes until met", () => {
 });
 
 test("Forge craft works for weapon progression recipes once unlocked", () => {
-  let s = withForgeLevel(progressToChapter4AndBuildForge(createForgeTestState()), 2);
+  let s = withForgeLevel(unlockAndBuildForge(createForgeTestState()), 2);
   s = {
     ...s,
     resources: grantCraftResources(s.resources, { iron_ore: 2, silver_ore: 1 }),
@@ -692,7 +689,7 @@ test("Forge upgrade caps match MVP rarity limits", () => {
 });
 
 test("Forge upgrade increments upgradeLevel, increases stats, and preserves item identity and ilvl", () => {
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = {
     ...s,
     resources: grantCraftResources(s.resources, { iron_ore: 10 }),
@@ -762,7 +759,7 @@ test("pure Forge upgrade consumes costs without changing ilvl, affixes, or base 
 });
 
 test("Forge repeated upgrades scale deterministically from base stats", () => {
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   const item = generateEquipmentItem({
     id: "deterministic_upgrade",
     slot: "main_hand",
@@ -795,7 +792,7 @@ test("Forge repeated upgrades scale deterministically from base stats", () => {
 });
 
 test("Equipped upgraded item affects final character stats", () => {
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   const item = generateEquipmentItem({
     id: "equipped_upgrade",
     slot: "main_hand",
@@ -830,7 +827,7 @@ test("Forge upgrade respects rarity max caps", () => {
   });
   capped.upgradeLevel = getForgeUpgradeMaxLevel("COMMON");
 
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = { ...s, inventory: addItem(s.inventory, capped) };
   s = fundUpgradeCosts(s, capped.id);
 
@@ -862,7 +859,7 @@ test("Forge recycle destroys item and grants ECU equal to 50% item value", () =>
   });
   item.value = 120;
 
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = { ...s, inventory: addItem(s.inventory, item) };
 
   const result = forgeRecycle(s, item.id, { preciousStoneRoll: 1 });
@@ -885,7 +882,7 @@ test("Forge recycle can grant a matching-rarity precious stone with a seed", () 
     seed: "recycle-stone",
   });
 
-  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  let s = unlockAndBuildForge(createForgeTestState());
   s = { ...s, inventory: addItem(s.inventory, item) };
 
   const result = forgeRecycle(s, item.id, { seed: findSeedForPreciousStoneDrop() });
@@ -959,4 +956,44 @@ test("Legacy save equipment items missing upgradeLevel migrate to 0", () => {
       assert.equal(item.ilvl, 20);
     },
   );
+});
+
+
+test("every MVP equipment slot except the artifact has a basic Forge recipe", () => {
+  const slots = new Set(
+    FORGE_RECIPES.map((recipe) => getForgeOutputBase(recipe.outputBaseId)?.slot).filter(Boolean),
+  );
+  for (const slot of ["main_hand", "off_hand", "helmet", "chest", "cape", "gloves", "belt", "boots", "ring", "necklace"]) {
+    assert.ok(slots.has(slot as never), `no recipe for ${slot}`);
+  }
+});
+
+test("Equipment Set recipes craft set pieces once their story flag is reached", () => {
+  let s = unlockAndBuildForge(createForgeTestState());
+  s = { ...s, resources: grantCraftResources(s.resources, { iron_ore: 20, old_wood: 20, shadow_residue: 20 }) };
+
+  const locked = forgeCraft(s, "set_vagabond_boots", { seed: 5 });
+  assert.equal(locked.ok, false);
+  assert.equal(locked.reason, "QUEST_REQUIRED");
+
+  s = { ...s, story: { ...s.story, completedEvents: new Set([...s.story.completedEvents, "prologue_complete"]) } };
+  const crafted = forgeCraft(s, "set_vagabond_boots", { seed: 5 });
+  assert.equal(crafted.ok, true);
+  const item = crafted.next.inventory.items.find((candidate) => candidate.id === crafted.createdItemId);
+  assert.ok(item && isEquipmentItem(item));
+  assert.equal(item.slot, "boots");
+  assert.equal(item.setId, "vagabond");
+});
+
+test("ring recipes roll a skill within their category", () => {
+  let s = unlockAndBuildForge(createForgeTestState());
+  s = { ...s, resources: grantCraftResources(s.resources, { quartz: 60, old_wood: 40 }) };
+  for (let seed = 1; seed <= 6; seed += 1) {
+    const crafted = forgeCraft(s, "ring_movement", { seed });
+    assert.equal(crafted.ok, true);
+    const ring = crafted.next.inventory.items.find((candidate) => candidate.id === crafted.createdItemId);
+    assert.ok(ring && isEquipmentItem(ring) && ring.skillId);
+    assert.equal(getSkillDefinition(ring.skillId!)?.category, "movement");
+    s = crafted.next;
+  }
 });

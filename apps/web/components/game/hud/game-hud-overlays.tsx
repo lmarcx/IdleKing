@@ -1,14 +1,17 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { Grid2X2, Settings } from "lucide-react";
 
 import { CharacterView } from "@/components/game/character/character-view";
 import { InventoryView } from "@/components/game/inventory/inventory-view";
+import { ResonanceTreePanel } from "@/components/game/resonance/resonance-tree-panel";
 import { SkillsView } from "@/components/game/skills/skills-view";
 import { WorldsModeShell } from "@/components/game/worlds/worlds-mode-shell";
 import { GameOverlay } from "@/components/game/hud/game-overlay";
 
-export type GameHudOverlayId = "character" | "inventory" | "skills" | "worlds" | "settings";
+export type GameHudOverlayId = "character" | "inventory" | "resonance" | "skills" | "worlds" | "settings";
 
 type GameHudOverlayContextValue = {
   activeOverlay: GameHudOverlayId | null;
@@ -22,6 +25,7 @@ const GameHudOverlayContext = createContext<GameHudOverlayContextValue | null>(n
 const OVERLAY_TITLES: Record<GameHudOverlayId, string> = {
   character: "Character",
   inventory: "Inventory",
+  resonance: "Résonance",
   settings: "Settings",
   skills: "Skills",
   worlds: "Time Gate",
@@ -32,6 +36,7 @@ export function GameHudOverlayProvider({ children }: { children: ReactNode }) {
   const [mountedOverlays, setMountedOverlays] = useState<Record<GameHudOverlayId, boolean>>({
     character: false,
     inventory: false,
+    resonance: false,
     settings: false,
     skills: false,
     worlds: false,
@@ -104,6 +109,12 @@ function GameHudOverlayLayer({
         </GameOverlay>
       ) : null}
 
+      {activeOverlay === "resonance" ? (
+        <GameOverlay contentClassName="overscroll-contain" onClose={closeOverlay} open title={OVERLAY_TITLES.resonance}>
+          <ResonanceTreePanel />
+        </GameOverlay>
+      ) : null}
+
       {activeOverlay === "worlds" ? (
         <GameOverlay contentClassName="overscroll-contain" onClose={closeOverlay} open title={OVERLAY_TITLES.worlds}>
           <WorldsModeShell />
@@ -112,11 +123,30 @@ function GameHudOverlayLayer({
 
       {activeOverlay === "settings" ? (
         <GameOverlay onClose={closeOverlay} open title={OVERLAY_TITLES.settings}>
-          <div className="grid min-h-56 place-items-center rounded-lg border border-amber-200/18 bg-black/35 p-6 text-center">
-            <div>
-              <p className="font-ik-menu text-xs uppercase tracking-[0.18em] text-amber-200/70">Settings</p>
-              <h3 className="mt-2 font-ik-title text-2xl text-amber-50">Coming Soon</h3>
-            </div>
+          <div className="ik-stagger grid gap-3 sm:grid-cols-2">
+            <Link
+              className="ik-card-hover group border-2 border-neutral-700 bg-black/50 p-5"
+              href="/editor"
+              onClick={closeOverlay}
+            >
+              <span className="grid h-11 w-11 place-items-center border-2 border-neutral-600 bg-neutral-900 transition group-hover:border-neutral-100">
+                <Grid2X2 aria-hidden="true" className="h-5 w-5 text-neutral-200" />
+              </span>
+              <span className="mt-3 block font-ik-menu text-sm text-neutral-100">Mode éditeur</span>
+              <span className="mt-1.5 block font-ik-body text-xs text-neutral-400">Assets et maps custom.</span>
+            </Link>
+
+            <Link
+              className="ik-card-hover group border-2 border-neutral-700 bg-black/50 p-5"
+              href="/game/settings"
+              onClick={closeOverlay}
+            >
+              <span className="grid h-11 w-11 place-items-center border-2 border-neutral-600 bg-neutral-900 transition group-hover:border-neutral-100">
+                <Settings aria-hidden="true" className="h-5 w-5 text-neutral-200" />
+              </span>
+              <span className="mt-3 block font-ik-menu text-sm text-neutral-100">Settings complets</span>
+              <span className="mt-1.5 block font-ik-body text-xs text-neutral-400">Sauvegarde et options.</span>
+            </Link>
           </div>
         </GameOverlay>
       ) : null}

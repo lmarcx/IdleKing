@@ -5,4 +5,5 @@ export * from "./generator.js";
 export * from "./riskLoadout.js";
 export * from "./runModifiers.js";
 export * from "./choiceResolver.js";
+export * from "./bosses.js";
 export * from "./runner.js";

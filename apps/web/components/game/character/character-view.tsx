@@ -1,16 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AvailableEquipmentPanel } from "@/components/game/character/available-equipment-panel";
 import { CharacterStatsPanel } from "@/components/game/character/character-stats-panel";
 import { EquipmentDoll } from "@/components/game/character/equipment-doll";
-import { FAKE_EQUIPMENT } from "@/components/game/character/fake-equipment";
-import type { CharacterEquipment, CharacterStat, EquipmentSlotId, EquippedItems } from "@/components/game/character/types";
-import { EffectSetsPanel } from "@/components/game/worlds/effect-sets-panel";
-import { ResonancePanel } from "@/components/game/worlds/resonance-panel";
-import { cn } from "@/lib/utils";
+import type {
+  CharacterEquipment,
+  CharacterStat,
+  EquipmentDragPayload,
+  EquipmentSlotId,
+  EquippedItems,
+} from "@/components/game/character/types";
+import { ItemDeleteConfirmDialog } from "@/components/game/item-delete-dialog";
+import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import {
   calculateFinalCharacterStats,
@@ -21,26 +25,10 @@ import {
 } from "@idleking/game-core";
 import { normalizeEquipmentItem, type ItemRarity } from "@idleking/game-core/items";
 
-type CharacterTab = "equipment" | "resonance" | "effects";
-
-const CHARACTER_TABS: { id: CharacterTab; label: string }[] = [
-  { id: "equipment", label: "Equipment" },
-  { id: "resonance", label: "Resonance" },
-  { id: "effects", label: "Effect Sets" },
-];
-
 type EquipmentMetadata = {
   description?: string;
   icon?: string;
   value?: number;
-};
-
-const CHARACTER_TO_CORE_RARITY: Record<CharacterEquipment["rarity"], ItemRarity> = {
-  common: "COMMON",
-  uncommon: "UNCOMMON",
-  rare: "RARE",
-  epic: "EPIC",
-  legendary: "LEGENDARY",
 };
 
 const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]> = {
@@ -50,17 +38,6 @@ const CORE_TO_CHARACTER_RARITY: Record<ItemRarity, CharacterEquipment["rarity"]>
   EPIC: "epic",
   LEGENDARY: "legendary",
 };
-
-function getFixturePower(item: CharacterEquipment): number | undefined {
-  if (item.stats.power !== undefined) return item.stats.power;
-
-  const attack = item.stats.atk ?? 0;
-  const defense = item.stats.def ?? 0;
-  const hp = item.stats.hp ?? 0;
-  const power = Math.round(attack * 2 + defense * 1.5 + hp * 0.2);
-
-  return power > 0 ? power : undefined;
-}
 
 function toCoreEquipmentSlot(slot: CharacterEquipment["slot"]): EquipmentSlot {
   if (slot === "weapon") return "main_hand";
@@ -74,41 +51,6 @@ function toCharacterEquipmentSlot(slot: EquipmentSlot): EquipmentSlotId {
   return slot as EquipmentSlotId;
 }
 
-const DEV_EQUIPMENT_FIXTURES: Array<EquipmentItem & EquipmentMetadata> = FAKE_EQUIPMENT.map((item) => ({
-  affixes: [],
-  baseItemId: item.id,
-  baseStats: {
-    hp: item.stats.hp,
-    attack: item.stats.atk,
-    defense: item.stats.def,
-    power: getFixturePower(item),
-  },
-  description: item.description,
-  icon: item.icon,
-  id: item.id,
-  ilvl: item.itemLevel,
-  instanceId: item.id,
-  itemLevel: item.itemLevel,
-  kind: "equipment",
-  name: item.name,
-  rarity: CHARACTER_TO_CORE_RARITY[item.rarity],
-  rolledStats: {
-    hp: item.stats.hp,
-    attack: item.stats.atk,
-    defense: item.stats.def,
-    power: getFixturePower(item),
-  },
-  slot: toCoreEquipmentSlot(item.slot),
-  upgradeLevel: 0,
-  stats: {
-    hp: item.stats.hp,
-    attack: item.stats.atk,
-    defense: item.stats.def,
-    power: getFixturePower(item),
-  },
-  value: item.value,
-}));
-
 function getCharacterRarity(item: EquipmentItem): CharacterEquipment["rarity"] {
   return item.rarity ? CORE_TO_CHARACTER_RARITY[item.rarity] : "common";
 }
@@ -118,12 +60,15 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
   const itemLevel = item.itemLevel ?? item.ilvl ?? 1;
 
   return {
+    affixes: item.affixes,
     description: metadata.description ?? "Equipment from the current character inventory.",
     icon: metadata.icon ?? `/assets/equipment-slots/${item.slot}.svg`,
     id: item.id,
     itemLevel,
     name: item.name,
     rarity: getCharacterRarity(item),
+    setId: item.setId,
+    skillId: item.skillId,
     slot: toCharacterEquipmentSlot(item.slot),
     stats: {
       hp: item.stats.hp,
@@ -131,21 +76,20 @@ function toCharacterEquipment(item: EquipmentItem): CharacterEquipment {
       def: item.stats.defense,
       power: item.stats.power,
     },
+    upgradeLevel: item.upgradeLevel,
     value: metadata.value ?? itemLevel,
   };
 }
 
-function hasEquipmentItems(items: unknown[]) {
-  return items.some((item) => normalizeEquipmentItem(item));
-}
-
 export function CharacterView() {
+  const { openOverlay } = useGameHudOverlay();
   const state = useGameStore((s) => s.state);
-  const hydrated = useGameStore((s) => s.hydrated);
-  const dispatch = useGameStore((s) => s.dispatch);
   const equipPlayerItem = useGameStore((s) => s.equipPlayerItem);
+  const equipPlayerRing = useGameStore((s) => s.equipPlayerRing);
   const unequipPlayerItem = useGameStore((s) => s.unequipPlayerItem);
   const unequipPlayerRing = useGameStore((s) => s.unequipPlayerRing);
+  const removePlayerItem = useGameStore((s) => s.removePlayerItem);
+  const [pendingDelete, setPendingDelete] = useState<CharacterEquipment | null>(null);
   const characterStats = useMemo(() => calculateFinalCharacterStats(state), [state]);
   const availableEquipment = useMemo(
     () =>
@@ -175,22 +119,6 @@ export function CharacterView() {
     () => ringSlotIds.map((itemId) => (itemId ? equippedById.get(itemId) ?? null : null)),
     [equippedById, ringSlotIds],
   );
-
-  useEffect(() => {
-    if (!hydrated || process.env.NODE_ENV === "production") return;
-    if (hasEquipmentItems(state.inventory.items)) return;
-
-    dispatch((current) => {
-      if (hasEquipmentItems(current.inventory.items)) return current;
-
-      return {
-        ...current,
-        inventory: {
-          items: [...current.inventory.items, ...DEV_EQUIPMENT_FIXTURES],
-        },
-      };
-    });
-  }, [dispatch, hydrated, state.inventory.items]);
 
   const stats = useMemo<CharacterStat[]>(
     () => [
@@ -230,25 +158,83 @@ export function CharacterView() {
     unequipPlayerRing(slotIndex);
   }, [unequipPlayerRing]);
 
+  const handleDropOnSlot = useCallback((slotId: EquipmentSlotId, payload: EquipmentDragPayload) => {
+    if (payload.slot !== slotId) {
+      toast.error("Cet objet ne correspond pas a cet emplacement.");
+      return;
+    }
+    const result = equipPlayerItem(payload.id);
+    if (!result.ok) {
+      toast.error(`Unable to equip item: ${result.reason}`);
+    }
+  }, [equipPlayerItem]);
+
+  const handleDropOnRing = useCallback((slotIndex: number, payload: EquipmentDragPayload) => {
+    if (payload.slot !== "ring") {
+      toast.error("Seuls les anneaux vont dans cet emplacement.");
+      return;
+    }
+    const result = equipPlayerRing(payload.id, slotIndex);
+    if (!result.ok) {
+      toast.error(`Unable to equip ring: ${result.reason}`);
+    }
+  }, [equipPlayerRing]);
+
+  const handleRequestDelete = useCallback((item: CharacterEquipment) => {
+    setPendingDelete(item);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    const result = removePlayerItem(pendingDelete.id);
+    if (!result.ok) {
+      toast.error(`Unable to delete item: ${result.reason}`);
+    } else {
+      toast.success(`${pendingDelete.name} deleted`);
+    }
+    setPendingDelete(null);
+  }, [pendingDelete, removePlayerItem]);
+
   return (
     <div className="space-y-4">
-      <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-ik-title text-2xl font-semibold">Character</h1>
+        <button
+          aria-label="Ouvrir Résonance"
+          className="ik-card-hover rounded-md border border-amber-200/24 bg-amber-500/12 px-3 py-1.5 font-ik-menu text-xs uppercase tracking-[0.08em] text-amber-50 transition hover:border-amber-100"
+          onClick={() => openOverlay("resonance")}
+          type="button"
+        >
+          Ouvrir Résonance
+        </button>
+      </div>
 
       <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_320px]">
         <CharacterStatsPanel stats={stats} />
         <EquipmentDoll
           equippedItems={equippedItems}
           equippedRings={equippedRings}
+          onDelete={handleRequestDelete}
+          onDropOnRing={handleDropOnRing}
+          onDropOnSlot={handleDropOnSlot}
           onUnequip={handleUnequip}
           onUnequipRing={handleUnequipRing}
         />
         <AvailableEquipmentPanel
           equippedItemIds={equippedItemIds}
           items={availableEquipment}
+          onDelete={handleRequestDelete}
           onEquip={handleEquip}
           onUnequip={handleUnequipItem}
         />
       </div>
+
+      <ItemDeleteConfirmDialog
+        itemName={pendingDelete?.name ?? null}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+        open={pendingDelete !== null}
+      />
     </div>
   );
 }

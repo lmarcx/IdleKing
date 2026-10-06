@@ -23,14 +23,14 @@ export const KITCHEN_RECIPES: DishRecipe[] = [
   {
     id: "STEW",
     label: "Stew",
-    cost: { MEAT: 2, WATER: 1 },
+    cost: { tough_meat: 2, carrot: 1 },
     output: { PLATE_STEW: 1 },
     staminaCostPct: 0.25,
   },
   {
     id: "SALAD",
     label: "Salad",
-    cost: { WATER: 1, CARROT: 1, TOMATO: 1 },
+    cost: { tomato: 2, carrot: 1 },
     output: { PLATE_SALAD: 1 },
     staminaCostPct: 0.2,
   },

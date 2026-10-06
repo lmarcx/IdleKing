@@ -3,17 +3,40 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
+import { BW, createFigureGraphics, figureScaleFor } from "@/components/game/shared/geometric-figure";
+import { createCombatFxManager, renderMeleeSweep } from "@/components/game/shared/combat-fx";
+import {
+  createPoiIconGraphics,
+  createPoiRingGraphics,
+  createSparkGraphics,
+  drawGroundGrid,
+} from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
+import { createGateGraphics, createObstacleGraphics } from "@/components/game/shared/geometric-dungeon";
+import { createAssetGraphic, renderFloorTiles } from "@/components/game/map-runtime";
+import { createAssetRegistry } from "@idleking/game-core/level-editor";
+import { createEnemySilhouetteGraphics } from "@/components/game/shared/geometric-enemies";
+import { createBillyCompanion, type BillyCompanion } from "@/components/game/shared/companions";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
-import { combat } from "@idleking/game-core";
-import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
+import {
+  combat,
+  enemies as coreEnemies,
+  random,
+  type DungeonLayout,
+  type LayoutGate,
+  type LayoutRect,
+  type LayoutZone,
+} from "@idleking/game-core";
 import { isEnemyInBeam, isEnemyInCircle } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   GRUNT_HP,
   createInitialEnemies,
+  createZoneEnemies,
   damageEnemy,
+  isPointInsideRects,
+  resolveCircleAgainstRects,
   isCircleIntersectingCircle,
   isEnemyAlive,
   isTargetInsideAttackCone,
@@ -43,21 +66,32 @@ import {
 } from "@idleking/game-core/skills";
 
 type PixiExplorationStageProps = {
+  /** Editor Play/Test: loot is shown but never written to the save. */
+  dryRun?: boolean;
   inputBlocked?: boolean;
+  /** Level design of a story dungeon (game-core story/dungeonLayouts). */
+  layout?: DungeonLayout;
+  /** Replays drop narrative gating: beat-locked gates are open and ambushes spawn upfront. */
+  isReplay?: boolean;
+  /** Narrative beats done so far (opens beat gates, triggers ambush zones). Read via ref. */
+  completedBeatIds?: ReadonlySet<string>;
+  /** POIs the player may interact with right now (ordered beats). Read via ref. */
+  interactablePoiIds?: ReadonlySet<string>;
   levelId: string;
   mapHeight: number;
   mapWidth: number;
   onCombatHudChangeAction?: (state: ExplorationCombatHudState) => void;
   onPlayerMoveAction: (position: { x: number; y: number }) => void;
+  onPoiInteractAction?: (poiId: string) => void;
   pointsOfInterest: ExplorationStagePoi[];
 };
 
+/** Built-in geometric assets the editor maps' decor refers to. */
+const DECOR_ASSET_REGISTRY = createAssetRegistry();
+
 const PLAYER_SIZE = 48;
 const PLAYER_SPEED = 310;
-const MELEE_ATTACK_COOLDOWN_MS = 280;
 const MELEE_DURATION_MS = 120;
-const MELEE_RANGE = 86;
-const RANGED_ATTACK_COOLDOWN_MS = 450;
 const PROJECTILE_MAX_RANGE = 620;
 const PROJECTILE_SPEED = 620;
 const MELEE_ATTACK_HALF_ANGLE_RADIANS = 0.72;
@@ -67,7 +101,6 @@ const ENEMY_DEATH_FADE_MS = 260;
 const PLAYER_SHAKE_DURATION_MS = 160;
 const PLAYER_SHAKE_INTENSITY = 5;
 const STRONG_HIT_SHAKE_THRESHOLD_RATIO = 0.22;
-const HIT_PARTICLE_DURATION_MS = 320;
 const DAMAGE_NUMBER_DURATION_MS = 720;
 const TELEGRAPH_DURATION_MS = 420;
 const LOOT_POPUP_DURATION_MS = 900;
@@ -77,29 +110,16 @@ const IS_SKILL_HIT_DEBUG_ENABLED = process.env.NODE_ENV !== "production";
 const SKILL_DEBUG_EVENT = "idleking:spawn-skill-debug-enemies";
 const CHECKPOINT_RESPAWN_EVENT = "idleking:story-checkpoint-respawn";
 const DASH_KEY_CODE = "Space";
+const POI_INTERACT_KEY_CODE = "KeyF";
 const SPRINT_KEY_CODES = new Set(["ShiftLeft", "ShiftRight"]);
+// Grayscale telegraph language: lethal reads brightest, ambient states darker.
 const TELEGRAPH_COLORS = {
-  damage: 0xff9f43,
-  debuff: 0x60a5fa,
-  lethal: 0xef4444,
-  safeHeal: 0x34d399,
-  stun: 0xfacc15,
+  damage: BW.gray3,
+  debuff: BW.gray2,
+  lethal: BW.white,
+  safeHeal: BW.gray1,
+  stun: BW.gray4,
 } as const;
-
-const EXPLORATION_ASSETS = {
-  chest: "/assets/exploration/golden_chest.png",
-  crackedFloor: "/assets/exploration/cracked_stone_floor_tile.png",
-  enemy: "/assets/exploration/resurrected_scarecrow.png",
-  floor: "/assets/exploration/dark_stone_floor_tile.png",
-  glow: "/assets/exploration/subtle_magic_glow.png",
-  player: "/assets/exploration/player_king.png",
-  rune: "/assets/exploration/ancient_rune.png",
-  shrine: "/assets/exploration/healing_shrine.png",
-  sparkle: "/assets/exploration/small_gold_sparkle.png",
-} as const;
-
-type ExplorationAssetKey = keyof typeof EXPLORATION_ASSETS;
-type ExplorationTextures = Record<ExplorationAssetKey, PIXI.Texture>;
 
 export type ExplorationStagePoi = {
   color: number;
@@ -113,6 +133,8 @@ type Vector2 = {
   y: number;
 };
 
+type WeaponAttackProfile = combat.WeaponAttackProfile;
+
 type ActiveMeleeAttack = {
   ageMs: number;
   direction: Vector2;
@@ -120,9 +142,11 @@ type ActiveMeleeAttack = {
   graphic: PIXI.Graphics;
   hitEnemyIds: Set<EnemyId>;
   position: Vector2;
+  profile: WeaponAttackProfile;
 };
 
 type ActiveProjectile = {
+  damageCoefficient: number;
   direction: Vector2;
   distanceTravelled: number;
   graphic: PIXI.Graphics;
@@ -130,6 +154,19 @@ type ActiveProjectile = {
   position: Vector2;
   speed: number;
 };
+
+function isInsideRect(point: Vector2, area: LayoutRect, margin = 0): boolean {
+  return (
+    point.x >= area.x - margin &&
+    point.x <= area.x + area.width + margin &&
+    point.y >= area.y - margin &&
+    point.y <= area.y + area.height + margin
+  );
+}
+
+function getMeleeHalfAngle(profile: WeaponAttackProfile): number {
+  return profile.shape === "burst" ? Math.PI : profile.halfAngleRadians ?? MELEE_ATTACK_HALF_ANGLE_RADIANS;
+}
 
 type ActiveLootPopup = {
   ageMs: number;
@@ -149,7 +186,7 @@ type ActiveTelegraph = {
 
 type ActiveSparkleParticle = {
   lifeOffset: number;
-  sprite: PIXI.Sprite;
+  sprite: PIXI.Graphics;
   velocity: Vector2;
 };
 
@@ -161,13 +198,6 @@ type ActiveSparkleBurst = {
   position: Vector2;
 };
 
-type ActiveHitParticle = {
-  ageMs: number;
-  durationMs: number;
-  graphic: PIXI.Graphics;
-  velocity: Vector2;
-};
-
 type ActiveMouseAction = "melee" | "ranged" | null;
 
 type ActiveEnemy = StoryLevelEnemy & {
@@ -175,28 +205,50 @@ type ActiveEnemy = StoryLevelEnemy & {
   attackLungeX: number;
   attackLungeY: number;
   baseScale: number;
-  body: PIXI.Sprite;
+  body: PIXI.Graphics;
   container: PIXI.Container;
   debugScenario?: boolean;
   deathFadeMs: number;
   hitFlashMs: number;
   hpBar: PIXI.Graphics;
   shadow: PIXI.Graphics;
+  wasChasing: boolean;
+  /** Next time (performance.now ms) a ranged shot or boss attack may start. */
+  nextAttackAtMs: number;
+  bossPhaseIndex: number;
+  bossAttackCursor: number;
 };
+
+/** A telegraphed enemy hazard (game-core enemies/patterns) living in the stage. */
+type ActiveGroundHazard = {
+  ageMs: number;
+  graphic: PIXI.Graphics;
+  hazard: coreEnemies.GroundHazard;
+  resolved: boolean;
+};
+
+type ActiveEnemyProjectile = {
+  graphic: PIXI.Graphics;
+  hazard: coreEnemies.ProjectileHazard;
+  position: Vector2;
+  traveled: number;
+  windupRemainingMs: number;
+};
+
+const GROUND_HAZARD_LINGER_MS = 220;
 
 type PoiKind = "chest" | "rune" | "shrine";
 
 type PoiVisual = {
   baseScale: number;
   container: PIXI.Container;
-  glow: PIXI.Sprite;
+  glow: PIXI.Graphics;
   hint: PIXI.Text;
   id: string;
   kind: PoiKind;
   point: ExplorationStagePoi;
   pulseOffset: number;
-  sprite: PIXI.Sprite;
-  wasNear: boolean;
+  sprite: PIXI.Graphics;
 };
 
 type SkillSlot = import("@idleking/game-core").CombatSkillSlot;
@@ -261,6 +313,10 @@ export type ExplorationCombatHudState = {
     id: string;
     kind: string;
   }>;
+  /** Layout zones whose enemies are all down. */
+  clearedZoneIds: string[];
+  /** True once every boss of the level is dead. */
+  bossDefeated: boolean;
   runtimeEnemyHealth?: {
     current: number;
     max: number;
@@ -322,15 +378,8 @@ function normalizeVector(vector: Vector2, fallback: Vector2 = { x: 0, y: -1 }): 
 
 function createShadow(width: number, height: number, alpha = 0.42): PIXI.Graphics {
   const shadow = new PIXI.Graphics();
-  shadow.ellipse(0, 0, width, height).fill({ color: 0x020307, alpha });
+  shadow.ellipse(0, 0, width, height).fill({ color: BW.gray1, alpha });
   return shadow;
-}
-
-function setSpriteDisplayHeight(sprite: PIXI.Sprite, height: number): number {
-  const textureHeight = Math.max(sprite.texture.height, 1);
-  const scale = height / textureHeight;
-  sprite.scale.set(scale);
-  return scale;
 }
 
 function createFloatingText({
@@ -349,10 +398,10 @@ function createFloatingText({
     text: label,
     style: {
       fill: color,
-      fontFamily: "Arial",
+      fontFamily: "monospace",
       fontSize: 17,
       fontWeight: "700",
-      stroke: { color: 0x100805, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
   });
   text.anchor.set(0.5, 0.5);
@@ -371,24 +420,19 @@ function createFloatingText({
 function createSparkleBurst({
   layer,
   position,
-  texture,
 }: {
   layer: PIXI.Container;
   position: Vector2;
-  texture: PIXI.Texture;
 }): ActiveSparkleBurst {
   const container = new PIXI.Container();
   const particles: ActiveSparkleParticle[] = [];
   const particleCount = 8;
 
   for (let index = 0; index < particleCount; index += 1) {
-    const sprite = new PIXI.Sprite(texture);
+    const sprite = createSparkGraphics(4 + (index % 2) * 2);
     const angle = (Math.PI * 2 * index) / particleCount + (index % 2) * 0.22;
     const speed = 48 + (index % 3) * 18;
-    sprite.anchor.set(0.5);
-    sprite.scale.set(0.08 + (index % 2) * 0.025);
     sprite.alpha = 0.92;
-    sprite.roundPixels = true;
     container.addChild(sprite);
     particles.push({
       lifeOffset: index * 18,
@@ -414,9 +458,9 @@ function createSparkleBurst({
 
 function createVignette(width: number, height: number): PIXI.Graphics {
   const vignette = new PIXI.Graphics();
-  vignette.rect(0, 0, width, height).stroke({ color: 0x010104, alpha: 0.55, width: 64 });
+  vignette.rect(0, 0, width, height).stroke({ color: BW.black, alpha: 0.55, width: 64 });
   vignette.rect(18, 18, Math.max(0, width - 36), Math.max(0, height - 36)).stroke({
-    color: 0x090219,
+    color: BW.gray0,
     alpha: 0.22,
     width: 34,
   });
@@ -429,31 +473,26 @@ function getPoiKind(point: ExplorationStagePoi): PoiKind {
   return "chest";
 }
 
-function createPoiSprite(point: ExplorationStagePoi, textures: ExplorationTextures): PoiVisual {
+function createPoiSprite(point: ExplorationStagePoi): PoiVisual {
   const kind = getPoiKind(point);
   const container = new PIXI.Container();
-  const glow = new PIXI.Sprite(textures.glow);
-  const sprite = new PIXI.Sprite(textures[kind]);
+  const glow = createPoiRingGraphics(kind === "chest" ? 30 : 36);
+  const sprite = createPoiIconGraphics(kind);
   const hint = new PIXI.Text({
-    text: "Nearby",
+    text: "Interagir (F)",
     style: {
-      fill: 0xfff1b8,
-      fontFamily: "Arial",
+      fill: BW.white,
+      fontFamily: "monospace",
       fontSize: 14,
       fontWeight: "700",
-      stroke: { color: 0x120c07, width: 4 },
+      stroke: { color: BW.black, width: 4 },
     },
   });
 
-  glow.anchor.set(0.5);
   glow.alpha = kind === "chest" ? 0.24 : 0.34;
-  setSpriteDisplayHeight(glow, kind === "chest" ? 86 : 104);
-  glow.tint = kind === "shrine" ? 0x7dffad : kind === "rune" ? 0x86a0ff : 0xffd36a;
+  glow.position.y = 4;
 
-  sprite.anchor.set(0.5, 0.76);
-  sprite.roundPixels = true;
-  const baseScale = setSpriteDisplayHeight(sprite, kind === "chest" ? 62 : 76);
-  sprite.tint = kind === "shrine" ? 0xa4ffd0 : kind === "rune" ? 0xc5c7ff : 0xffffff;
+  const baseScale = 1;
 
   hint.anchor.set(0.5, 0.5);
   hint.position.set(0, -72);
@@ -475,7 +514,6 @@ function createPoiSprite(point: ExplorationStagePoi, textures: ExplorationTextur
     point,
     pulseOffset: point.x * 0.017 + point.y * 0.011,
     sprite,
-    wasNear: false,
   };
 }
 
@@ -484,47 +522,19 @@ function drawWorld({
   mapHeight,
   mapWidth,
   pointsOfInterest,
-  textures,
   worldLayer,
 }: {
   backgroundLayer: PIXI.Container;
   mapHeight: number;
   mapWidth: number;
   pointsOfInterest: ExplorationStagePoi[];
-  textures: ExplorationTextures;
   worldLayer: PIXI.Container;
 }): PoiVisual[] {
-  const fallback = new PIXI.Graphics();
-  fallback.rect(0, 0, mapWidth, mapHeight).fill(0x050711);
-  backgroundLayer.addChild(fallback);
+  const ground = new PIXI.Graphics();
+  drawGroundGrid(ground, mapWidth, mapHeight);
+  backgroundLayer.addChild(ground);
 
-  const tileScale = 96 / Math.max(textures.floor.width, 1);
-  const floor = new PIXI.TilingSprite({
-    height: mapHeight,
-    roundPixels: true,
-    texture: textures.floor,
-    tileScale: { x: tileScale, y: tileScale },
-    width: mapWidth,
-  });
-  floor.alpha = 0.92;
-  backgroundLayer.addChild(floor);
-
-  const haze = new PIXI.Graphics();
-  haze.rect(0, 0, mapWidth, mapHeight).fill({ color: 0x120728, alpha: 0.2 });
-  backgroundLayer.addChild(haze);
-
-  const crackScale = 92 / Math.max(textures.crackedFloor.height, 1);
-  for (let index = 0; index < 34; index += 1) {
-    const crack = new PIXI.Sprite(textures.crackedFloor);
-    crack.anchor.set(0.5);
-    crack.scale.set(crackScale * (index % 3 === 0 ? 1.18 : 1));
-    crack.alpha = 0.16 + (index % 4) * 0.035;
-    crack.rotation = ((index * 37) % 4) * (Math.PI / 2);
-    crack.position.set((index * 397) % mapWidth, (index * 251 + 140) % mapHeight);
-    backgroundLayer.addChild(crack);
-  }
-
-  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point, textures));
+  const poiVisuals = pointsOfInterest.map((point) => createPoiSprite(point));
   for (const visual of poiVisuals) {
     worldLayer.addChild(visual.container);
   }
@@ -532,16 +542,19 @@ function drawWorld({
   return poiVisuals;
 }
 
-function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): ActiveEnemy {
+function createEnemyGraphics(enemy: StoryLevelEnemy): ActiveEnemy {
   const container = new PIXI.Container();
   const shadow = createShadow(enemy.radius * 0.95, enemy.radius * 0.34, 0.45);
-  const body = new PIXI.Sprite(texture);
+  // Archetype enemies get their family silhouette; legacy grunts keep the generic hostile figure.
+  const body = enemy.archetypeId ? createEnemySilhouetteGraphics(enemy.silhouette, enemy.tier) : createFigureGraphics("hostile");
   const hpBar = new PIXI.Graphics();
-  const baseScale = setSpriteDisplayHeight(body, enemy.radius * 3.2);
+  const baseScale = figureScaleFor(enemy.radius * 3.2);
 
-  body.anchor.set(0.5, 0.82);
-  body.roundPixels = true;
-  shadow.position.set(0, enemy.radius * 0.48);
+  // Figures are drawn feet-at-0 (see geometric-figure.ts) — leave body at the
+  // container origin so the fixed-offset HP bar below actually clears the
+  // head, and drop the shadow only a hair below the feet for ground contact.
+  body.scale.set(baseScale);
+  shadow.position.set(0, 4);
   container.addChild(shadow);
   container.addChild(body);
   container.addChild(hpBar);
@@ -555,11 +568,16 @@ function createEnemyGraphics(enemy: StoryLevelEnemy, texture: PIXI.Texture): Act
     baseScale,
     body,
     container,
+    bossAttackCursor: 0,
+    bossPhaseIndex: 0,
     debugScenario: false,
     deathFadeMs: 0,
     hitFlashMs: 0,
     hpBar,
+    // Grace period so nothing fires on the very first frame of a fight.
+    nextAttackAtMs: -Infinity,
     shadow,
+    wasChasing: false,
   };
 }
 
@@ -577,7 +595,10 @@ function createDebugEnemy(id: string, position: Vector2): StoryLevelEnemy {
     moveSpeed: 0,
     position,
     radius: 20,
+    attackStyle: "melee",
+    silhouette: "shade",
     state: "idle",
+    tier: "standard",
   };
 }
 
@@ -603,56 +624,53 @@ function renderEnemy(enemy: ActiveEnemy) {
     enemy.hitFlashMs > 0 ? 1 + hitProgress * 0.16 : 1 + (isAttacking ? 0.14 : isChasing ? 0.03 : 0);
   enemy.body.scale.set(enemy.baseScale * scale);
   enemy.body.tint =
-    enemy.hitFlashMs > 0 ? 0xffd0d0 : isAttacking ? 0xff7050 : isChasing ? 0xffb0a0 : 0xffffff;
+    enemy.hitFlashMs > 0 ? 0x555555 : isAttacking ? 0x8f8f8f : isChasing ? 0xcfcfcf : 0xffffff;
   enemy.shadow.alpha = enemy.state === "dead" ? 0.16 : 0.45;
 
   const barWidth = enemy.radius * 2.3;
+  // Figure top sits at -(radius * 3.2) in this same container space (see
+  // createEnemyGraphics) — clear it with a small margin above the head.
+  const barY = -enemy.radius * 3.2 - 14;
   const hpRatio = enemy.maxHp > 0 ? clamp(enemy.hp / enemy.maxHp, 0, 1) : 0;
   enemy.hpBar.clear();
   if (enemy.state !== "dead") {
-    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth, 5, 2).fill({ color: 0x130808, alpha: 0.82 });
-    enemy.hpBar.roundRect(-barWidth / 2, -enemy.radius - 14, barWidth * hpRatio, 5, 2).fill({
-      color: hpRatio > 0.45 ? 0xff6b58 : 0xffc857,
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth, 5).fill({ color: BW.gray0, alpha: 0.92 });
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth, 5).stroke({ color: BW.gray2, width: 1 });
+    enemy.hpBar.rect(-barWidth / 2, barY, barWidth * hpRatio, 5).fill({
+      color: BW.white,
       alpha: 0.95,
     });
   }
 }
 
-function getLootPopupColor(resourceId: ResourceId): number {
-  switch (resourceId) {
-    case "MEAT":
-      return 0xff7b5d;
-    case "WOOD":
-      return 0x8bd46e;
-    case "STONE":
-      return 0xb8c0cc;
-    default:
-      return 0xfff1b8;
-  }
-}
-
-function getLootPopupLabel(resourceId: ResourceId): string {
-  switch (resourceId) {
-    case "MEAT":
-      return "FOOD";
-    default:
-      return resourceId;
-  }
+function formatLootLabel(resourceId: string): string {
+  return resourceId.replaceAll("_", " ").toUpperCase();
 }
 
 export function PixiExplorationStage({
+  completedBeatIds,
+  dryRun = false,
   inputBlocked = false,
+  interactablePoiIds,
+  isReplay = false,
+  layout,
   levelId,
   mapHeight,
   mapWidth,
   onCombatHudChangeAction,
   onPlayerMoveAction,
+  onPoiInteractAction,
   pointsOfInterest,
 }: PixiExplorationStageProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const inputBlockedRef = useRef(inputBlocked);
+  const dryRunRef = useRef(dryRun);
+  dryRunRef.current = dryRun;
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
+  const onPoiInteractRef = useRef(onPoiInteractAction);
+  const completedBeatIdsRef = useRef<ReadonlySet<string>>(completedBeatIds ?? new Set());
+  const interactablePoiIdsRef = useRef<ReadonlySet<string> | undefined>(interactablePoiIds);
   const equipment = useGameStore((s) => s.state.equipment);
   const inventoryItems = useGameStore((s) => s.state.inventory.items);
   const combatLoadout = useMemo(
@@ -678,7 +696,11 @@ export function PixiExplorationStage({
   const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState<Omit<ExplorationCombatHudState, "skillBar">>({
     dashCooldownSeconds: 0,
-    enemiesRemaining: 0,
+    bossDefeated: false,
+    clearedZoneIds: [],
+    enemiesRemaining: layout
+      ? layout.zones.reduce((total, zone) => total + zone.enemies.length, 0)
+      : createInitialEnemies(levelId).length,
     isDefeated: false,
     playerHealth: {
       current: playerMaxHp,
@@ -709,12 +731,24 @@ export function PixiExplorationStage({
   }, [onPlayerMoveAction]);
 
   useEffect(() => {
+    onPoiInteractRef.current = onPoiInteractAction;
+  }, [onPoiInteractAction]);
+
+  useEffect(() => {
     onCombatHudChangeRef.current = onCombatHudChangeAction;
   }, [onCombatHudChangeAction]);
 
   useEffect(() => {
     inputBlockedRef.current = inputBlocked;
   }, [inputBlocked]);
+
+  useEffect(() => {
+    completedBeatIdsRef.current = completedBeatIds ?? new Set();
+  }, [completedBeatIds]);
+
+  useEffect(() => {
+    interactablePoiIdsRef.current = interactablePoiIds;
+  }, [interactablePoiIds]);
 
   useEffect(() => {
     skillsStateRef.current = skillsState;
@@ -764,10 +798,26 @@ export function PixiExplorationStage({
       aimRadius: 42,
       aimCenterY: -26,
     });
-    const playerPosition = {
-      x: mapWidth / 2,
-      y: mapHeight / 2,
-    };
+    const playerPosition = layout
+      ? { ...layout.playerSpawn }
+      : {
+          x: mapWidth / 2,
+          y: mapHeight / 2,
+        };
+    // Level design runtime: static walls/props, gates that open on conditions, deferred zones.
+    type GateRuntime = { fadeMs: number; gate: LayoutGate; graphic: PIXI.Graphics; open: boolean };
+    const staticSolids: LayoutRect[] = layout ? [...layout.obstacles] : [];
+    const gateRuntimes: GateRuntime[] = [];
+    const pendingZones: LayoutZone[] = [];
+    const spawnedZoneIds = new Set<string>();
+    const playerCollisionRadius = PLAYER_SIZE * 0.4;
+    let billy: BillyCompanion | null = null;
+    let billyFollowing = false;
+    let billyJoinedCheck: () => boolean = () => false;
+    function getSolids(): LayoutRect[] {
+      if (gateRuntimes.length === 0) return staticSolids;
+      return [...staticSolids, ...gateRuntimes.filter((runtime) => !runtime.open).map((runtime) => runtime.gate.rect)];
+    }
     const mouseInput = {
       activeMouseAction: null as ActiveMouseAction,
       isMeleeHeld: false,
@@ -780,14 +830,17 @@ export function PixiExplorationStage({
     const lootPopups: ActiveLootPopup[] = [];
     const telegraphs: ActiveTelegraph[] = [];
     const sparkleBursts: ActiveSparkleBurst[] = [];
-    const hitParticles: ActiveHitParticle[] = [];
+    const combatFx = createCombatFxManager(fxLayer);
     const enemies: ActiveEnemy[] = [];
+    const groundHazards: ActiveGroundHazard[] = [];
+    const enemyProjectiles: ActiveEnemyProjectile[] = [];
+    const hazardLayer = new PIXI.Container();
+    const hazardRng = random.createSeededRng((Date.now() ^ 0x9e3779b9) >>> 0);
     const securedRewards = new Map<string, number>();
     const poiVisuals: PoiVisual[] = [];
+    const interactedPoiIds = new Set<string>();
     let activeSkillEffects: VisualActiveSkillEffect[] = [...skillsStateRef.current.activeEffects];
     let skillCooldowns: SkillCooldownState = { ...skillsStateRef.current.cooldowns };
-    let enemyTexture: PIXI.Texture | null = null;
-    let sparkleTexture: PIXI.Texture | null = null;
     let canvasElement: HTMLCanvasElement | null = null;
     let combatHudElapsed = 0;
     let dashFeedback: string | undefined;
@@ -803,11 +856,15 @@ export function PixiExplorationStage({
     let lastMeleeAttackAt = -Infinity;
     let lastRangedAttackAt = -Infinity;
     let runtimeEnemyId: EnemyId | null = null;
+    // Weapons define left/right click (Freeze §5); resolved from the equipped main/off hand.
+    const weaponProfile = combat.resolveWeaponLoadoutProfile(useGameStore.getState().state);
     let runtimeState = createStoryCombatRuntimeState(combatLoadoutRef.current, {
       hp: GRUNT_HP,
       maxHp: GRUNT_HP,
     });
     const runtimeRng = createStoryCombatRng(levelId);
+    // Loot varies run to run (combat stays deterministic per level for the runtime tests).
+    const lootRng = random.createSeededRng((Date.now() ^ levelId.length * 2654435761) >>> 0);
 
     function destroyPixiApp() {
       if (!initialized || destroyed) return;
@@ -877,17 +934,22 @@ export function PixiExplorationStage({
 
       dashFeedback = undefined;
       dashFeedbackExpiresAt = 0;
-      playerPosition.x = clamp(
-        playerPosition.x + playerFacing.x * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
-        PLAYER_SIZE / 2,
-        mapWidth - PLAYER_SIZE / 2
-      );
-      playerPosition.y = clamp(
-        playerPosition.y + playerFacing.y * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
-        PLAYER_SIZE / 2,
-        mapHeight - PLAYER_SIZE / 2
+      movePlayerBy(
+        playerFacing.x * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
+        playerFacing.y * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance
       );
       syncCombatHud();
+    }
+
+    /** Moves the player in small steps so walls and closed gates can never be tunnelled. */
+    function movePlayerBy(dx: number, dy: number) {
+      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 12));
+      const solids = getSolids();
+      for (let step = 0; step < steps; step += 1) {
+        playerPosition.x = clamp(playerPosition.x + dx / steps, PLAYER_SIZE / 2, mapWidth - PLAYER_SIZE / 2);
+        playerPosition.y = clamp(playerPosition.y + dy / steps, PLAYER_SIZE / 2, mapHeight - PLAYER_SIZE / 2);
+        if (solids.length > 0) resolveCircleAgainstRects(playerPosition, playerCollisionRadius, solids);
+      }
     }
 
     function findNearestAliveEnemy(position: Vector2, maxRange: number): ActiveEnemy | null {
@@ -1037,7 +1099,18 @@ export function PixiExplorationStage({
       const snapshot = createDirectionalSnapshot();
 
       if (result.damageInput) {
-        spawnInstantSkillEffect(player, result.skillDef, nowMs, snapshot);
+        // auto_target skills (e.g. Arcane Bolt) snap to the nearest enemy
+        // rather than aiming where the player is facing — point the FX at
+        // that resolved enemy instead of the facing-based snapshot target,
+        // so the bolt visually lands on whoever it actually hits.
+        const fxSnapshot =
+          profile.attack?.shape === "auto_target"
+            ? (() => {
+                const target = findNearestAliveEnemy(playerPosition, profile.attack!.range);
+                return target ? { ...snapshot, targetX: target.position.x, targetY: target.position.y } : snapshot;
+              })()
+            : snapshot;
+        spawnInstantSkillEffect(player, result.skillDef, nowMs, fxSnapshot, profile.attack);
         applyAttackSkillDamage(result.damageInput, snapshot, nowMs, profile);
       } else if (profile.movement) {
         applyMovementSkill(profile, snapshot, result.skillDef, nowMs);
@@ -1117,6 +1190,14 @@ export function PixiExplorationStage({
         return;
       }
 
+      if (event.code === POI_INTERACT_KEY_CODE) {
+        event.preventDefault();
+        if (!event.repeat) {
+          tryInteractWithNearbyPoi();
+        }
+        return;
+      }
+
       const skillSlot = SKILL_SLOT_BY_KEY[event.key] ?? SKILL_SLOT_BY_CODE[event.code];
       if (skillSlot) {
         event.preventDefault();
@@ -1146,12 +1227,14 @@ export function PixiExplorationStage({
       const canvasBounds = app.canvas.getBoundingClientRect();
       if (canvasBounds.width <= 0 || canvasBounds.height <= 0) return;
 
-      const rendererWidth = app.renderer.width / app.renderer.resolution;
-      const rendererHeight = app.renderer.height / app.renderer.resolution;
-      const scaleX = rendererWidth / canvasBounds.width;
-      const scaleY = rendererHeight / canvasBounds.height;
-      mouseInput.pointerWorldPosition.x = (event.clientX - canvasBounds.left) * scaleX - world.position.x;
-      mouseInput.pointerWorldPosition.y = (event.clientY - canvasBounds.top) * scaleY - world.position.y;
+      // clientX/clientY and getBoundingClientRect are both in CSS pixels, and
+      // Pixi's resizeTo keeps the canvas's CSS size equal to its logical stage
+      // size — no device-pixel-ratio scaling belongs in this conversion. Cross
+      //-referencing app.renderer.width/resolution here (a separate, ResizeObserver
+      // -driven measurement) used to drift a frame or a few subpixels out of sync
+      // with getBoundingClientRect on Firefox, throwing the aim off from the cursor.
+      mouseInput.pointerWorldPosition.x = event.clientX - canvasBounds.left - world.position.x;
+      mouseInput.pointerWorldPosition.y = event.clientY - canvasBounds.top - world.position.y;
       hasPointerWorldPosition = true;
       updatePlayerFacing({
         x: mouseInput.pointerWorldPosition.x - playerPosition.x,
@@ -1188,54 +1271,66 @@ export function PixiExplorationStage({
       mouseInput.isRangedHeld = false;
     }
 
-    function createMeleeAttack(now: number) {
-      if (now - lastMeleeAttackAt < MELEE_ATTACK_COOLDOWN_MS) return;
-      lastMeleeAttackAt = now;
+    /** Left click = weapon primary, right click = secondary (or off-hand). */
+    function performWeaponAction(profile: WeaponAttackProfile, now: number, slot: "primary" | "secondary") {
+      const lastAt = slot === "primary" ? lastMeleeAttackAt : lastRangedAttackAt;
+      if (now - lastAt < profile.cooldownMs) return;
+      if (slot === "primary") lastMeleeAttackAt = now;
+      else lastRangedAttackAt = now;
+
+      if (profile.shape === "projectile" || profile.shape === "spread") {
+        createWeaponProjectiles(profile);
+        return;
+      }
 
       const graphic = new PIXI.Graphics();
-      const attack: ActiveMeleeAttack = {
+      meleeAttacks.push({
         ageMs: 0,
         direction: { ...playerFacing },
-        durationMs: MELEE_DURATION_MS,
+        durationMs: profile.shape === "burst" ? MELEE_DURATION_MS * 1.6 : MELEE_DURATION_MS,
         graphic,
         hitEnemyIds: new Set(),
         position: { ...playerPosition },
-      };
-
-      meleeAttacks.push(attack);
+        profile,
+      });
       attackLayer.addChild(graphic);
     }
 
-    function createRangedAttack(now: number) {
-      if (now - lastRangedAttackAt < RANGED_ATTACK_COOLDOWN_MS) return;
-      lastRangedAttackAt = now;
-
-      const direction = normalizeVector(
+    function createWeaponProjectiles(profile: WeaponAttackProfile) {
+      const aim = normalizeVector(
         {
           x: mouseInput.pointerWorldPosition.x - playerPosition.x,
           y: mouseInput.pointerWorldPosition.y - playerPosition.y,
         },
         playerFacing
       );
-      const graphic = new PIXI.Graphics();
-      graphic.circle(0, 0, 8).fill({ color: 0x7df7ff, alpha: 0.92 });
-      graphic.circle(0, 0, 14).fill({ color: 0x62d8ff, alpha: 0.22 });
-
-      const projectile: ActiveProjectile = {
-        direction,
-        distanceTravelled: 0,
-        graphic,
-        maxRange: PROJECTILE_MAX_RANGE,
-        position: {
-          x: playerPosition.x + direction.x * 28,
-          y: playerPosition.y + direction.y * 28,
-        },
-        speed: PROJECTILE_SPEED,
-      };
-
-      projectiles.push(projectile);
-      attackLayer.addChild(graphic);
-      graphic.position.set(projectile.position.x, projectile.position.y);
+      const count = Math.max(1, profile.projectileCount ?? 1);
+      const spreadRadians = profile.spreadRadians ?? 0;
+      for (let index = 0; index < count; index += 1) {
+        const offset = count === 1 ? 0 : -spreadRadians / 2 + (spreadRadians * index) / (count - 1);
+        const direction = {
+          x: aim.x * Math.cos(offset) - aim.y * Math.sin(offset),
+          y: aim.x * Math.sin(offset) + aim.y * Math.cos(offset),
+        };
+        const graphic = new PIXI.Graphics();
+        graphic.circle(0, 0, 8).fill({ color: BW.white, alpha: 0.95 });
+        graphic.circle(0, 0, 14).stroke({ color: BW.gray4, alpha: 0.35, width: 2 });
+        const projectile: ActiveProjectile = {
+          damageCoefficient: profile.damageCoefficient,
+          direction,
+          distanceTravelled: 0,
+          graphic,
+          maxRange: profile.range ?? PROJECTILE_MAX_RANGE,
+          position: {
+            x: playerPosition.x + direction.x * 28,
+            y: playerPosition.y + direction.y * 28,
+          },
+          speed: profile.projectileSpeed ?? PROJECTILE_SPEED,
+        };
+        projectiles.push(projectile);
+        attackLayer.addChild(graphic);
+        graphic.position.set(projectile.position.x, projectile.position.y);
+      }
     }
 
     function handlePointerMove(event: PointerEvent) {
@@ -1355,7 +1450,7 @@ export function PixiExplorationStage({
       ];
 
       for (const enemyDef of debugEnemies) {
-        const enemy = createEnemyGraphics(enemyDef, enemyTexture ?? PIXI.Texture.EMPTY);
+        const enemy = createEnemyGraphics(enemyDef);
         enemy.debugScenario = true;
         renderEnemy(enemy);
         enemies.push(enemy);
@@ -1366,36 +1461,128 @@ export function PixiExplorationStage({
     }
 
     function getEnemiesRemaining() {
-      return enemies.filter(isEnemyAlive).length;
+      const pending = pendingZones.reduce((total, zone) => total + zone.enemies.length, 0);
+      return enemies.filter(isEnemyAlive).length + pending;
     }
 
-    function addLootToPlayerResources(loot: EnemyLoot) {
-      securedRewards.set(loot.resourceId, (securedRewards.get(loot.resourceId) ?? 0) + loot.amount);
-      useGameStore.getState().dispatch((state) => ({
-        ...state,
-        resources: addQty(state.resources, loot.resourceId, loot.amount),
-      }));
+    function isZoneCleared(zoneId: string): boolean {
+      if (!spawnedZoneIds.has(zoneId)) return false;
+      return enemies.every((enemy) => enemy.zoneId !== zoneId || !isEnemyAlive(enemy));
     }
 
-    function createLootPopup(position: Vector2, loot: EnemyLoot) {
-      lootPopups.push(
-        createFloatingText({
-          color: getLootPopupColor(loot.resourceId),
-          label: `+${loot.amount} ${getLootPopupLabel(loot.resourceId)}`,
-          layer: lootPopupLayer,
-          position: { x: position.x + 8, y: position.y - 54 },
-        })
-      );
+    function getClearedZoneIds(): string[] {
+      return layout ? layout.zones.filter((zone) => isZoneCleared(zone.id)).map((zone) => zone.id) : [];
+    }
 
-      if (sparkleTexture) {
-        sparkleBursts.push(
-          createSparkleBurst({
-            layer: fxLayer,
-            position: { x: position.x, y: position.y - 24 },
-            texture: sparkleTexture,
+    function isBossDefeated(): boolean {
+      const bosses = enemies.filter((enemy) => enemy.isBoss);
+      const bossPending = pendingZones.some((zone) => zone.enemies.some((placement) => placement.archetypeId.startsWith("boss_")));
+      return bosses.length > 0 && !bossPending && bosses.every((enemy) => !isEnemyAlive(enemy));
+    }
+
+    function spawnZone(zone: LayoutZone, withFx: boolean) {
+      spawnedZoneIds.add(zone.id);
+      for (const enemy of createZoneEnemies(zone)) {
+        const active = createEnemyGraphics(enemy);
+        renderEnemy(active);
+        enemies.push(active);
+        enemyLayer.addChild(active.container);
+        if (withFx) {
+          combatFx.spawnWindupRing({ ...active.position }, active.radius + 20, 520, {
+            follow: () => ({ x: active.position.x, y: active.position.y }),
+            lethal: active.isBoss === true,
+          });
+        }
+      }
+      if (withFx) {
+        lootPopups.push(
+          createFloatingText({
+            color: TELEGRAPH_COLORS.lethal,
+            label: zone.label.toUpperCase(),
+            layer: lootPopupLayer,
+            position: { x: playerPosition.x, y: playerPosition.y - 96 },
+          })
+        );
+        playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+      }
+    }
+
+    function updateLayoutState(deltaMs: number) {
+      if (!layout) return;
+      let changed = false;
+      for (let index = pendingZones.length - 1; index >= 0; index -= 1) {
+        const zone = pendingZones[index];
+        if (!zone.spawnOnBeat || !completedBeatIdsRef.current.has(zone.spawnOnBeat)) continue;
+        pendingZones.splice(index, 1);
+        spawnZone(zone, true);
+        changed = true;
+      }
+      for (const runtime of gateRuntimes) {
+        if (runtime.open) {
+          if (runtime.graphic.visible) {
+            runtime.fadeMs += deltaMs;
+            runtime.graphic.alpha = 1 - clamp(runtime.fadeMs / 320, 0, 1);
+            if (runtime.fadeMs >= 320) runtime.graphic.visible = false;
+          }
+          continue;
+        }
+        const condition = runtime.gate.opensWhen;
+        const shouldOpen =
+          condition.kind === "zone_cleared"
+            ? isZoneCleared(condition.zoneId)
+            : isReplay || completedBeatIdsRef.current.has(condition.beatId);
+        if (!shouldOpen) continue;
+        runtime.open = true;
+        changed = true;
+        const center = { x: runtime.gate.rect.x + runtime.gate.rect.width / 2, y: runtime.gate.rect.y + runtime.gate.rect.height / 2 };
+        combatFx.spawnImpactBurst(center, { radius: 60 });
+        lootPopups.push(
+          createFloatingText({
+            color: TELEGRAPH_COLORS.safeHeal,
+            label: "PASSAGE OUVERT",
+            layer: lootPopupLayer,
+            position: { x: center.x, y: center.y - 80 },
           })
         );
       }
+      if (changed) syncCombatHud();
+    }
+
+    function addLootToPlayerResources(loot: EnemyLoot) {
+      for (const drop of loot.materials) {
+        securedRewards.set(drop.resourceId, (securedRewards.get(drop.resourceId) ?? 0) + drop.amount);
+      }
+      for (const item of loot.equipment) {
+        securedRewards.set(item.name, (securedRewards.get(item.name) ?? 0) + 1);
+      }
+      if (loot.materials.length === 0 && loot.equipment.length === 0) return;
+      if (dryRunRef.current) return;
+      useGameStore.getState().dispatch((state) => coreEnemies.grantEnemyKillLoot(state, loot));
+    }
+
+    function createLootPopup(position: Vector2, loot: EnemyLoot) {
+      const labels = [
+        ...loot.materials.map((drop) => ({ color: BW.white, text: `+${drop.amount} ${formatLootLabel(drop.resourceId)}` })),
+        ...loot.equipment.map((item) => ({ color: BW.white, text: `+ ${item.name} (${item.rarity.toLowerCase()})` })),
+      ];
+      if (labels.length === 0) return;
+      labels.forEach((label, index) => {
+        lootPopups.push(
+          createFloatingText({
+            color: label.color,
+            label: label.text,
+            layer: lootPopupLayer,
+            position: { x: position.x + 8, y: position.y - 54 - index * 18 },
+          })
+        );
+      });
+
+      sparkleBursts.push(
+        createSparkleBurst({
+          layer: fxLayer,
+          position: { x: position.x, y: position.y - 24 },
+        })
+      );
     }
 
     function createDamageNumber({
@@ -1411,17 +1598,17 @@ export function PixiExplorationStage({
       position: Vector2;
       target?: "enemy" | "player";
     }) {
-      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? 0xff6f61 : TELEGRAPH_COLORS.damage;
+      const color = isLethal ? TELEGRAPH_COLORS.lethal : target === "player" ? BW.white : TELEGRAPH_COLORS.damage;
       const label = `${didCrit ? "CRIT " : ""}${Math.ceil(amount)}`;
       const container = new PIXI.Container();
       const text = new PIXI.Text({
         text: target === "player" ? `-${label}` : label,
         style: {
           fill: color,
-          fontFamily: "Arial",
+          fontFamily: "monospace",
           fontSize: didCrit ? 24 : 19,
           fontWeight: "800",
-          stroke: { color: 0x100805, width: 5 },
+          stroke: { color: BW.black, width: 5 },
         },
       });
       text.anchor.set(0.5, 0.5);
@@ -1450,67 +1637,64 @@ export function PixiExplorationStage({
       });
     }
 
-    function createHitParticles(position: Vector2) {
-      const particleCount = 4 + Math.floor(Math.random() * 3);
-      for (let index = 0; index < particleCount; index += 1) {
-        const graphic = new PIXI.Graphics();
-        const size = 2 + Math.random() * 4;
-        const color = index % 2 === 0 ? 0xfff1b8 : 0xff7b5d;
-        graphic.rect(-size / 2, -size / 2, size, size).fill({ color, alpha: 0.9 });
-        graphic.position.set(position.x, position.y - 12);
-        fxLayer.addChild(graphic);
-
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 40 + Math.random() * 80;
-        hitParticles.push({
-          ageMs: 0,
-          durationMs: HIT_PARTICLE_DURATION_MS,
-          graphic,
-          velocity: {
-            x: Math.cos(angle) * speed,
-            y: Math.sin(angle) * speed,
-          },
-        });
-      }
-    }
-
     function spawnPoiDiscoveryFeedback(visual: PoiVisual) {
       lootPopups.push(
         createFloatingText({
-          color: visual.kind === "chest" ? 0xffe08a : visual.kind === "shrine" ? 0x8dffbd : 0xaeb4ff,
+          color: BW.white,
           label: "Discovered",
           layer: lootPopupLayer,
           position: { x: visual.point.x, y: visual.point.y - 74 },
         })
       );
 
-      if (sparkleTexture) {
-        sparkleBursts.push(
-          createSparkleBurst({
-            layer: fxLayer,
-            position: { x: visual.point.x, y: visual.point.y - 18 },
-            texture: sparkleTexture,
-          })
-        );
+      sparkleBursts.push(
+        createSparkleBurst({
+          layer: fxLayer,
+          position: { x: visual.point.x, y: visual.point.y - 18 },
+        })
+      );
+    }
+
+    function findNearbyInteractablePoi(): PoiVisual | undefined {
+      let nearest: PoiVisual | undefined;
+      let nearestDistance = POI_HIGHLIGHT_RADIUS;
+
+      for (const visual of poiVisuals) {
+        if (interactedPoiIds.has(visual.id)) continue;
+        if (interactablePoiIdsRef.current && !interactablePoiIdsRef.current.has(visual.id)) continue;
+        const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
+        if (distance > nearestDistance) continue;
+        nearestDistance = distance;
+        nearest = visual;
       }
+
+      return nearest;
+    }
+
+    function tryInteractWithNearbyPoi() {
+      const visual = findNearbyInteractablePoi();
+      if (!visual) return;
+
+      interactedPoiIds.add(visual.id);
+      spawnPoiDiscoveryFeedback(visual);
+      onPoiInteractRef.current?.(visual.id);
     }
 
     function updatePoiVisuals(nowMs: number) {
       for (const visual of poiVisuals) {
         const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
         const isNear = distance <= POI_HIGHLIGHT_RADIUS;
+        const isInteracted = interactedPoiIds.has(visual.id);
+        const isLocked = interactablePoiIdsRef.current !== undefined && !interactablePoiIdsRef.current.has(visual.id) && !isInteracted;
+        visual.container.alpha = isLocked ? 0.28 : 1;
+        const showHint = isNear && !isInteracted && !isLocked;
         const pulse = 1 + Math.sin(nowMs / 520 + visual.pulseOffset) * 0.035;
         const targetScale = visual.baseScale * pulse * (isNear ? 1.13 : 1);
         visual.sprite.scale.set(targetScale);
         visual.glow.alpha = (visual.kind === "chest" ? 0.22 : 0.32) + (isNear ? 0.3 : 0);
         visual.glow.scale.set(1 + Math.sin(nowMs / 650 + visual.pulseOffset) * 0.04 + (isNear ? 0.08 : 0));
-        visual.hint.visible = isNear;
-        visual.hint.alpha = isNear ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
-
-        if (isNear && !visual.wasNear) {
-          spawnPoiDiscoveryFeedback(visual);
-        }
-        visual.wasNear = isNear;
+        visual.hint.visible = showHint;
+        visual.hint.alpha = showHint ? 0.72 + Math.sin(nowMs / 180) * 0.12 : 0;
       }
     }
 
@@ -1526,7 +1710,7 @@ export function PixiExplorationStage({
           const progress = clamp(age / Math.max(1, burst.durationMs - particle.lifeOffset), 0, 1);
           particle.sprite.position.set(particle.velocity.x * progress * 0.55, particle.velocity.y * progress * 0.55);
           particle.sprite.rotation += deltaMs * 0.003;
-          particle.sprite.scale.set((0.08 + progress * 0.035) * (1 - progress * 0.35));
+          particle.sprite.scale.set(1 - progress * 0.45);
           particle.sprite.alpha = 1 - progress;
         }
 
@@ -1534,25 +1718,6 @@ export function PixiExplorationStage({
         burst.container.removeFromParent();
         burst.container.destroy({ children: true });
         sparkleBursts.splice(index, 1);
-      }
-    }
-
-    function updateHitParticles(deltaMs: number) {
-      const deltaSeconds = deltaMs / 1000;
-      for (let index = hitParticles.length - 1; index >= 0; index -= 1) {
-        const particle = hitParticles[index];
-        particle.ageMs += deltaMs;
-
-        const progress = clamp(particle.ageMs / particle.durationMs, 0, 1);
-        particle.graphic.position.x += particle.velocity.x * deltaSeconds;
-        particle.graphic.position.y += particle.velocity.y * deltaSeconds;
-        particle.graphic.alpha = 1 - progress;
-        particle.graphic.scale.set(1 - progress * 0.5);
-
-        if (particle.ageMs < particle.durationMs) continue;
-        particle.graphic.removeFromParent();
-        particle.graphic.destroy();
-        hitParticles.splice(index, 1);
       }
     }
 
@@ -1583,7 +1748,7 @@ export function PixiExplorationStage({
         elapsedSeconds: nowMs / 1000,
         facing: playerFacing,
         moving,
-        flashTint: playerHitFlashMs > 0 ? 0xffd0d0 : null,
+        flashTint: playerHitFlashMs > 0 ? 0x666666 : null,
       });
     }
 
@@ -1594,25 +1759,11 @@ export function PixiExplorationStage({
       uiLayer.addChild(createVignette(screenWidth, screenHeight));
     }
 
-    function getTextures(): ExplorationTextures {
-      return {
-        chest: PIXI.Texture.from(EXPLORATION_ASSETS.chest),
-        crackedFloor: PIXI.Texture.from(EXPLORATION_ASSETS.crackedFloor),
-        enemy: PIXI.Texture.from(EXPLORATION_ASSETS.enemy),
-        floor: PIXI.Texture.from(EXPLORATION_ASSETS.floor),
-        glow: PIXI.Texture.from(EXPLORATION_ASSETS.glow),
-        player: PIXI.Texture.from(EXPLORATION_ASSETS.player),
-        rune: PIXI.Texture.from(EXPLORATION_ASSETS.rune),
-        shrine: PIXI.Texture.from(EXPLORATION_ASSETS.shrine),
-        sparkle: PIXI.Texture.from(EXPLORATION_ASSETS.sparkle),
-      };
-    }
-
     function claimEnemyLoot(enemy: ActiveEnemy) {
       if (enemy.lootClaimed) return;
       enemy.lootClaimed = true;
 
-      const loot = rollEnemyLoot(enemy, runtimeRng);
+      const loot = rollEnemyLoot(enemy, lootRng, levelId);
       addLootToPlayerResources(loot);
       createLootPopup(enemy.position, loot);
     }
@@ -1626,6 +1777,8 @@ export function PixiExplorationStage({
       setCombatHud({
         dashCooldownSeconds: runtimeState.timers.dashCooldownRemainingSeconds,
         dashFeedback,
+        bossDefeated: isBossDefeated(),
+        clearedZoneIds: getClearedZoneIds(),
         enemiesRemaining: getEnemiesRemaining(),
         isDefeated: isPlayerDefeated,
         playerHealth: {
@@ -1681,24 +1834,23 @@ export function PixiExplorationStage({
         isLethal,
         position: { x: enemy.position.x, y: enemy.position.y - 54 },
       });
-      createCombatTelegraph(
-        enemy.position,
-        enemy.radius + 18,
-        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      combatFx.spawnImpactBurst(
+        { x: enemy.position.x, y: enemy.position.y - 14 },
+        { crit: didCrit, lethal: isLethal, radius: enemy.radius + 8 }
       );
-      createHitParticles(enemy.position);
       if (finalAmount >= enemy.maxHp * STRONG_HIT_SHAKE_THRESHOLD_RATIO || died) {
         playerShakeMs = PLAYER_SHAKE_DURATION_MS;
       }
       if (died) {
         enemy.deathFadeMs = 0;
+        combatFx.spawnDeathBurst({ x: enemy.position.x, y: enemy.position.y - 10 }, enemy.radius + 8);
         claimEnemyLoot(enemy);
       }
     }
 
-    function performRuntimeBasicAttack(enemy: ActiveEnemy) {
+    function performRuntimeBasicAttack(enemy: ActiveEnemy, weaponCoefficient?: number) {
       selectRuntimeEnemy(enemy);
-      const result = combat.performBasicAttack(runtimeState, runtimeRng);
+      const result = combat.performBasicAttack(runtimeState, runtimeRng, { weaponCoefficient });
       runtimeState = result.next;
       if (!result.ok) return;
 
@@ -1833,15 +1985,15 @@ export function PixiExplorationStage({
         const isHit = isTargetInsideAttackCone({
           attackDirection: attack.direction,
           attackPosition: attack.position,
-          halfAngleRadians: MELEE_ATTACK_HALF_ANGLE_RADIANS,
-          range: MELEE_RANGE,
+          halfAngleRadians: getMeleeHalfAngle(attack.profile),
+          range: attack.profile.range,
           targetPosition: enemy.position,
           targetRadius: enemy.radius,
         });
 
         if (!isHit) continue;
         attack.hitEnemyIds.add(enemy.id);
-        performRuntimeBasicAttack(enemy);
+        performRuntimeBasicAttack(enemy, attack.profile.damageCoefficient);
       }
     }
 
@@ -1850,7 +2002,7 @@ export function PixiExplorationStage({
         if (!isEnemyAlive(enemy)) continue;
         if (!isCircleIntersectingCircle(projectile.position, 8, enemy.position, enemy.radius)) continue;
 
-        performRuntimeBasicAttack(enemy);
+        performRuntimeBasicAttack(enemy, projectile.damageCoefficient);
         return true;
       }
 
@@ -1870,13 +2022,18 @@ export function PixiExplorationStage({
       enemy.attackLungeX = (dx / dist) * 18;
       enemy.attackLungeY = (dy / dist) * 18;
 
+      applyIncomingPlayerDamage(enemy.contactDamage, now);
+    }
+
+    /** Any enemy damage (contact, projectile, ground hazard) goes through the combat runtime here. */
+    function applyIncomingPlayerDamage(rawDamage: number, now: number) {
+      if (isPlayerDefeated) return;
       const previousHp = runtimeState.player.hpCurrent;
-      const incomingDamage = Math.max(0, Math.round(enemy.contactDamage * getIncomingPlayerDamageMultiplier(now)));
+      const incomingDamage = Math.max(0, Math.round(rawDamage * getIncomingPlayerDamageMultiplier(now)));
       const isLethal = incomingDamage >= previousHp;
-      createCombatTelegraph(
-        playerPosition,
-        PLAYER_SIZE * 0.62,
-        isLethal ? TELEGRAPH_COLORS.lethal : TELEGRAPH_COLORS.damage
+      combatFx.spawnImpactBurst(
+        { x: playerPosition.x, y: playerPosition.y - 20 },
+        { lethal: isLethal, radius: PLAYER_SIZE * 0.5 }
       );
       runtimeState = combat.applyDamageToPlayer(runtimeState, incomingDamage);
       if (runtimeState.player.hpCurrent < previousHp) {
@@ -1954,10 +2111,169 @@ export function PixiExplorationStage({
 
         enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
         enemy.attackAnimMs = Math.max(0, enemy.attackAnimMs - deltaMs);
-        updateEnemyMovement(enemy, playerPosition, deltaSeconds);
+        // Enemies only engage a player standing in their own zone (no fights through gates).
+        const zone = enemy.zoneId ? layout?.zones.find((candidate) => candidate.id === enemy.zoneId) : undefined;
+        if (zone && !isInsideRect(playerPosition, zone.rect, 40)) {
+          enemy.state = "idle";
+          enemy.wasChasing = false;
+          continue;
+        }
+        const distanceToPlayer = Math.hypot(playerPosition.x - enemy.position.x, playerPosition.y - enemy.position.y);
+        const holdsRange =
+          !enemy.isBoss &&
+          enemy.attackStyle === "ranged" &&
+          distanceToPlayer < enemy.detectionRadius &&
+          distanceToPlayer <= coreEnemies.RANGED_ENEMY_KEEP_DISTANCE;
+        if (holdsRange) {
+          enemy.state = "chasing";
+        } else {
+          updateEnemyMovement(enemy, playerPosition, deltaSeconds);
+        }
+        if (staticSolids.length > 0) resolveCircleAgainstRects(enemy.position, enemy.radius * 0.8, getSolids());
+        updateEnemyAttacks(enemy, now);
+
+        // Aggro telegraph — a converging ring locks onto the enemy the moment
+        // it starts chasing, so incoming pressure reads before the first hit.
+        const isChasingNow = enemy.state === "chasing";
+        if (isChasingNow && !enemy.wasChasing) {
+          combatFx.spawnWindupRing({ ...enemy.position }, enemy.radius + 14, 460, {
+            follow: () => ({ x: enemy.position.x, y: enemy.position.y }),
+            lethal: enemy.isBoss === true,
+          });
+        }
+        enemy.wasChasing = isChasingNow;
 
         if (isCircleIntersectingCircle(enemy.position, enemy.radius, playerPosition, PLAYER_SIZE / 2)) {
           damagePlayerFromEnemy(enemy, now);
+        }
+      }
+    }
+
+    function updateEnemyAttacks(enemy: ActiveEnemy, now: number) {
+      if (enemy.state !== "chasing" || !enemy.archetypeId) return;
+      const archetype = coreEnemies.getEnemyArchetype(enemy.archetypeId);
+      if (!archetype) return;
+      if (enemy.nextAttackAtMs === -Infinity) {
+        enemy.nextAttackAtMs = now + 700;
+        return;
+      }
+
+      if (enemy.isBoss && archetype.bossId) {
+        const pattern = coreEnemies.getBossPattern(archetype.bossId);
+        if (!pattern) return;
+        const phaseIndex = coreEnemies.getBossPhaseIndex(pattern, enemy.hp / enemy.maxHp, enemy.bossPhaseIndex);
+        if (phaseIndex !== enemy.bossPhaseIndex) {
+          enemy.bossPhaseIndex = phaseIndex;
+          enemy.bossAttackCursor = 0;
+          enemy.moveSpeed = archetype.stats.moveSpeed * pattern.phases[phaseIndex].moveSpeedMultiplier;
+          enemy.nextAttackAtMs = now + 900;
+          combatFx.spawnWindupRing({ ...enemy.position }, enemy.radius + 40, 700, {
+            follow: () => ({ x: enemy.position.x, y: enemy.position.y }),
+            lethal: true,
+          });
+          lootPopups.push(
+            createFloatingText({
+              color: TELEGRAPH_COLORS.lethal,
+              label: `PHASE ${phaseIndex + 1}`,
+              layer: lootPopupLayer,
+              position: { x: enemy.position.x, y: enemy.position.y - enemy.radius - 70 },
+            })
+          );
+          playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+          return;
+        }
+        if (now < enemy.nextAttackAtMs) return;
+        const phase = pattern.phases[enemy.bossPhaseIndex];
+        const attack = phase.attacks[enemy.bossAttackCursor % phase.attacks.length];
+        enemy.bossAttackCursor += 1;
+        enemy.nextAttackAtMs = now + phase.attackIntervalMs;
+        enemy.attackAnimMs = ENEMY_ATTACK_ANIM_MS;
+        for (const hazard of coreEnemies.planBossAttack(attack, enemy.position, playerPosition, hazardRng.nextFloat)) {
+          spawnEnemyHazard(hazard);
+        }
+        return;
+      }
+
+      if (enemy.attackStyle !== "ranged" || now < enemy.nextAttackAtMs) return;
+      enemy.nextAttackAtMs = now + enemy.attackCooldownMs;
+      enemy.attackAnimMs = ENEMY_ATTACK_ANIM_MS;
+      spawnEnemyHazard(coreEnemies.planRangedEnemyShot(archetype, enemy.position, playerPosition));
+    }
+
+    function spawnEnemyHazard(hazard: coreEnemies.EnemyHazard) {
+      const graphic = new PIXI.Graphics();
+      if (hazard.kind === "ground") {
+        hazardLayer.addChild(graphic);
+        groundHazards.push({ ageMs: 0, graphic, hazard, resolved: false });
+        return;
+      }
+      fxLayer.addChild(graphic);
+      enemyProjectiles.push({
+        graphic,
+        hazard,
+        position: { ...hazard.origin },
+        traveled: 0,
+        windupRemainingMs: hazard.windupMs,
+      });
+    }
+
+    function updateEnemyHazards(deltaMs: number, now: number) {
+      const playerRadius = PLAYER_SIZE / 2;
+
+      for (let index = groundHazards.length - 1; index >= 0; index -= 1) {
+        const ground = groundHazards[index];
+        ground.ageMs += deltaMs;
+        const { center, radius, windupMs, damage } = ground.hazard;
+        const progress = clamp(ground.ageMs / windupMs, 0, 1);
+        ground.graphic.clear();
+        if (!ground.resolved) {
+          // Outline = final footprint; the filled disc grows until impact.
+          ground.graphic.circle(center.x, center.y, radius).stroke({ color: TELEGRAPH_COLORS.lethal, width: 2, alpha: 0.85 });
+          ground.graphic.circle(center.x, center.y, radius * progress).fill({ color: TELEGRAPH_COLORS.lethal, alpha: 0.12 + progress * 0.18 });
+          if (progress >= 1) {
+            ground.resolved = true;
+            ground.ageMs = 0;
+            combatFx.spawnImpactBurst({ ...center }, { lethal: true, radius: radius * 0.6 });
+            if (Math.hypot(playerPosition.x - center.x, playerPosition.y - center.y) <= radius + playerRadius * 0.5) {
+              applyIncomingPlayerDamage(damage, now);
+            }
+          }
+          continue;
+        }
+        const fade = 1 - clamp(ground.ageMs / GROUND_HAZARD_LINGER_MS, 0, 1);
+        ground.graphic.circle(center.x, center.y, radius).fill({ color: BW.white, alpha: 0.25 * fade });
+        if (fade <= 0) {
+          ground.graphic.destroy();
+          groundHazards.splice(index, 1);
+        }
+      }
+
+      for (let index = enemyProjectiles.length - 1; index >= 0; index -= 1) {
+        const projectile = enemyProjectiles[index];
+        const { hazard } = projectile;
+        projectile.graphic.clear();
+        if (projectile.windupRemainingMs > 0) {
+          projectile.windupRemainingMs -= deltaMs;
+          const charge = 1 - clamp(projectile.windupRemainingMs / hazard.windupMs, 0, 1);
+          projectile.graphic
+            .circle(projectile.position.x, projectile.position.y, hazard.radius * (0.6 + charge))
+            .stroke({ color: TELEGRAPH_COLORS.damage, width: 2, alpha: 0.4 + charge * 0.5 });
+          continue;
+        }
+        const step = hazard.speed * (deltaMs / 1000);
+        projectile.position.x += hazard.direction.x * step;
+        projectile.position.y += hazard.direction.y * step;
+        projectile.traveled += step;
+        projectile.graphic
+          .circle(projectile.position.x, projectile.position.y, hazard.radius)
+          .fill({ color: BW.white, alpha: 0.95 })
+          .stroke({ color: BW.gray0, width: 2 });
+        const hit = isCircleIntersectingCircle(projectile.position, hazard.radius, playerPosition, playerRadius * 0.7);
+        if (hit) applyIncomingPlayerDamage(hazard.damage, now);
+        const hitWall = staticSolids.length > 0 && isPointInsideRects(projectile.position, getSolids());
+        if (hit || hitWall || projectile.traveled >= hazard.maxRange) {
+          projectile.graphic.destroy();
+          enemyProjectiles.splice(index, 1);
         }
       }
     }
@@ -1981,11 +2297,11 @@ export function PixiExplorationStage({
       }
 
       if (!isPlayerDefeated && mouseInput.activeMouseAction === "melee" && mouseInput.isMeleeHeld) {
-        createMeleeAttack(now);
+        performWeaponAction(weaponProfile.primary, now, "primary");
       }
 
       if (!isPlayerDefeated && mouseInput.activeMouseAction === "ranged" && mouseInput.isRangedHeld) {
-        createRangedAttack(now);
+        performWeaponAction(weaponProfile.secondary, now, "secondary");
       }
 
       for (let index = meleeAttacks.length - 1; index >= 0; index -= 1) {
@@ -2006,13 +2322,19 @@ export function PixiExplorationStage({
         projectile.position.y += projectile.direction.y * step;
         projectile.distanceTravelled += step;
 
+        // Fading diamond trail roughly every 36px of travel.
+        if (Math.floor(projectile.distanceTravelled / 36) > Math.floor((projectile.distanceTravelled - step) / 36)) {
+          combatFx.spawnTrailDot({ ...projectile.position }, 9);
+        }
+
         const isOutOfBounds =
           projectile.position.x < 0 ||
           projectile.position.x > mapWidth ||
           projectile.position.y < 0 ||
           projectile.position.y > mapHeight;
 
-        if (applyProjectileHits(projectile) || projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds) {
+        const hitWall = staticSolids.length > 0 && isPointInsideRects(projectile.position, getSolids());
+        if (applyProjectileHits(projectile) || projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds || hitWall) {
           removeProjectileAt(index);
         }
       }
@@ -2021,18 +2343,12 @@ export function PixiExplorationStage({
     function renderAttacks() {
       for (const attack of meleeAttacks) {
         const progress = clamp(attack.ageMs / attack.durationMs, 0, 1);
-        const angle = Math.atan2(attack.direction.y, attack.direction.x);
-        const alpha = 0.62 * (1 - progress);
-
-        attack.graphic.clear();
-        attack.graphic
-          .moveTo(0, 0)
-          .arc(0, 0, MELEE_RANGE, -0.72, 0.72)
-          .lineTo(0, 0)
-          .fill({ color: 0xf0c26a, alpha: alpha * 0.42 });
-        attack.graphic.arc(0, 0, MELEE_RANGE, -0.62, 0.62).stroke({ color: 0xfff1b8, alpha, width: 5 });
+        renderMeleeSweep(attack.graphic, progress, {
+          halfAngle: getMeleeHalfAngle(attack.profile),
+          range: attack.profile.range,
+        });
         attack.graphic.position.set(attack.position.x, attack.position.y);
-        attack.graphic.rotation = angle;
+        attack.graphic.rotation = Math.atan2(attack.direction.y, attack.direction.x);
       }
 
       for (const projectile of projectiles) {
@@ -2082,14 +2398,6 @@ export function PixiExplorationStage({
         burst.container.destroy({ children: true });
       }
       sparkleBursts.length = 0;
-    }
-
-    function cleanupHitParticles() {
-      for (const particle of hitParticles) {
-        particle.graphic.removeFromParent();
-        particle.graphic.destroy();
-      }
-      hitParticles.length = 0;
     }
 
     function cleanupTelegraphs() {
@@ -2143,26 +2451,27 @@ export function PixiExplorationStage({
         if (!hasPointerWorldPosition) {
           updatePlayerFacing({ x: directionX / length, y: directionY / length });
         }
-        playerPosition.x = clamp(
-          playerPosition.x + (directionX / length) * moveSpeed * deltaSeconds,
-          PLAYER_SIZE / 2,
-          mapWidth - PLAYER_SIZE / 2
-        );
-        playerPosition.y = clamp(
-          playerPosition.y + (directionY / length) * moveSpeed * deltaSeconds,
-          PLAYER_SIZE / 2,
-          mapHeight - PLAYER_SIZE / 2
-        );
+        movePlayerBy((directionX / length) * moveSpeed * deltaSeconds, (directionY / length) * moveSpeed * deltaSeconds);
       }
 
       removeExpiredSkillEffects(nowMs);
+      updateLayoutState(ticker.deltaMS);
+      if (billy) {
+        if (!billyFollowing && billyJoinedCheck()) {
+          billyFollowing = true;
+          billy.setResting(false);
+          billy.teleport({ x: playerPosition.x - 70, y: playerPosition.y + 10 });
+        }
+        billy.update(deltaSeconds, nowMs / 1000, playerPosition);
+      }
       updateEnemies(ticker.deltaMS, nowMs);
+      updateEnemyHazards(ticker.deltaMS, nowMs);
       updateAttacks(ticker.deltaMS, nowMs);
       applyActiveSkillEffectDamage(nowMs);
       updatePoiVisuals(nowMs);
       updateLootPopups(ticker.deltaMS);
       updateSparkleBursts(ticker.deltaMS);
-      updateHitParticles(ticker.deltaMS);
+      combatFx.update(ticker.deltaMS);
       updateTelegraphs(ticker.deltaMS);
       renderEnemies();
       renderAttacks();
@@ -2224,17 +2533,7 @@ export function PixiExplorationStage({
         return;
       }
 
-      await PIXI.Assets.load(Object.values(EXPLORATION_ASSETS));
-      const textures = getTextures();
-      enemyTexture = textures.enemy;
-      sparkleTexture = textures.sparkle;
-      playerVisual.setSprite(textures.player);
       player.addChild(playerVisual.container);
-
-      if (cancelled) {
-        destroyPixiApp();
-        return;
-      }
 
       canvasElement = app.canvas;
       hostElement.appendChild(canvasElement);
@@ -2248,6 +2547,7 @@ export function PixiExplorationStage({
       app.stage.addChild(uiLayer);
       world.addChild(backgroundLayer);
       world.addChild(worldLayer);
+      world.addChild(hazardLayer);
       world.addChild(entityLayer);
       world.addChild(fxLayer);
       entityLayer.sortableChildren = true;
@@ -2260,14 +2560,45 @@ export function PixiExplorationStage({
           mapHeight,
           mapWidth,
           pointsOfInterest,
-          textures,
           worldLayer,
         })
       );
-      enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy, textures.enemy)));
-      for (const enemy of enemies) {
-        renderEnemy(enemy);
-        enemyLayer.addChild(enemy.container);
+      if (layout) {
+        // Editor map ground textures and decor (objects, buildings, NPCs) — drawn, never fight.
+        if (layout.floor) {
+          const floor = new PIXI.Graphics();
+          renderFloorTiles(floor, layout.floor);
+          backgroundLayer.addChild(floor);
+        }
+        for (const item of layout.decor ?? []) {
+          const asset = DECOR_ASSET_REGISTRY.assets.find((candidate) => candidate.id === item.assetId);
+          if (!asset) continue;
+          const graphic = createAssetGraphic(asset);
+          graphic.position.set(item.x, item.y);
+          graphic.rotation = (item.rotation * Math.PI) / 180;
+          worldLayer.addChild(graphic);
+        }
+        for (const obstacleDef of layout.obstacles) {
+          worldLayer.addChild(createObstacleGraphics(obstacleDef.kind, obstacleDef));
+        }
+        for (const gate of layout.gates) {
+          const graphic = createGateGraphics(gate.rect);
+          worldLayer.addChild(graphic);
+          gateRuntimes.push({ fadeMs: 0, gate, graphic, open: false });
+        }
+        for (const zone of layout.zones) {
+          if (zone.spawnOnBeat && !isReplay) {
+            pendingZones.push(zone);
+            continue;
+          }
+          spawnZone(zone, false);
+        }
+      } else {
+        enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy)));
+        for (const enemy of enemies) {
+          renderEnemy(enemy);
+          enemyLayer.addChild(enemy.container);
+        }
       }
       const firstEnemy = enemies.find(isEnemyAlive);
       if (firstEnemy) {
@@ -2275,6 +2606,21 @@ export function PixiExplorationStage({
       }
       entityLayer.addChild(enemyLayer);
       entityLayer.addChild(player);
+      // Billy: the dying dog lies in the Prologue alcove until the "billy_joins" beat, then
+      // follows the king; in every later dungeon he follows from the start. Never fights.
+      const billyHasJoined = () =>
+        useGameStore.getState().state.story.completedEvents.has("prologue_complete") ||
+        completedBeatIdsRef.current.has("billy_joins");
+      const dogAnchor = layout?.beats.find((beat) => beat.beatId === "find_dog");
+      if (billyHasJoined()) {
+        billy = createBillyCompanion({ x: playerPosition.x - 70, y: playerPosition.y });
+        billyFollowing = true;
+      } else if (dogAnchor) {
+        billy = createBillyCompanion({ x: dogAnchor.x + 70, y: dogAnchor.y + 40 });
+        billy.setResting(true);
+      }
+      if (billy) entityLayer.addChild(billy.container);
+      billyJoinedCheck = billyHasJoined;
       player.position.set(playerPosition.x, playerPosition.y);
       resizeUiLayer();
       onPlayerMoveRef.current(playerPosition);
@@ -2320,7 +2666,7 @@ export function PixiExplorationStage({
       cleanupAttacks();
       cleanupLootPopups();
       cleanupSparkleBursts();
-      cleanupHitParticles();
+      combatFx.cleanup();
       cleanupTelegraphs();
       cleanupSkillEffects(player);
       cleanupEnemies();
@@ -2328,7 +2674,7 @@ export function PixiExplorationStage({
     };
     // combatLoadout is intentionally read via combatLoadoutRef (not a dep) so a loadout
     // change does not remount the Pixi stage. Initial runtime is derived inside the effect.
-  }, [levelId, mapHeight, mapWidth, pointsOfInterest]);
+  }, [isReplay, layout, levelId, mapHeight, mapWidth, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">

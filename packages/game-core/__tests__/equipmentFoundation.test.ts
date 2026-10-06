@@ -100,6 +100,26 @@ test("generated equipment follows affix counts 0/0/1/1/2 with an absolute cap of
   assert.equal(validateAffixCount(invalidLegendary), false);
 });
 
+test("repeated calls with identical slot/itemLevel/rarity and no id/seed never collide on id", () => {
+  const params = { itemLevel: 1, rarity: "COMMON" as const, slot: "ring" as const };
+  const items = Array.from({ length: 20 }, () => generateEquipmentItem(params));
+  const ids = items.map((item) => item.id);
+
+  assert.equal(new Set(ids).size, items.length);
+  for (const item of items) {
+    assert.equal(item.instanceId, item.id);
+  }
+});
+
+test("an explicit seed still yields fully deterministic ids and affixes across repeated calls", () => {
+  const params = { itemLevel: 50, rarity: "EPIC" as const, seed: "stable-seed", slot: "chest" as const };
+  const a = generateEquipmentItem(params);
+  const b = generateEquipmentItem(params);
+
+  assert.equal(a.id, b.id);
+  assert.deepEqual(a.affixes, b.affixes);
+});
+
 test("equipment upgrades use locked rarity caps including Rare at +6", () => {
   for (const rarity of ITEM_RARITIES) {
     assert.equal(getUpgradeCapForRarity(rarity), EXPECTED_UPGRADE_CAPS[rarity]);

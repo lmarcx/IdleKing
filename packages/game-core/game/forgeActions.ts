@@ -132,6 +132,12 @@ export function forgeUpgrade(
   };
 }
 
+/** True when the item sits in any equipment slot (rings included). */
+export function isItemEquipped(state: GameState, itemId: string): boolean {
+  const { rings, ...slots } = state.equipment.equipped;
+  return Object.values(slots).includes(itemId) || rings.includes(itemId);
+}
+
 export type ForgeRecycleResult = {
   next: GameState;
   ok: boolean;
@@ -139,7 +145,7 @@ export type ForgeRecycleResult = {
   itemDestroyed?: true;
   preciousStoneItemId?: string;
   recipeMaterials?: readonly [];
-  reason?: "ITEM_NOT_FOUND";
+  reason?: "ITEM_NOT_FOUND" | "ITEM_EQUIPPED";
 };
 
 export type ForgeRecycleOptions = {
@@ -155,6 +161,7 @@ export type ForgeRecycleOptions = {
 export function forgeRecycle(state: GameState, itemId: string, options: ForgeRecycleOptions = {}): ForgeRecycleResult {
   const item = findItem(state.inventory, itemId);
   if (!item || !isEquipmentItem(item)) return { next: state, ok: false, reason: "ITEM_NOT_FOUND" };
+  if (isItemEquipped(state, itemId)) return { next: state, ok: false, reason: "ITEM_EQUIPPED" };
 
   const rarity = isItemRarity(item.rarity) ? item.rarity : "COMMON";
   const normalizedItem = { ...item, rarity };

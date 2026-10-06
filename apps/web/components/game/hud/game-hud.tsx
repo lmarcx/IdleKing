@@ -1,6 +1,22 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type ComponentType } from "react";
+import {
+  Activity,
+  Backpack,
+  Coins,
+  Crown,
+  Droplets,
+  Gem,
+  Globe2,
+  Heart,
+  Hourglass,
+  Settings,
+  Sparkles,
+  UserRound,
+  Users,
+  Zap,
+} from "lucide-react";
 
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import { ResourceFocusDropdown } from "@/components/game/hud/resource-focus-dropdown";
@@ -13,6 +29,7 @@ type GameHudProps = {
   disabled?: boolean;
   onOpenCharacter?: () => void;
   onOpenInventory?: () => void;
+  onOpenResonance?: () => void;
   onOpenSettings?: () => void;
   onOpenSkills?: () => void;
   onOpenWorlds?: () => void;
@@ -22,13 +39,21 @@ type GameHudProps = {
   playerStamina?: GameHudResource;
 };
 
-const hudButtonClassName =
-  "rounded-md border border-amber-200/22 bg-black/45 px-2.5 py-1.5 font-ik-menu text-[0.66rem] uppercase tracking-[0.1em] text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/16 disabled:cursor-not-allowed disabled:opacity-45";
-
 export type GameHudResource = {
   current: number;
   max: number;
 };
+
+type HudIcon = ComponentType<{ className?: string; strokeWidth?: number }>;
+
+const HUD_NAV_ITEMS: ReadonlyArray<{ icon: HudIcon; id: GameHudOverlayId; label: string }> = [
+  { icon: UserRound, id: "character", label: "Personnage" },
+  { icon: Backpack, id: "inventory", label: "Inventaire" },
+  { icon: Sparkles, id: "skills", label: "Skills" },
+  { icon: Gem, id: "resonance", label: "Résonance" },
+  { icon: Hourglass, id: "worlds", label: "Time Gate" },
+  { icon: Settings, id: "settings", label: "Options" },
+];
 
 function normalizeHudResource(resource: GameHudResource): GameHudResource {
   const max = Math.max(1, Math.ceil(resource.max));
@@ -38,19 +63,38 @@ function normalizeHudResource(resource: GameHudResource): GameHudResource {
   };
 }
 
-function HudBar({ label, value, max, tint }: { label: string; max: number; tint: string; value: number }) {
+function HudBar({
+  dim = false,
+  icon: Icon,
+  label,
+  max,
+  value,
+}: {
+  dim?: boolean;
+  icon: HudIcon;
+  label: string;
+  max: number;
+  value: number;
+}) {
   const percent = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
+  const low = percent <= 25;
 
   return (
-    <div className="min-w-28">
-      <div className="mb-0.5 flex justify-between gap-2 font-ik-menu text-[0.58rem] uppercase tracking-[0.1em] text-amber-100/68">
-        <span>{label}</span>
-        <span className="tabular-nums">
-          {value}/{max}
-        </span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full border border-amber-200/16 bg-black/55">
-        <div className={`h-full rounded-full ${tint}`} style={{ width: `${percent}%` }} />
+    <div
+      aria-label={`${label} ${value}/${max}`}
+      className="flex min-w-[7.5rem] items-center gap-1.5"
+      data-ik-tip={`${label} ${value}/${max}`}
+      role="meter"
+      aria-valuemax={max}
+      aria-valuemin={0}
+      aria-valuenow={value}
+    >
+      <Icon aria-hidden="true" className={cn("h-3.5 w-3.5 shrink-0", dim ? "text-neutral-500" : "text-neutral-200")} strokeWidth={2.4} />
+      <div className="ik-bar flex-1">
+        <div
+          className={cn("ik-bar__fill", dim && "ik-bar__fill--dim", low && !dim && "ik-bar__fill--low")}
+          style={{ width: `${percent}%` }}
+        />
       </div>
     </div>
   );
@@ -73,33 +117,46 @@ export function CombatResourceBars({
   const stamina = playerStamina ? normalizeHudResource(playerStamina) : undefined;
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
-      <HudBar label="HP" max={health.max} value={health.current} tint="bg-red-400" />
-      {energy ? <HudBar label="Energy" max={energy.max} value={energy.current} tint="bg-cyan-300" /> : null}
-      {mana ? <HudBar label="Mana" max={mana.max} value={mana.current} tint="bg-blue-300" /> : null}
-      {stamina ? <HudBar label="Stamina" max={stamina.max} value={stamina.current} tint="bg-emerald-300" /> : null}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <HudBar icon={Heart} label="PV" max={health.max} value={health.current} />
+      {energy ? <HudBar icon={Zap} label="Énergie" max={energy.max} value={energy.current} /> : null}
+      {mana ? <HudBar icon={Droplets} label="Mana" max={mana.max} value={mana.current} /> : null}
+      {stamina ? <HudBar icon={Activity} label="Stamina" max={stamina.max} value={stamina.current} /> : null}
     </div>
   );
 }
 
-function HudButton({
-  children,
-  disabled,
-  onClick,
+function HudStat({
+  icon: Icon,
+  label,
+  progress,
+  tip,
+  value,
 }: {
-  children: string;
-  disabled?: boolean;
-  onClick: () => void;
+  icon: HudIcon;
+  label: string;
+  progress?: number;
+  tip: string;
+  value: string;
 }) {
   return (
-    <button className={hudButtonClassName} disabled={disabled} onClick={onClick} type="button">
-      {children}
-    </button>
+    <div
+      aria-label={tip}
+      className="flex min-w-14 flex-col gap-1 border border-neutral-700 bg-black/60 px-2 py-1"
+      data-ik-tip={tip}
+    >
+      <span className="flex items-center gap-1.5">
+        <Icon aria-hidden="true" className="h-3.5 w-3.5 text-neutral-300" strokeWidth={2.4} />
+        <span className="font-ik-menu text-[0.66rem] leading-none text-neutral-100 tabular-nums">{value}</span>
+        <span className="sr-only">{label}</span>
+      </span>
+      {progress !== undefined ? (
+        <span className="ik-bar !h-[3px] w-full !border-neutral-800">
+          <span className="ik-bar__fill ik-bar__fill--dim block" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+        </span>
+      ) : null}
+    </div>
   );
-}
-
-function HudChip({ children }: { children: ReactNode }) {
-  return <span className="rounded border border-amber-200/14 bg-black/38 px-2 py-1">{children}</span>;
 }
 
 export function GameHud({
@@ -107,6 +164,7 @@ export function GameHud({
   disabled = false,
   onOpenCharacter,
   onOpenInventory,
+  onOpenResonance,
   onOpenSettings,
   onOpenSkills,
   onOpenWorlds,
@@ -126,71 +184,81 @@ export function GameHud({
   const handlers: Record<GameHudOverlayId, () => void> = {
     character: onOpenCharacter ?? (() => openOverlay("character")),
     inventory: onOpenInventory ?? (() => openOverlay("inventory")),
+    resonance: onOpenResonance ?? (() => openOverlay("resonance")),
     settings: onOpenSettings ?? (() => openOverlay("settings")),
     skills: onOpenSkills ?? (() => openOverlay("skills")),
     worlds: onOpenWorlds ?? (() => openOverlay("worlds")),
   };
   const health = playerHealth ?? { current: hpMax, max: hpMax };
   const energy = playerEnergy ?? (playerMana || playerStamina ? undefined : { current: 100, max: 100 });
-  const worldEnergy = {
+  const worldEnergy = normalizeHudResource({
     current: Math.floor(state.world.energy.current),
     max: Math.ceil(state.world.energy.max),
-  };
-  const worldHp = {
+  });
+  const worldHp = normalizeHudResource({
     current: Math.floor(state.world.hp.current),
     max: Math.ceil(state.world.hp.max),
-  };
+  });
   const ecuBalance = getCurrencyBalance(state.wallet, "ECU");
+  const xpProgress = playerXpToNext > 0 ? (state.progression.playerXp / playerXpToNext) * 100 : 100;
 
   return (
     <div
       className={cn(
-        "pointer-events-auto flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200/20 bg-zinc-950/84 px-2.5 py-2 shadow-[0_12px_38px_rgba(0,0,0,0.42)] backdrop-blur-md",
+        "pointer-events-auto flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2 border-2 border-neutral-700 bg-zinc-950/88 px-2.5 py-2 shadow-[4px_4px_0_rgba(0,0,0,0.6)] backdrop-blur-md",
         className
       )}
     >
-      <nav className="flex flex-wrap items-center gap-1.5" aria-label="Game HUD">
-        <HudButton disabled={disabled} onClick={handlers.character}>
-          Character
-        </HudButton>
-        <HudButton disabled={disabled} onClick={handlers.inventory}>
-          Inventory
-        </HudButton>
-        <HudButton disabled={disabled} onClick={handlers.skills}>
-          Skills
-        </HudButton>
-        <HudButton disabled={disabled} onClick={handlers.worlds}>
-          Worlds
-        </HudButton>
-        <HudButton disabled={disabled} onClick={handlers.settings}>
-          Settings
-        </HudButton>
+      <nav aria-label="Game HUD" className="flex items-center gap-1.5">
+        {HUD_NAV_ITEMS.map(({ icon: Icon, id, label }) => (
+          <button
+            aria-label={label}
+            className="ik-hud-btn"
+            data-ik-tip={label}
+            disabled={disabled}
+            key={id}
+            onClick={handlers[id]}
+            type="button"
+          >
+            <Icon aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={2.2} />
+          </button>
+        ))}
       </nav>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <CombatResourceBars
           playerEnergy={energy}
           playerHealth={health}
           playerMana={playerMana}
           playerStamina={playerStamina}
         />
-        <div className="flex flex-wrap items-center gap-2.5">
-          <HudBar label="World EN" max={worldEnergy.max} value={worldEnergy.current} tint="bg-emerald-300" />
-          <HudBar label="World HP" max={worldHp.max} value={worldHp.current} tint="bg-violet-300" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-l border-neutral-800 pl-3">
+          <HudBar dim icon={Globe2} label="Énergie du Monde" max={worldEnergy.max} value={worldEnergy.current} />
+          <HudBar dim icon={Heart} label="PV du Monde" max={worldHp.max} value={worldHp.current} />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 font-ik-body text-[0.72rem] text-amber-50">
-        <HudChip>Player Lv {state.progression.playerLevel}</HudChip>
-        <HudChip>
-          XP {state.progression.playerXp}
-          {playerXpToNext > 0 ? `/${playerXpToNext}` : ""}
-        </HudChip>
-        <HudChip>World Lv {state.progression.worldLevel}</HudChip>
-        <HudChip>WXP {state.progression.worldWxp}</HudChip>
-        <HudChip>ECU {ecuBalance}</HudChip>
-        <HudChip>Villagers {villagers.length}</HudChip>
-        <HudChip>Avg stamina {averageStamina}</HudChip>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <HudStat
+          icon={Crown}
+          label="Niveau du joueur"
+          progress={xpProgress}
+          tip={`Niveau ${state.progression.playerLevel} — XP ${state.progression.playerXp}${playerXpToNext > 0 ? `/${playerXpToNext}` : " (max)"}`}
+          value={`${state.progression.playerLevel}`}
+        />
+        <HudStat
+          icon={Globe2}
+          label="Niveau du monde"
+          tip={`World Level ${state.progression.worldLevel} — WXP ${state.progression.worldWxp}`}
+          value={`${state.progression.worldLevel}`}
+        />
+        <HudStat icon={Coins} label="ECU" tip={`${ecuBalance} ECU`} value={`${ecuBalance}`} />
+        <HudStat
+          icon={Users}
+          label="Villageois"
+          tip={`${villagers.length} villageois — stamina moyenne ${averageStamina}`}
+          value={`${villagers.length}`}
+        />
         <ResourceFocusDropdown resources={state.resources} />
       </div>
     </div>
