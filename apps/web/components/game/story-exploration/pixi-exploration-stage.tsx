@@ -14,8 +14,7 @@ import {
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
-import { combat } from "@idleking/game-core";
-import { addQty, type ResourceId } from "@idleking/game-core/resources/types.js";
+import { combat, enemies as coreEnemies, random } from "@idleking/game-core";
 import { isEnemyInBeam, isEnemyInCircle } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
@@ -522,7 +521,10 @@ function createDebugEnemy(id: string, position: Vector2): StoryLevelEnemy {
     moveSpeed: 0,
     position,
     radius: 20,
+    attackStyle: "melee",
+    silhouette: "shade",
     state: "idle",
+    tier: "standard",
   };
 }
 
@@ -567,26 +569,8 @@ function renderEnemy(enemy: ActiveEnemy) {
   }
 }
 
-function getLootPopupColor(resourceId: ResourceId): number {
-  switch (resourceId) {
-    case "MEAT":
-      return BW.gray4;
-    case "WOOD":
-      return BW.gray3;
-    case "STONE":
-      return BW.gray2;
-    default:
-      return BW.white;
-  }
-}
-
-function getLootPopupLabel(resourceId: ResourceId): string {
-  switch (resourceId) {
-    case "MEAT":
-      return "FOOD";
-    default:
-      return resourceId;
-  }
+function formatLootLabel(resourceId: string): string {
+  return resourceId.replaceAll("_", " ").toUpperCase();
 }
 
 export function PixiExplorationStage({
@@ -762,6 +746,8 @@ export function PixiExplorationStage({
       maxHp: GRUNT_HP,
     });
     const runtimeRng = createStoryCombatRng(levelId);
+    // Loot varies run to run (combat stays deterministic per level for the runtime tests).
+    const lootRng = random.createSeededRng((Date.now() ^ levelId.length * 2654435761) >>> 0);
 
     function destroyPixiApp() {
       if (!initialized || destroyed) return;
@@ -1345,22 +1331,32 @@ export function PixiExplorationStage({
     }
 
     function addLootToPlayerResources(loot: EnemyLoot) {
-      securedRewards.set(loot.resourceId, (securedRewards.get(loot.resourceId) ?? 0) + loot.amount);
-      useGameStore.getState().dispatch((state) => ({
-        ...state,
-        resources: addQty(state.resources, loot.resourceId, loot.amount),
-      }));
+      for (const drop of loot.materials) {
+        securedRewards.set(drop.resourceId, (securedRewards.get(drop.resourceId) ?? 0) + drop.amount);
+      }
+      for (const item of loot.equipment) {
+        securedRewards.set(item.name, (securedRewards.get(item.name) ?? 0) + 1);
+      }
+      if (loot.materials.length === 0 && loot.equipment.length === 0) return;
+      useGameStore.getState().dispatch((state) => coreEnemies.grantEnemyKillLoot(state, loot));
     }
 
     function createLootPopup(position: Vector2, loot: EnemyLoot) {
-      lootPopups.push(
-        createFloatingText({
-          color: getLootPopupColor(loot.resourceId),
-          label: `+${loot.amount} ${getLootPopupLabel(loot.resourceId)}`,
-          layer: lootPopupLayer,
-          position: { x: position.x + 8, y: position.y - 54 },
-        })
-      );
+      const labels = [
+        ...loot.materials.map((drop) => ({ color: BW.white, text: `+${drop.amount} ${formatLootLabel(drop.resourceId)}` })),
+        ...loot.equipment.map((item) => ({ color: BW.white, text: `+ ${item.name} (${item.rarity.toLowerCase()})` })),
+      ];
+      if (labels.length === 0) return;
+      labels.forEach((label, index) => {
+        lootPopups.push(
+          createFloatingText({
+            color: label.color,
+            label: label.text,
+            layer: lootPopupLayer,
+            position: { x: position.x + 8, y: position.y - 54 - index * 18 },
+          })
+        );
+      });
 
       sparkleBursts.push(
         createSparkleBurst({
@@ -1545,7 +1541,7 @@ export function PixiExplorationStage({
       if (enemy.lootClaimed) return;
       enemy.lootClaimed = true;
 
-      const loot = rollEnemyLoot(enemy, runtimeRng);
+      const loot = rollEnemyLoot(enemy, lootRng, levelId);
       addLootToPlayerResources(loot);
       createLootPopup(enemy.position, loot);
     }

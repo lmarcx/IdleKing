@@ -9,6 +9,7 @@
     ".": "./dist/index.js",
     "./power": "./dist/power/index.js",
     "./loot": "./dist/loot/index.js",
+    "./enemies": "./dist/enemies/index.js",
     "./progression": "./dist/progression/index.js",
     "./character": "./dist/character/index.js",
     "./equipment": "./dist/equipment/index.js",

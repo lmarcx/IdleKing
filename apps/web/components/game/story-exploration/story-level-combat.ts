@@ -1,10 +1,12 @@
-// TODO(combat-runtime): temporary visual/story adapter. Enemy HP authority, movement
-// and loot rolling live here only to preserve the visual slice. They must migrate to
-// the game-core combat-runtime enemy authority so Story/Dungeon/Duel reuse them without
-// duplication. Damage numbers already come from game-core (basic attack + computeSkillDamage);
-// this module must never hold a combat damage formula.
-import type { ResourceId } from "@idleking/game-core/resources/types.js";
-import type { random } from "@idleking/game-core";
+// TODO(combat-runtime): temporary visual/story adapter. Enemy HP authority and movement live here
+// only to preserve the visual slice; they must migrate to the game-core enemy-ai/combat-runtime
+// authority so Story/Dungeon/Duel reuse them without duplication. Rosters, stats and loot already
+// come from game-core (enemies/): this module must never hold enemy stats, loot tables or a
+// combat damage formula.
+import {
+  enemies as coreEnemies,
+  type random,
+} from "@idleking/game-core";
 
 export type EnemyId = string;
 export type EnemyKind = "grunt" | "shadow" | "boss";
@@ -22,10 +24,15 @@ export type StoryLevelEnemy = {
   hp: number;
   id: EnemyId;
   kind: EnemyKind;
-  /** Display name, shown for bosses. */
+  /** Display name, shown for bosses and elites. */
   name?: string;
   /** True for the level boss (bigger, gated completion). */
   isBoss?: boolean;
+  /** game-core enemy archetype (enemies/registry.ts); drives loot, attack style and silhouette. */
+  archetypeId?: string;
+  attackStyle: coreEnemies.EnemyAttackKind;
+  silhouette: coreEnemies.EnemySilhouette;
+  tier: coreEnemies.EnemyTier;
   lastContactDamageAt: number;
   lootClaimed: boolean;
   maxHp: number;
@@ -35,42 +42,25 @@ export type StoryLevelEnemy = {
   state: EnemyState;
 };
 
-export type EnemyLoot = {
-  amount: number;
-  resourceId: ResourceId;
-};
+export type EnemyLoot = coreEnemies.EnemyKillLoot;
 
+/** Placeholder target HP for the runtime before any enemy is selected. */
 export const GRUNT_HP = 50;
-export const GRUNT_MOVE_SPEED = 90;
-export const GRUNT_DETECTION_RADIUS = 280;
-export const GRUNT_CONTACT_DAMAGE = 8;
-export const GRUNT_CONTACT_DAMAGE_COOLDOWN_MS = 700;
 
+const GRUNT_MOVE_SPEED = 90;
+const GRUNT_DETECTION_RADIUS = 280;
+const GRUNT_CONTACT_DAMAGE = 8;
+const GRUNT_CONTACT_DAMAGE_COOLDOWN_MS = 700;
 const GRUNT_RADIUS = 20;
 
-// Prologue Shadows ("Ombres") — slightly tougher than generic grunts.
-export const SHADOW_HP = 60;
-const SHADOW_RADIUS = 22;
+/** Legacy (non-dungeon) story levels: canonical placeholder drops. */
+const GRUNT_LOOT_TABLE = [
+  { resourceId: "tough_meat", weight: 40, minAmount: 1, maxAmount: 2 },
+  { resourceId: "old_wood", weight: 35, minAmount: 1, maxAmount: 3 },
+  { resourceId: "iron_ore", weight: 25, minAmount: 1, maxAmount: 2 },
+] as const;
 
-// Amalgame des Ténèbres — the prologue boss.
-export const DARK_AMALGAM_HP = 520;
-const DARK_AMALGAM_RADIUS = 46;
-const DARK_AMALGAM_CONTACT_DAMAGE = 16;
-
-type EnemyLootEntry = {
-  maxAmount: number;
-  minAmount: number;
-  resourceId: ResourceId;
-  weight: number;
-};
-
-const GRUNT_LOOT_TABLE: EnemyLootEntry[] = [
-  // Food drops are represented by MEAT until the resource model exposes FOOD.
-  { resourceId: "MEAT", weight: 40, minAmount: 1, maxAmount: 2 },
-  { resourceId: "WOOD", weight: 35, minAmount: 1, maxAmount: 3 },
-  { resourceId: "STONE", weight: 25, minAmount: 1, maxAmount: 2 },
-];
-
+/** Regular spawn points on the shared 2400x1600 exploration map, nearest-to-spawn first. */
 const ENEMY_SPAWN_POINTS: CombatVector[] = [
   { x: 560, y: 620 },
   { x: 940, y: 340 },
@@ -79,95 +69,102 @@ const ENEMY_SPAWN_POINTS: CombatVector[] = [
   { x: 360, y: 1060 },
   { x: 1260, y: 1220 },
   { x: 2020, y: 1260 },
+  { x: 700, y: 1360 },
+  { x: 1700, y: 980 },
 ];
 
-function makeGrunt(position: CombatVector, index: number, kind: "grunt" | "shadow"): StoryLevelEnemy {
-  const isShadow = kind === "shadow";
-  const hp = isShadow ? SHADOW_HP : GRUNT_HP;
+const PROLOGUE_BOSS_POSITION: CombatVector = { x: 1980, y: 760 };
+const DEFAULT_BOSS_POSITION: CombatVector = { x: 2120, y: 360 };
+
+function spawnPointFor(index: number): CombatVector {
+  const base = ENEMY_SPAWN_POINTS[index % ENEMY_SPAWN_POINTS.length];
+  const ring = Math.floor(index / ENEMY_SPAWN_POINTS.length);
+  return { x: base.x + ring * 64, y: base.y + ring * 48 };
+}
+
+function makeArchetypeEnemy(
+  archetype: coreEnemies.EnemyArchetype,
+  index: number,
+  position: CombatVector,
+): StoryLevelEnemy {
+  const isBoss = archetype.tier === "boss";
   return {
-    attackCooldownMs: GRUNT_CONTACT_DAMAGE_COOLDOWN_MS,
-    contactDamage: GRUNT_CONTACT_DAMAGE,
-    detectionRadius: GRUNT_DETECTION_RADIUS,
-    hp,
-    id: `${kind}-${index + 1}`,
-    kind,
+    archetypeId: archetype.id,
+    attackCooldownMs: archetype.stats.attackCooldownMs,
+    attackStyle: archetype.attack,
+    contactDamage: archetype.stats.contactDamage,
+    detectionRadius: archetype.stats.aggroRadius,
+    hp: archetype.stats.hp,
+    id: isBoss ? `boss-${archetype.id}` : `${archetype.id}-${index + 1}`,
+    isBoss,
+    kind: isBoss ? "boss" : archetype.familyId === "ombres_de_guerre" ? "shadow" : "grunt",
     lastContactDamageAt: -Infinity,
     lootClaimed: false,
-    maxHp: hp,
-    moveSpeed: GRUNT_MOVE_SPEED,
+    maxHp: archetype.stats.hp,
+    moveSpeed: archetype.stats.moveSpeed,
+    name: isBoss || archetype.tier === "elite" ? archetype.name : undefined,
     position: { ...position },
-    radius: isShadow ? SHADOW_RADIUS : GRUNT_RADIUS,
+    radius: archetype.stats.radius,
+    silhouette: archetype.silhouette,
     state: "idle",
+    tier: archetype.tier,
   };
 }
 
-function makeDarkAmalgamBoss(position: CombatVector): StoryLevelEnemy {
+function makeLegacyGrunt(position: CombatVector, index: number): StoryLevelEnemy {
   return {
     attackCooldownMs: GRUNT_CONTACT_DAMAGE_COOLDOWN_MS,
-    contactDamage: DARK_AMALGAM_CONTACT_DAMAGE,
-    detectionRadius: GRUNT_DETECTION_RADIUS + 120,
-    hp: DARK_AMALGAM_HP,
-    id: "boss-dark-amalgam",
-    isBoss: true,
-    kind: "boss",
+    attackStyle: "melee",
+    contactDamage: GRUNT_CONTACT_DAMAGE,
+    detectionRadius: GRUNT_DETECTION_RADIUS,
+    hp: GRUNT_HP,
+    id: `grunt-${index + 1}`,
+    kind: "grunt",
     lastContactDamageAt: -Infinity,
     lootClaimed: false,
-    maxHp: DARK_AMALGAM_HP,
-    moveSpeed: GRUNT_MOVE_SPEED * 0.8,
-    name: "Amalgame des Ténèbres",
+    maxHp: GRUNT_HP,
+    moveSpeed: GRUNT_MOVE_SPEED,
     position: { ...position },
-    radius: DARK_AMALGAM_RADIUS,
+    radius: GRUNT_RADIUS,
+    silhouette: "shade",
     state: "idle",
+    tier: "standard",
   };
 }
 
 /**
- * Per-level enemy roster. The prologue spawns Shadows ("Ombres") and the boss
- * Amalgame des Ténèbres; other levels keep the generic grunt slice.
+ * Enemy roster for a level. Story dungeons spawn their game-core roster (DUNGEON_ENCOUNTERS):
+ * regular groups on the spawn points in encounter order, the boss last at the far end of the map.
+ * Legacy (non-dungeon) story levels keep the generic grunt slice.
  */
 export function createInitialEnemies(levelId?: string): StoryLevelEnemy[] {
-  if (levelId === "prologue_wastelands") {
-    // First waves of Shadows, then the boss at the far end of the map.
-    const shadows = ENEMY_SPAWN_POINTS.slice(0, 5).map((position, index) =>
-      makeGrunt(position, index, "shadow"),
-    );
-    return [...shadows, makeDarkAmalgamBoss({ x: 1980, y: 760 })];
+  const archetypes = levelId ? coreEnemies.getDungeonEncounterArchetypes(levelId) : [];
+  if (archetypes.length === 0) {
+    return ENEMY_SPAWN_POINTS.slice(0, 7).map((position, index) => makeLegacyGrunt(position, index));
   }
 
-  return ENEMY_SPAWN_POINTS.map((position, index) => makeGrunt(position, index, "grunt"));
-}
-
-function getLootTableForEnemy(enemy: StoryLevelEnemy): EnemyLootEntry[] {
-  switch (enemy.kind) {
-    case "grunt":
-    case "shadow":
-    case "boss":
-      return GRUNT_LOOT_TABLE;
-  }
-}
-
-export function rollEnemyLoot(
-  enemy: StoryLevelEnemy,
-  rng: Pick<random.SeededRng, "nextFloat" | "nextInt">
-): EnemyLoot {
-  const table = getLootTableForEnemy(enemy);
-  const totalWeight = table.reduce((total, entry) => total + entry.weight, 0);
-  let roll = rng.nextFloat() * totalWeight;
-
-  for (const entry of table) {
-    roll -= entry.weight;
-    if (roll <= 0) {
-      return {
-        amount: rng.nextInt(entry.minAmount, entry.maxAmount),
-        resourceId: entry.resourceId,
-      };
+  let regularIndex = 0;
+  return archetypes.map((archetype) => {
+    if (archetype.tier === "boss") {
+      const position = levelId === "prologue_wastelands" ? PROLOGUE_BOSS_POSITION : DEFAULT_BOSS_POSITION;
+      return makeArchetypeEnemy(archetype, 0, position);
     }
-  }
+    const index = regularIndex;
+    regularIndex += 1;
+    return makeArchetypeEnemy(archetype, index, spawnPointFor(index));
+  });
+}
 
-  const fallback = table[table.length - 1];
+/** Rolls the loot of a dead enemy: game-core archetype loot, or the legacy grunt table. */
+export function rollEnemyLoot(enemy: StoryLevelEnemy, rng: random.SeededRng, dungeonId?: string): EnemyLoot {
+  if (enemy.archetypeId) return coreEnemies.rollEnemyKillLoot(enemy.archetypeId, rng, { dungeonId });
+
+  const totalWeight = GRUNT_LOOT_TABLE.reduce((total, entry) => total + entry.weight, 0);
+  let roll = rng.nextFloat() * totalWeight;
+  const entry = GRUNT_LOOT_TABLE.find((candidate) => (roll -= candidate.weight) <= 0) ?? GRUNT_LOOT_TABLE[0];
   return {
-    amount: rng.nextInt(fallback.minAmount, fallback.maxAmount),
-    resourceId: fallback.resourceId,
+    equipment: [],
+    materials: [{ resourceId: entry.resourceId, amount: rng.nextInt(entry.minAmount, entry.maxAmount) }],
   };
 }
 
