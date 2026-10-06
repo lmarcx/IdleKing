@@ -12,29 +12,22 @@ import { GameHud } from "@/components/game/hud/game-hud";
 import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-panel";
 import { KitchenMiniGamePanel } from "@/components/game/kingdom/kitchen-mini-game-panel";
 import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
+import { ForgePanel } from "@/components/game/kingdom/forge-panel";
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import { forumRankUpWorld } from "@idleking/game-core/game/forumActions.js";
 import { wxpNext } from "@idleking/game-core/progression";
 import {
-  FORGE_RECIPES,
   buildBuilding,
   getBuildingUnlockDungeon,
   convertTempleGlobalXp,
-  forgeCraft,
   getBuildCost,
   getCanonicalBuildingStatus,
-  getCanonicalForgeRecipeRequiredLevel,
-  getForgeOutputBase,
   getQty,
   hasAtLeast,
-  isEquipmentItem,
-  isForgeRecipeAvailable,
   isPrologueComplete,
-  normalizeForgeRecipeIngredients,
   xpNext,
   type BuildingId,
   type BuildingStatus,
-  type ForgeRecipe,
   type TempleXpTarget,
 } from "@idleking/game-core";
 import {
@@ -146,8 +139,6 @@ function resolveNpcFigureConfig(npcId: string) {
   if (!config) throw new Error(`No NPC figure mapping for Kingdom Stage NPC "${npcId}"`);
   return config;
 }
-const FORGE_MVP_RECIPE_IDS = new Set(["iron_sword", "iron_helmet", "copper_ring"]);
-const FORGE_MVP_RECIPES = FORGE_RECIPES.filter((recipe) => FORGE_MVP_RECIPE_IDS.has(recipe.id));
 const TEMPLE_BUILD_COST = getBuildCost("TEMPLE");
 const FORGE_BUILD_COST = getBuildCost("FORGE");
 const BANK_BUILD_COST = getBuildCost("BANK");
@@ -1043,38 +1034,6 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
           : `Converted ${result.amount} XP_GLOBAL to ${result.amount} World WXP. Rank up remains available in the Forum.`;
       setTempleFeedback(feedback);
       toast.success(feedback);
-    },
-    [dispatch],
-  );
-
-  const handleForgeCraft = useCallback(
-    (recipe: ForgeRecipe) => {
-      const ingredients = normalizeForgeRecipeIngredients(recipe.ingredients);
-      if (!hasAtLeast(useGameStore.getState().state.resources, ingredients)) {
-        toast.error("Not enough resources");
-        return;
-      }
-
-      const currentState = useGameStore.getState().state;
-      const result = forgeCraft(currentState, recipe.id, { allowLocked: DEV_MODE });
-      if (!result.ok) {
-        toast.error(`Forge failed: ${result.reason}`);
-        return;
-      }
-
-      const createdItem = result.next.inventory.items.find((item) => item.id === result.createdItemId);
-      dispatch(() => result.next);
-      spawnWorldFxRef.current?.(FORGE_POSITION, "Forged", 0xf2f2f2);
-
-      if (createdItem && isEquipmentItem(createdItem)) {
-        const feedback = `${createdItem.name} crafted (${createdItem.slot}, ilvl ${createdItem.itemLevel ?? createdItem.ilvl ?? 1}).`;
-        setForgeFeedback(feedback);
-        toast.success(feedback);
-        return;
-      }
-
-      setForgeFeedback(`${recipe.label} crafted.`);
-      toast.success(`${recipe.label} crafted`);
     },
     [dispatch],
   );
@@ -1975,7 +1934,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
           if (!open) closeForgeModal();
         }}
       >
-        <DialogContent className="max-w-2xl text-neutral-100">
+        <DialogContent className="max-h-[92vh] max-w-3xl overflow-y-auto text-neutral-100">
           <div className="space-y-4">
             <BuildingModalHeader
               devUnlocked={isDevUnlocked(state.buildings.forge)}
@@ -1997,54 +1956,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
               />
             ) : null}
 
-            {effectiveForge.built ? (
-              <div className="ik-stagger grid gap-2 sm:grid-cols-3">
-                {FORGE_MVP_RECIPES.map((recipe) => {
-                  const ingredients = normalizeForgeRecipeIngredients(recipe.ingredients);
-                  const outputBase = getForgeOutputBase(recipe.outputBaseId);
-                  const requiredForgeLevel = getCanonicalForgeRecipeRequiredLevel(recipe);
-                  const hasRecipeResources = hasAtLeast(state.resources, ingredients);
-                  const isRecipeAvailable = isForgeRecipeAvailable(state, recipe);
-                  const canCraft = hasRecipeResources && isRecipeAvailable;
-                  const craftLabel = canCraft
-                    ? "Forger"
-                    : !isRecipeAvailable
-                      ? `Forge Nv ${requiredForgeLevel}`
-                      : "Ressources";
-
-                  return (
-                    <div
-                      className={cn(
-                        "ik-card-hover border-2 bg-neutral-950/60 p-3",
-                        canCraft ? "border-neutral-600" : "border-dashed border-neutral-800",
-                      )}
-                      key={recipe.id}
-                    >
-                      <div className="font-ik-title text-sm text-neutral-100">{recipe.label}</div>
-                      <div className="mt-0.5 font-ik-body text-[0.68rem] capitalize text-neutral-500">
-                        {outputBase?.slot ?? recipe.category} · ilvl Monde {state.progression.worldLevel}
-                      </div>
-                      <div className="mt-2.5">
-                        <BuildingCostChips cost={ingredients} resources={state.resources} />
-                      </div>
-                      <button
-                        className={cn(
-                          "mt-3 flex min-h-9 w-full items-center justify-center gap-2 border-2 px-3 py-1.5 font-ik-menu text-[0.68rem] transition",
-                          canCraft
-                            ? "border-neutral-100 bg-neutral-100 text-neutral-950 hover:bg-neutral-300"
-                            : "cursor-not-allowed border-neutral-800 text-neutral-600",
-                        )}
-                        disabled={!canCraft}
-                        onClick={() => handleForgeCraft(recipe)}
-                        type="button"
-                      >
-                        {craftLabel}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
+            {effectiveForge.built ? <ForgePanel /> : null}
 
             {forgeFeedback ? (
               <div className="ik-anim-rise-in border border-neutral-600 bg-neutral-900 p-3 font-ik-body text-sm text-neutral-100">

@@ -5,6 +5,8 @@ import {
   normalizeResourceId,
   type ResourceCosts,
 } from "../../resources/index.js";
+import type { EquipmentSetId } from "../../equipment/sets.js";
+import { SKILL_CATEGORIES, type SkillCategory } from "../../skills/types.js";
 import {
   getEquipmentSlotForWeaponFamily,
   getWeaponFamilyDefinition,
@@ -70,6 +72,10 @@ export type ForgeRecipe = Readonly<{
   ingredients: ResourceCosts;
   unlockConditions: ForgeRecipeUnlockConditions;
   rarityRoll: ForgeRecipeRarityRoll;
+  /** Equipment Set the crafted piece belongs to (EQUIPMENT_SETS.md, 4 active MVP sets). */
+  setId?: EquipmentSetId;
+  /** Ring recipes: the crafted ring carries a skill of this category (rolled within it). */
+  ringSkillCategory?: SkillCategory;
 }>;
 
 export type ForgeRecipeLockReason =
@@ -121,6 +127,9 @@ export const FORGE_OUTPUT_BASES: Readonly<Record<string, ForgeOutputBaseDefiniti
   helmet: { id: "helmet", category: "forge_armor", slot: "helmet", baseName: "Helmet" },
   armor: { id: "armor", category: "forge_armor", slot: "chest", baseName: "Armor" },
   cape: { id: "cape", category: "forge_armor", slot: "cape", baseName: "Cape" },
+  gloves: { id: "gloves", category: "forge_armor", slot: "gloves", baseName: "Gloves" },
+  belt: { id: "belt", category: "forge_armor", slot: "belt", baseName: "Belt" },
+  boots: { id: "boots", category: "forge_armor", slot: "boots", baseName: "Boots" },
   ring: { id: "ring", category: "forge_accessory", slot: "ring", baseName: "Ring" },
   necklace: { id: "necklace", category: "forge_accessory", slot: "necklace", baseName: "Necklace" },
   queens_tear_necklace: { id: "queens_tear_necklace", category: "forge_accessory", slot: "necklace", baseName: "Queen's Tear Necklace" },
@@ -133,6 +142,8 @@ function recipe(params: {
   category: ForgeRecipeCategory;
   outputBaseId: string;
   ingredients: ResourceCosts;
+  setId?: EquipmentSetId;
+  ringSkillCategory?: SkillCategory;
   requiredForgeLevel: number;
   requiredWorldLevel?: number;
   requiredChapter?: number;
@@ -159,6 +170,80 @@ function recipe(params: {
     },
     rarityRoll: "weightedByForgeLevel",
   };
+}
+
+/**
+ * Ring recipes per skill category, so players can aim a build (1 ring = 1 skill) instead of a
+ * blind roll over all 16 skills. DEFERRED balancing: ingredients.
+ */
+function RING_CATEGORY_RECIPES(): ForgeRecipe[] {
+  const labels: Record<SkillCategory, string> = {
+    attack: "Anneau d'Attaque",
+    movement: "Anneau de Mouvement",
+    defense: "Anneau de Défense",
+    utility: "Anneau d'Utilité",
+    summon: "Anneau d'Invocation",
+  };
+  const extra: Record<SkillCategory, ResourceCosts> = {
+    attack: { iron_ore: 1 },
+    movement: { old_wood: 2 },
+    defense: { iron_ore: 2 },
+    utility: { spectral_dust: 1 },
+    summon: { spectral_dust: 2, shadow_residue: 1 },
+  };
+  return SKILL_CATEGORIES.map((category) =>
+    recipe({
+      id: `ring_${category}`,
+      label: labels[category],
+      category: "forge_accessory",
+      outputBaseId: "ring",
+      ingredients: { quartz: 3, ...extra[category] },
+      ringSkillCategory: category,
+      requiredForgeLevel: 1,
+    }),
+  );
+}
+
+type SetRecipeSpec = Readonly<{
+  setId: EquipmentSetId;
+  label: string;
+  /** Story flag (completedEvents) unlocking the set — EQUIPMENT_SETS availability. */
+  storyFlag: string;
+  ingredients: ResourceCosts;
+}>;
+
+/** DEFERRED balancing: themed ingredients also give an MVP use to previously sink-less drops. */
+const SET_RECIPE_SPECS: readonly SetRecipeSpec[] = [
+  { setId: "vagabond", label: "Vagabond", storyFlag: "prologue_complete", ingredients: { iron_ore: 3, old_wood: 2, shadow_residue: 1 } },
+  { setId: "pleureur", label: "Pleureur", storyFlag: "funeral_mausoleum_cleared", ingredients: { bone_fragment: 3, iron_ore: 3, spectral_dust: 1 } },
+  { setId: "maraudeur", label: "Maraudeur", storyFlag: "chapter_i_complete", ingredients: { frozen_echo: 3, experimental_tissue: 2, silver_ore: 2 } },
+  { setId: "docteur", label: "Docteur", storyFlag: "reflection_cavern_cleared", ingredients: { archival_fragment: 2, cold_shell_fragment: 2, sapphire: 1 } },
+];
+
+const SET_PIECE_BASES = [
+  { outputBaseId: "helmet", label: "Casque" },
+  { outputBaseId: "armor", label: "Plastron" },
+  { outputBaseId: "cape", label: "Cape" },
+  { outputBaseId: "gloves", label: "Gants" },
+  { outputBaseId: "belt", label: "Ceinture" },
+  { outputBaseId: "boots", label: "Bottes" },
+] as const;
+
+function EQUIPMENT_SET_RECIPES(): ForgeRecipe[] {
+  return SET_RECIPE_SPECS.flatMap((spec) =>
+    SET_PIECE_BASES.map((piece) =>
+      recipe({
+        id: `set_${spec.setId}_${piece.outputBaseId}`,
+        label: `${piece.label} du ${spec.label}`,
+        category: "forge_armor",
+        outputBaseId: piece.outputBaseId,
+        ingredients: spec.ingredients,
+        setId: spec.setId,
+        requiredForgeLevel: 1,
+        requiredQuestId: spec.storyFlag,
+      }),
+    ),
+  );
 }
 
 export const FORGE_RECIPES: readonly ForgeRecipe[] = [
@@ -211,13 +296,39 @@ export const FORGE_RECIPES: readonly ForgeRecipe[] = [
     requiredForgeLevel: 1,
   }),
   recipe({
-    id: "BASIC_ARTIFACT",
-    label: "Basic Relic",
-    category: "forge_accessory",
-    outputBaseId: "relic",
-    ingredients: { quartz: 3, sapphire: 1 },
+    id: "BASIC_GLOVES",
+    label: "Basic Gloves",
+    category: "forge_armor",
+    outputBaseId: "gloves",
+    ingredients: { iron_ore: 2, tough_meat: 1 },
     requiredForgeLevel: 1,
   }),
+  recipe({
+    id: "BASIC_BELT",
+    label: "Basic Belt",
+    category: "forge_armor",
+    outputBaseId: "belt",
+    ingredients: { tough_meat: 2, old_wood: 1 },
+    requiredForgeLevel: 1,
+  }),
+  recipe({
+    id: "BASIC_BOOTS",
+    label: "Basic Boots",
+    category: "forge_armor",
+    outputBaseId: "boots",
+    ingredients: { iron_ore: 1, tough_meat: 2 },
+    requiredForgeLevel: 1,
+  }),
+  recipe({
+    id: "BASIC_NECKLACE",
+    label: "Basic Necklace",
+    category: "forge_accessory",
+    outputBaseId: "necklace",
+    ingredients: { quartz: 2, silver_ore: 1 },
+    requiredForgeLevel: 1,
+  }),
+  ...RING_CATEGORY_RECIPES(),
+  ...EQUIPMENT_SET_RECIPES(),
   recipe({
     id: "weapon_sword",
     label: "Sword",

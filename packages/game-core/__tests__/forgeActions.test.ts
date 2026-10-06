@@ -6,8 +6,10 @@ import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import * as gameCore from "../index.js";
+import { getSkillDefinition } from "../skills/registry.js";
 import {
   FORGE_RECIPES,
+  getForgeOutputBase,
   getCanonicalForgeRecipeRequiredLevel,
   getAvailableForgeRecipes,
   getForgeRecipe,
@@ -502,7 +504,12 @@ test("Forge has MVP recipes that create real equipment items", () => {
   assert.ok(recipeIds.includes("BASIC_SWORD"));
   assert.ok(recipeIds.includes("BASIC_ARMOR"));
   assert.ok(recipeIds.includes("BASIC_CAPE"));
-  assert.ok(recipeIds.includes("BASIC_ARTIFACT"));
+  assert.ok(recipeIds.includes("BASIC_GLOVES"));
+  assert.ok(recipeIds.includes("BASIC_BELT"));
+  assert.ok(recipeIds.includes("BASIC_BOOTS"));
+  // Artifact is inert in the MVP (D-11): it must not be craftable.
+  assert.equal(recipeIds.includes("BASIC_ARTIFACT"), false);
+  assert.equal(FORGE_RECIPES.some((recipe) => recipe.outputBaseId === "relic"), false);
 
   let s = progressToChapter4AndBuildForge(createForgeTestState());
   s = { ...s, resources: grantCraftResources(s.resources, { iron_ore: 20, old_wood: 20, quartz: 20, sapphire: 20 }) };
@@ -954,4 +961,44 @@ test("Legacy save equipment items missing upgradeLevel migrate to 0", () => {
       assert.equal(item.ilvl, 20);
     },
   );
+});
+
+
+test("every MVP equipment slot except the artifact has a basic Forge recipe", () => {
+  const slots = new Set(
+    FORGE_RECIPES.map((recipe) => getForgeOutputBase(recipe.outputBaseId)?.slot).filter(Boolean),
+  );
+  for (const slot of ["main_hand", "off_hand", "helmet", "chest", "cape", "gloves", "belt", "boots", "ring", "necklace"]) {
+    assert.ok(slots.has(slot as never), `no recipe for ${slot}`);
+  }
+});
+
+test("Equipment Set recipes craft set pieces once their story flag is reached", () => {
+  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  s = { ...s, resources: grantCraftResources(s.resources, { iron_ore: 20, old_wood: 20, shadow_residue: 20 }) };
+
+  const locked = forgeCraft(s, "set_vagabond_boots", { seed: 5 });
+  assert.equal(locked.ok, false);
+  assert.equal(locked.reason, "QUEST_REQUIRED");
+
+  s = { ...s, story: { ...s.story, completedEvents: new Set([...s.story.completedEvents, "prologue_complete"]) } };
+  const crafted = forgeCraft(s, "set_vagabond_boots", { seed: 5 });
+  assert.equal(crafted.ok, true);
+  const item = crafted.next.inventory.items.find((candidate) => candidate.id === crafted.createdItemId);
+  assert.ok(item && isEquipmentItem(item));
+  assert.equal(item.slot, "boots");
+  assert.equal(item.setId, "vagabond");
+});
+
+test("ring recipes roll a skill within their category", () => {
+  let s = progressToChapter4AndBuildForge(createForgeTestState());
+  s = { ...s, resources: grantCraftResources(s.resources, { quartz: 60, old_wood: 40 }) };
+  for (let seed = 1; seed <= 6; seed += 1) {
+    const crafted = forgeCraft(s, "ring_movement", { seed });
+    assert.equal(crafted.ok, true);
+    const ring = crafted.next.inventory.items.find((candidate) => candidate.id === crafted.createdItemId);
+    assert.ok(ring && isEquipmentItem(ring) && ring.skillId);
+    assert.equal(getSkillDefinition(ring.skillId!)?.category, "movement");
+    s = crafted.next;
+  }
 });

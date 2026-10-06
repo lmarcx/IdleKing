@@ -275,6 +275,7 @@ export type {
 export {
   forgeCraft,
   forgeRecycle,
+  isItemEquipped,
   forgeUpgrade,
 } from "./game/forgeActions.js";
 export type {
