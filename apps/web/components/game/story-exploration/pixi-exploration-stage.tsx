@@ -14,6 +14,7 @@ import {
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
 import { createGateGraphics, createObstacleGraphics } from "@/components/game/shared/geometric-dungeon";
 import { createEnemySilhouetteGraphics } from "@/components/game/shared/geometric-enemies";
+import { createBillyCompanion, type BillyCompanion } from "@/components/game/shared/companions";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
 import {
@@ -800,6 +801,9 @@ export function PixiExplorationStage({
     const pendingZones: LayoutZone[] = [];
     const spawnedZoneIds = new Set<string>();
     const playerCollisionRadius = PLAYER_SIZE * 0.4;
+    let billy: BillyCompanion | null = null;
+    let billyFollowing = false;
+    let billyJoinedCheck: () => boolean = () => false;
     function getSolids(): LayoutRect[] {
       if (gateRuntimes.length === 0) return staticSolids;
       return [...staticSolids, ...gateRuntimes.filter((runtime) => !runtime.open).map((runtime) => runtime.gate.rect)];
@@ -2441,6 +2445,14 @@ export function PixiExplorationStage({
 
       removeExpiredSkillEffects(nowMs);
       updateLayoutState(ticker.deltaMS);
+      if (billy) {
+        if (!billyFollowing && billyJoinedCheck()) {
+          billyFollowing = true;
+          billy.setResting(false);
+          billy.teleport({ x: playerPosition.x - 70, y: playerPosition.y + 10 });
+        }
+        billy.update(deltaSeconds, nowMs / 1000, playerPosition);
+      }
       updateEnemies(ticker.deltaMS, nowMs);
       updateEnemyHazards(ticker.deltaMS, nowMs);
       updateAttacks(ticker.deltaMS, nowMs);
@@ -2569,6 +2581,21 @@ export function PixiExplorationStage({
       }
       entityLayer.addChild(enemyLayer);
       entityLayer.addChild(player);
+      // Billy: the dying dog lies in the Prologue alcove until the "billy_joins" beat, then
+      // follows the king; in every later dungeon he follows from the start. Never fights.
+      const billyHasJoined = () =>
+        useGameStore.getState().state.story.completedEvents.has("prologue_complete") ||
+        completedBeatIdsRef.current.has("billy_joins");
+      const dogAnchor = layout?.beats.find((beat) => beat.beatId === "find_dog");
+      if (billyHasJoined()) {
+        billy = createBillyCompanion({ x: playerPosition.x - 70, y: playerPosition.y });
+        billyFollowing = true;
+      } else if (dogAnchor) {
+        billy = createBillyCompanion({ x: dogAnchor.x + 70, y: dogAnchor.y + 40 });
+        billy.setResting(true);
+      }
+      if (billy) entityLayer.addChild(billy.container);
+      billyJoinedCheck = billyHasJoined;
       player.position.set(playerPosition.x, playerPosition.y);
       resizeUiLayer();
       onPlayerMoveRef.current(playerPosition);

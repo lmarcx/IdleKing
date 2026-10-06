@@ -13,6 +13,12 @@ import { FarmMiniGamePanel } from "@/components/game/kingdom/farm-mini-game-pane
 import { KitchenMiniGamePanel } from "@/components/game/kingdom/kitchen-mini-game-panel";
 import { MineMiniGamePanel } from "@/components/game/kingdom/mine-mini-game-panel";
 import { ForgePanel } from "@/components/game/kingdom/forge-panel";
+import {
+  createBillyCompanion,
+  createToboCompanion,
+  type BillyCompanion,
+  type ToboCompanion,
+} from "@/components/game/shared/companions";
 import { useGameHudOverlay, type GameHudOverlayId } from "@/components/game/hud/game-hud-overlays";
 import { forumRankUpWorld } from "@idleking/game-core/game/forumActions.js";
 import { wxpNext } from "@idleking/game-core/progression";
@@ -499,63 +505,6 @@ function createPortalVisual(position: Vector2): PoiVisual {
       outerRing.alpha = (isNear ? 0.95 : 0.72) + pulse;
       innerRing.alpha = (isNear ? 0.88 : 0.64) - pulse;
       hint.alpha = isNear ? 1 : 0;
-    },
-  };
-}
-
-type BillyCompanion = {
-  container: PIXI.Container;
-  update: (deltaSeconds: number, elapsedSeconds: number, target: Vector2) => void;
-};
-
-const BILLY_FOLLOW_GAP = 74;
-const BILLY_CATCHUP_SPEED = 360;
-const BILLY_DISPLAY_HEIGHT = 66;
-
-/**
- * Billy, the king's first companion. Joins at the end of the prologue and only
- * follows the player around the Kingdom hub (never in combat / other modes).
- * Drawn as the "companion" geometric silhouette (faces right; flipped for left).
- */
-function createBillyCompanion(start: Vector2): BillyCompanion {
-  const container = new PIXI.Container();
-  const shadow = createHubShadow(22, 7, 0.4);
-  shadow.position.set(0, 8);
-
-  const body = new PIXI.Container();
-  const sprite = createFigureGraphics("companion");
-  const baseScale = figureScaleFor(BILLY_DISPLAY_HEIGHT);
-  sprite.scale.set(baseScale);
-  body.addChild(sprite);
-
-  container.addChild(shadow, body);
-  container.position.set(start.x, start.y);
-  container.zIndex = start.y;
-
-  const pos: Vector2 = { ...start };
-  let facingX = 1;
-
-  return {
-    container,
-    update: (deltaSeconds: number, elapsedSeconds: number, target: Vector2) => {
-      const dx = target.x - pos.x;
-      const dy = target.y - pos.y;
-      const dist = Math.hypot(dx, dy);
-      let moving = false;
-
-      if (dist > BILLY_FOLLOW_GAP) {
-        const step = Math.min(dist - BILLY_FOLLOW_GAP, BILLY_CATCHUP_SPEED * deltaSeconds);
-        pos.x += (dx / dist) * step;
-        pos.y += (dy / dist) * step;
-        moving = step > 0.5;
-        if (Math.abs(dx) > 2) facingX = dx > 0 ? 1 : -1;
-      }
-
-      const bob = moving ? Math.abs(Math.sin(elapsedSeconds * 11)) * 3 : Math.sin(elapsedSeconds * 2.4) * 1;
-      body.position.y = -bob;
-      sprite.scale.set(baseScale * facingX, baseScale);
-      container.position.set(pos.x, pos.y);
-      container.zIndex = pos.y;
     },
   };
 }
@@ -1528,6 +1477,12 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
         billy = createBillyCompanion({ x: playerPosition.x - 70, y: playerPosition.y });
         entityLayer.addChild(billy.container);
       }
+      // Tobo appears at the Rive Figee and settles near the Forge (STORY_CHAPTERS Ch I).
+      let tobo: ToboCompanion | null = null;
+      if (useGameStore.getState().state.story.completedEvents.has("frozen_river_cleared")) {
+        tobo = createToboCompanion({ x: FORGE_POSITION.x + 120, y: FORGE_POSITION.y + 60 });
+        entityLayer.addChild(tobo.container);
+      }
 
       spawnWorldFxRef.current = spawnWorldFx;
       updateNearbyInteractable();
@@ -1566,6 +1521,7 @@ export function KingdomHubStage({ stageOverride }: KingdomHubStageProps = {}) {
 
         playerVisual.update({ elapsedSeconds, facing: playerFacing, moving });
         if (billy) billy.update(deltaSeconds, elapsedSeconds, playerPosition);
+        if (tobo) tobo.update(elapsedSeconds);
 
         for (const visual of poiVisuals.values()) {
           visual.update(elapsedSeconds);
