@@ -35,3 +35,11 @@ test("test map validates and blocks dead topography cells", () => {
   assert.equal(loaded.blockingCells.has("8:6"), true);
   assert.equal(loaded.collisions.length >= 1, true);
 });
+
+test("biome decor packs are valid assets and cover every Story layout theme", async () => {
+  const { BIOME_DECOR_ASSETS, assertValidAssetRegistry, createAssetRegistry } = await import("../level-editor/index.js");
+  assert.doesNotThrow(() => assertValidAssetRegistry(createAssetRegistry()));
+  for (const theme of ["wastelands", "funeral", "ash", "glacial", "academy", "abyss"]) {
+    assert.ok(BIOME_DECOR_ASSETS.filter((asset) => asset.tags.includes(`biome:${theme}`)).length >= 3, theme);
+  }
+});

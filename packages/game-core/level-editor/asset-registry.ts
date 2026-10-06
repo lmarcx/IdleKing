@@ -1,5 +1,6 @@
 import { GROUND_TEXTURES } from "./ground-textures.js";
 import { SAMPLE_GEOMETRIC_ASSETS } from "./sample-assets.js";
+import { BIOME_DECOR_ASSETS } from "./biome-assets.js";
 import type { AssetCategory, AssetRegistry, GeometricAsset, GroundTexture } from "./types.js";
 
 export const ASSET_PALETTE_CATEGORIES: readonly AssetCategory[] = [
@@ -20,7 +21,7 @@ export function createAssetRegistry(input: {
   textures?: readonly GroundTexture[];
 } = {}): AssetRegistry {
   return {
-    assets: [...(input.predefinedAssets ?? SAMPLE_GEOMETRIC_ASSETS), ...(input.customAssets ?? [])],
+    assets: [...(input.predefinedAssets ?? [...SAMPLE_GEOMETRIC_ASSETS, ...BIOME_DECOR_ASSETS]), ...(input.customAssets ?? [])],
     textures: [...(input.textures ?? GROUND_TEXTURES)],
   };
 }

@@ -1,6 +1,7 @@
 export * from "./types.js";
 export * from "./asset-presets.js";
 export * from "./asset-registry.js";
+export * from "./biome-assets.js";
 export * from "./enemy-ai.js";
 export * from "./ground-textures.js";
 export * from "./interactions.js";
