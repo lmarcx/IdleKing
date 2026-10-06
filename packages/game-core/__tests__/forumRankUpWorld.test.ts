@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { addWorldWxp, wxpNext } from "../progression/worldXp.js";
 import { canLevelUpWorld, forumRankUpWorld, levelUpWorld } from "../game/forumActions.js";
 
@@ -17,7 +17,7 @@ test("Forum rank-up requires forum unlocked and built", () => {
   }
 
   // Unlock forum via chapter 1
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["FORUM"]);
 
   // Still not built
   {

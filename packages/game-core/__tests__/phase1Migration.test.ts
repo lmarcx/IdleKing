@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { getBuildCost } from "../building/buildCosts.js";
 
 import { buildBuilding } from "../game/buildingBuildActions.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
+import { completeDungeon } from "../story/progressionMvp.js";
 import { createInitialGameState } from "../game/state.js";
 import { applyGameXpGain } from "../game/playerXpActions.js";
 import { applyOfflineProgress } from "../game/offlineProgress.js";
@@ -71,7 +72,7 @@ test("offline progress regenerates world hp and energy", () => {
 
 test("Forum world rank-up refills world hp and energy at the new level", () => {
   let state = createInitialGameState({ nowMs: 1_000 });
-  state = completeChapterAction(state, 1).next;
+  state = withUnlockedBuildings(state, ["FORUM"]);
   state = {
     ...state,
     resources: getBuildCost("FORUM"),
@@ -133,12 +134,13 @@ test("generic XP gain banks WXP without auto world rank-up", () => {
   assert.equal(result.next.progression.worldWxp, wxpNext(1) + 5);
 });
 
-test("story chapter completion does not directly grant WXP", () => {
+test("story dungeon completion does not directly grant WXP", () => {
   const state = createInitialGameState({ nowMs: 1_000 });
-  const result = completeChapterAction(state, 1);
+  const result = completeDungeon(state, "prologue_wastelands");
 
-  assert.equal(result.gainedXp, 2500);
-  assert.equal(result.gainedWxp, 0);
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.ok(result.xp.playerXp > 0);
   assert.equal(result.next.progression.worldWxp, 0);
 });
 

@@ -8,28 +8,22 @@ import { CombatHud } from "@/components/game/combat/combat-hud";
 import { useGameHudOverlay } from "@/components/game/hud/game-hud-overlays";
 import { useGameStore } from "@/store/game-store";
 import {
-  STORY_LEVEL_PLACEHOLDER_REWARDS,
   canEnterDungeon,
   completeDungeon,
-  completeStoryLevelAction,
   getDungeonLayout,
   getLevelScript,
   type DungeonLayout,
   type DungeonXpReward,
   type LevelBeat,
   type RewardBundle,
-  type StoryEventDef,
 } from "@idleking/game-core";
-import type { ResourceStock } from "@idleking/game-core/resources/types.js";
 import { KingdomDialogueBox } from "@/components/game/kingdom/kingdom-dialogue-box";
 import { ExplorationHud, type ExplorerHudLevel, type ExplorerHudPoi } from "./exploration-hud";
 import { PixiExplorationStage, type ExplorationCombatHudState, type ExplorationStagePoi } from "./pixi-exploration-stage";
 
 type StoryLevelExplorerProps = {
-  dungeonId?: string;
-  level: ExplorerHudLevel & {
-    events: Array<Pick<StoryEventDef, "id" | "type">>;
-  };
+  dungeonId: string;
+  level: ExplorerHudLevel;
 };
 
 const MAP_WIDTH = 2400;
@@ -42,19 +36,6 @@ type ExplorationPoi = ExplorationStagePoi & {
 };
 
 type DisplayRewards = Record<string, number>;
-
-function getPoiColor(type: StoryEventDef["type"]): number {
-  switch (type) {
-    case "dialogue":
-    case "return_to_boto":
-      return 0x2fd8c8;
-    case "cutscene":
-    case "unlock":
-      return 0x8a5cff;
-    default:
-      return 0xc9a654;
-  }
-}
 
 function getBeatColor(kind: LevelBeat["kind"]): number {
   switch (kind) {
@@ -110,41 +91,14 @@ function beatLabel(kind: LevelBeat["kind"]): string {
   }
 }
 
-function createExplorationPois(
-  level: StoryLevelExplorerProps["level"],
-  dungeonId?: string,
-  layout?: DungeonLayout,
-): ExplorationPoi[] {
-  const script = dungeonId ? getLevelScript(dungeonId) : undefined;
-  if (script) return createBeatPois(script.beats, layout);
+function createExplorationPois(dungeonId: string, layout?: DungeonLayout): ExplorationPoi[] {
+  const script = getLevelScript(dungeonId);
   // Unscripted dungeons have no narrative objective: clearing the rooms is the objective.
-  if (dungeonId) return [];
-
-  const fallbackPositions = BEAT_FALLBACK_POSITIONS;
-
-  return level.events.map((event, index) => {
-    const position = fallbackPositions[index % fallbackPositions.length];
-    return {
-      color: getPoiColor(event.type),
-      id: event.id,
-      label: `Point d'interet ${index + 1}`,
-      required: true,
-      x: position.x,
-      y: position.y,
-    };
-  });
+  return script ? createBeatPois(script.beats, layout) : [];
 }
 
 function rewardEntries(rewards: DisplayRewards): Array<[string, number]> {
   return Object.entries(rewards).filter((entry): entry is [string, number] => typeof entry[1] === "number" && entry[1] > 0);
-}
-
-function resourceStockToDisplayRewards(stock: ResourceStock): DisplayRewards {
-  const rewards: DisplayRewards = {};
-  for (const [resourceId, amount] of Object.entries(stock)) {
-    if (typeof amount === "number") rewards[resourceId] = amount;
-  }
-  return rewards;
 }
 
 function rewardBundleToDisplayRewards(rewards: RewardBundle): DisplayRewards {
@@ -159,7 +113,6 @@ function rewardBundleToDisplayRewards(rewards: RewardBundle): DisplayRewards {
 }
 
 function CompletionPanel({
-  alreadyCompleted,
   isReplay,
   label,
   onReplay,
@@ -167,10 +120,9 @@ function CompletionPanel({
   rewards,
   xp,
 }: {
-  alreadyCompleted: boolean;
   isReplay: boolean;
   label: string;
-  onReplay?: () => void;
+  onReplay: () => void;
   onReturn: () => void;
   rewards: DisplayRewards;
   xp?: DungeonXpReward;
@@ -179,7 +131,7 @@ function CompletionPanel({
     <div className="pointer-events-auto absolute inset-0 z-40 grid place-items-center bg-black/58 px-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-lg border border-amber-200/35 bg-zinc-950/95 p-6 text-center shadow-[0_24px_80px_rgba(0,0,0,0.62)]">
         <p className="font-ik-menu text-xs uppercase tracking-[0.22em] text-emerald-200">
-          {alreadyCompleted ? "Objectifs deja valides" : isReplay ? "Donjon nettoye" : "Objectifs valides"}
+          {isReplay ? "Donjon nettoye" : "Objectifs valides"}
         </p>
         <h2 className="mt-2 font-ik-title text-2xl font-semibold text-amber-50">{label}</h2>
         <div className="mt-5 rounded-md border border-amber-200/18 bg-black/45 p-4 text-left">
@@ -207,18 +159,16 @@ function CompletionPanel({
             ))}
           </div>
         </div>
-        {onReplay ? (
-          <button
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/25 bg-black/40 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100"
-            onClick={onReplay}
-            type="button"
-          >
-            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-            Rejouer le donjon
-          </button>
-        ) : null}
         <button
-          className={`${onReplay ? "mt-2" : "mt-5"} inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24`}
+          className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/25 bg-black/40 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100"
+          onClick={onReplay}
+          type="button"
+        >
+          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+          Rejouer le donjon
+        </button>
+        <button
+          className={`mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border border-amber-200/45 bg-amber-500/18 px-4 py-3 font-ik-menu text-sm text-amber-50 transition hover:border-amber-100 hover:bg-amber-500/24`}
           onClick={onReturn}
           type="button"
         >
@@ -267,30 +217,22 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
   const router = useRouter();
   const dispatch = useGameStore((s) => s.dispatch);
   const gameState = useGameStore((s) => s.state);
-  const hasCompletedLevel = dungeonId
-    ? gameState.story.completedDungeonIds.has(dungeonId)
-    : gameState.story.completedLevels.has(level.id);
   // Frozen at mount: completing the first clear mid-run must not turn this run into a replay.
-  const [isReplay] = useState(() => Boolean(dungeonId) && hasCompletedLevel);
-  const layout = useMemo(() => (dungeonId ? getDungeonLayout(dungeonId) : undefined), [dungeonId]);
+  const [isReplay] = useState(() => gameState.story.completedDungeonIds.has(dungeonId));
+  const layout = useMemo(() => getDungeonLayout(dungeonId), [dungeonId]);
   const mapWidth = layout?.width ?? MAP_WIDTH;
   const mapHeight = layout?.height ?? MAP_HEIGHT;
-  const canCompleteDungeon = dungeonId ? canEnterDungeon(gameState, dungeonId) : true;
+  const canCompleteDungeon = canEnterDungeon(gameState, dungeonId);
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
   const [playerPosition, setPlayerPosition] = useState(() => layout?.playerSpawn ?? { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 });
   const pointsOfInterest = useMemo(
-    () => (isReplay ? [] : createExplorationPois(level, dungeonId, layout)),
-    [isReplay, level, dungeonId, layout]
-  );
-  const hasBossBeat = useMemo(
-    () => pointsOfInterest.some((point) => point.beat?.kind === "boss"),
-    [pointsOfInterest]
+    () => (isReplay ? [] : createExplorationPois(dungeonId, layout)),
+    [isReplay, dungeonId, layout]
   );
   const [discoveredPoiIds, setDiscoveredPoiIds] = useState<Set<string>>(() => new Set());
   const [dialogueQueue, setDialogueQueue] = useState<LevelBeat[]>([]);
   const [activeDialogue, setActiveDialogue] = useState<LevelBeat | null>(null);
   const [completion, setCompletion] = useState<{
-    alreadyCompleted: boolean;
     rewards: DisplayRewards;
     xp?: DungeonXpReward;
   } | null>(null);
@@ -352,18 +294,6 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
     return () => window.removeEventListener("keydown", handleKey);
   }, [activeDialogue]);
 
-  // Legacy (non-dungeon) story levels are one-shot: show their completion panel directly.
-  useEffect(() => {
-    if (dungeonId || !hasCompletedLevel) return;
-    setDiscoveredPoiIds(new Set(pointsOfInterest.map((point) => point.id)));
-    setCompletion((current) =>
-      current ?? {
-        alreadyCompleted: true,
-        rewards: resourceStockToDisplayRewards(STORY_LEVEL_PLACEHOLDER_REWARDS),
-      }
-    );
-  }, [dungeonId, hasCompletedLevel, pointsOfInterest]);
-
   const hudPointsOfInterest: ExplorerHudPoi[] = useMemo(
     () =>
       pointsOfInterest.map((point) => ({
@@ -377,40 +307,24 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
 
   const allRequiredPoisDiscovered = pointsOfInterest.every((point) => !point.required || discoveredPoiIds.has(point.id));
 
-  // Dungeons complete once every enemy (boss included) is down; legacy levels keep their
-  // boss-beat rule. Replays have no POIs, so the enemy clear alone completes them.
+  // Dungeons complete once every enemy (boss included) is down. Replays have no POIs, so the
+  // enemy clear alone completes them.
   const enemiesCleared = (combatHud?.enemiesRemaining ?? 1) === 0;
-  const combatDone = dungeonId ? enemiesCleared : !hasBossBeat || enemiesCleared;
   const dialoguesDrained = activeDialogue === null && dialogueQueue.length === 0;
-  const readyToComplete = allRequiredPoisDiscovered && combatDone && dialoguesDrained;
+  const readyToComplete = allRequiredPoisDiscovered && enemiesCleared && dialoguesDrained;
 
   useEffect(() => {
     if (!readyToComplete || completion) return;
-    if (!dungeonId && hasCompletedLevel) return;
 
-    if (dungeonId) {
-      const result = completeDungeon(useGameStore.getState().state, dungeonId);
-      if (!result.ok) return;
+    const result = completeDungeon(useGameStore.getState().state, dungeonId);
+    if (!result.ok) return;
 
-      dispatch(() => result.next);
-      setCompletion({
-        alreadyCompleted: false,
-        rewards: rewardBundleToDisplayRewards(result.rewards),
-        xp: result.xp,
-      });
-      return;
-    }
-
-    const result = completeStoryLevelAction(useGameStore.getState().state, level.id);
     dispatch(() => result.next);
-
-    if (result.completed) {
-      setCompletion({
-        alreadyCompleted: false,
-        rewards: result.rewards,
-      });
-    }
-  }, [readyToComplete, completion, dispatch, dungeonId, hasCompletedLevel, level.id]);
+    setCompletion({
+      rewards: rewardBundleToDisplayRewards(result.rewards),
+      xp: result.xp,
+    });
+  }, [readyToComplete, completion, dispatch, dungeonId]);
 
   // Once a full-screen resolution panel (completion / locked) takes over, the
   // gameplay HUD underneath is hidden — otherwise its own exit link and
@@ -462,10 +376,9 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
       ) : null}
       {completion ? (
         <CompletionPanel
-          alreadyCompleted={completion.alreadyCompleted}
           isReplay={isReplay}
-          label={dungeonId ? "Donjon complete" : "Niveau complete"}
-          onReplay={dungeonId ? onReplay : undefined}
+          label="Donjon complete"
+          onReplay={onReplay}
           onReturn={() => router.push("/game/kingdom")}
           rewards={completion.rewards}
           xp={completion.xp}

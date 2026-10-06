@@ -2,13 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { cookDish } from "../game/kitchenActions.js";
 import { addQty, getQty } from "../resources/types.js";
 
 function unlockAndBuildKitchen(s: ReturnType<typeof createInitialGameState>) {
   // Chapter progression is linear in MVP.
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   // Kitchen must be built to allow cooking actions.
   s = {
@@ -50,7 +50,7 @@ test("Kitchen cookDish consumes ingredients, produces dish, drains villager stam
 
 test("Kitchen cookDish fails if not built", () => {
   let s = createInitialGameState();
-  s = completeChapterAction(s, 1).next; // unlocked but not built
+  s = withUnlockedBuildings(s, ["KITCHEN"]); // unlocked but not built
 
   const r = cookDish(s, "STEW", "v1");
   assert.equal(r.ok, false);

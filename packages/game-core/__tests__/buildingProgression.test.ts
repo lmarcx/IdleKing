@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { buildBuilding } from "../game/buildingBuildActions.js";
 import { forumRankUpWorld } from "../game/forumActions.js";
 import { loadGameWithReport } from "../game/save.js";
@@ -85,7 +85,7 @@ test("canonical building migration fills status, levels, and new building placeh
 });
 
 test("build action moves an unlocked building to built level 1", () => {
-  let state = completeChapterAction(createInitialGameState(), 1).next;
+  let state = withUnlockedBuildings(createInitialGameState(), ["FORUM"]);
   state = addStock(state, getBuildCost("FORUM") as Record<string, number>);
 
   const result = buildBuilding(state, "FORUM");
@@ -98,7 +98,7 @@ test("build action moves an unlocked building to built level 1", () => {
 });
 
 test("upgrade action increases level and respects the WorldLevel cap", () => {
-  let state = completeChapterAction(createInitialGameState(), 1).next;
+  let state = withUnlockedBuildings(createInitialGameState(), ["FORUM"]);
   state = addStock(state, getBuildCost("FORUM") as Record<string, number>);
   const built = buildBuilding(state, "FORUM");
   assert.equal(built.ok, true);
@@ -180,7 +180,7 @@ test("locked, unlocked, built, and upgradeable transitions stay canonical", () =
   let state = createInitialGameState();
   assert.equal(state.buildings.forum.status, "locked");
 
-  state = completeChapterAction(state, 1).next;
+  state = withUnlockedBuildings(state, ["FORUM"]);
   assert.equal(state.buildings.forum.status, "unlocked");
 
   state = addStock(state, getBuildCost("FORUM") as Record<string, number>);

@@ -51,7 +51,6 @@ export type ForgeRecipeRarityRoll = "weightedByForgeLevel";
 export type ForgeRecipeUnlockConditions = Readonly<{
   requiredForgeLevel?: number;
   requiredBossId?: string;
-  requiredChapter?: number;
   requiredQuestId?: string;
   requiredWorldLevel?: number;
 }>;
@@ -146,14 +145,12 @@ function recipe(params: {
   ringSkillCategory?: SkillCategory;
   requiredForgeLevel: number;
   requiredWorldLevel?: number;
-  requiredChapter?: number;
   requiredQuestId?: string;
   requiredBossId?: string;
 }): ForgeRecipe {
   const {
     requiredForgeLevel,
     requiredWorldLevel,
-    requiredChapter,
     requiredQuestId,
     requiredBossId,
     ...definition
@@ -164,7 +161,6 @@ function recipe(params: {
     unlockConditions: {
       requiredForgeLevel,
       requiredWorldLevel,
-      requiredChapter,
       requiredQuestId,
       requiredBossId,
     },
@@ -546,10 +542,6 @@ export function getEffectiveForgeLevel(state: GameState): number {
   return Math.max(1, Math.floor(state.buildings.forge.level ?? 0));
 }
 
-function hasCompletedChapter(state: GameState, chapterId: number): boolean {
-  return state.story.completedChapters.has(chapterId);
-}
-
 function hasCompletedQuest(state: GameState, questId: string): boolean {
   return state.story.completedEvents.has(questId);
 }
@@ -564,9 +556,6 @@ export function getForgeRecipeLockReason(state: GameState, recipe: ForgeRecipe):
   if (getEffectiveForgeLevel(state) < getCanonicalForgeRecipeRequiredLevel(recipe)) return "FORGE_LEVEL_TOO_LOW";
   if (unlocks.requiredWorldLevel !== undefined && state.progression.worldLevel < unlocks.requiredWorldLevel) {
     return "WORLD_LEVEL_TOO_LOW";
-  }
-  if (unlocks.requiredChapter !== undefined && !hasCompletedChapter(state, unlocks.requiredChapter)) {
-    return "CHAPTER_REQUIRED";
   }
   if (unlocks.requiredQuestId !== undefined && !hasCompletedQuest(state, unlocks.requiredQuestId)) {
     return "QUEST_REQUIRED";

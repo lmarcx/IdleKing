@@ -1,4 +1,5 @@
 import type { GameState } from "../../game/state.js";
+import { applyUnlocks } from "../../game/unlocks.js";
 import { addQty, getQty, type ResourceId, type ResourceStock } from "../../resources/types.js";
 
 type BuildingKey = "forum" | "temple" | "farm" | "mine" | "kitchen" | "forge" | "market" | "timeGate" | "bank";
@@ -31,4 +32,9 @@ export function withBuiltBuildings(state: GameState, keys: readonly BuildingKey[
     } as never;
   }
   return { ...state, buildings };
+}
+
+/** Unlocks Kingdom buildings exactly as a Story dungeon first clear does (not built yet). */
+export function withUnlockedBuildings(state: GameState, buildingIds: readonly string[]): GameState {
+  return applyUnlocks(state, [...buildingIds]);
 }

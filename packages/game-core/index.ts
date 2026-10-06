@@ -645,15 +645,6 @@ export type {
   SkillUpgradeResult,
 } from "./combat/skills/index.js";
 export {
-  STORY_LEVEL_PLACEHOLDER_REWARDS,
-  completeStoryLevelAction,
-} from "./game/storyLevelActions.js";
-export {
-  completeStoryLevel,
-  getStoryLevelDef,
-  getVisibleStoryChaptersWithLevels,
-} from "./story/levels.js";
-export {
   canEnterDungeon,
   completeDungeon,
   applyDungeonBuildingUnlocks,
@@ -743,7 +734,7 @@ export type {
   StoryUnlockRequirementStatus,
   StoryUnlockConditions,
 } from "./story/progressionMvp.js";
-export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";
+export type { UnlockId } from "./story/types.js";
 export {
   buildLinearLayout,
   getDungeonLayout,

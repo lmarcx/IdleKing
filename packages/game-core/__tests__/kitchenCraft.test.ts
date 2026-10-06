@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { cookDish } from "../game/kitchenActions.js";
 import { addQty, getQty } from "../resources/types.js";
 
@@ -10,7 +10,7 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
   let s = createInitialGameState();
 
   // Chapter 1 unlocks kitchen
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   // Build kitchen (unlocked but not auto-built)
   s = {
@@ -41,7 +41,7 @@ test("Kitchen craft consumes ingredients, produces plate, drains villager stamin
 
 test("Kitchen craft fails if not built", () => {
   let s = createInitialGameState();
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   const r = cookDish(s, "STEW", "v1");
   assert.equal(r.ok, false);
@@ -50,7 +50,7 @@ test("Kitchen craft fails if not built", () => {
 
 test("Kitchen craft fails if not enough resources", () => {
   let s = createInitialGameState();
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["KITCHEN"]);
 
   s = {
     ...s,

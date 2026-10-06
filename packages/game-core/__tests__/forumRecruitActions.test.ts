@@ -2,12 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createInitialGameState } from "../game/state.js";
-import { completeChapterAction } from "../game/actions.js";
+import { withUnlockedBuildings } from "./support/fixtures.js";
 import { addQty, getQty } from "../resources/types.js";
 import { recruitVillager, recruitVillagerCost } from "../game/forumRecruitActions.js";
 
 function unlockAndBuildForum(s: ReturnType<typeof createInitialGameState>) {
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["FORUM"]);
 
   s = {
     ...s,
@@ -31,7 +31,7 @@ test("recruitVillager requires Forum unlocked and built", () => {
   }
 
   // Unlocked but not built
-  s = completeChapterAction(s, 1).next;
+  s = withUnlockedBuildings(s, ["FORUM"]);
   {
     const r = recruitVillager(s);
     assert.equal(r.ok, false);
