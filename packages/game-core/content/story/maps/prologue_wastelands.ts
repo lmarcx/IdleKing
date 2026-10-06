@@ -23,7 +23,7 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
     {
       "id": "boss_dark_amalgam",
       "assetId": "enemy_shard_01",
-      "enemyId": "dark_amalgam",
+      "enemyId": "boss_dark_amalgam",
       "name": "Amalgame des Tenebres",
       "stats": {
         "hp": 520,
@@ -40,8 +40,8 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
     {
       "id": "shadow_1",
       "assetId": "enemy_shard_01",
-      "enemyId": "shadow",
-      "name": "Shadow",
+      "enemyId": "ombre_errante",
+      "name": "Ombre Errante",
       "stats": {
         "hp": 60,
         "attack": 8,
@@ -56,8 +56,8 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
     {
       "id": "shadow_2",
       "assetId": "enemy_shard_01",
-      "enemyId": "shadow",
-      "name": "Shadow",
+      "enemyId": "ombre_errante",
+      "name": "Ombre Errante",
       "stats": {
         "hp": 60,
         "attack": 8,
@@ -72,8 +72,8 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
     {
       "id": "shadow_3",
       "assetId": "enemy_shard_01",
-      "enemyId": "shadow",
-      "name": "Shadow",
+      "enemyId": "ombre_errante",
+      "name": "Ombre Errante",
       "stats": {
         "hp": 60,
         "attack": 8,
@@ -88,8 +88,8 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
     {
       "id": "shadow_4",
       "assetId": "enemy_shard_01",
-      "enemyId": "shadow",
-      "name": "Shadow",
+      "enemyId": "ombre_archer",
+      "name": "Ombre Archer",
       "stats": {
         "hp": 60,
         "attack": 8,
@@ -104,8 +104,8 @@ export const PROLOGUE_WASTELANDS_MAP: PlayableMap = {
     {
       "id": "shadow_5",
       "assetId": "enemy_shard_01",
-      "enemyId": "shadow",
-      "name": "Shadow",
+      "enemyId": "ombre_brisee",
+      "name": "Ombre Brisée",
       "stats": {
         "hp": 60,
         "attack": 8,

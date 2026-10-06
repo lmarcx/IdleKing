@@ -113,3 +113,13 @@ test("a stage result for a different mapId is rejected even if it names prologue
   const result = baseStageResult({ mapId: "some_other_map" });
   assert.equal(shouldApplyStoryMapCompletion(result, "prologue_wastelands"), false);
 });
+
+test("canonical Story maps reference real enemy archetypes", async () => {
+  const { STORY_CANONICAL_MAPS } = await import("../content/story/maps/index.js");
+  const { getEnemyArchetype } = await import("../enemies/index.js");
+  for (const [dungeonId, map] of Object.entries(STORY_CANONICAL_MAPS)) {
+    for (const enemy of map.enemies) {
+      assert.ok(getEnemyArchetype(enemy.enemyId), `${dungeonId}/${enemy.id} -> ${enemy.enemyId}`);
+    }
+  }
+});

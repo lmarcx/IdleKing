@@ -158,6 +158,10 @@ export type EnemyBehavior = "idle" | "patrol" | "chase" | "guard_area" | "ranged
 export type MapEnemy = Readonly<{
   id: string;
   assetId: string;
+  /**
+   * For Story maps: a game-core enemy archetype id (enemies/registry.ts, e.g. "ombre_errante",
+   * "boss_dark_amalgam"), which owns the canonical stats, attack style and loot table.
+   */
   enemyId: string;
   name: string;
   stats: Readonly<{
