@@ -12,15 +12,27 @@ import {
   drawGroundGrid,
 } from "@/components/game/shared/geometric-world";
 import { createPlayerVisual } from "@/components/game/shared/player-visual";
+import { createGateGraphics, createObstacleGraphics } from "@/components/game/shared/geometric-dungeon";
 import { buildCombatLoadoutFromGameState } from "@/lib/combat-loadout";
 import { useGameStore } from "@/store/game-store";
-import { combat, enemies as coreEnemies, random } from "@idleking/game-core";
+import {
+  combat,
+  enemies as coreEnemies,
+  random,
+  type DungeonLayout,
+  type LayoutGate,
+  type LayoutRect,
+  type LayoutZone,
+} from "@idleking/game-core";
 import { isEnemyInBeam, isEnemyInCircle } from "./skills-hit-detection";
 import { cleanupSkillEffects, renderSkillEffects, spawnInstantSkillEffect } from "./skills-visuals";
 import {
   GRUNT_HP,
   createInitialEnemies,
+  createZoneEnemies,
   damageEnemy,
+  isPointInsideRects,
+  resolveCircleAgainstRects,
   isCircleIntersectingCircle,
   isEnemyAlive,
   isTargetInsideAttackCone,
@@ -51,6 +63,14 @@ import {
 
 type PixiExplorationStageProps = {
   inputBlocked?: boolean;
+  /** Level design of a story dungeon (game-core story/dungeonLayouts). */
+  layout?: DungeonLayout;
+  /** Replays drop narrative gating: beat-locked gates are open and ambushes spawn upfront. */
+  isReplay?: boolean;
+  /** Narrative beats done so far (opens beat gates, triggers ambush zones). Read via ref. */
+  completedBeatIds?: ReadonlySet<string>;
+  /** POIs the player may interact with right now (ordered beats). Read via ref. */
+  interactablePoiIds?: ReadonlySet<string>;
   levelId: string;
   mapHeight: number;
   mapWidth: number;
@@ -125,6 +145,15 @@ type ActiveProjectile = {
   position: Vector2;
   speed: number;
 };
+
+function isInsideRect(point: Vector2, area: LayoutRect, margin = 0): boolean {
+  return (
+    point.x >= area.x - margin &&
+    point.x <= area.x + area.width + margin &&
+    point.y >= area.y - margin &&
+    point.y <= area.y + area.height + margin
+  );
+}
 
 function getMeleeHalfAngle(profile: WeaponAttackProfile): number {
   return profile.shape === "burst" ? Math.PI : profile.halfAngleRadians ?? MELEE_ATTACK_HALF_ANGLE_RADIANS;
@@ -275,6 +304,10 @@ export type ExplorationCombatHudState = {
     id: string;
     kind: string;
   }>;
+  /** Layout zones whose enemies are all down. */
+  clearedZoneIds: string[];
+  /** True once every boss of the level is dead. */
+  bossDefeated: boolean;
   runtimeEnemyHealth?: {
     current: number;
     max: number;
@@ -605,7 +638,11 @@ function formatLootLabel(resourceId: string): string {
 }
 
 export function PixiExplorationStage({
+  completedBeatIds,
   inputBlocked = false,
+  interactablePoiIds,
+  isReplay = false,
+  layout,
   levelId,
   mapHeight,
   mapWidth,
@@ -619,6 +656,8 @@ export function PixiExplorationStage({
   const onCombatHudChangeRef = useRef(onCombatHudChangeAction);
   const onPlayerMoveRef = useRef(onPlayerMoveAction);
   const onPoiInteractRef = useRef(onPoiInteractAction);
+  const completedBeatIdsRef = useRef<ReadonlySet<string>>(completedBeatIds ?? new Set());
+  const interactablePoiIdsRef = useRef<ReadonlySet<string> | undefined>(interactablePoiIds);
   const equipment = useGameStore((s) => s.state.equipment);
   const inventoryItems = useGameStore((s) => s.state.inventory.items);
   const combatLoadout = useMemo(
@@ -644,7 +683,11 @@ export function PixiExplorationStage({
   const skillsStateRef = useRef(skillsState);
   const [combatHud, setCombatHud] = useState<Omit<ExplorationCombatHudState, "skillBar">>({
     dashCooldownSeconds: 0,
-    enemiesRemaining: createInitialEnemies(levelId).length,
+    bossDefeated: false,
+    clearedZoneIds: [],
+    enemiesRemaining: layout
+      ? layout.zones.reduce((total, zone) => total + zone.enemies.length, 0)
+      : createInitialEnemies(levelId).length,
     isDefeated: false,
     playerHealth: {
       current: playerMaxHp,
@@ -685,6 +728,14 @@ export function PixiExplorationStage({
   useEffect(() => {
     inputBlockedRef.current = inputBlocked;
   }, [inputBlocked]);
+
+  useEffect(() => {
+    completedBeatIdsRef.current = completedBeatIds ?? new Set();
+  }, [completedBeatIds]);
+
+  useEffect(() => {
+    interactablePoiIdsRef.current = interactablePoiIds;
+  }, [interactablePoiIds]);
 
   useEffect(() => {
     skillsStateRef.current = skillsState;
@@ -734,10 +785,23 @@ export function PixiExplorationStage({
       aimRadius: 42,
       aimCenterY: -26,
     });
-    const playerPosition = {
-      x: mapWidth / 2,
-      y: mapHeight / 2,
-    };
+    const playerPosition = layout
+      ? { ...layout.playerSpawn }
+      : {
+          x: mapWidth / 2,
+          y: mapHeight / 2,
+        };
+    // Level design runtime: static walls/props, gates that open on conditions, deferred zones.
+    type GateRuntime = { fadeMs: number; gate: LayoutGate; graphic: PIXI.Graphics; open: boolean };
+    const staticSolids: LayoutRect[] = layout ? [...layout.obstacles] : [];
+    const gateRuntimes: GateRuntime[] = [];
+    const pendingZones: LayoutZone[] = [];
+    const spawnedZoneIds = new Set<string>();
+    const playerCollisionRadius = PLAYER_SIZE * 0.4;
+    function getSolids(): LayoutRect[] {
+      if (gateRuntimes.length === 0) return staticSolids;
+      return [...staticSolids, ...gateRuntimes.filter((runtime) => !runtime.open).map((runtime) => runtime.gate.rect)];
+    }
     const mouseInput = {
       activeMouseAction: null as ActiveMouseAction,
       isMeleeHeld: false,
@@ -854,17 +918,22 @@ export function PixiExplorationStage({
 
       dashFeedback = undefined;
       dashFeedbackExpiresAt = 0;
-      playerPosition.x = clamp(
-        playerPosition.x + playerFacing.x * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
-        PLAYER_SIZE / 2,
-        mapWidth - PLAYER_SIZE / 2
-      );
-      playerPosition.y = clamp(
-        playerPosition.y + playerFacing.y * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
-        PLAYER_SIZE / 2,
-        mapHeight - PLAYER_SIZE / 2
+      movePlayerBy(
+        playerFacing.x * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance,
+        playerFacing.y * STORY_RUNTIME_VISUAL_PLACEHOLDERS.dashDistance
       );
       syncCombatHud();
+    }
+
+    /** Moves the player in small steps so walls and closed gates can never be tunnelled. */
+    function movePlayerBy(dx: number, dy: number) {
+      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 12));
+      const solids = getSolids();
+      for (let step = 0; step < steps; step += 1) {
+        playerPosition.x = clamp(playerPosition.x + dx / steps, PLAYER_SIZE / 2, mapWidth - PLAYER_SIZE / 2);
+        playerPosition.y = clamp(playerPosition.y + dy / steps, PLAYER_SIZE / 2, mapHeight - PLAYER_SIZE / 2);
+        if (solids.length > 0) resolveCircleAgainstRects(playerPosition, playerCollisionRadius, solids);
+      }
     }
 
     function findNearestAliveEnemy(position: Vector2, maxRange: number): ActiveEnemy | null {
@@ -1376,7 +1445,91 @@ export function PixiExplorationStage({
     }
 
     function getEnemiesRemaining() {
-      return enemies.filter(isEnemyAlive).length;
+      const pending = pendingZones.reduce((total, zone) => total + zone.enemies.length, 0);
+      return enemies.filter(isEnemyAlive).length + pending;
+    }
+
+    function isZoneCleared(zoneId: string): boolean {
+      if (!spawnedZoneIds.has(zoneId)) return false;
+      return enemies.every((enemy) => enemy.zoneId !== zoneId || !isEnemyAlive(enemy));
+    }
+
+    function getClearedZoneIds(): string[] {
+      return layout ? layout.zones.filter((zone) => isZoneCleared(zone.id)).map((zone) => zone.id) : [];
+    }
+
+    function isBossDefeated(): boolean {
+      const bosses = enemies.filter((enemy) => enemy.isBoss);
+      const bossPending = pendingZones.some((zone) => zone.enemies.some((placement) => placement.archetypeId.startsWith("boss_")));
+      return bosses.length > 0 && !bossPending && bosses.every((enemy) => !isEnemyAlive(enemy));
+    }
+
+    function spawnZone(zone: LayoutZone, withFx: boolean) {
+      spawnedZoneIds.add(zone.id);
+      for (const enemy of createZoneEnemies(zone)) {
+        const active = createEnemyGraphics(enemy);
+        renderEnemy(active);
+        enemies.push(active);
+        enemyLayer.addChild(active.container);
+        if (withFx) {
+          combatFx.spawnWindupRing({ ...active.position }, active.radius + 20, 520, {
+            follow: () => ({ x: active.position.x, y: active.position.y }),
+            lethal: active.isBoss === true,
+          });
+        }
+      }
+      if (withFx) {
+        lootPopups.push(
+          createFloatingText({
+            color: TELEGRAPH_COLORS.lethal,
+            label: zone.label.toUpperCase(),
+            layer: lootPopupLayer,
+            position: { x: playerPosition.x, y: playerPosition.y - 96 },
+          })
+        );
+        playerShakeMs = PLAYER_SHAKE_DURATION_MS;
+      }
+    }
+
+    function updateLayoutState(deltaMs: number) {
+      if (!layout) return;
+      let changed = false;
+      for (let index = pendingZones.length - 1; index >= 0; index -= 1) {
+        const zone = pendingZones[index];
+        if (!zone.spawnOnBeat || !completedBeatIdsRef.current.has(zone.spawnOnBeat)) continue;
+        pendingZones.splice(index, 1);
+        spawnZone(zone, true);
+        changed = true;
+      }
+      for (const runtime of gateRuntimes) {
+        if (runtime.open) {
+          if (runtime.graphic.visible) {
+            runtime.fadeMs += deltaMs;
+            runtime.graphic.alpha = 1 - clamp(runtime.fadeMs / 320, 0, 1);
+            if (runtime.fadeMs >= 320) runtime.graphic.visible = false;
+          }
+          continue;
+        }
+        const condition = runtime.gate.opensWhen;
+        const shouldOpen =
+          condition.kind === "zone_cleared"
+            ? isZoneCleared(condition.zoneId)
+            : isReplay || completedBeatIdsRef.current.has(condition.beatId);
+        if (!shouldOpen) continue;
+        runtime.open = true;
+        changed = true;
+        const center = { x: runtime.gate.rect.x + runtime.gate.rect.width / 2, y: runtime.gate.rect.y + runtime.gate.rect.height / 2 };
+        combatFx.spawnImpactBurst(center, { radius: 60 });
+        lootPopups.push(
+          createFloatingText({
+            color: TELEGRAPH_COLORS.safeHeal,
+            label: "PASSAGE OUVERT",
+            layer: lootPopupLayer,
+            position: { x: center.x, y: center.y - 80 },
+          })
+        );
+      }
+      if (changed) syncCombatHud();
     }
 
     function addLootToPlayerResources(loot: EnemyLoot) {
@@ -1491,6 +1644,7 @@ export function PixiExplorationStage({
 
       for (const visual of poiVisuals) {
         if (interactedPoiIds.has(visual.id)) continue;
+        if (interactablePoiIdsRef.current && !interactablePoiIdsRef.current.has(visual.id)) continue;
         const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
         if (distance > nearestDistance) continue;
         nearestDistance = distance;
@@ -1514,7 +1668,9 @@ export function PixiExplorationStage({
         const distance = Math.hypot(playerPosition.x - visual.point.x, playerPosition.y - visual.point.y);
         const isNear = distance <= POI_HIGHLIGHT_RADIUS;
         const isInteracted = interactedPoiIds.has(visual.id);
-        const showHint = isNear && !isInteracted;
+        const isLocked = interactablePoiIdsRef.current !== undefined && !interactablePoiIdsRef.current.has(visual.id) && !isInteracted;
+        visual.container.alpha = isLocked ? 0.28 : 1;
+        const showHint = isNear && !isInteracted && !isLocked;
         const pulse = 1 + Math.sin(nowMs / 520 + visual.pulseOffset) * 0.035;
         const targetScale = visual.baseScale * pulse * (isNear ? 1.13 : 1);
         visual.sprite.scale.set(targetScale);
@@ -1604,6 +1760,8 @@ export function PixiExplorationStage({
       setCombatHud({
         dashCooldownSeconds: runtimeState.timers.dashCooldownRemainingSeconds,
         dashFeedback,
+        bossDefeated: isBossDefeated(),
+        clearedZoneIds: getClearedZoneIds(),
         enemiesRemaining: getEnemiesRemaining(),
         isDefeated: isPlayerDefeated,
         playerHealth: {
@@ -1936,6 +2094,13 @@ export function PixiExplorationStage({
 
         enemy.hitFlashMs = Math.max(0, enemy.hitFlashMs - deltaMs);
         enemy.attackAnimMs = Math.max(0, enemy.attackAnimMs - deltaMs);
+        // Enemies only engage a player standing in their own zone (no fights through gates).
+        const zone = enemy.zoneId ? layout?.zones.find((candidate) => candidate.id === enemy.zoneId) : undefined;
+        if (zone && !isInsideRect(playerPosition, zone.rect, 40)) {
+          enemy.state = "idle";
+          enemy.wasChasing = false;
+          continue;
+        }
         const distanceToPlayer = Math.hypot(playerPosition.x - enemy.position.x, playerPosition.y - enemy.position.y);
         const holdsRange =
           !enemy.isBoss &&
@@ -1947,6 +2112,7 @@ export function PixiExplorationStage({
         } else {
           updateEnemyMovement(enemy, playerPosition, deltaSeconds);
         }
+        if (staticSolids.length > 0) resolveCircleAgainstRects(enemy.position, enemy.radius * 0.8, getSolids());
         updateEnemyAttacks(enemy, now);
 
         // Aggro telegraph — a converging ring locks onto the enemy the moment
@@ -2087,7 +2253,8 @@ export function PixiExplorationStage({
           .stroke({ color: BW.gray0, width: 2 });
         const hit = isCircleIntersectingCircle(projectile.position, hazard.radius, playerPosition, playerRadius * 0.7);
         if (hit) applyIncomingPlayerDamage(hazard.damage, now);
-        if (hit || projectile.traveled >= hazard.maxRange) {
+        const hitWall = staticSolids.length > 0 && isPointInsideRects(projectile.position, getSolids());
+        if (hit || hitWall || projectile.traveled >= hazard.maxRange) {
           projectile.graphic.destroy();
           enemyProjectiles.splice(index, 1);
         }
@@ -2149,7 +2316,8 @@ export function PixiExplorationStage({
           projectile.position.y < 0 ||
           projectile.position.y > mapHeight;
 
-        if (applyProjectileHits(projectile) || projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds) {
+        const hitWall = staticSolids.length > 0 && isPointInsideRects(projectile.position, getSolids());
+        if (applyProjectileHits(projectile) || projectile.distanceTravelled >= projectile.maxRange || isOutOfBounds || hitWall) {
           removeProjectileAt(index);
         }
       }
@@ -2266,19 +2434,11 @@ export function PixiExplorationStage({
         if (!hasPointerWorldPosition) {
           updatePlayerFacing({ x: directionX / length, y: directionY / length });
         }
-        playerPosition.x = clamp(
-          playerPosition.x + (directionX / length) * moveSpeed * deltaSeconds,
-          PLAYER_SIZE / 2,
-          mapWidth - PLAYER_SIZE / 2
-        );
-        playerPosition.y = clamp(
-          playerPosition.y + (directionY / length) * moveSpeed * deltaSeconds,
-          PLAYER_SIZE / 2,
-          mapHeight - PLAYER_SIZE / 2
-        );
+        movePlayerBy((directionX / length) * moveSpeed * deltaSeconds, (directionY / length) * moveSpeed * deltaSeconds);
       }
 
       removeExpiredSkillEffects(nowMs);
+      updateLayoutState(ticker.deltaMS);
       updateEnemies(ticker.deltaMS, nowMs);
       updateEnemyHazards(ticker.deltaMS, nowMs);
       updateAttacks(ticker.deltaMS, nowMs);
@@ -2378,10 +2538,28 @@ export function PixiExplorationStage({
           worldLayer,
         })
       );
-      enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy)));
-      for (const enemy of enemies) {
-        renderEnemy(enemy);
-        enemyLayer.addChild(enemy.container);
+      if (layout) {
+        for (const obstacleDef of layout.obstacles) {
+          worldLayer.addChild(createObstacleGraphics(obstacleDef.kind, obstacleDef));
+        }
+        for (const gate of layout.gates) {
+          const graphic = createGateGraphics(gate.rect);
+          worldLayer.addChild(graphic);
+          gateRuntimes.push({ fadeMs: 0, gate, graphic, open: false });
+        }
+        for (const zone of layout.zones) {
+          if (zone.spawnOnBeat && !isReplay) {
+            pendingZones.push(zone);
+            continue;
+          }
+          spawnZone(zone, false);
+        }
+      } else {
+        enemies.push(...createInitialEnemies(levelId).map((enemy) => createEnemyGraphics(enemy)));
+        for (const enemy of enemies) {
+          renderEnemy(enemy);
+          enemyLayer.addChild(enemy.container);
+        }
       }
       const firstEnemy = enemies.find(isEnemyAlive);
       if (firstEnemy) {
@@ -2442,7 +2620,7 @@ export function PixiExplorationStage({
     };
     // combatLoadout is intentionally read via combatLoadoutRef (not a dep) so a loadout
     // change does not remount the Pixi stage. Initial runtime is derived inside the effect.
-  }, [levelId, mapHeight, mapWidth, pointsOfInterest]);
+  }, [isReplay, layout, levelId, mapHeight, mapWidth, pointsOfInterest]);
 
   return (
     <div className="relative h-full w-full">

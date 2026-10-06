@@ -744,3 +744,22 @@ export type {
   StoryUnlockConditions,
 } from "./story/progressionMvp.js";
 export type { PublicStoryChapterWithLevels, PublicStoryLevel, StoryEventDef, StoryLevelDef, UnlockId } from "./story/types.js";
+export {
+  buildLinearLayout,
+  getDungeonLayout,
+  validateDungeonLayout,
+  validateDungeonLayouts,
+} from "./story/dungeonLayouts.js";
+export type {
+  DungeonLayout,
+  GateCondition,
+  LayoutBeatAnchor,
+  LayoutEnemyPlacement,
+  LayoutGate,
+  LayoutObstacle,
+  LayoutObstacleKind,
+  LayoutRect,
+  LayoutTheme,
+  LayoutVec,
+  LayoutZone,
+} from "./story/dungeonLayouts.js";

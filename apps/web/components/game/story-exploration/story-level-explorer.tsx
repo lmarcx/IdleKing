@@ -12,7 +12,9 @@ import {
   canEnterDungeon,
   completeDungeon,
   completeStoryLevelAction,
+  getDungeonLayout,
   getLevelScript,
+  type DungeonLayout,
   type DungeonXpReward,
   type LevelBeat,
   type RewardBundle,
@@ -69,18 +71,6 @@ function getBeatColor(kind: LevelBeat["kind"]): number {
   }
 }
 
-// Hand-placed path of beats for the prologue, from the spawn toward the boss.
-const BEAT_POSITIONS: Record<string, { x: number; y: number }> = {
-  ruins: { x: 720, y: 700 },
-  find_dog: { x: 520, y: 1060 },
-  feed: { x: 780, y: 1290 },
-  shadows: { x: 1200, y: 1080 },
-  amalgam: { x: 1980, y: 760 },
-  drop_of_darkness: { x: 2090, y: 600 },
-  billy_joins: { x: 1820, y: 520 },
-  kingdom_found: { x: 1480, y: 360 },
-};
-
 const BEAT_FALLBACK_POSITIONS = [
   { x: 420, y: 360 },
   { x: 1180, y: 520 },
@@ -89,9 +79,10 @@ const BEAT_FALLBACK_POSITIONS = [
   { x: 1580, y: 1320 },
 ];
 
-function createBeatPois(beats: readonly LevelBeat[]): ExplorationPoi[] {
+function createBeatPois(beats: readonly LevelBeat[], layout?: DungeonLayout): ExplorationPoi[] {
   return beats.map((beat, index) => {
-    const position = BEAT_POSITIONS[beat.id] ?? BEAT_FALLBACK_POSITIONS[index % BEAT_FALLBACK_POSITIONS.length];
+    const anchor = layout?.beats.find((candidate) => candidate.beatId === beat.id);
+    const position = anchor ?? BEAT_FALLBACK_POSITIONS[index % BEAT_FALLBACK_POSITIONS.length];
     return {
       beat,
       color: getBeatColor(beat.kind),
@@ -122,9 +113,12 @@ function beatLabel(kind: LevelBeat["kind"]): string {
 function createExplorationPois(
   level: StoryLevelExplorerProps["level"],
   dungeonId?: string,
+  layout?: DungeonLayout,
 ): ExplorationPoi[] {
   const script = dungeonId ? getLevelScript(dungeonId) : undefined;
-  if (script) return createBeatPois(script.beats);
+  if (script) return createBeatPois(script.beats, layout);
+  // Unscripted dungeons have no narrative objective: clearing the rooms is the objective.
+  if (dungeonId) return [];
 
   const fallbackPositions = BEAT_FALLBACK_POSITIONS;
 
@@ -278,15 +272,15 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
     : gameState.story.completedLevels.has(level.id);
   // Frozen at mount: completing the first clear mid-run must not turn this run into a replay.
   const [isReplay] = useState(() => Boolean(dungeonId) && hasCompletedLevel);
+  const layout = useMemo(() => (dungeonId ? getDungeonLayout(dungeonId) : undefined), [dungeonId]);
+  const mapWidth = layout?.width ?? MAP_WIDTH;
+  const mapHeight = layout?.height ?? MAP_HEIGHT;
   const canCompleteDungeon = dungeonId ? canEnterDungeon(gameState, dungeonId) : true;
   const { isOverlayOpen: isGameHudOverlayOpen } = useGameHudOverlay();
-  const [playerPosition, setPlayerPosition] = useState({
-    x: MAP_WIDTH / 2,
-    y: MAP_HEIGHT / 2,
-  });
+  const [playerPosition, setPlayerPosition] = useState(() => layout?.playerSpawn ?? { x: MAP_WIDTH / 2, y: MAP_HEIGHT / 2 });
   const pointsOfInterest = useMemo(
-    () => (isReplay ? [] : createExplorationPois(level, dungeonId)),
-    [isReplay, level, dungeonId]
+    () => (isReplay ? [] : createExplorationPois(level, dungeonId, layout)),
+    [isReplay, level, dungeonId, layout]
   );
   const hasBossBeat = useMemo(
     () => pointsOfInterest.some((point) => point.beat?.kind === "boss"),
@@ -302,12 +296,28 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
   } | null>(null);
   const [combatHud, setCombatHud] = useState<ExplorationCombatHudState | null>(null);
 
+  // Scripted beats unlock strictly in order, plus their layout condition (zone cleared / boss down).
+  const completedBeatIds = useMemo(() => new Set(discoveredPoiIds), [discoveredPoiIds]);
+  const clearedZoneKey = combatHud?.clearedZoneIds.join("|") ?? "";
+  const bossDefeatedNow = combatHud?.bossDefeated ?? false;
+  const interactablePoiIds = useMemo(() => {
+    if (!layout || layout.beats.length === 0) return undefined;
+    const next = pointsOfInterest.find((point) => !discoveredPoiIds.has(point.id));
+    if (!next) return new Set<string>();
+    const anchor = layout.beats.find((candidate) => candidate.beatId === next.id);
+    const cleared = new Set(clearedZoneKey ? clearedZoneKey.split("|") : []);
+    if (anchor?.requires?.zoneCleared && !cleared.has(anchor.requires.zoneCleared)) return new Set<string>();
+    if (anchor?.requires?.bossDefeated && !bossDefeatedNow) return new Set<string>();
+    return new Set([next.id]);
+  }, [bossDefeatedNow, clearedZoneKey, discoveredPoiIds, layout, pointsOfInterest]);
+
   // POIs and progression-required objects no longer auto-complete on proximity —
   // the player must press F while in range (see PixiExplorationStage's
   // onPoiInteractAction), which calls this handler.
   const handlePoiInteract = useCallback(
     (poiId: string) => {
       if (discoveredPoiIds.has(poiId)) return;
+      if (interactablePoiIds && !interactablePoiIds.has(poiId)) return;
       const point = pointsOfInterest.find((candidate) => candidate.id === poiId);
       if (!point) return;
 
@@ -319,7 +329,7 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
 
       if (point.beat) setDialogueQueue((queue) => [...queue, point.beat!]);
     },
-    [discoveredPoiIds, pointsOfInterest]
+    [discoveredPoiIds, interactablePoiIds, pointsOfInterest]
   );
 
   // Promote the next queued beat into the active dialogue box.
@@ -410,10 +420,14 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
   return (
     <section className="relative h-[calc(100vh-2rem)] min-h-[44rem] overflow-hidden rounded-xl border border-amber-200/25 bg-black shadow-[0_22px_70px_rgba(0,0,0,0.48)]">
       <PixiExplorationStage
+        completedBeatIds={completedBeatIds}
         inputBlocked={isGameHudOverlayOpen || completion !== null || !canCompleteDungeon || activeDialogue !== null}
+        interactablePoiIds={interactablePoiIds}
+        isReplay={isReplay}
+        layout={layout}
         levelId={level.id}
-        mapHeight={MAP_HEIGHT}
-        mapWidth={MAP_WIDTH}
+        mapHeight={mapHeight}
+        mapWidth={mapWidth}
         onCombatHudChangeAction={setCombatHud}
         onPlayerMoveAction={setPlayerPosition}
         onPoiInteractAction={handlePoiInteract}
@@ -435,7 +449,7 @@ function StoryLevelRun({ dungeonId, level, onReplay }: StoryLevelExplorerProps &
           />
           <ExplorationHud playerPosition={playerPosition} pointsOfInterest={hudPointsOfInterest} />
           <div className="pointer-events-none absolute left-4 bottom-40 z-10 max-w-xs rounded-lg border border-amber-200/18 bg-black/55 px-4 py-2 font-ik-body text-xs text-muted-foreground">
-            Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace. Interagir : F.
+            Deplacement : WASD, ZQSD ou fleches. Sprint : Shift. Dash : Espace. Clic G/D : attaques de l'arme. Interagir : F.
           </div>
         </>
       ) : null}

@@ -5,6 +5,8 @@
 // combat damage formula.
 import {
   enemies as coreEnemies,
+  type LayoutRect,
+  type LayoutZone,
   type random,
 } from "@idleking/game-core";
 
@@ -30,6 +32,8 @@ export type StoryLevelEnemy = {
   isBoss?: boolean;
   /** game-core enemy archetype (enemies/registry.ts); drives loot, attack style and silhouette. */
   archetypeId?: string;
+  /** Layout zone the enemy belongs to (gates open when a zone is cleared). */
+  zoneId?: string;
   attackStyle: coreEnemies.EnemyAttackKind;
   silhouette: coreEnemies.EnemySilhouette;
   tier: coreEnemies.EnemyTier;
@@ -153,6 +157,48 @@ export function createInitialEnemies(levelId?: string): StoryLevelEnemy[] {
     regularIndex += 1;
     return makeArchetypeEnemy(archetype, index, spawnPointFor(index));
   });
+}
+
+/** Enemies of one layout zone (game-core story/dungeonLayouts), positioned by the level design. */
+export function createZoneEnemies(zone: LayoutZone): StoryLevelEnemy[] {
+  return zone.enemies.map((placement, index) => ({
+    ...makeArchetypeEnemy(coreEnemies.getEnemyArchetypeOrThrow(placement.archetypeId), index, placement),
+    id: `${zone.id}-${placement.archetypeId}-${index + 1}`,
+    zoneId: zone.id,
+  }));
+}
+
+/** Pushes a circle out of every overlapping rect (axis of least penetration). Mutates `position`. */
+export function resolveCircleAgainstRects(position: CombatVector, radius: number, rects: readonly LayoutRect[]): boolean {
+  let collided = false;
+  for (const area of rects) {
+    const nearestX = Math.max(area.x, Math.min(position.x, area.x + area.width));
+    const nearestY = Math.max(area.y, Math.min(position.y, area.y + area.height));
+    const dx = position.x - nearestX;
+    const dy = position.y - nearestY;
+    const distance = Math.hypot(dx, dy);
+    if (distance >= radius) continue;
+    collided = true;
+    if (distance > 0.0001) {
+      position.x = nearestX + (dx / distance) * radius;
+      position.y = nearestY + (dy / distance) * radius;
+      continue;
+    }
+    // Centre inside the rect: leave through the closest edge.
+    const exits = [
+      { axis: "x" as const, value: area.x - radius, cost: position.x - area.x },
+      { axis: "x" as const, value: area.x + area.width + radius, cost: area.x + area.width - position.x },
+      { axis: "y" as const, value: area.y - radius, cost: position.y - area.y },
+      { axis: "y" as const, value: area.y + area.height + radius, cost: area.y + area.height - position.y },
+    ].sort((a, b) => a.cost - b.cost);
+    position[exits[0].axis] = exits[0].value;
+  }
+  return collided;
+}
+
+/** True when a point is inside any rect (projectiles hitting walls). */
+export function isPointInsideRects(point: CombatVector, rects: readonly LayoutRect[]): boolean {
+  return rects.some((area) => point.x >= area.x && point.x <= area.x + area.width && point.y >= area.y && point.y <= area.y + area.height);
 }
 
 /** Rolls the loot of a dead enemy: game-core archetype loot, or the legacy grunt table. */

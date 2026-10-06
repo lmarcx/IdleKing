@@ -10,3 +10,4 @@ export * from "./levelScripts.js";
 export * from "./scenarioAdapter.js";
 export * from "./scripts/index.js";
 export * from "./scripts/types.js";
+export * from "./dungeonLayouts.js";
